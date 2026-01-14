@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
+import { addCommand } from './commands/add.js';
 
 const program = new Command();
 
@@ -14,6 +15,13 @@ program
   .option('-p, --port <port>', '主分支开发服务器端口')
   .action(async (options) => {
     await initCommand(options);
+  });
+
+program
+  .command('add <branch>')
+  .description('创建新的 worktree')
+  .action(async (branch: string) => {
+    await addCommand(branch);
   });
 
 export function run(): void {
