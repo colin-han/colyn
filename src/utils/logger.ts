@@ -23,6 +23,13 @@ export function outputSuccess(message: string): void {
 }
 
 /**
+ * 输出错误信息到 stderr
+ */
+export function outputError(message: string): void {
+  output(chalk.red(`✗ ${message}`));
+}
+
+/**
  * 输出警告信息到 stderr
  */
 export function outputWarning(message: string): void {

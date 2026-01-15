@@ -264,8 +264,8 @@ graph TD
 
 | 检查项 | 检查内容 | 失败提示 |
 |--------|----------|----------|
-| 是否已初始化 | 检查 `.colyn/config.json` | 请先运行 `colyn init` |
-| Worktree 是否存在 | 在配置中查找 worktree | ID 或分支名不存在，运行 `colyn list` 查看 |
+| 是否已初始化 | 检查 `.colyn` 目录 | 请先运行 `colyn init` |
+| Worktree 是否存在 | 通过 discovery 模块查找 | ID 或分支名不存在，运行 `colyn list` 查看 |
 | 主分支目录状态 | `git status` 是否干净 | 请先提交或 stash 主分支的更改 |
 | Worktree 目录状态 | `git status` 是否干净 | 请先提交 worktree 的更改 |
 
