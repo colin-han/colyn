@@ -161,10 +161,9 @@ export async function mergeCommand(
       pushed
     );
 
-    // 步骤10: 输出 JSON 结果到 stdout
+    // 步骤10: 输出 JSON 结果到 stdout（不设置 targetDir，保持在原目录）
     const result: CommandResult = {
-      success: true,
-      targetDir: paths.mainDir
+      success: true
     };
     outputResult(result);
 
