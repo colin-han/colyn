@@ -8,6 +8,7 @@
     "dev": "tsc --watch",
     "build": "tsc",
     "colyn": "node dist/index.js",
+    "install-to": "node scripts/install.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
