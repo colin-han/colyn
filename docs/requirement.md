@@ -75,13 +75,15 @@
      - 合并后保留 worktree（不自动删除）
      - 冲突发生在 worktree 中，便于在开发环境解决
 
-#### 📋 4. 签出分支（checkout）- 待设计
+#### ✅ 4. 签出分支（checkout）- 已实现
    - **描述**：在指定的 worktree 中切换或创建分支
    - **用户价值**：复用已有 worktree，避免创建过多目录
    - **主要功能**：
-     - 在 worktree 中切换到其他分支
+     - 支持通过 ID 指定 worktree 或在 worktree 目录中自动识别
+     - 智能处理分支（本地、远程跟踪、新建）
      - 检查当前分支是否已合并
-     - 更新 .env.local 中的分支信息
+     - 自动归档日志到 archived 目录
+     - 可选删除已合并的旧分支
 
 ### 2.2 辅助功能
 
@@ -90,12 +92,7 @@
    - **用户价值**：快速了解当前有哪些并行开发环境
    - **显示信息**：ID、分支名、端口、路径、状态
 
-#### 📋 2. 查看状态（status）- 待实现
-   - **描述**：显示指定 worktree 相对于主分支的修改
-   - **用户价值**：快速了解分支的开发进度
-   - **显示信息**：变更文件数、新增/删除行数、提交数
-
-#### ✅ 3. 删除 worktree（remove）- 已实现
+#### ✅ 2. 删除 worktree（remove）- 已实现
    - **描述**：删除不再需要的 worktree
    - **用户价值**：清理工作空间，释放磁盘空间
    - **主要功能**：
@@ -287,11 +284,6 @@ graph TD
 - 端口号
 - 文件路径
 
-**状态展示**（`colyn status`）：
-- 修改的文件数
-- 新增/删除的代码行数
-- 相对主分支的提交数
-
 **操作反馈**：
 - 成功消息（✓ 绿色）
 - 错误提示（✗ 红色，包含解决建议）
@@ -358,7 +350,7 @@ graph TD
 
 ### 6.1 性能要求
 
-- **响应时间**：常规命令（如 list、status）应在 1 秒内完成
+- **响应时间**：常规命令（如 list、info）应在 1 秒内完成
 - **并发处理**：不涉及并发，单用户单进程使用
 - **数据量**：支持管理至少 20 个 worktree
 
@@ -393,13 +385,10 @@ graph TD
 - [x] 列表查看（`list`）：展示所有 worktree 信息
 - [x] 合并 worktree（`merge`）：两步合并策略，支持推送选项
 - [x] 删除 worktree（`remove`）：安全删除，自动目录切换
+- [x] 签出分支（`checkout`）：在 worktree 中切换分支，自动归档日志
 - [x] 从任意位置运行命令：自动定位项目根目录
 - [x] 完善的错误处理：分支冲突时提供详细的解决方案
 - [x] 跨平台支持：macOS、Linux、Windows
-
-**待实现**：
-- [ ] 签出分支（`checkout`）：在 worktree 中切换分支
-- [ ] 查看状态（`status`）：显示变更统计
 
 ### 7.2 质量验收
 
@@ -553,17 +542,15 @@ colyn list
 # 1   feature-login     10001  /path/to/worktrees/task-1
 # 2   feature-dashboard 10002  /path/to/worktrees/task-2
 
-# 查看状态
-colyn status 1
-# 输出示例：
-# Branch: feature-login
-# Changed files: 5 (+120, -30)
-# Commits ahead: 3
-
 # 合并
 colyn merge 1                 # 仅合并到本地
 colyn merge feature-login     # 使用分支名
 colyn merge 1 --push          # 合并并推送
+
+# 删除
+colyn remove 1                # 删除 worktree
+colyn remove feature-login    # 使用分支名
+colyn remove 1 -y             # 跳过确认
 
 # 签出分支
 colyn checkout 1 bugfix-issue-123
