@@ -121,6 +121,31 @@ colyn add <branch>
 - 复制主分支环境变量并更新
 - 执行后自动切换到 worktree 目录
 
+### `colyn merge [target]`
+
+将 worktree 分支合并回主分支。
+
+```bash
+colyn merge [target] [options]
+
+参数：
+  target  可选，支持以下形式：
+          - 数字：按 ID 查找（如 colyn merge 1）
+          - 分支名：按分支名查找（如 colyn merge feature/login）
+          - 不传：自动识别当前 worktree
+
+选项：
+  --push     合并后自动推送到远程
+  --no-push  合并后不推送，不询问
+```
+
+**功能**：
+- 智能识别 worktree（ID、分支名或自动检测）
+- 前置检查（主分支和 worktree 工作目录必须干净）
+- 使用 `--no-ff` 保持清晰的分支历史
+- 可选推送到远程仓库
+- 合并后保留 worktree（由用户决定删除时机）
+
 ---
 
 ## 环境变量
@@ -214,7 +239,7 @@ colyn/
 
 - [x] `init` - 初始化项目结构
 - [x] `add` - 创建 worktree
-- [ ] `merge` - 合并 worktree 到主分支
+- [x] `merge` - 合并 worktree 到主分支
 - [ ] `list` - 列出所有 worktree
 - [ ] `status` - 查看 worktree 状态
 - [ ] `remove` - 删除 worktree

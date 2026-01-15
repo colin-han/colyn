@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { addCommand } from './commands/add.js';
+import { mergeCommand } from './commands/merge.js';
 
 const program = new Command();
 
@@ -28,6 +29,15 @@ program
   .description('创建新的 worktree')
   .action(async (branch: string) => {
     await addCommand(branch);
+  });
+
+program
+  .command('merge [target]')
+  .description('将 worktree 分支合并回主分支')
+  .option('--push', '合并后自动推送到远程')
+  .option('--no-push', '合并后不推送')
+  .action(async (target: string | undefined, options: { push?: boolean }) => {
+    await mergeCommand(target, options);
   });
 
 export function run(): void {
