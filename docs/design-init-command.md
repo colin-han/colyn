@@ -393,22 +393,19 @@ my-project/                 # 项目根目录
 │   ├── .gitignore         # 包含 .env.local 忽略规则
 │   └── ...                # 其他项目文件
 ├── worktrees/             # Worktree 目录（初始为空）
-└── .colyn/                # Colyn 配置目录
-    └── config.json        # 项目配置文件
+└── .colyn/                # Colyn 配置目录（仅作为项目标识）
 ```
 
-### 7.2 配置文件内容
+### 7.2 数据来源
 
-**`.colyn/config.json`**:
-```json
-{
-  "version": "1.0.0",
-  "mainBranch": "main",
-  "mainPort": 10000,
-  "nextWorktreeId": 1,
-  "worktrees": []
-}
-```
+项目信息从文件系统动态获取，无需配置文件：
+
+| 数据 | 来源 |
+|------|------|
+| 主分支名称 | 主分支目录的 `git branch --show-current` |
+| 主端口 | 主分支目录的 `.env.local` 中的 `PORT` |
+| 下一个 Worktree ID | 扫描 `worktrees/task-*` 目录，取最大 ID + 1 |
+| Worktree 列表 | `git worktree list` + 各目录的 `.env.local` |
 
 **`my-project/.env.local`**:
 ```env
@@ -554,7 +551,7 @@ A: 系统不会自动回滚，根据错误提示手动恢复或重新运行。�
 
 ### Q4: 可以修改端口配置吗？
 
-A: 可以直接编辑 `.colyn/config.json` 文件中的 `mainPort` 字段，和主分支目录下 `.env.local` 中的 `PORT` 值。
+A: 可以直接编辑主分支目录下 `.env.local` 中的 `PORT` 值。由于配置信息是从文件系统动态获取的，修改后立即生效。
 
 ### Q5: 补全模式会覆盖我的配置吗？
 

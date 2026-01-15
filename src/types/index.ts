@@ -22,17 +22,6 @@ export interface DirectoryInfo {
 }
 
 /**
- * Colyn 配置接口
- */
-export interface ColynConfig {
-  version: string;
-  mainBranch: string;
-  mainPort: number;
-  nextWorktreeId: number;
-  worktrees: WorktreeInfo[];
-}
-
-/**
  * Worktree 信息接口
  */
 export interface WorktreeInfo {

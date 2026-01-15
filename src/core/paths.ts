@@ -16,8 +16,6 @@ export interface ProjectPaths {
   worktreesDir: string;
   /** .colyn 配置目录完整路径 */
   configDir: string;
-  /** config.json 文件路径 */
-  configFile: string;
 }
 
 /**
@@ -84,8 +82,7 @@ export async function getProjectPaths(startDir: string = process.cwd()): Promise
     mainDirName,
     mainDir: path.join(rootDir, mainDirName),
     worktreesDir: path.join(rootDir, 'worktrees'),
-    configDir: path.join(rootDir, '.colyn'),
-    configFile: path.join(rootDir, '.colyn', 'config.json')
+    configDir: path.join(rootDir, '.colyn')
   };
 }
 
@@ -175,9 +172,9 @@ export async function validateDirectoryExists(dirPath: string, errorMessage: str
  * 验证项目已初始化
  */
 export async function validateProjectInitialized(paths: ProjectPaths): Promise<void> {
-  // 检查配置文件是否存在
+  // 检查 .colyn 配置目录是否存在（不再需要 config.json）
   try {
-    await fs.access(paths.configFile);
+    await fs.access(paths.configDir);
   } catch {
     throw new ColynError(
       '项目未初始化',

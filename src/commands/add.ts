@@ -1,24 +1,23 @@
 import * as path from 'path';
-import chalk from 'chalk';
-import { loadConfig } from '../core/config.js';
 import {
   getProjectPaths,
   validateProjectInitialized,
   executeInDirectory
 } from '../core/paths.js';
-import type { WorktreeInfo, CommandResult } from '../types/index.js';
+import {
+  discoverProjectInfo,
+  findWorktreeByBranch
+} from '../core/discovery.js';
+import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { formatError, outputResult } from '../utils/logger.js';
 import {
   isValidBranchName,
-  assignWorktreeIdAndPort,
   checkIsGitRepo,
   checkMainEnvFile,
-  checkBranchWorktreeConflict,
   handleBranch,
   createWorktree,
   configureWorktreeEnv,
-  updateConfigWithWorktree,
   displayAddSuccess
 } from './add.helpers.js';
 
@@ -45,49 +44,51 @@ export async function addCommand(branchName: string): Promise<void> {
     const paths = await getProjectPaths();
     await validateProjectInitialized(paths);
 
-    // 步骤3: 加载配置和检查
-    const config = await loadConfig(paths.rootDir);
-
-    // 在主分支目录中检查 git 仓库
+    // 步骤3: 在主分支目录中检查 git 仓库
     await executeInDirectory(paths.mainDir, async () => {
       await checkIsGitRepo();
     });
 
     await checkMainEnvFile(paths.rootDir, paths.mainDirName);
-    await checkBranchWorktreeConflict(config, cleanBranchName);
 
-    // 步骤4: 在主分支目录中处理分支（本地/远程/新建）
+    // 步骤4: 从文件系统发现项目信息（替代 loadConfig）
+    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+
+    // 步骤5: 检查分支是否已有 worktree
+    const existingWorktree = await findWorktreeByBranch(
+      paths.mainDir,
+      paths.worktreesDir,
+      cleanBranchName
+    );
+    if (existingWorktree) {
+      throw new ColynError(
+        `分支 "${cleanBranchName}" 已存在 worktree`,
+        `ID: ${existingWorktree.id}, 路径: ${existingWorktree.path}`
+      );
+    }
+
+    // 步骤6: 在主分支目录中处理分支（本地/远程/新建）
     await executeInDirectory(paths.mainDir, async () => {
-      await handleBranch(cleanBranchName, config.mainBranch);
+      await handleBranch(cleanBranchName, projectInfo.mainBranch);
     });
 
-    // 步骤5: 分配 ID 和端口
-    const { id, port } = assignWorktreeIdAndPort(config);
+    // 步骤7: 分配 ID 和端口（从发现的信息中获取）
+    const id = projectInfo.nextWorktreeId;
+    const port = projectInfo.mainPort + id;
 
-    // 步骤6: 在主分支目录创建 worktree（git 仓库所在地）
+    // 步骤8: 在主分支目录创建 worktree（git 仓库所在地）
     const worktreePath = await executeInDirectory(paths.mainDir, async () => {
-      return await createWorktree(paths.rootDir, cleanBranchName, id, config);
+      return await createWorktree(paths.rootDir, cleanBranchName, id, projectInfo.worktrees);
     });
 
-    // 步骤7: 配置环境变量
+    // 步骤9: 配置环境变量
     await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
 
-    // 步骤8: 更新配置文件
-    const worktreeInfo: WorktreeInfo = {
-      id,
-      branch: cleanBranchName,
-      path: worktreePath,
-      port,
-      createdAt: new Date().toISOString()
-    };
-
-    await updateConfigWithWorktree(paths.rootDir, config, worktreeInfo);
-
-    // 步骤9: 计算相对路径并显示成功信息
+    // 步骤10: 计算相对路径并显示成功信息
     const displayPath = path.relative(paths.rootDir, worktreePath);
     displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath);
 
-    // 步骤10: 输出 JSON 结果到 stdout（供 bash 解析）
+    // 步骤11: 输出 JSON 结果到 stdout（供 bash 解析）
     const result: CommandResult = {
       success: true,
       targetDir: worktreePath,

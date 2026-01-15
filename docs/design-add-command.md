@@ -387,8 +387,7 @@ Worktree 信息：
 project-root/
 ├── project-name/        # 主分支
 ├── worktrees/           # 空目录
-└── .colyn/
-    └── config.json
+└── .colyn/              # 配置目录（仅作为项目标识）
 ```
 
 **创建后**（假设创建了 ID 为 1 的 worktree）：
@@ -400,43 +399,23 @@ project-root/
 │       ├── src/
 │       ├── .env.local  # PORT=10001, WORKTREE=1
 │       └── ...
-└── .colyn/
-    └── config.json     # 更新了 worktrees 数组
+└── .colyn/              # 配置目录（仅作为项目标识）
 ```
 
-### 7.2 配置文件更新
+### 7.2 数据来源（无配置文件）
 
-**`.colyn/config.json` 变化**：
+项目信息从文件系统动态获取，无需配置文件：
 
-创建前：
-```json
-{
-  "version": "1.0.0",
-  "mainBranch": "main",
-  "mainPort": 10000,
-  "nextWorktreeId": 1,
-  "worktrees": []
-}
-```
+| 数据 | 获取方式 |
+|------|---------|
+| 主分支名称 | 主分支目录的 `git branch --show-current` |
+| 主端口 | 主分支目录的 `.env.local` 中的 `PORT` |
+| 下一个 Worktree ID | 扫描 `worktrees/task-*` 目录，取最大 ID + 1 |
+| Worktree 列表 | `git worktree list` + 各目录的 `.env.local` |
 
-创建后：
-```json
-{
-  "version": "1.0.0",
-  "mainBranch": "main",
-  "mainPort": 10000,
-  "nextWorktreeId": 2,     // 递增
-  "worktrees": [
-    {
-      "id": 1,
-      "branch": "feature/login",
-      "path": "/full/path/to/worktrees/task-1",
-      "port": 10001,
-      "createdAt": "2026-01-15T10:30:00.000Z"
-    }
-  ]
-}
-```
+**设计优势**：
+- 单一数据源，避免数据不一致
+- 即使手动操作 git worktree 也不会破坏状态
 
 ### 7.3 环境变量文件
 
@@ -654,7 +633,7 @@ A: 不会。系统复制主分支的 `.env.local` 文件，只更新 `PORT` 和 
 
 ### Q8: 如何查看我创建了哪些 worktree？
 
-A: 运行 `colyn list` 命令（待实现）或查看 `.colyn/config.json` 文件。
+A: 运行 `colyn list` 命令（待实现）或运行 `git worktree list` 命令。
 
 ---
 

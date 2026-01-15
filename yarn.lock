@@ -1058,7 +1058,7 @@ __metadata:
     typescript: "npm:^5.3.3"
     vitest: "npm:^1.2.0"
   bin:
-    colyn: ./dist/index.js
+    colyn: ./bin/colyn
   languageName: unknown
   linkType: soft
 

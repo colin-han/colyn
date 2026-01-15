@@ -6,7 +6,6 @@ import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
 import type { DirectoryInfo } from '../types/index.js';
 import { detectMainBranch, checkWorkingDirectoryClean } from '../core/git.js';
-import { saveConfig, createDefaultConfig, configExists, loadConfig } from '../core/config.js';
 import {
   createDirectoryStructure,
   moveFilesToMainDir,
@@ -61,11 +60,7 @@ export async function handleEmptyDirectory(
   // 步骤3: 创建 .gitignore
   await configureGitignore(mainDirPath);
 
-  // 步骤4: 保存配置
-  const config = createDefaultConfig(mainBranch, port);
-  await saveConfig(rootDir, config);
-
-  // 步骤5: 显示成功信息
+  // 步骤4: 显示成功信息
   displayEmptyDirectorySuccess(mainDirName, port, mainBranch);
 
   return { mainDirPath, mainDirName };
@@ -108,27 +103,15 @@ export async function handleInitializedDirectory(
     });
   }
 
-  // 检查并补全配置目录和文件
+  // 检查并补全 .colyn 配置目录（仅目录，不再需要 config.json）
   if (!dirInfo.hasConfigDir) {
     tasks.push({
-      name: '创建配置文件',
+      name: '创建 .colyn 配置目录',
       action: async () => {
-        const config = createDefaultConfig(mainBranch, port);
-        await saveConfig(rootDir, config);
+        const configDirPath = path.join(rootDir, '.colyn');
+        await fs.mkdir(configDirPath, { recursive: true });
       }
     });
-  } else {
-    // 配置文件可能存在，检查是否需要更新
-    const exists = await configExists(rootDir);
-    if (!exists) {
-      tasks.push({
-        name: '创建配置文件',
-        action: async () => {
-          const config = createDefaultConfig(mainBranch, port);
-          await saveConfig(rootDir, config);
-        }
-      });
-    }
   }
 
   // 如果主分支目录存在，检查环境变量配置
@@ -237,11 +220,7 @@ export async function handleExistingProject(
   // 步骤10: 配置 .gitignore
   await configureGitignore(mainDirPath);
 
-  // 步骤11: 保存配置
-  const config = createDefaultConfig(mainBranch, port);
-  await saveConfig(rootDir, config);
-
-  // 步骤12: 显示成功信息
+  // 步骤11: 显示成功信息
   displaySuccessInfo(mainDirName, port, mainBranch);
 
   return { mainDirPath, mainDirName };

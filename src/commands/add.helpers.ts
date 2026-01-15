@@ -3,9 +3,8 @@ import * as path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import simpleGit from 'simple-git';
-import type { ColynConfig, WorktreeInfo } from '../types/index.js';
+import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
-import { saveConfig } from '../core/config.js';
 import {
   output,
   outputLine,
@@ -40,23 +39,13 @@ export function isValidBranchName(branchName: string): boolean {
 }
 
 /**
- * 分配 worktree ID 和端口
- */
-export function assignWorktreeIdAndPort(config: ColynConfig): { id: number; port: number } {
-  const id = config.nextWorktreeId;
-  const port = config.mainPort + id;
-
-  return { id, port };
-}
-
-/**
- * 检查是否已初始化
+ * 检查是否已初始化（通过检查 .colyn 目录是否存在）
  */
 export async function checkInitialized(rootDir: string): Promise<void> {
-  const configPath = path.join(rootDir, '.colyn', 'config.json');
+  const configDir = path.join(rootDir, '.colyn');
 
   try {
-    await fs.access(configPath);
+    await fs.access(configDir);
   } catch {
     throw new ColynError(
       '当前目录未初始化',
@@ -93,23 +82,6 @@ export async function checkMainEnvFile(rootDir: string, mainDirName: string): Pr
     throw new ColynError(
       '主分支目录缺少 .env.local 文件',
       '请先在主分支目录配置环境变量'
-    );
-  }
-}
-
-/**
- * 检查分支是否已有 worktree
- */
-export async function checkBranchWorktreeConflict(
-  config: ColynConfig,
-  branch: string
-): Promise<void> {
-  const existingWorktree = config.worktrees.find(w => w.branch === branch);
-
-  if (existingWorktree) {
-    throw new ColynError(
-      `分支 "${branch}" 已存在 worktree`,
-      `ID: ${existingWorktree.id}, 路径: ${existingWorktree.path}`
     );
   }
 }
@@ -176,13 +148,13 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
  * @param rootDir 项目根目录（用于计算相对路径）
  * @param branchName 分支名称
  * @param id worktree ID
- * @param config 配置信息（用于查找已存在的 worktree）
+ * @param worktrees 已存在的 worktree 列表（用于查找冲突时提供信息）
  */
 export async function createWorktree(
   rootDir: string,
   branchName: string,
   id: number,
-  config: ColynConfig
+  worktrees: WorktreeInfo[]
 ): Promise<string> {
   const spinner = ora({ text: '创建 worktree...', stream: process.stderr }).start();
 
@@ -212,8 +184,8 @@ export async function createWorktree(
       const pathMatch = errorMessage.match(/already used by worktree at ['"]?([^'"]+)['"]?/);
       const existingPath = pathMatch ? pathMatch[1] : null;
 
-      // 查找配置中该分支对应的 worktree
-      const existingWorktree = config.worktrees.find(w => w.branch === branchName);
+      // 查找已存在的 worktree 中该分支对应的信息
+      const existingWorktree = worktrees.find(w => w.branch === branchName);
 
       if (existingWorktree) {
         // 该分支在当前项目的配置中
@@ -345,33 +317,6 @@ export async function configureWorktreeEnv(
     spinner.succeed('环境变量配置完成');
   } catch (error) {
     spinner.fail('配置环境变量失败');
-    throw error;
-  }
-}
-
-/**
- * 更新配置文件，添加 worktree 信息
- */
-export async function updateConfigWithWorktree(
-  rootDir: string,
-  config: ColynConfig,
-  worktreeInfo: WorktreeInfo
-): Promise<void> {
-  const spinner = ora({ text: '更新配置文件...', stream: process.stderr }).start();
-
-  try {
-    // 添加 worktree 信息
-    config.worktrees.push(worktreeInfo);
-
-    // 递增 nextWorktreeId
-    config.nextWorktreeId += 1;
-
-    // 保存配置
-    await saveConfig(rootDir, config);
-
-    spinner.succeed('配置文件更新完成');
-  } catch (error) {
-    spinner.fail('更新配置文件失败');
     throw error;
   }
 }

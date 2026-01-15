@@ -9,9 +9,8 @@ import {
   type DirectoryInfo,
   ColynError
 } from '../types/index.js';
-import { checkIsRepo, checkWorkingDirectoryClean, detectMainBranch } from '../core/git.js';
+import { checkIsRepo } from '../core/git.js';
 import { updateEnvFilePreserveComments } from '../core/env.js';
-import { saveConfig, configExists, createDefaultConfig } from '../core/config.js';
 import { findProjectRoot } from '../core/paths.js';
 import {
   output,
