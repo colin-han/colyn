@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Git worktree 管理工具",
   "type": "module",
-  "bin": "./dist/index.js",
+  "bin": "./bin/colyn",
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",

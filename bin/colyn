@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Colyn - Git Worktree 管理工具
+# 纯 Node.js 入口（不做目录切换）
+# 如需目录切换功能，请 source shell/colyn.sh
+
+# 保存用户当前工作目录
+USER_CWD="$(pwd)"
+
+# 定位脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+COLYN_CORE="${PROJECT_DIR}/dist/index.js"
+
+# 检查 Node.js 核心是否存在
+if [[ ! -f "${COLYN_CORE}" ]]; then
+  echo "错误: 找不到 colyn 核心文件" >&2
+  exit 1
+fi
+
+# 切换到项目目录（yarn PnP 需要）
+cd "$PROJECT_DIR" || exit 1
+
+# 执行 Node.js 核心
+COLYN_USER_CWD="$USER_CWD" yarn node "${COLYN_CORE}" "$@"

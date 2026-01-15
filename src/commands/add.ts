@@ -6,9 +6,9 @@ import {
   validateProjectInitialized,
   executeInDirectory
 } from '../core/paths.js';
-import type { WorktreeInfo } from '../types/index.js';
+import type { WorktreeInfo, CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
-import { formatError } from '../utils/logger.js';
+import { formatError, outputResult } from '../utils/logger.js';
 import {
   isValidBranchName,
   assignWorktreeIdAndPort,
@@ -83,11 +83,22 @@ export async function addCommand(branchName: string): Promise<void> {
 
     await updateConfigWithWorktree(paths.rootDir, config, worktreeInfo);
 
-    // 步骤9: 显示成功信息
-    displayAddSuccess(id, cleanBranchName, worktreePath, port);
+    // 步骤9: 计算相对路径并显示成功信息
+    const displayPath = path.relative(paths.rootDir, worktreePath);
+    displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath);
+
+    // 步骤10: 输出 JSON 结果到 stdout（供 bash 解析）
+    const result: CommandResult = {
+      success: true,
+      targetDir: worktreePath,
+      displayPath
+    };
+    outputResult(result);
 
   } catch (error) {
     formatError(error);
+    // 输出失败结果
+    outputResult({ success: false });
     process.exit(1);
   }
 }

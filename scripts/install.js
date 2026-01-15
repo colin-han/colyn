@@ -11,10 +11,13 @@
  *   2. 复制编译结果到目标目录
  *   3. 在目标目录安装依赖
  *   4. 创建启动脚本
+ *   5. 复制 shell 集成脚本
+ *   6. 添加到 shell 自启动配置
  */
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 
@@ -83,6 +86,74 @@ function execCommand(command, cwd) {
   } catch (err) {
     return false;
   }
+}
+
+/**
+ * 检测用户的 shell 配置文件
+ */
+async function detectShellConfig() {
+  const homeDir = os.homedir();
+  const shell = process.env.SHELL || '';
+
+  // 按优先级检测配置文件
+  const candidates = [];
+
+  if (shell.includes('zsh')) {
+    candidates.push(path.join(homeDir, '.zshrc'));
+  }
+  if (shell.includes('bash')) {
+    candidates.push(path.join(homeDir, '.bashrc'));
+    candidates.push(path.join(homeDir, '.bash_profile'));
+  }
+  // 默认候选
+  candidates.push(path.join(homeDir, '.zshrc'));
+  candidates.push(path.join(homeDir, '.bashrc'));
+
+  for (const configPath of candidates) {
+    try {
+      await fs.access(configPath);
+      return configPath;
+    } catch {
+      // 文件不存在，继续检查下一个
+    }
+  }
+
+  // 如果都不存在，返回默认的 .bashrc
+  return path.join(homeDir, '.bashrc');
+}
+
+/**
+ * 添加 source 命令到 shell 配置文件
+ */
+async function addToShellConfig(shellConfigPath, colynShellPath) {
+  const marker = '# Colyn shell integration';
+  const sourceLine = `source "${colynShellPath}"`;
+
+  let content = '';
+  try {
+    content = await fs.readFile(shellConfigPath, 'utf-8');
+  } catch {
+    // 文件不存在，创建新文件
+  }
+
+  // 检查是否已经添加过
+  if (content.includes(marker)) {
+    // 已存在，更新路径
+    const lines = content.split('\n');
+    const newLines = lines.map(line => {
+      if (line.startsWith('source') && line.includes('colyn')) {
+        return sourceLine;
+      }
+      return line;
+    });
+    await fs.writeFile(shellConfigPath, newLines.join('\n'), 'utf-8');
+    return 'updated';
+  }
+
+  // 添加新配置
+  const newContent = content.trimEnd() + `\n\n${marker}\n${sourceLine}\n`;
+  await fs.writeFile(shellConfigPath, newContent, 'utf-8');
+  return 'added';
 }
 
 async function main() {
@@ -181,6 +252,18 @@ async function main() {
   }
   success('package.json 复制完成');
 
+  // 复制 shell/colyn.sh
+  info('复制 shell/colyn.sh 到 colyn.d/');
+  const shellSrc = path.join(projectRoot, 'shell', 'colyn.sh');
+  const shellDest = path.join(colynDir, 'colyn.sh');
+
+  const shellCopied = await copyFile(shellSrc, shellDest);
+  if (!shellCopied) {
+    error('复制 shell/colyn.sh 失败');
+    process.exit(1);
+  }
+  success('colyn.sh 复制完成');
+
   // 复制 README.md（可选）
   const readmeSrc = path.join(projectRoot, 'README.md');
   const readmeDest = path.join(colynDir, 'README.md');
@@ -213,6 +296,8 @@ async function main() {
 REM Colyn CLI 启动脚本 (Windows)
 REM 自动生成 - 请勿手动修改
 
+set "USER_CWD=%CD%"
+set "COLYN_USER_CWD=%USER_CWD%"
 node "%~dp0colyn.d\\dist\\index.js" %*
 `;
 
@@ -226,22 +311,23 @@ node "%~dp0colyn.d\\dist\\index.js" %*
       process.exit(1);
     }
   } else {
-    // Unix/Linux/macOS 脚本
-    const unixScriptContent = `#!/usr/bin/env node
+    // Unix/Linux/macOS bash 脚本
+    const unixScriptContent = `#!/bin/bash
 
-/**
- * Colyn CLI 启动脚本
- * 自动生成 - 请勿手动修改
- */
+# Colyn CLI 启动脚本
+# 自动生成 - 请勿手动修改
+# 如需目录切换功能，请 source colyn.d/colyn.sh
 
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+USER_CWD="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+COLYN_CORE="\${SCRIPT_DIR}/colyn.d/dist/index.js"
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+if [[ ! -f "\${COLYN_CORE}" ]]; then
+  echo "错误: 找不到 colyn 核心文件" >&2
+  exit 1
+fi
 
-// 导入主程序（从 colyn.d 目录）
-const mainModule = await import(join(__dirname, 'colyn.d', 'dist', 'index.js'));
+COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
 `;
 
     const unixScriptPath = path.join(targetDir, 'colyn');
@@ -258,7 +344,83 @@ const mainModule = await import(join(__dirname, 'colyn.d', 'dist', 'index.js'));
     }
   }
 
-  // 步骤 7: 完成
+  // 步骤 7: 更新 shell/colyn.sh 中的路径
+  console.log('');
+  log('步骤 7: 更新 shell 集成脚本', 'yellow');
+
+  const shellIntegrationContent = `# Colyn Shell 集成（支持目录切换）
+# 自动生成 - 请勿手动修改
+# 使用方法：source ${shellDest}
+
+colyn() {
+  local COLYN_BIN="${path.join(targetDir, 'colyn')}"
+
+  if [[ ! -f "$COLYN_BIN" ]]; then
+    echo "错误: 找不到 colyn" >&2
+    return 1
+  fi
+
+  # 调用 colyn，捕获 stdout（JSON），stderr 直接显示
+  local result
+  result=$("$COLYN_BIN" "$@")
+  local exit_code=$?
+
+  # 处理输出
+  if [[ -n "$result" ]]; then
+    # 尝试解析 JSON
+    local target_dir display_path
+    target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.targetDir)console.log(r.targetDir)}catch(e){process.exit(1)}" "$result" 2>/dev/null)
+
+    if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
+      # 是 JSON 且有目标目录
+      display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log(r.displayPath||r.targetDir)}catch(e){}" "$result" 2>/dev/null)
+      cd "$target_dir" || return
+      echo "📂 已切换到: $display_path"
+    else
+      # 不是 JSON，原样输出（如 --help）
+      echo "$result"
+    fi
+  fi
+
+  return $exit_code
+}
+`;
+
+  try {
+    await fs.writeFile(shellDest, shellIntegrationContent, 'utf-8');
+    success('shell 集成脚本更新完成');
+  } catch (err) {
+    error(`更新 shell 集成脚本失败: ${err.message}`);
+    process.exit(1);
+  }
+
+  // 步骤 8: 添加到 shell 自启动配置（仅 Unix/macOS）
+  if (platform !== 'win32') {
+    console.log('');
+    log('步骤 8: 配置 shell 自启动', 'yellow');
+
+    try {
+      const shellConfigPath = await detectShellConfig();
+      info(`检测到 shell 配置文件: ${shellConfigPath}`);
+
+      const result = await addToShellConfig(shellConfigPath, shellDest);
+
+      if (result === 'added') {
+        success(`已添加到 ${path.basename(shellConfigPath)}`);
+      } else {
+        success(`已更新 ${path.basename(shellConfigPath)} 中的配置`);
+      }
+
+      info('请运行以下命令使配置生效：');
+      info(`  source ${shellConfigPath}`);
+    } catch (err) {
+      error(`配置 shell 自启动失败: ${err.message}`);
+      info('你可以手动添加以下内容到 shell 配置文件：');
+      info(`  source "${shellDest}"`);
+    }
+  }
+
+  // 步骤 9: 完成
   console.log('');
   log('=== 安装完成！===', 'green');
   console.log('');
@@ -268,6 +430,7 @@ const mainModule = await import(join(__dirname, 'colyn.d', 'dist', 'index.js'));
   info('├── colyn.d/           # 程序文件');
   info('│   ├── dist/          # 编译后的代码');
   info('│   ├── node_modules/  # 依赖包');
+  info('│   ├── colyn.sh       # Shell 集成脚本');
   info('│   └── package.json   # 包配置');
 
   if (platform === 'win32') {
@@ -295,24 +458,17 @@ const mainModule = await import(join(__dirname, 'colyn.d', 'dist', 'index.js'));
     log('测试安装:', 'cyan');
     info(`cd %TEMP% && ${path.join(targetDir, 'colyn.cmd')} --version`);
   } else {
-    log('方式 1: 添加到 PATH 环境变量', 'yellow');
-    info('将目标目录添加到 PATH，然后在任意位置运行：');
-    info('  colyn init');
-    info('  colyn add <branch>');
-    console.log('');
-
-    log('方式 2: 创建符号链接', 'yellow');
-    info('创建符号链接到 /usr/local/bin（需要管理员权限）：');
-    info(`  sudo ln -s ${path.join(targetDir, 'colyn')} /usr/local/bin/colyn`);
-    console.log('');
-
-    log('方式 3: 使用绝对路径', 'yellow');
-    info('直接使用绝对路径运行：');
-    info(`  ${path.join(targetDir, 'colyn')} init`);
+    log('目录切换功能已自动配置！', 'green');
+    info('重新打开终端或运行 source 命令后，colyn 命令将支持自动目录切换。');
     console.log('');
 
     log('测试安装:', 'cyan');
-    info(`cd /tmp && ${path.join(targetDir, 'colyn')} --version`);
+    info(`cd /tmp && colyn --version`);
+    console.log('');
+
+    log('如需手动配置:', 'yellow');
+    info('添加以下内容到 ~/.bashrc 或 ~/.zshrc：');
+    info(`  source "${shellDest}"`);
   }
   console.log('');
 }

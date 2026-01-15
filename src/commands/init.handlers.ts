@@ -16,6 +16,20 @@ import {
   displayEmptyDirectorySuccess,
   checkDirectoryConflict
 } from './init.helpers.js';
+import {
+  output,
+  outputWarning,
+  outputInfo,
+  outputSuccess
+} from '../utils/logger.js';
+
+/**
+ * 处理结果接口
+ */
+export interface InitHandlerResult {
+  mainDirPath: string;
+  mainDirName: string;
+}
 
 /**
  * 处理空目录情况
@@ -23,7 +37,7 @@ import {
 export async function handleEmptyDirectory(
   dirInfo: DirectoryInfo,
   port: number
-): Promise<void> {
+): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
   const mainBranch = 'main'; // 空目录默认使用 main
@@ -53,6 +67,8 @@ export async function handleEmptyDirectory(
 
   // 步骤5: 显示成功信息
   displayEmptyDirectorySuccess(mainDirName, port, mainBranch);
+
+  return { mainDirPath, mainDirName };
 }
 
 /**
@@ -61,12 +77,13 @@ export async function handleEmptyDirectory(
 export async function handleInitializedDirectory(
   dirInfo: DirectoryInfo,
   port: number
-): Promise<void> {
+): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
   const mainBranch = await detectMainBranch();
+  const mainDirPath = path.join(rootDir, mainDirName);
 
-  console.log(chalk.yellow('⚠ 检测到已初始化，进入补全模式...\n'));
+  outputWarning('检测到已初始化，进入补全模式...\n');
 
   const tasks: Array<{ name: string; action: () => Promise<void> }> = [];
 
@@ -75,7 +92,6 @@ export async function handleInitializedDirectory(
     tasks.push({
       name: `创建主分支目录: ${mainDirName}`,
       action: async () => {
-        const mainDirPath = path.join(rootDir, mainDirName);
         await fs.mkdir(mainDirPath, { recursive: true });
       }
     });
@@ -120,7 +136,6 @@ export async function handleInitializedDirectory(
     tasks.push({
       name: '检查并配置 .env.local',
       action: async () => {
-        const mainDirPath = path.join(rootDir, mainDirName);
         await configureEnvFile(mainDirPath, port, 'main');
       }
     });
@@ -128,7 +143,6 @@ export async function handleInitializedDirectory(
     tasks.push({
       name: '检查并配置 .gitignore',
       action: async () => {
-        const mainDirPath = path.join(rootDir, mainDirName);
         await configureGitignore(mainDirPath);
       }
     });
@@ -146,11 +160,13 @@ export async function handleInitializedDirectory(
     }
   }
 
-  console.log(chalk.green('\n✓ 补全完成！\n'));
+  outputSuccess('\n补全完成！\n');
 
   if (tasks.length === 0) {
-    console.log(chalk.gray('所有配置已完整，无需补全。\n'));
+    outputInfo('所有配置已完整，无需补全。\n');
   }
+
+  return { mainDirPath, mainDirName };
 }
 
 /**
@@ -159,28 +175,28 @@ export async function handleInitializedDirectory(
 export async function handleExistingProject(
   dirInfo: DirectoryInfo,
   port: number
-): Promise<void> {
+): Promise<InitHandlerResult | null> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
 
   // 步骤1: 显示当前目录的文件列表
-  console.log(chalk.yellow('\n⚠ 检测到已有文件，将执行以下操作：'));
-  console.log(chalk.gray('  1. 创建主分支目录和 worktrees 目录'));
-  console.log(chalk.gray(`  2. 将当前目录所有文件移动到 ${mainDirName}/ 目录下\n`));
+  outputWarning('\n检测到已有文件，将执行以下操作：');
+  outputInfo('  1. 创建主分支目录和 worktrees 目录');
+  outputInfo(`  2. 将当前目录所有文件移动到 ${mainDirName}/ 目录下\n`);
 
   const entries = await fs.readdir(rootDir);
-  console.log(chalk.bold('当前目录文件列表：'));
+  output(chalk.bold('当前目录文件列表：'));
 
   // 显示前10个文件，如果超过10个则显示省略
   const displayEntries = entries.slice(0, 10);
   displayEntries.forEach(entry => {
-    console.log(chalk.gray(`  - ${entry}`));
+    outputInfo(`  - ${entry}`);
   });
 
   if (entries.length > 10) {
-    console.log(chalk.gray(`  ... 还有 ${entries.length - 10} 个文件`));
+    outputInfo(`  ... 还有 ${entries.length - 10} 个文件`);
   }
-  console.log('');
+  output('');
 
   // 步骤2: 询问用户确认
   const { confirmed } = await prompt<{ confirmed: boolean }>({
@@ -192,8 +208,8 @@ export async function handleExistingProject(
 
   // 步骤3: 如果取消，退出
   if (!confirmed) {
-    console.log(chalk.gray('已取消初始化'));
-    return;
+    outputInfo('已取消初始化');
+    return null;
   }
 
   // 步骤4: 如果是 git 仓库，检查工作目录是否干净
@@ -226,4 +242,6 @@ export async function handleExistingProject(
 
   // 步骤12: 显示成功信息
   displaySuccessInfo(mainDirName, port, mainBranch);
+
+  return { mainDirPath, mainDirName };
 }

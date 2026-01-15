@@ -6,6 +6,13 @@ import simpleGit from 'simple-git';
 import type { ColynConfig, WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { saveConfig } from '../core/config.js';
+import {
+  output,
+  outputLine,
+  outputSuccess,
+  outputBold,
+  outputStep
+} from '../utils/logger.js';
 
 /**
  * 验证分支名称是否有效
@@ -370,32 +377,33 @@ export async function updateConfigWithWorktree(
 }
 
 /**
- * 显示成功信息
+ * 显示成功信息（输出到 stderr）
  */
 export function displayAddSuccess(
   id: number,
   branch: string,
   worktreePath: string,
-  port: number
+  port: number,
+  displayPath: string
 ): void {
-  console.log('');
-  console.log(chalk.green(`✓ Worktree 创建成功！\n`));
+  outputLine();
+  outputSuccess(`Worktree 创建成功！\n`);
 
-  console.log(chalk.bold('Worktree 信息：'));
-  console.log(`  ID: ${id}`);
-  console.log(`  分支: ${branch}`);
-  console.log(`  路径: ${worktreePath}`);
-  console.log(`  端口: ${port}`);
-  console.log('');
+  outputBold('Worktree 信息：');
+  output(`  ID: ${id}`);
+  output(`  分支: ${branch}`);
+  output(`  路径: ${displayPath}`);
+  output(`  端口: ${port}`);
+  outputLine();
 
-  console.log(chalk.bold('后续操作：'));
-  console.log(chalk.cyan('  1. 进入 worktree 目录：'));
-  console.log(`     cd ${worktreePath}`);
-  console.log('');
-  console.log(chalk.cyan('  2. 启动开发服务器（端口已自动配置）：'));
-  console.log('     npm run dev');
-  console.log('');
-  console.log(chalk.cyan('  3. 查看所有 worktree：'));
-  console.log('     colyn list');
-  console.log('');
+  outputBold('后续操作：');
+  outputStep('  1. 进入 worktree 目录：');
+  output(`     cd ${displayPath}`);
+  outputLine();
+  outputStep('  2. 启动开发服务器（端口已自动配置）：');
+  output('     npm run dev');
+  outputLine();
+  outputStep('  3. 查看所有 worktree：');
+  output('     colyn list');
+  outputLine();
 }

@@ -1,5 +1,5 @@
-import { DirectoryStatus } from '../types/index.js';
-import { formatError } from '../utils/logger.js';
+import { DirectoryStatus, CommandResult } from '../types/index.js';
+import { formatError, outputResult } from '../utils/logger.js';
 import {
   detectDirectoryStatus,
   getPortConfig
@@ -7,7 +7,8 @@ import {
 import {
   handleEmptyDirectory,
   handleInitializedDirectory,
-  handleExistingProject
+  handleExistingProject,
+  InitHandlerResult
 } from './init.handlers.js';
 
 /**
@@ -22,22 +23,39 @@ export async function initCommand(options: { port?: string }): Promise<void> {
     const port = await getPortConfig(options);
 
     // 步骤3: 根据目录状态执行不同流程
+    let handlerResult: InitHandlerResult | null = null;
+
     switch (dirInfo.status) {
       case DirectoryStatus.Empty:
-        await handleEmptyDirectory(dirInfo, port);
+        handlerResult = await handleEmptyDirectory(dirInfo, port);
         break;
 
       case DirectoryStatus.Initialized:
-        await handleInitializedDirectory(dirInfo, port);
+        handlerResult = await handleInitializedDirectory(dirInfo, port);
         break;
 
       case DirectoryStatus.ExistingProject:
-        await handleExistingProject(dirInfo, port);
+        handlerResult = await handleExistingProject(dirInfo, port);
         break;
+    }
+
+    // 步骤4: 输出 JSON 结果到 stdout（供 bash 解析）
+    if (handlerResult) {
+      const result: CommandResult = {
+        success: true,
+        targetDir: handlerResult.mainDirPath,
+        displayPath: handlerResult.mainDirName
+      };
+      outputResult(result);
+    } else {
+      // 用户取消操作
+      outputResult({ success: false });
     }
 
   } catch (error) {
     formatError(error);
+    // 输出失败结果
+    outputResult({ success: false });
     process.exit(1);
   }
 }

@@ -13,6 +13,13 @@ import { checkIsRepo, checkWorkingDirectoryClean, detectMainBranch } from '../co
 import { updateEnvFilePreserveComments } from '../core/env.js';
 import { saveConfig, configExists, createDefaultConfig } from '../core/config.js';
 import { findProjectRoot } from '../core/paths.js';
+import {
+  output,
+  outputLine,
+  outputSuccess,
+  outputBold,
+  outputStep
+} from '../utils/logger.js';
 
 /**
  * 检测目录状态
@@ -274,65 +281,65 @@ export async function configureGitignore(mainDirPath: string): Promise<void> {
 }
 
 /**
- * 显示成功信息
+ * 显示成功信息（输出到 stderr）
  */
 export function displaySuccessInfo(
   mainDirName: string,
   port: number,
   mainBranch: string
 ): void {
-  console.log('\n');
-  console.log(chalk.green('✓ 初始化成功！\n'));
+  outputLine();
+  outputSuccess('初始化成功！\n');
 
-  console.log(chalk.bold('目录结构：'));
-  console.log(`  .`);
-  console.log(`  ├── ${mainDirName}/          # 主分支目录`);
-  console.log(`  ├── worktrees/             # Worktree 目录`);
-  console.log(`  └── .colyn/                # 配置目录`);
-  console.log('');
+  outputBold('目录结构：');
+  output('  .');
+  output(`  ├── ${mainDirName}/          # 主分支目录`);
+  output('  ├── worktrees/             # Worktree 目录');
+  output('  └── .colyn/                # 配置目录');
+  outputLine();
 
-  console.log(chalk.bold('配置信息：'));
-  console.log(`  主分支: ${mainBranch}`);
-  console.log(`  端口: ${port}`);
-  console.log('');
+  outputBold('配置信息：');
+  output(`  主分支: ${mainBranch}`);
+  output(`  端口: ${port}`);
+  outputLine();
 
-  console.log(chalk.bold('后续操作：'));
-  console.log(chalk.cyan('  1. 创建 worktree:'));
-  console.log('     colyn add <branch-name>');
-  console.log('');
-  console.log(chalk.cyan('  2. 查看 worktree 列表:'));
-  console.log('     colyn list');
-  console.log('');
+  outputBold('后续操作：');
+  outputStep('  1. 创建 worktree:');
+  output('     colyn add <branch-name>');
+  outputLine();
+  outputStep('  2. 查看 worktree 列表:');
+  output('     colyn list');
+  outputLine();
 }
 
 /**
- * 显示空目录成功信息
+ * 显示空目录成功信息（输出到 stderr）
  */
 export function displayEmptyDirectorySuccess(
   mainDirName: string,
   port: number,
   mainBranch: string
 ): void {
-  console.log('\n');
-  console.log(chalk.green('✓ 初始化成功！\n'));
+  outputLine();
+  outputSuccess('初始化成功！\n');
 
-  console.log(chalk.bold('目录结构：'));
-  console.log(`  .`);
-  console.log(`  ├── ${mainDirName}/          # 主分支目录（请在此目录中初始化项目）`);
-  console.log(`  ├── worktrees/             # Worktree 目录`);
-  console.log(`  └── .colyn/                # 配置目录`);
-  console.log('');
+  outputBold('目录结构：');
+  output('  .');
+  output(`  ├── ${mainDirName}/          # 主分支目录（请在此目录中初始化项目）`);
+  output('  ├── worktrees/             # Worktree 目录');
+  output('  └── .colyn/                # 配置目录');
+  outputLine();
 
-  console.log(chalk.bold('后续操作：'));
-  console.log(chalk.cyan(`  1. 进入主分支目录：`));
-  console.log(`     cd ${mainDirName}`);
-  console.log('');
-  console.log(chalk.cyan('  2. 初始化 git 仓库（如果还没有）：'));
-  console.log('     git init');
-  console.log('');
-  console.log(chalk.cyan('  3. 初始化你的项目（例如 npm/yarn init）'));
-  console.log('');
-  console.log(chalk.cyan('  4. 创建 worktree：'));
-  console.log('     colyn add <branch-name>');
-  console.log('');
+  outputBold('后续操作：');
+  outputStep('  1. 进入主分支目录：');
+  output(`     cd ${mainDirName}`);
+  outputLine();
+  outputStep('  2. 初始化 git 仓库（如果还没有）：');
+  output('     git init');
+  outputLine();
+  outputStep('  3. 初始化你的项目（例如 npm/yarn init）');
+  outputLine();
+  outputStep('  4. 创建 worktree：');
+  output('     colyn add <branch-name>');
+  outputLine();
 }

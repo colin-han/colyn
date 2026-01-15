@@ -55,3 +55,16 @@ export class ColynError extends Error {
     this.name = 'ColynError';
   }
 }
+
+/**
+ * 命令执行结果
+ * 用于 bash 入口脚本解析，实现自动目录切换
+ */
+export interface CommandResult {
+  /** 是否成功 */
+  success: boolean;
+  /** 需要切换到的目录（绝对路径，bash 用于 cd） */
+  targetDir?: string;
+  /** 相对于项目根目录的路径（显示给用户） */
+  displayPath?: string;
+}
