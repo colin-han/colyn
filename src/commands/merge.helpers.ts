@@ -1,4 +1,3 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -167,13 +166,13 @@ export interface MergeResult {
 export async function executeMerge(
   mainDir: string,
   branch: string,
-  mainBranch: string
+  _mainBranch: string
 ): Promise<MergeResult> {
   const git = simpleGit(mainDir);
 
   try {
     // 执行合并
-    const mergeResult = await git.merge([
+    await git.merge([
       '--no-ff',
       branch,
       '-m',
