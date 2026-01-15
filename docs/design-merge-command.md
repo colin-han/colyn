@@ -3,7 +3,7 @@
 **创建时间**：2026-01-15
 **最后更新**：2026-01-15
 **命令名称**：`colyn merge`
-**状态**：📋 待实现
+**状态**：✅ 已实现
 
 ---
 
@@ -56,7 +56,9 @@ sequenceDiagram
 
     alt 工作目录干净
         C->>U: ✓ 前置检查通过
-        C->>G: git merge --no-ff feature/login
+        C->>G: 步骤1: git merge main (在 worktree 中)
+        G->>C: 合并成功
+        C->>G: 步骤2: git merge --no-ff feature/login (在主分支中)
         G->>C: 合并成功
         C->>U: ✓ 合并成功！<br/>? 是否推送到远程仓库？(y/N)
         U->>C: y
@@ -81,17 +83,23 @@ $ colyn merge feature/login
 ✓ 主分支工作目录干净
 ✓ Worktree 工作目录干净
 
-切换到主分支目录: /path/to/my-project
-执行合并: git merge --no-ff feature/login
+步骤 1/2: 在 worktree 中合并主分支
+  目录: /path/to/worktrees/task-1
+  执行: git merge main
+✔ 主分支已合并到 worktree
 
-✓ 合并成功！
+步骤 2/2: 在主分支中合并 worktree 分支
+  目录: /path/to/my-project
+  执行: git merge --no-ff feature/login
+✔ worktree 已合并到主分支
+✓ 合并完成！
 
 合并信息：
   主分支: main
   合并分支: feature/login
   提交: a1b2c3d Merge branch 'feature/login'
 
-? 是否推送到远程仓库？(Y/n) › Yes
+? 是否推送到远程仓库？(y/N) › No
 
 ✓ 合并完成并已推送到远程！
 
@@ -157,39 +165,42 @@ sequenceDiagram
     participant G as Git
 
     U->>C: colyn merge feature/login
-    C->>G: git merge --no-ff feature/login
+    C->>G: git merge main (在 worktree 中)
     G->>C: 合并冲突！
 
-    C->>U: ✗ 合并时发生冲突<br/><br/>冲突文件：<br/>  src/app.ts<br/>  src/config.ts
-    C->>U: 解决步骤：<br/>1. 进入主分支目录<br/>2. 编辑冲突文件<br/>3. git add<br/>4. git commit
+    C->>U: ✗ 合并主分支时发生冲突<br/><br/>冲突文件：<br/>  src/app.ts<br/>  src/config.ts
+    C->>U: 解决步骤：<br/>1. 进入 worktree 目录<br/>2. 编辑冲突文件<br/>3. git add<br/>4. git commit<br/>5. 重新运行 colyn merge
 
-    U->>U: 手动解决冲突
+    U->>U: 在 worktree 中解决冲突
     U->>G: git add src/app.ts src/config.ts
     U->>G: git commit
-    U->>G: git push origin main
+    U->>C: colyn merge feature/login
+    C->>C: 继续完成合并流程
 ```
 
 **用户看到**：
 ```bash
 $ colyn merge feature/login
 
-✗ 合并时发生冲突
+✗ 合并主分支时发生冲突
 
 冲突文件：
   src/app.ts
   src/config.ts
 
 解决步骤：
-  1. 在主分支目录手动解决冲突：
-     cd my-project
+  1. 进入 worktree 目录解决冲突：
+     cd worktrees/task-1
   2. 编辑冲突文件，解决冲突标记
   3. 添加已解决的文件：
      git add <file>
   4. 完成合并：
      git commit
-  5. 可选：推送到远程
-     git push origin main
+  5. 重新运行合并命令：
+     colyn merge feature/login
 ```
+
+**优势**：冲突在 worktree 目录中解决，用户可以在开发环境中处理，不影响主分支。
 
 ---
 
@@ -273,31 +284,49 @@ graph TD
 
 ### 3.3 合并执行
 
-在主分支目录执行以下操作：
+采用两步合并策略，确保冲突在 worktree 中解决：
 
 ```mermaid
 sequenceDiagram
     participant C as Colyn
-    participant G as Git主分支
+    participant WT as Git Worktree
+    participant M as Git 主分支
 
-    C->>G: cd <main-dir>
-    C->>G: git merge --no-ff <branch> -m "..."
+    Note over C: 步骤 1: 在 worktree 中合并主分支
+    C->>WT: cd <worktree-dir>
+    C->>WT: git merge <main-branch>
 
     alt 合并成功
-        G->>C: 返回合并提交信息
+        WT->>C: 合并完成
+        Note over C: 步骤 2: 在主分支中合并 worktree
+        C->>M: cd <main-dir>
+        C->>M: git merge --no-ff <worktree-branch>
+        M->>C: 合并成功（不会有冲突）
         C->>C: 显示成功信息
     else 合并冲突
-        G->>C: 返回冲突错误
+        WT->>C: 返回冲突错误
         C->>C: 列出冲突文件
-        C->>C: 显示解决步骤
+        C->>C: 显示解决步骤（在 worktree 中解决）
         Note over C: 不执行 git merge --abort<br/>保留冲突状态
     end
 ```
 
-**合并命令**：
+**步骤 1：在 worktree 中合并主分支**（允许 fast-forward）
 ```bash
+cd <worktree-dir>
+git merge <main-branch>
+```
+
+**步骤 2：在主分支中合并 worktree 分支**（使用 --no-ff）
+```bash
+cd <main-dir>
 git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 ```
+
+**为什么采用两步合并**：
+- 如果有冲突，冲突发生在 worktree 目录中，用户可以在开发环境中解决
+- 解决冲突后重新运行 `colyn merge` 即可完成合并
+- 避免在主分支中处理冲突，保持主分支的稳定性
 
 **为什么使用 `--no-ff`**：
 - 强制创建合并提交，即使可以 fast-forward
