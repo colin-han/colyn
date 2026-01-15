@@ -8,12 +8,13 @@ import {
 import { getMainBranch } from '../core/discovery.js';
 import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
-import { formatError, output, outputResult } from '../utils/logger.js';
+import { formatError, output, outputResult, outputSuccess } from '../utils/logger.js';
 import { checkIsGitRepo } from './add.helpers.js';
 import {
   findWorktreeTarget,
   checkGitWorkingDirectory,
-  executeMerge,
+  mergeMainIntoWorktree,
+  mergeWorktreeIntoMain,
   pushToRemote,
   displayWorktreeInfo,
   displayCheckPassed,
@@ -31,6 +32,13 @@ export interface MergeOptions {
 
 /**
  * Merge 命令：将 worktree 分支合并回主分支
+ *
+ * 流程：
+ * 1. 前置检查（主分支和 worktree 都干净）
+ * 2. 在 worktree 中合并主分支（允许 ff），确保 worktree 包含主分支的所有更改
+ * 3. 如果有冲突，提示用户在 worktree 中解决
+ * 4. 在主分支中合并 worktree 分支（--no-ff），此时不会有冲突
+ * 5. 推送处理
  */
 export async function mergeCommand(
   target: string | undefined,
@@ -76,39 +84,71 @@ export async function mergeCommand(
     // 步骤5: 获取主分支名称
     const mainBranch = await getMainBranch(paths.mainDir);
 
-    // 步骤6: 执行合并
-    output(`切换到主分支目录: ${paths.mainDir}`);
-    output(`执行合并: git merge --no-ff ${worktree.branch}`);
+    // 步骤6: 在 worktree 中合并主分支（确保 worktree 包含主分支的所有更改）
+    output(`步骤 1/2: 在 worktree 中合并主分支`);
+    output(`  目录: ${worktree.path}`);
+    output(`  执行: git merge ${mainBranch}`);
 
-    const mergeSpinner = ora({ text: '正在合并...', stream: process.stderr }).start();
+    const step1Spinner = ora({ text: '合并主分支到 worktree...', stream: process.stderr }).start();
 
-    const mergeResult = await executeInDirectory(paths.mainDir, async () => {
-      return await executeMerge(paths.mainDir, worktree.branch, mainBranch);
+    const step1Result = await executeInDirectory(worktree.path, async () => {
+      return await mergeMainIntoWorktree(worktree.path, mainBranch);
     });
 
-    // 步骤7: 处理合并结果
-    if (!mergeResult.success) {
-      mergeSpinner.fail('合并失败');
+    if (!step1Result.success) {
+      step1Spinner.fail('合并主分支失败');
 
-      if (mergeResult.error === 'merge_conflict') {
-        // 合并冲突
+      if (step1Result.error === 'merge_conflict') {
+        // 合并冲突 - 在 worktree 中解决
         displayMergeConflict(
-          mergeResult.conflictFiles || [],
-          paths.mainDir,
+          step1Result.conflictFiles || [],
+          worktree.path,
+          worktree.branch,
           mainBranch
         );
         outputResult({ success: false });
         process.exit(1);
       } else {
-        // 其他错误
         throw new ColynError(
-          '合并失败',
-          mergeResult.error || '未知错误'
+          '合并主分支失败',
+          step1Result.error || '未知错误'
         );
       }
     }
 
-    mergeSpinner.succeed('合并成功');
+    step1Spinner.succeed('主分支已合并到 worktree');
+
+    // 步骤7: 在主分支中合并 worktree 分支
+    output(`步骤 2/2: 在主分支中合并 worktree 分支`);
+    output(`  目录: ${paths.mainDir}`);
+    output(`  执行: git merge --no-ff ${worktree.branch}`);
+
+    const step2Spinner = ora({ text: '合并 worktree 到主分支...', stream: process.stderr }).start();
+
+    const step2Result = await executeInDirectory(paths.mainDir, async () => {
+      return await mergeWorktreeIntoMain(paths.mainDir, worktree.branch);
+    });
+
+    if (!step2Result.success) {
+      step2Spinner.fail('合并到主分支失败');
+
+      // 理论上不应该发生冲突，但还是处理一下
+      if (step2Result.error === 'merge_conflict') {
+        throw new ColynError(
+          '合并到主分支时发生意外冲突',
+          '这种情况不应该发生。请检查 git 状态并手动解决。\n' +
+          `主分支目录: ${paths.mainDir}`
+        );
+      } else {
+        throw new ColynError(
+          '合并到主分支失败',
+          step2Result.error || '未知错误'
+        );
+      }
+    }
+
+    step2Spinner.succeed('worktree 已合并到主分支');
+    outputSuccess('合并完成！');
 
     // 步骤8: 推送处理
     // commander 中 --push 设置 push=true，--no-push 设置 push=false，不传则为 undefined
@@ -126,13 +166,13 @@ export async function mergeCommand(
       // --no-push: 不推送，不询问
       output('跳过推送（--no-push）');
     } else {
-      // 无参数: 询问用户
+      // 无参数: 询问用户（默认不推送）
       try {
         const response = await enquirer.prompt<{ push: boolean }>({
           type: 'confirm',
           name: 'push',
           message: '是否推送到远程仓库？',
-          initial: true,
+          initial: false,
           stdout: process.stderr  // 输出到 stderr，避免被 shell 捕获
         });
 
@@ -154,7 +194,7 @@ export async function mergeCommand(
     displayMergeSuccess(
       mainBranch,
       worktree.branch,
-      mergeResult.commitHash || 'unknown',
+      step2Result.commitHash || 'unknown',
       paths.mainDir,
       worktree.path,
       worktree.id,

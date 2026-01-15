@@ -148,23 +148,18 @@ export interface MergeResult {
 }
 
 /**
- * 执行合并操作
+ * 在 worktree 中合并主分支（允许 fast-forward）
+ * 这一步确保 worktree 包含主分支的所有更改
  */
-export async function executeMerge(
-  mainDir: string,
-  branch: string,
-  _mainBranch: string
+export async function mergeMainIntoWorktree(
+  worktreePath: string,
+  mainBranch: string
 ): Promise<MergeResult> {
-  const git = simpleGit(mainDir);
+  const git = simpleGit(worktreePath);
 
   try {
-    // 执行合并
-    await git.merge([
-      '--no-ff',
-      branch,
-      '-m',
-      `Merge branch '${branch}'`
-    ]);
+    // 执行合并（允许 fast-forward）
+    await git.merge([mainBranch]);
 
     // 获取合并后的 commit hash
     const log = await git.log({ n: 1 });
@@ -195,6 +190,67 @@ export async function executeMerge(
       error: errorMessage
     };
   }
+}
+
+/**
+ * 在主分支中合并 worktree 分支（使用 --no-ff）
+ * 此时 worktree 已经包含主分支的所有更改，理论上不会有冲突
+ */
+export async function mergeWorktreeIntoMain(
+  mainDir: string,
+  worktreeBranch: string
+): Promise<MergeResult> {
+  const git = simpleGit(mainDir);
+
+  try {
+    // 执行合并（使用 --no-ff 保持清晰的分支历史）
+    await git.merge([
+      '--no-ff',
+      worktreeBranch,
+      '-m',
+      `Merge branch '${worktreeBranch}'`
+    ]);
+
+    // 获取合并后的 commit hash
+    const log = await git.log({ n: 1 });
+    const commitHash = log.latest?.hash?.substring(0, 7) || 'unknown';
+
+    return {
+      success: true,
+      commitHash
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // 检查是否是合并冲突（理论上不应该发生）
+    if (errorMessage.includes('CONFLICT') || errorMessage.includes('Automatic merge failed')) {
+      const status = await git.status();
+      const conflictFiles = status.conflicted;
+
+      return {
+        success: false,
+        conflictFiles,
+        error: 'merge_conflict'
+      };
+    }
+
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+/**
+ * 执行合并操作（保留用于向后兼容，但不推荐使用）
+ * @deprecated 请使用 mergeMainIntoWorktree 和 mergeWorktreeIntoMain
+ */
+export async function executeMerge(
+  mainDir: string,
+  branch: string,
+  _mainBranch: string
+): Promise<MergeResult> {
+  return mergeWorktreeIntoMain(mainDir, branch);
 }
 
 /**
@@ -285,15 +341,16 @@ export function displayMergeSuccess(
 }
 
 /**
- * 显示合并冲突信息
+ * 显示合并冲突信息（在 worktree 中解决）
  */
 export function displayMergeConflict(
   conflictFiles: string[],
-  mainDir: string,
+  worktreePath: string,
+  worktreeBranch: string,
   mainBranch: string
 ): void {
   outputLine();
-  outputError('合并时发生冲突');
+  outputError('合并主分支时发生冲突');
   outputLine();
 
   outputBold('冲突文件：');
@@ -303,8 +360,8 @@ export function displayMergeConflict(
   outputLine();
 
   outputBold('解决步骤：');
-  outputStep('  1. 在主分支目录手动解决冲突：');
-  output(`     cd "${mainDir}"`);
+  outputStep('  1. 进入 worktree 目录解决冲突：');
+  output(`     cd "${worktreePath}"`);
   outputLine();
   outputStep('  2. 编辑冲突文件，解决冲突标记');
   outputLine();
@@ -314,8 +371,8 @@ export function displayMergeConflict(
   outputStep('  4. 完成合并：');
   output('     git commit');
   outputLine();
-  outputStep('  5. 可选：推送到远程');
-  output(`     git push origin ${mainBranch}`);
+  outputStep('  5. 重新运行合并命令：');
+  output(`     colyn merge ${worktreeBranch}`);
   outputLine();
 }
 
