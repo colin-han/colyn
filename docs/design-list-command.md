@@ -3,7 +3,7 @@
 **创建时间**：2026-01-15
 **最后更新**：2026-01-15
 **命令名称**：`colyn list`
-**状态**：📋 待实现
+**状态**：✅ 已实现
 
 ---
 
@@ -44,11 +44,17 @@ colyn list --json --no-main
 **示例输出**（默认表格格式）：
 
 ```
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2  ← 当前位置
+ID    Branch            Port   Status      Diff   Path
+  -   main              10000              -      my-app
+  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
+→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
+
+**说明**：
+- `→` 箭头标识当前所在的 worktree，整行青色高亮
+- `Path` 显示相对于项目根目录的相对路径
+- `Status`: 未提交修改统计，`M:3` 表示 3 个文件有修改，`S:` 已暂存，`?:` 未跟踪
+- `Diff`: 与主分支的提交差异，`↑` 领先，`↓` 落后，`✓` 已同步
 
 ---
 
@@ -63,13 +69,13 @@ ID  Branch            Port   Path
 ```bash
 $ colyn list
 
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2  ← 当前位置
+ID    Branch            Port   Status      Diff   Path
+  -   main              10000              -      my-app
+  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
+→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
 
-**结果**：用户可以清晰看到所有 worktree 的信息，当前所在位置有高亮标记。
+**结果**：用户可以清晰看到所有 worktree 的信息、git 状态和与主分支的差异。
 
 ---
 
@@ -83,14 +89,14 @@ ID  Branch            Port   Path
 # 在所有 worktree 中运行 npm install
 $ colyn list --paths --no-main | xargs -I {} sh -c 'cd {} && npm install'
 
-# 获取所有 worktree 路径
+# 获取所有 worktree 路径（相对路径）
 $ colyn list --paths
-/path/to/project/my-app
-/path/to/project/worktrees/task-1
-/path/to/project/worktrees/task-2
+my-app
+worktrees/task-1
+worktrees/task-2
 ```
 
-**结果**：简洁的路径输出便于管道操作。
+**结果**：简洁的相对路径输出便于管道操作。
 
 ---
 
@@ -111,25 +117,21 @@ $ colyn list --json
     "id": null,
     "branch": "main",
     "port": 10000,
-    "path": "/path/to/project/my-app",
+    "path": "my-app",
     "isMain": true,
-    "isCurrent": false
+    "isCurrent": false,
+    "status": { "modified": 0, "staged": 0, "untracked": 0 },
+    "diff": { "ahead": 0, "behind": 0 }
   },
   {
     "id": 1,
     "branch": "feature/login",
     "port": 10001,
-    "path": "/path/to/project/worktrees/task-1",
+    "path": "worktrees/task-1",
     "isMain": false,
-    "isCurrent": false
-  },
-  {
-    "id": 2,
-    "branch": "feature/dashboard",
-    "port": 10002,
-    "path": "/path/to/project/worktrees/task-2",
-    "isMain": false,
-    "isCurrent": true
+    "isCurrent": false,
+    "status": { "modified": 3, "staged": 1, "untracked": 2 },
+    "diff": { "ahead": 2, "behind": 1 }
   }
 ]
 ```
@@ -147,9 +149,9 @@ $ colyn list --json
 ```bash
 $ colyn list --no-main
 
-ID  Branch            Port   Path
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2  ← 当前位置
+ID    Branch            Port   Status      Diff   Path
+  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
+→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
 
 **结果**：输出中不包含主分支信息。
@@ -176,15 +178,17 @@ ID  Branch            Port   Path
 
 **特点**：
 - 彩色输出，美观易读
-- 当前所在 worktree 有高亮标记
+- 当前所在 worktree 用 `→` 箭头标识，整行高亮
 - 主分支 ID 显示为 `-`
+- 路径显示为相对于项目根目录的相对路径
+- **响应式布局**：根据终端宽度自动调整显示列
 
 **输出示例**：
 ```
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2  ← 当前位置
+ID    Branch            Port   Status      Diff   Path
+  -   main              10000              -      my-app
+  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
+→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
 
 **颜色方案**：
@@ -194,7 +198,22 @@ ID  Branch            Port   Path
 | 主分支行 | 灰色（dim） |
 | 普通行 | 默认颜色 |
 | 当前行 | 青色（cyan） |
-| 当前位置标记 | 黄色（yellow） |
+| Status 有修改 | 黄色（yellow） |
+| Diff 已同步 (✓) | 绿色（green） |
+| Diff 有差异 | 青色（cyan） |
+
+**响应式布局**：
+
+当终端宽度不足时，按以下顺序依次隐藏列，确保不折行：
+
+| 模式 | 显示的列 | 适用宽度 |
+|------|----------|----------|
+| full | ID, Branch, Port, Status, Diff, Path | 宽屏 |
+| no-port | ID, Branch, Status, Diff, Path | 较宽 |
+| no-path | ID, Branch, Status, Diff | 中等 |
+| simple-status | ID, Branch, S(●), Diff | 较窄 |
+| no-status | ID, Branch, Diff | 窄屏 |
+| minimal | ID, Branch | 极窄 |
 
 ---
 
@@ -203,6 +222,7 @@ ID  Branch            Port   Path
 **特点**：
 - 机器可读，便于脚本处理
 - 包含完整信息，包括 `isMain` 和 `isCurrent` 字段
+- 包含 git 状态信息
 - 数组格式，可直接被 JSON 解析器处理
 
 **输出示例**：
@@ -212,17 +232,35 @@ ID  Branch            Port   Path
     "id": null,
     "branch": "main",
     "port": 10000,
-    "path": "/path/to/project/my-app",
+    "path": "my-app",
     "isMain": true,
-    "isCurrent": false
+    "isCurrent": false,
+    "status": {
+      "modified": 0,
+      "staged": 0,
+      "untracked": 0
+    },
+    "diff": {
+      "ahead": 0,
+      "behind": 0
+    }
   },
   {
     "id": 1,
     "branch": "feature/login",
     "port": 10001,
-    "path": "/path/to/project/worktrees/task-1",
+    "path": "worktrees/task-1",
     "isMain": false,
-    "isCurrent": false
+    "isCurrent": false,
+    "status": {
+      "modified": 3,
+      "staged": 1,
+      "untracked": 2
+    },
+    "diff": {
+      "ahead": 2,
+      "behind": 1
+    }
   }
 ]
 ```
@@ -233,24 +271,29 @@ ID  Branch            Port   Path
 | `id` | `number \| null` | worktree ID，主分支为 `null` |
 | `branch` | `string` | 分支名称 |
 | `port` | `number` | 端口号 |
-| `path` | `string` | 绝对路径 |
+| `path` | `string` | 相对于项目根目录的相对路径 |
 | `isMain` | `boolean` | 是否为主分支 |
 | `isCurrent` | `boolean` | 是否为当前所在目录 |
+| `status.modified` | `number` | 已修改但未暂存的文件数 |
+| `status.staged` | `number` | 已暂存的文件数 |
+| `status.untracked` | `number` | 未跟踪的文件数 |
+| `diff.ahead` | `number` | 领先主分支的提交数 |
+| `diff.behind` | `number` | 落后主分支的提交数 |
 
 ---
 
 #### 3.2.3 路径格式 (`--paths`)
 
 **特点**：
-- 每行一个路径
+- 每行一个路径（相对路径）
 - 无颜色、无额外信息
 - 便于管道操作和脚本处理
 
 **输出示例**：
 ```
-/path/to/project/my-app
-/path/to/project/worktrees/task-1
-/path/to/project/worktrees/task-2
+my-app
+worktrees/task-1
+worktrees/task-2
 ```
 
 **使用场景**：
@@ -391,10 +434,10 @@ graph TD
 $ cd worktrees/task-1/src/components
 $ colyn list
 
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app
-1   feature/login     10001  /path/to/project/worktrees/task-1  ← 当前位置
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2
+ID    Branch            Port   Status   Diff   Path
+  -   main              10000           -      my-app
+→ 1   feature/login     10001           ✓      worktrees/task-1
+  2   feature/dashboard 10002           ↑5     worktrees/task-2
 ```
 
 ---
@@ -422,8 +465,8 @@ graph TD
 ### 7.2 显示样式
 
 **表格格式**：
-- 当前行使用青色（cyan）显示
-- 行末添加黄色标记 `← 当前位置`
+- 当前行 ID 前显示 `→` 箭头标识
+- 整行使用青色（cyan）高亮显示
 
 **JSON 格式**：
 - `isCurrent` 字段为 `true`
@@ -440,8 +483,8 @@ graph TD
 ```bash
 $ colyn list
 
-ID  Branch  Port   Path
--   main    10000  /path/to/project/my-app  ← 当前位置
+ID    Branch  Port   Status   Diff   Path
+→ -   main    10000           -      my-app
 
 提示：使用 colyn add <branch> 创建新的 worktree
 ```
@@ -480,11 +523,11 @@ worktree 列表按以下规则排序：
 2. **任务 worktree 按 ID 升序排列**
 
 ```
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app          # 主分支在前
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2
-5   feature/payment   10005  /path/to/project/worktrees/task-5  # 按 ID 排序
+ID    Branch            Port   Status   Diff   Path
+  -   main              10000           -      my-app              # 主分支在前
+  1   feature/login     10001           ✓      worktrees/task-1
+  2   feature/dashboard 10002  M:2      ↑3     worktrees/task-2
+  5   feature/payment   10005           ↑1     worktrees/task-5    # 按 ID 排序
 ```
 
 ---
@@ -511,7 +554,7 @@ A: 主分支不是通过 `colyn add` 创建的任务 worktree，没有分配 ID�
 
 ### Q4: 如何知道我当前在哪个 worktree？
 
-A: 默认表格输出中，当前所在的 worktree 会用青色高亮显示，并在行末标记 `← 当前位置`。
+A: 默认表格输出中，当前所在的 worktree 的 ID 前会显示 `→` 箭头，整行用青色高亮显示。
 
 ### Q5: --json 和 --paths 可以同时使用吗？
 
@@ -519,7 +562,11 @@ A: 不可以，这两个选项互斥。请选择其中一种输出格式。
 
 ### Q6: 输出的路径是相对路径还是绝对路径？
 
-A: 始终输出绝对路径，确保在任何目录下都能正确使用。
+A: 输出相对于项目根目录的相对路径，更加简洁易读。
+
+### Q7: 终端窄时表格显示不全怎么办？
+
+A: list 命令支持响应式布局，会根据终端宽度自动隐藏不重要的列（按 Port → Path → Status → Diff 的顺序），确保内容不折行。
 
 ---
 
