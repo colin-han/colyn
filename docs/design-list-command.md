@@ -44,11 +44,15 @@ colyn list --json --no-main
 **示例输出**（默认表格格式）：
 
 ```
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2  ← 当前位置
+ID  Branch            Port   Status      Diff     Path
+-   main              10000              -        /path/to/project/my-app
+1   feature/login     10001  M:3         ↑2 ↓1   /path/to/project/worktrees/task-1
+2   feature/dashboard 10002              ↑5      /path/to/project/worktrees/task-2  ← 当前位置
 ```
+
+**状态列说明**：
+- `Status`: 未提交修改统计，如 `M:3` 表示 3 个文件有修改
+- `Diff`: 与主分支的提交差异，`↑` 表示领先，`↓` 表示落后
 
 ---
 
@@ -63,13 +67,13 @@ ID  Branch            Port   Path
 ```bash
 $ colyn list
 
-ID  Branch            Port   Path
--   main              10000  /path/to/project/my-app
-1   feature/login     10001  /path/to/project/worktrees/task-1
-2   feature/dashboard 10002  /path/to/project/worktrees/task-2  ← 当前位置
+ID  Branch            Port   Status      Diff     Path
+-   main              10000              -        /path/to/project/my-app
+1   feature/login     10001  M:3         ↑2 ↓1   /path/to/project/worktrees/task-1
+2   feature/dashboard 10002              ↑5      /path/to/project/worktrees/task-2  ← 当前位置
 ```
 
-**结果**：用户可以清晰看到所有 worktree 的信息，当前所在位置有高亮标记。
+**结果**：用户可以清晰看到所有 worktree 的信息、git 状态和与主分支的差异。
 
 ---
 
@@ -203,6 +207,7 @@ ID  Branch            Port   Path
 **特点**：
 - 机器可读，便于脚本处理
 - 包含完整信息，包括 `isMain` 和 `isCurrent` 字段
+- 包含 git 状态信息
 - 数组格式，可直接被 JSON 解析器处理
 
 **输出示例**：
@@ -214,7 +219,16 @@ ID  Branch            Port   Path
     "port": 10000,
     "path": "/path/to/project/my-app",
     "isMain": true,
-    "isCurrent": false
+    "isCurrent": false,
+    "status": {
+      "modified": 0,
+      "staged": 0,
+      "untracked": 0
+    },
+    "diff": {
+      "ahead": 0,
+      "behind": 0
+    }
   },
   {
     "id": 1,
@@ -222,7 +236,16 @@ ID  Branch            Port   Path
     "port": 10001,
     "path": "/path/to/project/worktrees/task-1",
     "isMain": false,
-    "isCurrent": false
+    "isCurrent": false,
+    "status": {
+      "modified": 3,
+      "staged": 1,
+      "untracked": 2
+    },
+    "diff": {
+      "ahead": 2,
+      "behind": 1
+    }
   }
 ]
 ```
@@ -236,6 +259,11 @@ ID  Branch            Port   Path
 | `path` | `string` | 绝对路径 |
 | `isMain` | `boolean` | 是否为主分支 |
 | `isCurrent` | `boolean` | 是否为当前所在目录 |
+| `status.modified` | `number` | 已修改但未暂存的文件数 |
+| `status.staged` | `number` | 已暂存的文件数 |
+| `status.untracked` | `number` | 未跟踪的文件数 |
+| `diff.ahead` | `number` | 领先主分支的提交数 |
+| `diff.behind` | `number` | 落后主分支的提交数 |
 
 ---
 
