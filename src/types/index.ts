@@ -1,3 +1,5 @@
+import type { Command } from 'commander';
+
 /**
  * 目录状态枚举
  */
@@ -56,4 +58,13 @@ export interface CommandResult {
   targetDir?: string;
   /** 相对于项目根目录的路径（显示给用户） */
   displayPath?: string;
+}
+
+/**
+ * 命令模块接口
+ * 每个命令文件应导出一个 register 函数
+ */
+export interface CommandModule {
+  /** 注册命令到 program */
+  register: (program: Command) => void;
 }

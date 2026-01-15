@@ -1,3 +1,4 @@
+import type { Command } from 'commander';
 import chalk from 'chalk';
 import { getLocationInfo, type LocationInfo } from '../core/paths.js';
 import { ColynError } from '../types/index.js';
@@ -93,7 +94,7 @@ function printFullInfo(info: LocationInfo): void {
 /**
  * info 命令选项
  */
-export interface InfoOptions {
+interface InfoOptions {
   field?: string[];
   format?: string;
   separator?: string;
@@ -102,7 +103,7 @@ export interface InfoOptions {
 /**
  * info 命令主函数
  */
-export async function infoCommand(options: InfoOptions): Promise<void> {
+async function infoCommand(options: InfoOptions): Promise<void> {
   try {
     // 获取当前位置信息
     const info = await getLocationInfo();
@@ -145,4 +146,21 @@ export async function infoCommand(options: InfoOptions): Promise<void> {
     }
     throw error;
   }
+}
+
+/**
+ * 注册 info 命令
+ */
+export function register(program: Command): void {
+  program
+    .command('info')
+    .description('显示当前目录的 colyn 项目信息')
+    .option('-f, --field <name>', '输出指定字段（可多次使用）', (value, previous: string[]) => {
+      return previous.concat([value]);
+    }, [])
+    .option('--format <template>', '使用模板字符串格式化输出')
+    .option('-s, --separator <char>', '多字段时的分隔符（默认 tab）')
+    .action(async (options) => {
+      await infoCommand(options);
+    });
 }

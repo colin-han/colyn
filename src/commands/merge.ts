@@ -1,5 +1,5 @@
+import type { Command } from 'commander';
 import ora from 'ora';
-import enquirer from 'enquirer';
 import {
   getProjectPaths,
   validateProjectInitialized,
@@ -25,14 +25,14 @@ import {
 /**
  * Merge 命令选项
  */
-export interface MergeOptions {
+interface MergeOptions {
   push?: boolean;
 }
 
 /**
  * Merge 命令：将 worktree 分支合并回主分支
  */
-export async function mergeCommand(
+async function mergeCommand(
   target: string | undefined,
   options: MergeOptions
 ): Promise<void> {
@@ -111,7 +111,7 @@ export async function mergeCommand(
     mergeSpinner.succeed('合并成功');
 
     // 步骤8: 推送处理
-    // commander 中 --push 设置 push=true，--no-push 设置 push=false，不传则为 undefined
+    // --push: 推送，否则默认不推送
     let pushed = false;
 
     if (options.push === true) {
@@ -122,33 +122,8 @@ export async function mergeCommand(
       } else {
         displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
       }
-    } else if (options.push === false) {
-      // --no-push: 不推送，不询问
-      output('跳过推送（--no-push）');
-    } else {
-      // 无参数: 询问用户
-      try {
-        const response = await enquirer.prompt<{ push: boolean }>({
-          type: 'confirm',
-          name: 'push',
-          message: '是否推送到远程仓库？',
-          initial: true,
-          stdout: process.stderr  // 输出到 stderr，避免被 shell 捕获
-        });
-
-        if (response.push) {
-          const pushResult = await pushToRemote(paths.mainDir, mainBranch);
-          if (pushResult.success) {
-            pushed = true;
-          } else {
-            displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
-          }
-        }
-      } catch {
-        // 用户取消或输入错误，不推送
-        output('跳过推送');
-      }
     }
+    // 默认不推送，不询问
 
     // 步骤9: 显示成功信息
     displayMergeSuccess(
@@ -172,4 +147,17 @@ export async function mergeCommand(
     outputResult({ success: false });
     process.exit(1);
   }
+}
+
+/**
+ * 注册 merge 命令
+ */
+export function register(program: Command): void {
+  program
+    .command('merge [target]')
+    .description('将 worktree 分支合并回主分支')
+    .option('--push', '合并后自动推送到远程')
+    .action(async (target: string | undefined, options: MergeOptions) => {
+      await mergeCommand(target, options);
+    });
 }

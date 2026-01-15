@@ -1,4 +1,5 @@
 import * as path from 'path';
+import type { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
@@ -113,7 +114,7 @@ function outputPaths(items: ListItem[]): void {
 /**
  * List 命令：列出所有 worktree
  */
-export async function listCommand(options: ListOptions): Promise<void> {
+async function listCommand(options: ListOptions): Promise<void> {
   try {
     // 检查选项冲突
     if (options.json && options.paths) {
@@ -174,4 +175,19 @@ export async function listCommand(options: ListOptions): Promise<void> {
     formatError(error);
     process.exit(1);
   }
+}
+
+/**
+ * 注册 list 命令
+ */
+export function register(program: Command): void {
+  program
+    .command('list')
+    .description('列出所有 worktree')
+    .option('--json', '以 JSON 格式输出')
+    .option('-p, --paths', '只输出路径（每行一个）')
+    .option('--no-main', '不显示主分支')
+    .action(async (options) => {
+      await listCommand(options);
+    });
 }
