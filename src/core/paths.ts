@@ -152,6 +152,95 @@ export async function getCurrentWorktreeInfo(
 }
 
 /**
+ * 完整的当前位置信息
+ */
+export interface LocationInfo {
+  /** 项目名（主目录名） */
+  project: string;
+  /** 主目录完整路径 */
+  projectPath: string;
+  /** worktree ID（主分支为 0） */
+  worktreeId: number;
+  /** worktree 目录名 */
+  worktreeDir: string;
+  /** worktree 完整路径 */
+  worktreePath: string;
+  /** 当前分支 */
+  branch: string;
+  /** 是否在主分支目录 */
+  isMainBranch: boolean;
+}
+
+/**
+ * 获取当前位置的完整信息
+ * 用于 info 命令
+ */
+export async function getLocationInfo(
+  startDir: string = process.cwd()
+): Promise<LocationInfo> {
+  const currentDir = path.resolve(startDir);
+
+  // 查找项目根目录
+  const rootDir = await findProjectRoot(currentDir);
+  const mainDirName = path.basename(rootDir);
+  const mainDir = path.join(rootDir, mainDirName);
+  const worktreesDir = path.join(rootDir, 'worktrees');
+
+  // 检查当前目录是否在主分支目录下
+  if (currentDir === mainDir || currentDir.startsWith(mainDir + path.sep)) {
+    // 在主分支目录中
+    const simpleGit = (await import('simple-git')).default;
+    const git = simpleGit(mainDir);
+    const branchSummary = await git.branch();
+
+    return {
+      project: mainDirName,
+      projectPath: mainDir,
+      worktreeId: 0,
+      worktreeDir: mainDirName,
+      worktreePath: mainDir,
+      branch: branchSummary.current,
+      isMainBranch: true
+    };
+  }
+
+  // 检查当前目录是否在 worktrees 目录下
+  if (currentDir === worktreesDir || currentDir.startsWith(worktreesDir + path.sep)) {
+    // 在 worktrees 目录下，找出是哪个 worktree
+    const relativePath = path.relative(worktreesDir, currentDir);
+    const worktreeDirName = relativePath.split(path.sep)[0];
+
+    // 检查是否是 task-N 格式
+    const idMatch = worktreeDirName.match(/^task-(\d+)$/);
+    if (idMatch) {
+      const worktreeId = parseInt(idMatch[1]);
+      const worktreePath = path.join(worktreesDir, worktreeDirName);
+
+      // 获取当前分支
+      const simpleGit = (await import('simple-git')).default;
+      const git = simpleGit(worktreePath);
+      const branchSummary = await git.branch();
+
+      return {
+        project: mainDirName,
+        projectPath: mainDir,
+        worktreeId,
+        worktreeDir: worktreeDirName,
+        worktreePath,
+        branch: branchSummary.current,
+        isMainBranch: false
+      };
+    }
+  }
+
+  // 不在有效位置
+  throw new ColynError(
+    '当前目录不在 worktree 或主分支中',
+    '请切换到主分支目录或某个 worktree 目录'
+  );
+}
+
+/**
  * 验证目录存在
  */
 export async function validateDirectoryExists(dirPath: string, errorMessage: string): Promise<void> {

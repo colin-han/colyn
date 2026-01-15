@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { addCommand } from './commands/add.js';
+import { infoCommand } from './commands/info.js';
 
 const program = new Command();
 
@@ -28,6 +29,18 @@ program
   .description('创建新的 worktree')
   .action(async (branch: string) => {
     await addCommand(branch);
+  });
+
+program
+  .command('info')
+  .description('显示当前目录的 colyn 项目信息')
+  .option('-f, --field <name>', '输出指定字段（可多次使用）', (value, previous: string[]) => {
+    return previous.concat([value]);
+  }, [])
+  .option('--format <template>', '使用模板字符串格式化输出')
+  .option('-s, --separator <char>', '多字段时的分隔符（默认 tab）')
+  .action(async (options) => {
+    await infoCommand(options);
   });
 
 export function run(): void {
