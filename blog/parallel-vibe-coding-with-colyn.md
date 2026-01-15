@@ -342,7 +342,7 @@ Colyn 不只是一个 Git 工具，它是为 AI 编程时代设计的。每个 w
 
 这不是科幻，这是现在就可以实现的工作流。
 
-**代码仓库**：[github.com/colinhan/colyn](https://github.com/colinhan/colyn)
+**代码仓库**：[github.com/colin-han/colyn](https://github.com/colin-han/colyn)
 
 试试看，让你的 AI 军团开始工作吧！
 
