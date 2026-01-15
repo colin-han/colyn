@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { addCommand } from './commands/add.js';
+import { listCommand } from './commands/list.js';
 
 const program = new Command();
 
@@ -28,6 +29,16 @@ program
   .description('创建新的 worktree')
   .action(async (branch: string) => {
     await addCommand(branch);
+  });
+
+program
+  .command('list')
+  .description('列出所有 worktree')
+  .option('--json', '以 JSON 格式输出')
+  .option('-p, --paths', '只输出路径（每行一个）')
+  .option('--no-main', '不显示主分支')
+  .action(async (options) => {
+    await listCommand(options);
   });
 
 export function run(): void {
