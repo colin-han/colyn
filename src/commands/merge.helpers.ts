@@ -350,7 +350,7 @@ export function displayMergeConflict(
   mainBranch: string
 ): void {
   outputLine();
-  outputError('合并主分支时发生冲突');
+  outputError(`合并 ${mainBranch} 到 ${worktreeBranch} 时发生冲突`);
   outputLine();
 
   outputBold('冲突文件：');

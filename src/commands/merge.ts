@@ -1,5 +1,5 @@
 import ora from 'ora';
-import enquirer from 'enquirer';
+import Enquirer from 'enquirer';
 import {
   getProjectPaths,
   validateProjectInitialized,
@@ -168,13 +168,14 @@ export async function mergeCommand(
     } else {
       // 无参数: 询问用户（默认不推送）
       try {
-        const response = await enquirer.prompt<{ push: boolean }>({
+        // 创建自定义 Enquirer 实例，将输出重定向到 stderr
+        const enquirer = new Enquirer({ stdout: process.stderr });
+        const response = await enquirer.prompt({
           type: 'confirm',
           name: 'push',
           message: '是否推送到远程仓库？',
-          initial: false,
-          stdout: process.stderr  // 输出到 stderr，避免被 shell 捕获
-        });
+          initial: false
+        }) as { push: boolean };
 
         if (response.push) {
           const pushResult = await pushToRemote(paths.mainDir, mainBranch);
