@@ -1,5 +1,3 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import simpleGit from 'simple-git';
@@ -13,8 +11,7 @@ import {
   outputBold,
   outputStep
 } from '../utils/logger.js';
-import { readEnvFile } from './add.helpers.js';
-import { discoverWorktrees } from '../core/discovery.js';
+import { discoverWorktrees, getCurrentWorktreeId } from '../core/discovery.js';
 
 /**
  * 识别目标类型
@@ -39,22 +36,11 @@ export function identifyTargetType(target: string | undefined): TargetType {
 }
 
 /**
- * 自动识别当前 worktree（从 .env.local 读取 WORKTREE 变量）
+ * 自动识别当前 worktree
+ * 使用 getCurrentWorktreeId 验证目录名与 .env.local 配置一致
  */
 export async function autoDetectWorktree(): Promise<number | null> {
-  try {
-    const envPath = path.join(process.cwd(), '.env.local');
-    const env = await readEnvFile(envPath);
-
-    const worktreeId = parseInt(env.WORKTREE || '');
-    if (!isNaN(worktreeId) && worktreeId > 0) {
-      return worktreeId;
-    }
-  } catch {
-    // 文件不存在或无法读取
-  }
-
-  return null;
+  return getCurrentWorktreeId();
 }
 
 /**

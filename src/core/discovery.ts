@@ -254,3 +254,64 @@ export async function findWorktreeByBranch(
   const worktrees = await discoverWorktrees(mainDir, worktreesDir);
   return worktrees.find(w => w.branch === branch);
 }
+
+/**
+ * 获取当前目录的 worktree ID
+ *
+ * 从当前目录的 .env.local 读取 WORKTREE 变量，并验证与目录名一致
+ *
+ * @returns worktree ID，如果不在 worktree 目录中返回 null
+ * @throws ColynError 如果 .env.local 中的 WORKTREE 与目录名不一致
+ */
+export async function getCurrentWorktreeId(): Promise<number | null> {
+  const cwd = process.cwd();
+  const dirName = path.basename(cwd);
+
+  // 检查当前目录名是否符合 task-{id} 格式
+  const dirMatch = dirName.match(/^task-(\d+)$/);
+  if (!dirMatch) {
+    // 不在 worktree 目录中
+    return null;
+  }
+
+  const dirId = parseInt(dirMatch[1]);
+
+  // 读取 .env.local 文件
+  const envPath = path.join(cwd, '.env.local');
+  const env = await parseEnvFile(envPath);
+
+  const envWorktree = env.WORKTREE;
+  if (!envWorktree) {
+    throw new ColynError(
+      'Worktree 配置不完整',
+      `.env.local 文件中缺少 WORKTREE 变量\n` +
+      `文件路径: ${envPath}\n\n` +
+      `请确保 .env.local 包含 WORKTREE 配置`
+    );
+  }
+
+  const envId = parseInt(envWorktree);
+  if (isNaN(envId)) {
+    throw new ColynError(
+      'Worktree 配置无效',
+      `.env.local 中 WORKTREE 值不是有效数字: "${envWorktree}"\n` +
+      `文件路径: ${envPath}`
+    );
+  }
+
+  // 验证 .env.local 中的 WORKTREE 与目录名一致
+  if (envId !== dirId) {
+    throw new ColynError(
+      'Worktree 配置不一致',
+      `目录名与 .env.local 中的 WORKTREE 值不匹配\n\n` +
+      `  目录名: ${dirName} (ID: ${dirId})\n` +
+      `  WORKTREE: ${envId}\n\n` +
+      `可能原因：\n` +
+      `  - .env.local 文件被手动修改\n` +
+      `  - 目录被重命名\n\n` +
+      `请修正 .env.local 中的 WORKTREE 值为 ${dirId}，或检查目录是否正确`
+    );
+  }
+
+  return envId;
+}
