@@ -172,7 +172,8 @@ export async function mergeCommand(
           type: 'confirm',
           name: 'push',
           message: '是否推送到远程仓库？',
-          initial: false
+          initial: false,
+          stdout: process.stderr  // 输出到 stderr，避免被 shell 捕获
         });
 
         if (response.push) {
@@ -200,10 +201,9 @@ export async function mergeCommand(
       pushed
     );
 
-    // 步骤10: 输出 JSON 结果到 stdout
+    // 步骤10: 输出 JSON 结果到 stdout（不设置 targetDir，保持在原目录）
     const result: CommandResult = {
-      success: true,
-      targetDir: paths.mainDir
+      success: true
     };
     outputResult(result);
 

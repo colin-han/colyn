@@ -19,7 +19,7 @@ import {
 export function isValidBranchName(branchName: string): boolean {
   // Git 分支名称规则
   // 允许: 字母、数字、下划线、连字符、斜杠
-  const branchNameRegex = /^[a-zA-Z0-9_\-\/]+$/;
+  const branchNameRegex = /^[a-zA-Z0-9_\-/]+$/;
 
   if (!branchNameRegex.test(branchName)) {
     return false;

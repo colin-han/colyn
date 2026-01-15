@@ -75,7 +75,6 @@ export async function handleInitializedDirectory(
 ): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
-  const mainBranch = await detectMainBranch();
   const mainDirPath = path.join(rootDir, mainDirName);
 
   outputWarning('检测到已初始化，进入补全模式...\n');

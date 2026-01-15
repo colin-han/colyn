@@ -1,6 +1,5 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import chalk from 'chalk';
 import ora from 'ora';
 import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
@@ -317,8 +316,8 @@ export function displaySuccessInfo(
  */
 export function displayEmptyDirectorySuccess(
   mainDirName: string,
-  port: number,
-  mainBranch: string
+  _port: number,
+  _mainBranch: string
 ): void {
   outputLine();
   outputSuccess('初始化成功！\n');
