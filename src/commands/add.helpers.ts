@@ -127,12 +127,12 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
 
   if (branchExists) {
     // 本地分支存在，直接使用
-    console.log(chalk.gray(`使用本地分支: ${branchName}`));
+    output(chalk.gray(`使用本地分支: ${branchName}`));
     return;
   }
 
   // 本地分支不存在，检查远程
-  const spinner = ora('检查远程分支...').start();
+  const spinner = ora({ text: '检查远程分支...', stream: process.stderr }).start();
 
   try {
     // Fetch 最新的远程分支信息
@@ -184,7 +184,7 @@ export async function createWorktree(
   id: number,
   config: ColynConfig
 ): Promise<string> {
-  const spinner = ora('创建 worktree...').start();
+  const spinner = ora({ text: '创建 worktree...', stream: process.stderr }).start();
 
   try {
     // worktree 的绝对路径
@@ -324,7 +324,7 @@ export async function configureWorktreeEnv(
   id: number,
   port: number
 ): Promise<void> {
-  const spinner = ora('配置环境变量...').start();
+  const spinner = ora({ text: '配置环境变量...', stream: process.stderr }).start();
 
   try {
     // 读取主分支的 .env.local
@@ -357,7 +357,7 @@ export async function updateConfigWithWorktree(
   config: ColynConfig,
   worktreeInfo: WorktreeInfo
 ): Promise<void> {
-  const spinner = ora('更新配置文件...').start();
+  const spinner = ora({ text: '更新配置文件...', stream: process.stderr }).start();
 
   try {
     // 添加 worktree 信息

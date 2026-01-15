@@ -43,7 +43,7 @@ export async function handleEmptyDirectory(
   const mainBranch = 'main'; // 空目录默认使用 main
 
   // 步骤1: 创建目录结构
-  const spinner = ora('创建目录结构...').start();
+  const spinner = ora({ text: '创建目录结构...', stream: process.stderr }).start();
 
   const mainDirPath = path.join(rootDir, mainDirName);
   const worktreesDirPath = path.join(rootDir, 'worktrees');
@@ -150,7 +150,7 @@ export async function handleInitializedDirectory(
 
   // 执行补全任务
   for (const task of tasks) {
-    const spinner = ora(task.name).start();
+    const spinner = ora({ text: task.name, stream: process.stderr }).start();
     try {
       await task.action();
       spinner.succeed();
@@ -198,12 +198,13 @@ export async function handleExistingProject(
   }
   output('');
 
-  // 步骤2: 询问用户确认
+  // 步骤2: 询问用户确认（输出到 stderr，避免被 shell 脚本捕获）
   const { confirmed } = await prompt<{ confirmed: boolean }>({
     type: 'confirm',
     name: 'confirmed',
     message: '确认继续初始化？',
-    initial: false // 默认为否，需要用户主动确认
+    initial: false, // 默认为否，需要用户主动确认
+    stdout: process.stderr
   });
 
   // 步骤3: 如果取消，退出

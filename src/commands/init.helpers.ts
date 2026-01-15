@@ -103,12 +103,13 @@ export async function getPortConfig(options: { port?: string }): Promise<number>
     return port;
   }
 
-  // 交互式询问
+  // 交互式询问（输出到 stderr，避免被 shell 脚本捕获）
   const { port } = await prompt<{ port: string }>({
     type: 'input',
     name: 'port',
     message: '请输入主分支开发服务器端口',
     initial: '10000',
+    stdout: process.stderr,
     validate: (value) => {
       const num = parseInt(value);
       return num > 0 && num < 65536 ? true : '端口必须在 1-65535 之间';
@@ -180,7 +181,7 @@ export async function moveFilesToMainDir(
   rootDir: string,
   mainDirName: string
 ): Promise<void> {
-  const spinner = ora('移动项目文件...').start();
+  const spinner = ora({ text: '移动项目文件...', stream: process.stderr }).start();
 
   try {
     const mainDirPath = path.join(rootDir, mainDirName);
@@ -221,7 +222,7 @@ export async function configureEnvFile(
   port: number,
   worktree: string
 ): Promise<void> {
-  const spinner = ora('配置环境变量文件...').start();
+  const spinner = ora({ text: '配置环境变量文件...', stream: process.stderr }).start();
 
   try {
     const envFilePath = path.join(mainDirPath, '.env.local');
@@ -246,7 +247,7 @@ export async function configureEnvFile(
  * 配置 .gitignore 文件
  */
 export async function configureGitignore(mainDirPath: string): Promise<void> {
-  const spinner = ora('配置 .gitignore...').start();
+  const spinner = ora({ text: '配置 .gitignore...', stream: process.stderr }).start();
 
   try {
     const gitignorePath = path.join(mainDirPath, '.gitignore');
