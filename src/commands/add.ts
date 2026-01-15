@@ -1,14 +1,17 @@
-import * as fs from 'fs/promises';
 import * as path from 'path';
 import chalk from 'chalk';
 import { loadConfig } from '../core/config.js';
+import {
+  getProjectPaths,
+  validateProjectInitialized,
+  executeInDirectory
+} from '../core/paths.js';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { formatError } from '../utils/logger.js';
 import {
   isValidBranchName,
   assignWorktreeIdAndPort,
-  checkInitialized,
   checkIsGitRepo,
   checkMainEnvFile,
   checkBranchWorktreeConflict,
@@ -38,40 +41,38 @@ export async function addCommand(branchName: string): Promise<void> {
       );
     }
 
-    const rootDir = process.cwd();
+    // 步骤2: 获取项目路径并验证
+    const paths = await getProjectPaths();
+    await validateProjectInitialized(paths);
 
-    // 步骤2: 前置检查
-    await checkInitialized(rootDir);
-    const config = await loadConfig(rootDir);
-    await checkIsGitRepo();
+    // 步骤3: 加载配置和检查
+    const config = await loadConfig(paths.rootDir);
 
-    const mainDirName = path.basename(rootDir);
-    const mainDirPath = path.join(rootDir, mainDirName);
+    // 在主分支目录中检查 git 仓库
+    await executeInDirectory(paths.mainDir, async () => {
+      await checkIsGitRepo();
+    });
 
-    const mainDirExists = await fs.access(mainDirPath)
-      .then(() => true)
-      .catch(() => false);
-
-    if (!mainDirExists) {
-      throw new ColynError('主分支目录不存在', '配置文件可能已损坏');
-    }
-
-    await checkMainEnvFile(rootDir, mainDirName);
+    await checkMainEnvFile(paths.rootDir, paths.mainDirName);
     await checkBranchWorktreeConflict(config, cleanBranchName);
 
-    // 步骤3: 处理分支（本地/远程/新建）
-    await handleBranch(cleanBranchName, config.mainBranch);
+    // 步骤4: 在主分支目录中处理分支（本地/远程/新建）
+    await executeInDirectory(paths.mainDir, async () => {
+      await handleBranch(cleanBranchName, config.mainBranch);
+    });
 
-    // 步骤4: 分配 ID 和端口
+    // 步骤5: 分配 ID 和端口
     const { id, port } = assignWorktreeIdAndPort(config);
 
-    // 步骤5: 创建 worktree
-    const worktreePath = await createWorktree(rootDir, cleanBranchName, id);
+    // 步骤6: 在主分支目录创建 worktree（git 仓库所在地）
+    const worktreePath = await executeInDirectory(paths.mainDir, async () => {
+      return await createWorktree(paths.rootDir, cleanBranchName, id);
+    });
 
-    // 步骤6: 配置环境变量
-    await configureWorktreeEnv(mainDirPath, worktreePath, id, port);
+    // 步骤7: 配置环境变量
+    await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
 
-    // 步骤7: 更新配置文件
+    // 步骤8: 更新配置文件
     const worktreeInfo: WorktreeInfo = {
       id,
       branch: cleanBranchName,
@@ -80,9 +81,9 @@ export async function addCommand(branchName: string): Promise<void> {
       createdAt: new Date().toISOString()
     };
 
-    await updateConfigWithWorktree(rootDir, config, worktreeInfo);
+    await updateConfigWithWorktree(paths.rootDir, config, worktreeInfo);
 
-    // 步骤8: 显示成功信息
+    // 步骤9: 显示成功信息
     displayAddSuccess(id, cleanBranchName, worktreePath, port);
 
   } catch (error) {

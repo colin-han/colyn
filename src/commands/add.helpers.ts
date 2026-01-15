@@ -109,6 +109,7 @@ export async function checkBranchWorktreeConflict(
 
 /**
  * 处理分支（本地/远程/新建）
+ * 注意：此函数会确保分支存在，但不会签出分支（最后会切换回主分支）
  */
 export async function handleBranch(branchName: string, mainBranch: string): Promise<void> {
   const git = simpleGit();
@@ -136,19 +137,23 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
     const remoteExists = remoteBranches.all.includes(remoteBranchName);
 
     if (remoteExists) {
-      // 远程分支存在，创建跟踪分支
+      // 远程分支存在，创建跟踪分支（但不签出）
       spinner.text = `从远程创建分支: ${branchName}`;
-      await git.checkoutBranch(branchName, remoteBranchName);
+      // 使用 --track 创建分支，但不签出
+      await git.raw(['branch', '--track', branchName, remoteBranchName]);
       spinner.succeed(`已从远程创建分支: ${branchName}`);
     } else {
       // 远程也不存在，基于主分支创建新分支
       spinner.text = `基于主分支创建新分支: ${branchName}`;
 
-      // 先切换到主分支
-      await git.checkout(mainBranch);
+      // 确保当前在主分支
+      const currentBranch = await git.revparse(['--abbrev-ref', 'HEAD']);
+      if (currentBranch.trim() !== mainBranch) {
+        await git.checkout(mainBranch);
+      }
 
-      // 创建新分支
-      await git.checkoutLocalBranch(branchName);
+      // 创建新分支（但不签出）
+      await git.raw(['branch', branchName]);
 
       spinner.succeed(`已创建新分支: ${branchName}`);
     }
@@ -160,6 +165,10 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
 
 /**
  * 创建 worktree
+ * 注意：此函数应该在主分支目录（git 仓库所在地）中调用
+ * @param rootDir 项目根目录（用于计算相对路径）
+ * @param branchName 分支名称
+ * @param id worktree ID
  */
 export async function createWorktree(
   rootDir: string,
@@ -169,11 +178,17 @@ export async function createWorktree(
   const spinner = ora('创建 worktree...').start();
 
   try {
+    // worktree 的绝对路径
     const worktreePath = path.join(rootDir, 'worktrees', `task-${id}`);
+
+    // 计算相对于当前目录（主分支目录）的路径
+    // 因为 git worktree add 使用的是相对路径
+    const relativePath = path.relative(process.cwd(), worktreePath);
+
     const git = simpleGit();
 
-    // 使用 git worktree add 命令
-    await git.raw(['worktree', 'add', worktreePath, branchName]);
+    // 使用 git worktree add 命令（使用相对路径）
+    await git.raw(['worktree', 'add', relativePath, branchName]);
 
     spinner.succeed(`Worktree 创建完成: task-${id}`);
     return worktreePath;

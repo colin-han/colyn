@@ -12,6 +12,7 @@ import {
 import { checkIsRepo, checkWorkingDirectoryClean, detectMainBranch } from '../core/git.js';
 import { updateEnvFilePreserveComments } from '../core/env.js';
 import { saveConfig, configExists, createDefaultConfig } from '../core/config.js';
+import { findProjectRoot } from '../core/paths.js';
 
 /**
  * 检测目录状态
@@ -19,6 +20,22 @@ import { saveConfig, configExists, createDefaultConfig } from '../core/config.js
 export async function detectDirectoryStatus(): Promise<DirectoryInfo> {
   const rootDir = process.cwd();
   const currentDirName = path.basename(rootDir);
+
+  // 检查是否已经在一个 colyn 项目中（防止嵌套初始化）
+  try {
+    const existingRoot = await findProjectRoot(rootDir);
+    if (existingRoot !== rootDir) {
+      throw new ColynError(
+        '当前目录已在 colyn 项目中',
+        `项目根目录: ${existingRoot}\n请不要在项目子目录中运行 init 命令`
+      );
+    }
+  } catch (error) {
+    // 如果找不到项目根目录，说明不在项目中，可以继续
+    if (!(error instanceof ColynError) || !error.message.includes('未找到项目根目录')) {
+      throw error;
+    }
+  }
 
   // 检查关键目录是否存在
   const mainDirPath = path.join(rootDir, currentDirName);
