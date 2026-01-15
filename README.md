@@ -190,6 +190,28 @@ colyn remove [target] [options]
 - 删除后询问是否同时删除本地分支
 - 如果当前在被删除的 worktree 中，自动切换到主分支目录
 
+### `colyn checkout [worktree-id] <branch>`
+
+在 worktree 中切换分支。
+
+```bash
+colyn checkout [worktree-id] <branch>
+
+参数：
+  worktree-id  可选，worktree 的 ID（在 worktree 目录中可省略）
+  branch       目标分支名称
+
+别名：
+  colyn co [worktree-id] <branch>
+```
+
+**功能**：
+- 在 worktree 目录中自动识别当前 worktree，或通过 ID 指定
+- 智能处理分支（本地分支、远程跟踪、创建新分支）
+- 检查当前分支是否已合并，未合并时提示确认
+- 自动归档 `.claude/logs/` 下的日志文件到 `archived/<branch-name>/`
+- 已合并的分支可选删除
+
 ---
 
 ## 环境变量
@@ -286,8 +308,7 @@ colyn/
 - [x] `list` - 列出所有 worktree
 - [x] `merge` - 合并 worktree 到主分支
 - [x] `remove` - 删除 worktree
-- [ ] `status` - 查看 worktree 状态
-- [ ] `checkout` - 在 worktree 中切换分支
+- [x] `checkout` - 在 worktree 中切换分支
 
 ---
 

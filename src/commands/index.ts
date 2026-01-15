@@ -11,7 +11,6 @@ import { register as registerList } from './list.js';
 import { register as registerMerge } from './merge.js';
 import { register as registerInfo } from './info.js';
 import { register as registerCheckout } from './checkout.js';
-import { register as registerStatus } from './status.js';
 import { register as registerRemove } from './remove.js';
 
 /**
@@ -24,6 +23,5 @@ export function registerAllCommands(program: Command): void {
   registerMerge(program);
   registerInfo(program);
   registerCheckout(program);
-  registerStatus(program);
   registerRemove(program);
 }
