@@ -169,11 +169,13 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
  * @param rootDir 项目根目录（用于计算相对路径）
  * @param branchName 分支名称
  * @param id worktree ID
+ * @param config 配置信息（用于查找已存在的 worktree）
  */
 export async function createWorktree(
   rootDir: string,
   branchName: string,
-  id: number
+  id: number,
+  config: ColynConfig
 ): Promise<string> {
   const spinner = ora('创建 worktree...').start();
 
@@ -194,9 +196,62 @@ export async function createWorktree(
     return worktreePath;
   } catch (error) {
     spinner.fail('创建 worktree 失败');
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // 检查是否是分支已被其他 worktree 使用的错误
+    if (errorMessage.includes('already used by worktree')) {
+      // 尝试从错误信息中提取 worktree 路径
+      const pathMatch = errorMessage.match(/already used by worktree at ['"]?([^'"]+)['"]?/);
+      const existingPath = pathMatch ? pathMatch[1] : null;
+
+      // 查找配置中该分支对应的 worktree
+      const existingWorktree = config.worktrees.find(w => w.branch === branchName);
+
+      if (existingWorktree) {
+        // 该分支在当前项目的配置中
+        throw new ColynError(
+          `分支 "${branchName}" 已关联到现有 worktree`,
+          `Worktree 信息：\n` +
+          `  ID: ${existingWorktree.id}\n` +
+          `  路径: ${existingWorktree.path}\n` +
+          `  端口: ${existingWorktree.port}\n\n` +
+          `提示：\n` +
+          `  - 如果要切换到该 worktree，请使用: cd ${existingWorktree.path}\n` +
+          `  - 如果要删除该 worktree，请使用: colyn remove ${existingWorktree.id}\n` +
+          `  - 如果要使用不同的分支名，请重新运行 add 命令`
+        );
+      } else if (existingPath) {
+        // 分支被其他项目或手动创建的 worktree 使用
+        throw new ColynError(
+          `分支 "${branchName}" 已被其他 worktree 使用`,
+          `该分支当前被以下 worktree 使用：\n` +
+          `  ${existingPath}\n\n` +
+          `提示：\n` +
+          `  - 这可能是其他 colyn 项目或手动创建的 worktree\n` +
+          `  - 如果不再需要，请手动删除: git worktree remove "${existingPath}"\n` +
+          `  - 或者使用不同的分支名`
+        );
+      } else {
+        // 无法提取路径信息，但确定是分支冲突
+        throw new ColynError(
+          `分支 "${branchName}" 已被其他 worktree 使用`,
+          `提示：\n` +
+          `  - 运行 "git worktree list" 查看所有 worktree\n` +
+          `  - 删除不需要的 worktree: git worktree remove <path>\n` +
+          `  - 或者使用不同的分支名`
+        );
+      }
+    }
+
+    // 其他错误
     throw new ColynError(
       '创建 worktree 时发生错误',
-      '请检查分支是否存在或 worktree 目录是否可写'
+      `错误信息: ${errorMessage}\n\n` +
+      `提示：\n` +
+      `  - 检查分支是否存在\n` +
+      `  - 检查 worktree 目录是否可写\n` +
+      `  - 运行 "git worktree list" 查看现有 worktree`
     );
   }
 }

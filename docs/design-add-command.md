@@ -543,12 +543,59 @@ export async function addCommand(branchName: string): Promise<void> {
 | 不是 git 仓库 | 不是 git 仓库 | "当前目录不是 git 仓库" | 退出，提示需要 git |
 | 主分支目录不存在 | 主分支目录缺失 | "主分支目录不存在" | 退出，提示配置损坏 |
 | 缺少环境变量文件 | .env.local 不存在 | "主分支目录缺少 .env.local 文件" | 退出，提示配置环境变量 |
-| 分支已有 worktree | 分支已存在 worktree | "分支已存在 worktree" | 退出，显示现有信息 |
+| 分支已有 worktree（当前项目） | 分支在配置中已存在 worktree | "分支已关联到现有 worktree" | 退出，显示 worktree 信息和操作建议 |
+| 分支已有 worktree（其他项目） | 分支被其他项目使用 | "分支已被其他 worktree 使用" | 退出，显示使用路径和删除命令 |
 | 无效的分支名称 | 分支名称格式错误 | "无效的分支名称" | 退出，提示格式要求 |
-| 创建 worktree 失败 | git worktree add 失败 | "创建 worktree 时发生错误" | 退出，提示检查分支 |
+| 创建 worktree 失败 | git worktree add 失败 | "创建 worktree 时发生错误" | 退出，提示检查分支或目录权限 |
 | 配置环境变量失败 | 写入 .env.local 失败 | "配置环境变量失败" | 退出，显示错误详情 |
 
-### 6.2 失败不回滚
+### 6.2 分支冲突错误的详细处理
+
+#### 6.2.1 当前项目中的分支冲突
+
+如果分支在当前项目配置中已有 worktree：
+
+```
+✗ 分支 "feature/login" 已关联到现有 worktree
+  提示: Worktree 信息：
+  ID: 1
+  路径: /Users/user/project/worktrees/task-1
+  端口: 10001
+
+提示：
+  - 如果要切换到该 worktree，请使用: cd /Users/user/project/worktrees/task-1
+  - 如果要删除该 worktree，请使用: colyn remove 1
+  - 如果要使用不同的分支名，请重新运行 add 命令
+```
+
+#### 6.2.2 其他项目或手动创建的 worktree
+
+如果分支被其他 colyn 项目或手动创建的 worktree 使用：
+
+```
+✗ 分支 "feature/login" 已被其他 worktree 使用
+  提示: 该分支当前被以下 worktree 使用：
+  /Users/user/other-project/worktrees/task-1
+
+提示：
+  - 这可能是其他 colyn 项目或手动创建的 worktree
+  - 如果不再需要，请手动删除: git worktree remove "/Users/user/other-project/worktrees/task-1"
+  - 或者使用不同的分支名
+```
+
+#### 6.2.3 无法确定路径的分支冲突
+
+如果无法从错误信息中提取路径：
+
+```
+✗ 分支 "feature/login" 已被其他 worktree 使用
+  提示：
+  - 运行 "git worktree list" 查看所有 worktree
+  - 删除不需要的 worktree: git worktree remove <path>
+  - 或者使用不同的分支名
+```
+
+### 6.3 失败不回滚
 
 根据需求，如果执行失败，**不进行自动回滚**：
 
@@ -870,7 +917,143 @@ describe('add command - error handling', () => {
 
 ---
 
-## 11. 后续优化
+## 11. 自动进入 Worktree 目录
+
+### 11.1 技术限制
+
+**Node.js 进程无法改变父 shell 的当前目录**。这是操作系统的基本限制：
+- 子进程（Node.js）无法修改父进程（shell）的工作目录
+- `process.chdir()` 只影响 Node.js 进程本身，不影响启动它的 shell
+
+### 11.2 替代方案
+
+#### 方案 1：Shell 函数封装（推荐）
+
+创建一个 shell 函数来封装 `colyn add` 命令：
+
+**Bash/Zsh** (`~/.bashrc` 或 `~/.zshrc`):
+```bash
+colyn-add() {
+  # 调用 colyn add 并捕获 worktree 路径
+  local output=$(colyn add "$@" 2>&1)
+  local exit_code=$?
+
+  # 显示输出
+  echo "$output"
+
+  # 如果成功，提取路径并切换
+  if [ $exit_code -eq 0 ]; then
+    local worktree_path=$(echo "$output" | grep "路径:" | awk '{print $2}')
+    if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
+      cd "$worktree_path"
+      echo "已切换到: $worktree_path"
+    fi
+  fi
+
+  return $exit_code
+}
+```
+
+使用：
+```bash
+# 使用函数而不是直接调用 colyn
+colyn-add feature/login   # 创建 worktree 并自动切换
+```
+
+#### 方案 2：输出 cd 命令（需要手动执行）
+
+让 `colyn add` 在成功时输出一个可以直接执行的 `cd` 命令：
+
+```typescript
+function displayAddSuccess(
+  id: number,
+  branch: string,
+  worktreePath: string,
+  port: number
+): void {
+  console.log('');
+  console.log(chalk.green(`✓ Worktree 创建成功！\n`));
+
+  console.log(chalk.bold('Worktree 信息：'));
+  console.log(`  ID: ${id}`);
+  console.log(`  分支: ${branch}`);
+  console.log(`  路径: ${worktreePath}`);
+  console.log(`  端口: ${port}`);
+  console.log('');
+
+  // 输出可执行的 cd 命令
+  console.log(chalk.bold('快速切换：'));
+  console.log(chalk.cyan(`  cd ${worktreePath}`));
+  console.log(chalk.gray('  （复制上面的命令并执行）'));
+  console.log('');
+}
+```
+
+用户可以：
+1. 手动复制 `cd` 命令执行
+2. 使用终端的"点击执行"功能（很多终端支持）
+
+#### 方案 3：使用 `eval` 配合 shell 函数
+
+创建一个辅助命令 `colyn-cd` 来提取路径：
+
+**在 colyn 中添加 `--print-path` 选项**：
+```typescript
+// 如果使用 --print-path，只输出路径，不输出其他信息
+if (options.printPath) {
+  console.log(worktreePath);
+  return;
+}
+```
+
+**Shell 函数** (`~/.bashrc` 或 `~/.zshrc`):
+```bash
+ca() {  # ca = colyn add
+  colyn add "$@" && cd "$(colyn add "$@" --print-path 2>/dev/null)"
+}
+```
+
+#### 方案 4：tmux/screen 集成
+
+对于使用 tmux 或 screen 的用户，可以：
+1. 创建新窗口/面板
+2. 在新窗口中自动进入 worktree 目录
+
+```bash
+# 在 tmux 中使用
+colyn-add-tmux() {
+  local branch=$1
+  local output=$(colyn add "$branch")
+  local worktree_path=$(echo "$output" | grep "路径:" | awk '{print $2}')
+
+  if [ -n "$worktree_path" ]; then
+    tmux new-window -c "$worktree_path" -n "$branch"
+  fi
+}
+```
+
+### 11.3 推荐实践
+
+**当前推荐方案**：方案 1（Shell 函数封装）
+
+优点：
+- ✅ 用户体验最好（自动切换）
+- ✅ 无需修改 colyn 代码
+- ✅ 兼容性好（bash/zsh 通用）
+- ✅ 可选（不影响直接使用 `colyn add`）
+
+**未来可考虑**：
+- 在安装脚本中提供 shell 函数的配置选项
+- 文档中提供各种 shell 的函数示例
+- 提供 `colyn setup-shell` 命令自动配置
+
+### 11.4 实现计划
+
+1. **文档更新**：在用户文档中添加 shell 函数的配置说明
+2. **示例提供**：提供 bash、zsh、fish 的函数示例
+3. **可选集成**：考虑在安装时询问用户是否自动配置 shell 函数
+
+## 12. 后续优化
 
 1. **智能端口检测**：检查端口是否已被占用，自动跳过
 2. **自定义 worktree 目录名**：允许用户自定义目录名（而不是固定的 task-{id}）

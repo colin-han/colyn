@@ -66,7 +66,7 @@ export async function addCommand(branchName: string): Promise<void> {
 
     // 步骤6: 在主分支目录创建 worktree（git 仓库所在地）
     const worktreePath = await executeInDirectory(paths.mainDir, async () => {
-      return await createWorktree(paths.rootDir, cleanBranchName, id);
+      return await createWorktree(paths.rootDir, cleanBranchName, id, config);
     });
 
     // 步骤7: 配置环境变量
