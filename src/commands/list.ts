@@ -10,6 +10,15 @@ import {
 } from '../core/discovery.js';
 import { ColynError } from '../types/index.js';
 import { formatError } from '../utils/logger.js';
+import {
+  getGitStatus,
+  getGitDiff,
+  formatStatus,
+  formatStatusSimple,
+  formatDiff,
+  type GitStatus,
+  type GitDiff
+} from './list.helpers.js';
 
 /**
  * List 命令选项
@@ -30,6 +39,8 @@ interface ListItem {
   path: string;
   isMain: boolean;
   isCurrent: boolean;
+  status: GitStatus;
+  diff: GitDiff;
 }
 
 /**
@@ -44,6 +55,111 @@ function isCurrentDirectory(targetPath: string): boolean {
 }
 
 /**
+ * 显示模式
+ */
+type DisplayMode = 'full' | 'no-port' | 'no-path' | 'simple-status' | 'no-status' | 'minimal';
+
+/**
+ * 计算列的最大宽度
+ */
+function getColumnWidths(items: ListItem[]): {
+  id: number;
+  branch: number;
+  port: number;
+  status: number;
+  statusSimple: number;
+  diff: number;
+  path: number;
+} {
+  let maxId = 4; // "→ -" 或 "  1"
+  let maxBranch = 6; // "Branch"
+  let maxPort = 5; // "Port" + 1
+  let maxStatus = 6; // "Status"
+  const maxStatusSimple = 1; // "●"
+  let maxDiff = 4; // "Diff"
+  let maxPath = 4; // "Path"
+
+  for (const item of items) {
+    const idStr = item.isMain ? '-' : String(item.id);
+    const idDisplay = `→ ${idStr}`;
+    maxId = Math.max(maxId, idDisplay.length);
+    maxBranch = Math.max(maxBranch, item.branch.length);
+    maxPort = Math.max(maxPort, String(item.port).length);
+    maxStatus = Math.max(maxStatus, formatStatus(item.status).length);
+    maxDiff = Math.max(maxDiff, formatDiff(item.diff, item.isMain).length);
+    maxPath = Math.max(maxPath, item.path.length);
+  }
+
+  return {
+    id: maxId,
+    branch: maxBranch,
+    port: maxPort,
+    status: maxStatus,
+    statusSimple: maxStatusSimple,
+    diff: maxDiff,
+    path: maxPath
+  };
+}
+
+/**
+ * 计算指定模式下的表格宽度
+ * 表格边框和分隔符大约占用: 列数 * 3 + 1
+ */
+function calculateTableWidth(widths: ReturnType<typeof getColumnWidths>, mode: DisplayMode): number {
+  const borderOverhead = 3; // 每列的边框开销 "│ " + " "
+  let totalWidth = 1; // 左边框
+
+  // ID 和 Branch 始终显示
+  totalWidth += widths.id + borderOverhead;
+  totalWidth += widths.branch + borderOverhead;
+
+  switch (mode) {
+    case 'full':
+      totalWidth += widths.port + borderOverhead;
+      totalWidth += widths.status + borderOverhead;
+      totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.path + borderOverhead;
+      break;
+    case 'no-port':
+      totalWidth += widths.status + borderOverhead;
+      totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.path + borderOverhead;
+      break;
+    case 'no-path':
+      totalWidth += widths.status + borderOverhead;
+      totalWidth += widths.diff + borderOverhead;
+      break;
+    case 'simple-status':
+      totalWidth += widths.statusSimple + borderOverhead;
+      totalWidth += widths.diff + borderOverhead;
+      break;
+    case 'no-status':
+      totalWidth += widths.diff + borderOverhead;
+      break;
+    case 'minimal':
+      // 只有 ID 和 Branch
+      break;
+  }
+
+  return totalWidth;
+}
+
+/**
+ * 选择最佳显示模式
+ */
+function selectDisplayMode(widths: ReturnType<typeof getColumnWidths>, terminalWidth: number): DisplayMode {
+  const modes: DisplayMode[] = ['full', 'no-port', 'no-path', 'simple-status', 'no-status', 'minimal'];
+
+  for (const mode of modes) {
+    if (calculateTableWidth(widths, mode) <= terminalWidth) {
+      return mode;
+    }
+  }
+
+  return 'minimal';
+}
+
+/**
  * 输出表格格式
  */
 function outputTable(items: ListItem[]): void {
@@ -53,13 +169,32 @@ function outputTable(items: ListItem[]): void {
     return;
   }
 
+  // 获取终端宽度
+  const terminalWidth = process.stdout.columns || 80;
+
+  // 计算列宽度
+  const widths = getColumnWidths(items);
+
+  // 选择显示模式
+  const mode = selectDisplayMode(widths, terminalWidth);
+
+  // 构建表头
+  const headers: string[] = [chalk.bold('ID'), chalk.bold('Branch')];
+  if (mode === 'full') {
+    headers.push(chalk.bold('Port'), chalk.bold('Status'), chalk.bold('Diff'), chalk.bold('Path'));
+  } else if (mode === 'no-port') {
+    headers.push(chalk.bold('Status'), chalk.bold('Diff'), chalk.bold('Path'));
+  } else if (mode === 'no-path') {
+    headers.push(chalk.bold('Status'), chalk.bold('Diff'));
+  } else if (mode === 'simple-status') {
+    headers.push(chalk.bold('S'), chalk.bold('Diff'));
+  } else if (mode === 'no-status') {
+    headers.push(chalk.bold('Diff'));
+  }
+  // minimal 模式只有 ID 和 Branch
+
   const table = new Table({
-    head: [
-      chalk.bold('ID'),
-      chalk.bold('Branch'),
-      chalk.bold('Port'),
-      chalk.bold('Path')
-    ],
+    head: headers,
     style: {
       head: [],
       border: []
@@ -68,19 +203,76 @@ function outputTable(items: ListItem[]): void {
 
   for (const item of items) {
     const idStr = item.isMain ? '-' : String(item.id);
-    const row = [idStr, item.branch, String(item.port), item.path];
+    const idDisplay = item.isCurrent ? `→ ${idStr}` : `  ${idStr}`;
 
+    // 构建行数据
+    const row: string[] = [idDisplay, item.branch];
+
+    // 根据模式添加列
+    if (mode === 'full') {
+      const statusStr = formatStatus(item.status);
+      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
+      const diffStr = formatDiff(item.diff, item.isMain);
+      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
+        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
+      row.push(String(item.port), coloredStatus, coloredDiff, item.path);
+    } else if (mode === 'no-port') {
+      const statusStr = formatStatus(item.status);
+      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
+      const diffStr = formatDiff(item.diff, item.isMain);
+      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
+        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
+      row.push(coloredStatus, coloredDiff, item.path);
+    } else if (mode === 'no-path') {
+      const statusStr = formatStatus(item.status);
+      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
+      const diffStr = formatDiff(item.diff, item.isMain);
+      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
+        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
+      row.push(coloredStatus, coloredDiff);
+    } else if (mode === 'simple-status') {
+      const statusStr = formatStatusSimple(item.status);
+      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
+      const diffStr = formatDiff(item.diff, item.isMain);
+      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
+        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
+      row.push(coloredStatus, coloredDiff);
+    } else if (mode === 'no-status') {
+      const diffStr = formatDiff(item.diff, item.isMain);
+      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
+        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
+      row.push(coloredDiff);
+    }
+    // minimal 模式只有 ID 和 Branch
+
+    // 应用行样式
     if (item.isCurrent) {
-      // 当前行用青色显示，末尾加标记
+      // 当前行用青色高亮显示
       table.push(row.map((cell, index) => {
-        if (index === row.length - 1) {
-          return chalk.cyan(cell) + chalk.yellow('  ← 当前位置');
+        // 保留状态和差异列的颜色（索引根据模式不同而变化）
+        const statusIndex = mode === 'full' ? 3 : (mode === 'no-port' ? 2 : 2);
+        const diffIndex = mode === 'full' ? 4 : (mode === 'no-port' ? 3 : 3);
+        if (mode !== 'minimal' && mode !== 'no-status' && (index === statusIndex || index === diffIndex)) {
+          return cell;
+        }
+        if (mode === 'no-status' && index === 2) {
+          return cell; // diff 列
         }
         return chalk.cyan(cell);
       }));
     } else if (item.isMain) {
       // 主分支用灰色显示
-      table.push(row.map(cell => chalk.dim(cell)));
+      table.push(row.map((cell, index) => {
+        const statusIndex = mode === 'full' ? 3 : (mode === 'no-port' ? 2 : 2);
+        const diffIndex = mode === 'full' ? 4 : (mode === 'no-port' ? 3 : 3);
+        if (mode !== 'minimal' && mode !== 'no-status' && (index === statusIndex || index === diffIndex)) {
+          return cell;
+        }
+        if (mode === 'no-status' && index === 2) {
+          return cell;
+        }
+        return chalk.dim(cell);
+      }));
     } else {
       table.push(row);
     }
@@ -144,9 +336,11 @@ async function listCommand(options: ListOptions): Promise<void> {
         id: null,
         branch: mainBranch,
         port: mainPort,
-        path: paths.mainDir,
+        path: path.relative(paths.rootDir, paths.mainDir) || '.',
         isMain: true,
-        isCurrent: isCurrentDirectory(paths.mainDir)
+        isCurrent: isCurrentDirectory(paths.mainDir),
+        status: getGitStatus(paths.mainDir),
+        diff: { ahead: 0, behind: 0 }  // 主分支没有差异
       });
     }
 
@@ -156,9 +350,11 @@ async function listCommand(options: ListOptions): Promise<void> {
         id: wt.id,
         branch: wt.branch,
         port: wt.port,
-        path: wt.path,
+        path: path.relative(paths.rootDir, wt.path),
         isMain: false,
-        isCurrent: isCurrentDirectory(wt.path)
+        isCurrent: isCurrentDirectory(wt.path),
+        status: getGitStatus(wt.path),
+        diff: getGitDiff(wt.path, mainBranch)
       });
     }
 
