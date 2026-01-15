@@ -3,6 +3,7 @@ import { initCommand } from './commands/init.js';
 import { addCommand } from './commands/add.js';
 import { listCommand } from './commands/list.js';
 import { mergeCommand } from './commands/merge.js';
+import { infoCommand } from './commands/info.js';
 
 const program = new Command();
 
@@ -49,6 +50,18 @@ program
   .option('--no-push', '合并后不推送')
   .action(async (target: string | undefined, options: { push?: boolean }) => {
     await mergeCommand(target, options);
+  });
+
+program
+  .command('info')
+  .description('显示当前目录的 colyn 项目信息')
+  .option('-f, --field <name>', '输出指定字段（可多次使用）', (value, previous: string[]) => {
+    return previous.concat([value]);
+  }, [])
+  .option('--format <template>', '使用模板字符串格式化输出')
+  .option('-s, --separator <char>', '多字段时的分隔符（默认 tab）')
+  .action(async (options) => {
+    await infoCommand(options);
   });
 
 export function run(): void {
