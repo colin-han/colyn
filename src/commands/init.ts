@@ -1,3 +1,4 @@
+import type { Command } from 'commander';
 import { DirectoryStatus, CommandResult } from '../types/index.js';
 import { formatError, outputResult } from '../utils/logger.js';
 import {
@@ -14,7 +15,7 @@ import {
 /**
  * Init 命令入口
  */
-export async function initCommand(options: { port?: string }): Promise<void> {
+async function initCommand(options: { port?: string }): Promise<void> {
   try {
     // 步骤1: 检测目录状态
     const dirInfo = await detectDirectoryStatus();
@@ -58,4 +59,17 @@ export async function initCommand(options: { port?: string }): Promise<void> {
     outputResult({ success: false });
     process.exit(1);
   }
+}
+
+/**
+ * 注册 init 命令
+ */
+export function register(program: Command): void {
+  program
+    .command('init')
+    .description('初始化 worktree 管理结构')
+    .option('-p, --port <port>', '主分支开发服务器端口')
+    .action(async (options) => {
+      await initCommand(options);
+    });
 }

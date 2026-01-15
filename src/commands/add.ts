@@ -1,4 +1,5 @@
 import * as path from 'path';
+import type { Command } from 'commander';
 import {
   getProjectPaths,
   validateProjectInitialized,
@@ -24,7 +25,7 @@ import {
 /**
  * Add 命令：创建新的 worktree
  */
-export async function addCommand(branchName: string): Promise<void> {
+async function addCommand(branchName: string): Promise<void> {
   try {
     // 步骤1: 验证和清理分支名称
     if (!branchName || branchName.trim() === '') {
@@ -102,4 +103,16 @@ export async function addCommand(branchName: string): Promise<void> {
     outputResult({ success: false });
     process.exit(1);
   }
+}
+
+/**
+ * 注册 add 命令
+ */
+export function register(program: Command): void {
+  program
+    .command('add <branch>')
+    .description('创建新的 worktree')
+    .action(async (branch: string) => {
+      await addCommand(branch);
+    });
 }
