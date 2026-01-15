@@ -132,7 +132,8 @@ export async function mergeCommand(
           type: 'confirm',
           name: 'push',
           message: '是否推送到远程仓库？',
-          initial: true
+          initial: true,
+          stdout: process.stderr  // 输出到 stderr，避免被 shell 捕获
         });
 
         if (response.push) {
