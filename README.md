@@ -136,15 +136,59 @@ colyn merge [target] [options]
 
 选项：
   --push     合并后自动推送到远程
-  --no-push  合并后不推送，不询问
 ```
 
 **功能**：
 - 智能识别 worktree（ID、分支名或自动检测）
 - 前置检查（主分支和 worktree 工作目录必须干净）
+- 两步合并策略：先在 worktree 合并主分支，再在主分支合并 worktree
 - 使用 `--no-ff` 保持清晰的分支历史
 - 可选推送到远程仓库
 - 合并后保留 worktree（由用户决定删除时机）
+
+### `colyn list`
+
+列出所有 worktree。
+
+```bash
+colyn list [options]
+
+选项：
+  --json     以 JSON 格式输出
+  -p, --paths  只输出路径（每行一个）
+  --no-main  不显示主分支
+```
+
+**功能**：
+- 表格形式展示所有 worktree
+- 显示 ID、分支名、端口、路径
+- 高亮当前所在的 worktree
+- 支持 JSON 输出便于脚本使用
+
+### `colyn remove [target]`
+
+删除不再需要的 worktree。
+
+```bash
+colyn remove [target] [options]
+
+参数：
+  target  可选，支持以下形式：
+          - 数字：按 ID 查找（如 colyn remove 1）
+          - 分支名：按分支名查找（如 colyn remove feature/login）
+          - 不传：自动识别当前 worktree
+
+选项：
+  -f, --force  强制删除（忽略未提交的更改）
+  -y, --yes    跳过确认提示
+```
+
+**功能**：
+- 智能识别 worktree（ID、分支名或自动检测）
+- 检查未提交更改，有更改时拒绝删除（除非 --force）
+- 检查分支是否已合并（未合并时显示警告）
+- 删除后询问是否同时删除本地分支
+- 如果当前在被删除的 worktree 中，自动切换到主分支目录
 
 ---
 
@@ -239,10 +283,10 @@ colyn/
 
 - [x] `init` - 初始化项目结构
 - [x] `add` - 创建 worktree
+- [x] `list` - 列出所有 worktree
 - [x] `merge` - 合并 worktree 到主分支
-- [ ] `list` - 列出所有 worktree
+- [x] `remove` - 删除 worktree
 - [ ] `status` - 查看 worktree 状态
-- [ ] `remove` - 删除 worktree
 - [ ] `checkout` - 在 worktree 中切换分支
 
 ---
