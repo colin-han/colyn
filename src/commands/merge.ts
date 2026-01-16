@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import Enquirer from 'enquirer';
 import ora from 'ora';
 import {
   getProjectPaths,
@@ -151,7 +152,6 @@ async function mergeCommand(
     outputSuccess('合并完成！');
 
     // 步骤8: 推送处理
-    // --push: 推送，否则默认不推送
     let pushed = false;
 
     if (options.push === true) {
@@ -162,8 +162,26 @@ async function mergeCommand(
       } else {
         displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
       }
+    } else if (options.push === undefined) {
+      // 没有指定标志：询问用户
+      const enquirer = new Enquirer({ stdout: process.stderr });
+      const response = await enquirer.prompt<{ shouldPush: boolean }>({
+        type: 'confirm',
+        name: 'shouldPush',
+        message: '是否推送到远程仓库？',
+        initial: false
+      });
+
+      if (response.shouldPush) {
+        const pushResult = await pushToRemote(paths.mainDir, mainBranch);
+        if (pushResult.success) {
+          pushed = true;
+        } else {
+          displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
+        }
+      }
     }
-    // 默认不推送，不询问
+    // options.push === false 时不推送，不询问
 
     // 步骤9: 显示成功信息
     displayMergeSuccess(
@@ -197,6 +215,7 @@ export function register(program: Command): void {
     .command('merge [target]')
     .description('将 worktree 分支合并回主分支')
     .option('--push', '合并后自动推送到远程')
+    .option('--no-push', '合并后不推送到远程')
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });
