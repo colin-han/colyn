@@ -10,6 +10,7 @@ Git Worktree 管理工具 - 简化多分支并行开发工作流。
 - **自动端口分配**：避免多个开发服务器端口冲突
 - **自动目录切换**：命令执行后自动切换到目标目录
 - **智能分支处理**：自动识别本地分支、远程分支或创建新分支
+- **自动补全**：支持 Bash/Zsh Tab 键补全命令、选项和参数
 - **跨平台支持**：macOS、Linux、Windows
 
 ---
@@ -23,7 +24,7 @@ Git Worktree 管理工具 - 简化多分支并行开发工作流。
 volta run yarn install-to ~/my-tools/colyn
 ```
 
-安装完成后，重新打开终端即可使用 `colyn` 命令（已自动配置 shell 集成）。
+安装完成后，重新打开终端即可使用 `colyn` 命令（已自动配置 shell 集成和自动补全）。
 
 ### 方式 2：手动配置
 
@@ -32,6 +33,7 @@ volta run yarn install-to ~/my-tools/colyn
 ```bash
 # 添加到 ~/.zshrc 或 ~/.bashrc
 source ~/my-tools/colyn/colyn.d/colyn.sh
+source ~/my-tools/colyn/colyn.d/completion.bash  # 或 completion.zsh
 ```
 
 详细安装说明请参考 [docs/installation.md](docs/installation.md)。
@@ -212,6 +214,57 @@ colyn checkout [worktree-id] <branch>
 - 自动归档 `.claude/logs/` 下的日志文件到 `archived/<branch-name>/`
 - 已合并的分支可选删除
 
+### `colyn info`
+
+显示当前目录的项目信息。
+
+```bash
+colyn info [options]
+
+选项：
+  -f, --field <name>     输出指定字段（可多次使用）
+  --format <template>    使用模板字符串格式化输出
+  -s, --separator <char> 多字段时的分隔符（默认 tab）
+```
+
+**功能**：
+- 显示项目名称、路径、worktree ID、分支等信息
+- 支持输出指定字段
+- 支持模板字符串格式化
+
+### `colyn completion [shell]`
+
+生成 shell 自动补全脚本。
+
+```bash
+colyn completion [shell] [options]
+
+参数：
+  shell  shell 类型（bash 或 zsh）
+
+选项：
+  --install  显示安装说明
+```
+
+**功能**：
+- 生成 Bash 或 Zsh 补全脚本
+- 支持命令、选项、参数的自动补全
+- 实时查询 worktree 列表进行动态补全
+- 提供安装说明
+
+**示例**：
+```bash
+# 输出 bash 补全脚本
+colyn completion bash
+
+# 显示 zsh 安装说明
+colyn completion zsh --install
+
+# 手动安装
+colyn completion bash > ~/.colyn-completion.bash
+echo "source ~/.colyn-completion.bash" >> ~/.bashrc
+```
+
 ---
 
 ## 环境变量
@@ -287,7 +340,9 @@ colyn/
 ├── bin/
 │   └── colyn              # Bash 入口脚本
 ├── shell/
-│   └── colyn.sh           # Shell 集成脚本
+│   ├── colyn.sh           # Shell 集成脚本
+│   ├── completion.bash    # Bash 补全脚本
+│   └── completion.zsh     # Zsh 补全脚本
 ├── src/
 │   ├── cli.ts             # CLI 入口
 │   ├── commands/          # 命令实现
@@ -309,6 +364,8 @@ colyn/
 - [x] `merge` - 合并 worktree 到主分支
 - [x] `remove` - 删除 worktree
 - [x] `checkout` - 在 worktree 中切换分支
+- [x] `info` - 显示项目信息
+- [x] `completion` - 自动补全功能
 
 ---
 
