@@ -222,15 +222,39 @@ colyn checkout [worktree-id] <branch>
 colyn info [options]
 
 选项：
-  -f, --field <name>     输出指定字段（可多次使用）
-  --format <template>    使用模板字符串格式化输出
-  -s, --separator <char> 多字段时的分隔符（默认 tab）
+  -S, --short             输出简短标识符（带分支信息）
+  -f, --field <name>      输出指定字段（可多次使用）
+  --format <template>     使用模板字符串格式化输出
+  -s, --separator <char>  多字段时的分隔符（默认 tab）
 ```
 
 **功能**：
-- 显示项目名称、路径、worktree ID、分支等信息
-- 支持输出指定字段
-- 支持模板字符串格式化
+- 显示项目名、路径、worktree ID、分支等信息
+- 支持多种输出格式（完整信息、字段、模板、简短标识符）
+- `--short` 选项支持智能降级（colyn 项目 → git 仓库 → 普通目录）
+
+**使用示例**：
+```bash
+# 显示完整信息
+$ colyn info
+📁 Project:      my-project
+📂 Project Path: /path/to/my-project
+🔢 Worktree ID:  1
+📁 Worktree Dir: task-1
+🌿 Branch:       feature/login
+
+# 输出简短标识符（推荐用于 shell 提示符）
+$ colyn info --short
+my-project/task-1 (⎇ feature/login)
+
+# 在 shell 提示符中使用
+$ PS1='[$(colyn info -S)] $ '
+[my-project/task-1 (⎇ feature/login)] $
+
+# 获取单个字段
+$ colyn info -f branch
+feature/login
+```
 
 ### `colyn completion [shell]`
 
@@ -263,6 +287,34 @@ colyn completion zsh --install
 # 手动安装
 colyn completion bash > ~/.colyn-completion.bash
 echo "source ~/.colyn-completion.bash" >> ~/.bashrc
+```
+
+### `colyn repair`
+
+检查并修复项目配置（移动目录后使用）。
+
+```bash
+colyn repair
+```
+
+**功能**：
+- 检查并修复主分支和所有 worktree 的 `.env.local` 文件
+- 运行 `git worktree repair` 修复 git 连接
+- 智能检测并修复路径失效的 worktree（项目移动后）
+- 检测孤儿 worktree 目录
+
+**使用场景**：
+```bash
+# 移动项目目录后
+$ mv ~/project ~/Desktop/project
+$ cd ~/Desktop/project
+
+# 运行修复
+$ colyn repair
+✔ 检测并修复孤儿 worktree 目录...
+✔ 已修复 2 个路径失效的 worktree
+
+✓ 修复完成！
 ```
 
 ---
@@ -364,8 +416,9 @@ colyn/
 - [x] `merge` - 合并 worktree 到主分支
 - [x] `remove` - 删除 worktree
 - [x] `checkout` - 在 worktree 中切换分支
-- [x] `info` - 显示项目信息
+- [x] `info` - 显示当前目录信息
 - [x] `completion` - 自动补全功能
+- [x] `repair` - 检查并修复项目配置
 
 ---
 

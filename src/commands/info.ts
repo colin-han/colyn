@@ -1,5 +1,7 @@
 import type { Command } from 'commander';
+import * as path from 'path';
 import chalk from 'chalk';
+import simpleGit from 'simple-git';
 import { getLocationInfo, type LocationInfo } from '../core/paths.js';
 import { ColynError } from '../types/index.js';
 import { output, formatError } from '../utils/logger.js';
@@ -92,12 +94,53 @@ function printFullInfo(info: LocationInfo): void {
 }
 
 /**
+ * 获取 git 仓库根目录
+ */
+async function getGitRoot(): Promise<string | null> {
+  try {
+    const git = simpleGit();
+    const root = await git.revparse(['--show-toplevel']);
+    return root.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 获取简短标识符（带降级策略）
+ */
+async function getShortId(): Promise<string> {
+  try {
+    // 1. 尝试获取 colyn 信息
+    const info = await getLocationInfo();
+    return `${info.project}/${info.worktreeDir} (⎇ ${info.branch})`;
+  } catch {
+    try {
+      // 2. 尝试获取 git 仓库名和分支
+      const gitRoot = await getGitRoot();
+      if (gitRoot) {
+        const git = simpleGit();
+        const branch = await git.branchLocal();
+        const repoName = path.basename(gitRoot);
+        return `${repoName} (⎇ ${branch.current})`;
+      }
+    } catch {
+      // 忽略 git 错误，继续降级
+    }
+
+    // 3. 使用当前目录名
+    return path.basename(process.cwd());
+  }
+}
+
+/**
  * info 命令选项
  */
 interface InfoOptions {
   field?: string[];
   format?: string;
   separator?: string;
+  short?: boolean;
 }
 
 /**
@@ -105,6 +148,13 @@ interface InfoOptions {
  */
 async function infoCommand(options: InfoOptions): Promise<void> {
   try {
+    // 处理 --short 参数（优先级最高）
+    if (options.short) {
+      const shortId = await getShortId();
+      process.stdout.write(shortId + '\n');
+      return;
+    }
+
     // 获取当前位置信息
     const info = await getLocationInfo();
 
@@ -152,9 +202,10 @@ async function infoCommand(options: InfoOptions): Promise<void> {
  * 注册 info 命令
  */
 export function register(program: Command): void {
-  program
+  const cmd = program
     .command('info')
     .description('显示当前目录的 colyn 项目信息')
+    .option('-S, --short', '输出简短标识符（带分支信息）')
     .option('-f, --field <name>', '输出指定字段（可多次使用）', (value, previous: string[]) => {
       return previous.concat([value]);
     }, [])
@@ -163,4 +214,65 @@ export function register(program: Command): void {
     .action(async (options) => {
       await infoCommand(options);
     });
+
+  // 添加详细的帮助信息
+  cmd.addHelpText('after', `
+
+可用字段：
+  project         项目名称
+  project-path    项目路径（主分支目录）
+  worktree-id     Worktree ID（主分支为 0）
+  worktree-dir    Worktree 目录名
+  branch          当前分支名
+
+使用示例：
+  # 显示完整信息（默认）
+  $ colyn info
+  📁 Project:       my-project
+  📂 Project Path:  /path/to/my-project
+  🔢 Worktree ID:   1
+  📁 Worktree Dir:  task-1
+  🌿 Branch:        feature/login
+
+  # 输出简短标识符（带分支信息）
+  $ colyn info --short
+  my-project/task-1 (⎇ feature/login)
+
+  # 使用缩写
+  $ colyn info -S
+  my-project/task-1 (⎇ feature/login)
+
+  # 在非 colyn 项目的 git 仓库中
+  $ colyn info --short
+  my-repo (⎇ main)
+
+  # 在非 git 目录中
+  $ colyn info --short
+  my-folder
+
+  # 输出单个字段
+  $ colyn info -f branch
+  feature/login
+
+  # 输出多个字段（tab 分隔）
+  $ colyn info -f worktree-id -f branch
+  1	feature/login
+
+  # 使用自定义分隔符
+  $ colyn info -f worktree-id -f branch -s ","
+  1,feature/login
+
+  # 使用模板格式化输出
+  $ colyn info --format "Worktree {worktree-id}: {branch}"
+  Worktree 1: feature/login
+
+  # 在脚本中使用
+  $ BRANCH=$(colyn info -f branch)
+  $ echo "Current branch: $BRANCH"
+  Current branch: feature/login
+
+  # 在 shell 提示符中使用
+  $ PS1='[$(colyn info -S)] $ '
+  [my-project/task-1 (⎇ feature/login)] $
+`);
 }

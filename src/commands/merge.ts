@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import Enquirer from 'enquirer';
 import ora from 'ora';
 import {
   getProjectPaths,
@@ -42,7 +43,7 @@ interface MergeOptions {
  */
 async function mergeCommand(
   target: string | undefined,
-  options: MergeOptions
+  _options: MergeOptions
 ): Promise<void> {
   try {
     // 步骤1: 获取项目路径并验证
@@ -151,10 +152,13 @@ async function mergeCommand(
     outputSuccess('合并完成！');
 
     // 步骤8: 推送处理
-    // --push: 推送，否则默认不推送
     let pushed = false;
 
-    if (options.push === true) {
+    // 检查用户是否显式指定了 --push 或 --no-push 参数
+    const explicitPush = process.argv.includes('--push');
+    const explicitNoPush = process.argv.includes('--no-push');
+
+    if (explicitPush) {
       // --push: 自动推送
       const pushResult = await pushToRemote(paths.mainDir, mainBranch);
       if (pushResult.success) {
@@ -162,8 +166,26 @@ async function mergeCommand(
       } else {
         displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
       }
+    } else if (!explicitNoPush) {
+      // 没有指定 --no-push：询问用户
+      const enquirer = new Enquirer({ stdout: process.stderr });
+      const response = await enquirer.prompt({
+        type: 'confirm',
+        name: 'shouldPush',
+        message: '是否推送到远程仓库？',
+        initial: false
+      }) as { shouldPush: boolean };
+
+      if (response.shouldPush) {
+        const pushResult = await pushToRemote(paths.mainDir, mainBranch);
+        if (pushResult.success) {
+          pushed = true;
+        } else {
+          displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
+        }
+      }
     }
-    // 默认不推送，不询问
+    // 指定了 --no-push: 不推送，不询问
 
     // 步骤9: 显示成功信息
     displayMergeSuccess(
@@ -197,6 +219,7 @@ export function register(program: Command): void {
     .command('merge [target]')
     .description('将 worktree 分支合并回主分支')
     .option('--push', '合并后自动推送到远程')
+    .option('--no-push', '合并后不推送（跳过询问）')
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });
