@@ -125,9 +125,10 @@ async function detectShellConfig() {
 /**
  * 添加 source 命令到 shell 配置文件
  */
-async function addToShellConfig(shellConfigPath, colynShellPath) {
+async function addToShellConfig(shellConfigPath, colynShellPath, completionPath) {
   const marker = '# Colyn shell integration';
   const sourceLine = `source "${colynShellPath}"`;
+  const completionLine = `source "${completionPath}"`;
 
   let content = '';
   try {
@@ -140,18 +141,45 @@ async function addToShellConfig(shellConfigPath, colynShellPath) {
   if (content.includes(marker)) {
     // 已存在，更新路径
     const lines = content.split('\n');
-    const newLines = lines.map(line => {
-      if (line.startsWith('source') && line.includes('colyn')) {
-        return sourceLine;
+    const newLines = [];
+    let inColynSection = false;
+
+    for (const line of lines) {
+      if (line.includes(marker)) {
+        inColynSection = true;
+        newLines.push(line);
+        continue;
       }
-      return line;
-    });
+
+      if (inColynSection) {
+        // 跳过旧的 source 行
+        if (line.startsWith('source') && line.includes('colyn')) {
+          continue;
+        }
+        // 遇到空行或新的注释，结束 colyn 区域
+        if (line.trim() === '' || (line.startsWith('#') && !line.includes('colyn'))) {
+          inColynSection = false;
+          // 插入新的配置
+          newLines.push(sourceLine);
+          newLines.push(completionLine);
+        }
+      }
+
+      newLines.push(line);
+    }
+
+    // 如果还在 colyn 区域（文件末尾），添加配置
+    if (inColynSection) {
+      newLines.push(sourceLine);
+      newLines.push(completionLine);
+    }
+
     await fs.writeFile(shellConfigPath, newLines.join('\n'), 'utf-8');
     return 'updated';
   }
 
   // 添加新配置
-  const newContent = content.trimEnd() + `\n\n${marker}\n${sourceLine}\n`;
+  const newContent = content.trimEnd() + `\n\n${marker}\n${sourceLine}\n${completionLine}\n`;
   await fs.writeFile(shellConfigPath, newContent, 'utf-8');
   return 'added';
 }
@@ -263,6 +291,22 @@ async function main() {
     process.exit(1);
   }
   success('colyn.sh 复制完成');
+
+  // 复制补全脚本
+  info('复制补全脚本到 colyn.d/');
+  const completionBashSrc = path.join(projectRoot, 'shell', 'completion.bash');
+  const completionBashDest = path.join(colynDir, 'completion.bash');
+  const completionZshSrc = path.join(projectRoot, 'shell', 'completion.zsh');
+  const completionZshDest = path.join(colynDir, 'completion.zsh');
+
+  const bashCopied = await copyFile(completionBashSrc, completionBashDest);
+  const zshCopied = await copyFile(completionZshSrc, completionZshDest);
+
+  if (!bashCopied || !zshCopied) {
+    error('复制补全脚本失败');
+    process.exit(1);
+  }
+  success('补全脚本复制完成');
 
   // 复制 README.md（可选）
   const readmeSrc = path.join(projectRoot, 'README.md');
@@ -403,7 +447,12 @@ colyn() {
       const shellConfigPath = await detectShellConfig();
       info(`检测到 shell 配置文件: ${shellConfigPath}`);
 
-      const result = await addToShellConfig(shellConfigPath, shellDest);
+      // 确定使用哪个补全脚本
+      const completionPath = shellConfigPath.includes('.zshrc')
+        ? path.join(colynDir, 'completion.zsh')
+        : path.join(colynDir, 'completion.bash');
+
+      const result = await addToShellConfig(shellConfigPath, shellDest, completionPath);
 
       if (result === 'added') {
         success(`已添加到 ${path.basename(shellConfigPath)}`);
@@ -411,12 +460,17 @@ colyn() {
         success(`已更新 ${path.basename(shellConfigPath)} 中的配置`);
       }
 
+      info('已配置以下功能：');
+      info('  - Shell 集成（目录切换）');
+      info('  - 自动补全（Tab 键补全命令和参数）');
+      console.log('');
       info('请运行以下命令使配置生效：');
       info(`  source ${shellConfigPath}`);
     } catch (err) {
       error(`配置 shell 自启动失败: ${err.message}`);
       info('你可以手动添加以下内容到 shell 配置文件：');
       info(`  source "${shellDest}"`);
+      info(`  source "${path.join(colynDir, 'completion.bash')}"  # 或 completion.zsh`);
     }
   }
 
@@ -431,6 +485,8 @@ colyn() {
   info('│   ├── dist/          # 编译后的代码');
   info('│   ├── node_modules/  # 依赖包');
   info('│   ├── colyn.sh       # Shell 集成脚本');
+  info('│   ├── completion.bash # Bash 补全脚本');
+  info('│   ├── completion.zsh  # Zsh 补全脚本');
   info('│   └── package.json   # 包配置');
 
   if (platform === 'win32') {
