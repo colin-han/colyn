@@ -390,21 +390,37 @@ git worktree repair
 - Worktree 的 `.git` 文件中的路径
 - `.git/worktrees/` 中的管理文件
 
-### 6.4 孤儿 worktree 目录检测
+### 6.4 孤儿 worktree 目录检测与修复
 
 **检测逻辑**：
-1. 扫描 `worktrees/` 下所有 `task-*` 目录
-2. 运行 `git worktree list` 获取 git 识别的 worktree
-3. 对比两个列表，找出目录存在但 git 不识别的
+1. 使用 `git worktree list --porcelain` 获取所有 worktree（包括路径已失效的）
+2. 扫描 `worktrees/` 下所有 `task-*` 目录
+3. 智能匹配：通过分支名匹配 git 记录和实际目录
 
-**孤儿目录的原因**：
-- 手动删除了 worktree（使用 `git worktree remove`）但目录未删除
-- 从其他地方复制了目录
-- Git 数据损坏
+**孤儿目录的类型**：
 
-**处理方式**：
-- 仅报告，不自动删除（安全考虑）
-- 建议用户使用 `colyn remove` 或手动删除
+1. **路径失效型**（可修复）：
+   - 原因：项目目录被移动或改名
+   - 表现：git worktree list 中路径不存在，但分支名匹配
+   - 处理：使用 `git worktree repair <new-path>` 修复路径
+
+2. **真孤儿型**（仅报告）：
+   - 原因：手动删除了 worktree，或 git 数据损坏
+   - 表现：目录存在但 git 完全不识别
+   - 处理：仅报告，建议用户手动清理
+
+**修复策略**：
+```bash
+# 对于路径失效的 worktree
+git worktree repair /new/path/to/worktrees/task-1
+
+# 会更新 git 中记录的 worktree 路径
+```
+
+**匹配逻辑**：
+- 从实际目录的 `.git` 文件或 `.env.local` 读取分支名
+- 与 git worktree list 中的分支名匹配
+- 匹配成功则认为是路径失效型，可以修复
 
 ---
 

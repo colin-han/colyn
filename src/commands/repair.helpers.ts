@@ -184,36 +184,185 @@ async function repairGitWorktree(mainDir: string): Promise<RepairResult> {
 }
 
 /**
- * 查找孤儿 worktree 目录
+ * Git worktree 信息（来自 porcelain 输出）
  */
-async function findOrphanWorktrees(
-  worktreesDir: string,
-  gitWorktrees: string[]
-): Promise<string[]> {
-  const orphans: string[] = [];
+interface GitWorktreeInfo {
+  path: string;
+  branch: string;
+  head: string;
+}
+
+/**
+ * 孤儿检测结果
+ */
+interface OrphanDetectionResult {
+  /** 已修复的孤儿（路径失效型） */
+  repairedOrphans: string[];
+  /** 真正的孤儿（git 完全不识别） */
+  trueOrphans: string[];
+  /** 修复失败的 */
+  repairFailed: Array<{ dir: string; error: string }>;
+}
+
+/**
+ * 从目录读取分支名
+ */
+async function getBranchFromWorktreeDir(worktreePath: string): Promise<string | null> {
+  try {
+    // 方法 1: 从 .git 文件读取
+    const gitFilePath = path.join(worktreePath, '.git');
+    try {
+      const gitContent = await fs.readFile(gitFilePath, 'utf-8');
+      // .git 文件格式: gitdir: /path/to/.git/worktrees/task-1
+      const match = gitContent.match(/gitdir:\s*(.+)/);
+      if (match) {
+        const gitDir = match[1].trim();
+        const headPath = path.join(gitDir, 'HEAD');
+        const headContent = await fs.readFile(headPath, 'utf-8');
+        const branchMatch = headContent.match(/ref:\s*refs\/heads\/(.+)/);
+        if (branchMatch) {
+          return branchMatch[1].trim();
+        }
+      }
+    } catch {
+      // 忽略，尝试其他方法
+    }
+
+    // 方法 2: 使用 simple-git
+    try {
+      const git = simpleGit(worktreePath);
+      const branch = await git.branchLocal();
+      return branch.current;
+    } catch {
+      // 忽略
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 获取所有 git worktree（包括路径失效的）
+ */
+async function getAllGitWorktrees(mainDir: string): Promise<GitWorktreeInfo[]> {
+  const worktrees: GitWorktreeInfo[] = [];
 
   try {
-    const entries = await fs.readdir(worktreesDir);
+    const git = simpleGit(mainDir);
+    const output = await git.raw(['worktree', 'list', '--porcelain']);
 
-    for (const entry of entries) {
-      if (entry.startsWith('task-')) {
-        const fullPath = path.join(worktreesDir, entry);
-        const stats = await fs.stat(fullPath);
+    // 解析 porcelain 输出
+    const blocks = output.trim().split('\n\n');
+    for (const block of blocks) {
+      const lines = block.split('\n');
+      let wtPath = '';
+      let wtBranch = '';
+      let wtHead = '';
 
-        if (stats.isDirectory()) {
-          // 检查这个目录是否在 git worktree list 中
-          const isInGit = gitWorktrees.some(wt => wt === fullPath);
-          if (!isInGit) {
-            orphans.push(entry);
-          }
+      for (const line of lines) {
+        if (line.startsWith('worktree ')) {
+          wtPath = line.substring(9);
+        } else if (line.startsWith('HEAD ')) {
+          wtHead = line.substring(5);
+        } else if (line.startsWith('branch ')) {
+          wtBranch = line.substring(7).replace('refs/heads/', '');
         }
+      }
+
+      if (wtPath && wtBranch) {
+        worktrees.push({
+          path: wtPath,
+          branch: wtBranch,
+          head: wtHead
+        });
       }
     }
   } catch {
     // 忽略错误
   }
 
-  return orphans;
+  return worktrees;
+}
+
+/**
+ * 检测并修复孤儿 worktree 目录
+ */
+async function detectAndRepairOrphans(
+  mainDir: string,
+  worktreesDir: string
+): Promise<OrphanDetectionResult> {
+  const result: OrphanDetectionResult = {
+    repairedOrphans: [],
+    trueOrphans: [],
+    repairFailed: []
+  };
+
+  try {
+    // 1. 获取所有 git worktree（包括路径失效的）
+    const gitWorktrees = await getAllGitWorktrees(mainDir);
+
+    // 2. 获取实际目录
+    const entries = await fs.readdir(worktreesDir);
+    const actualDirs = entries.filter(e => e.startsWith('task-'));
+
+    // 3. 检查每个实际目录
+    for (const dirName of actualDirs) {
+      const fullPath = path.join(worktreesDir, dirName);
+
+      try {
+        const stats = await fs.stat(fullPath);
+        if (!stats.isDirectory()) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+
+      // 检查这个目录是否在 git worktree list 中（路径匹配）
+      const existsInGit = gitWorktrees.some(wt => wt.path === fullPath);
+
+      if (existsInGit) {
+        // 路径匹配，跳过
+        continue;
+      }
+
+      // 路径不匹配，尝试通过分支名匹配
+      const branch = await getBranchFromWorktreeDir(fullPath);
+
+      if (branch) {
+        // 在 git worktree list 中查找相同分支但路径不同的
+        const matchedGitWt = gitWorktrees.find(
+          wt => wt.branch === branch && wt.path !== fullPath
+        );
+
+        if (matchedGitWt) {
+          // 找到匹配！这是路径失效型，尝试修复
+          try {
+            const git = simpleGit(mainDir);
+            await git.raw(['worktree', 'repair', fullPath]);
+            result.repairedOrphans.push(dirName);
+          } catch (error) {
+            result.repairFailed.push({
+              dir: dirName,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
+        } else {
+          // 没有匹配的分支，可能是真孤儿
+          result.trueOrphans.push(dirName);
+        }
+      } else {
+        // 无法读取分支名，可能是真孤儿
+        result.trueOrphans.push(dirName);
+      }
+    }
+  } catch {
+    // 忽略错误
+  }
+
+  return result;
 }
 
 /**
@@ -221,7 +370,7 @@ async function findOrphanWorktrees(
  */
 function displayRepairSummary(
   results: RepairResult[],
-  orphans: string[]
+  orphanResult: OrphanDetectionResult
 ): void {
   outputLine();
   outputSuccess('修复完成！\n');
@@ -229,25 +378,36 @@ function displayRepairSummary(
   // 统计
   const fixedCount = results.filter(r => r.fixed).length;
   const errorCount = results.filter(r => !r.success).length;
+  const totalOrphans = orphanResult.repairedOrphans.length +
+                       orphanResult.trueOrphans.length +
+                       orphanResult.repairFailed.length;
 
   outputBold('修复摘要：');
 
   // 显示修复的项
-  if (fixedCount > 0) {
-    output(`  ✓ 修复了 ${fixedCount} 个配置项`);
+  const totalFixed = fixedCount + orphanResult.repairedOrphans.length;
+  if (totalFixed > 0) {
+    output(`  ✓ 修复了 ${totalFixed} 个配置项`);
   } else {
     output('  ✓ 所有配置正确，无需修复');
   }
 
   // 显示错误
-  if (errorCount > 0) {
-    outputWarning(`  ⚠ ${errorCount} 个项修复失败（见下方详情）`);
+  if (errorCount > 0 || orphanResult.repairFailed.length > 0) {
+    const totalErrors = errorCount + orphanResult.repairFailed.length;
+    outputWarning(`  ⚠ ${totalErrors} 个项修复失败（见下方详情）`);
   }
 
   // 显示孤儿目录
-  if (orphans.length > 0) {
-    outputWarning(`  ⚠ 发现 ${orphans.length} 个孤儿 worktree 目录`);
-  } else {
+  if (orphanResult.repairedOrphans.length > 0) {
+    output(`  ✓ 修复了 ${orphanResult.repairedOrphans.length} 个路径失效的 worktree`);
+  }
+
+  if (orphanResult.trueOrphans.length > 0) {
+    outputWarning(`  ⚠ 发现 ${orphanResult.trueOrphans.length} 个孤儿 worktree 目录`);
+  }
+
+  if (totalOrphans === 0) {
     output('  ✓ 未发现孤儿 worktree 目录');
   }
 
@@ -271,11 +431,29 @@ function displayRepairSummary(
     }
   }
 
-  // 显示孤儿目录详情
-  if (orphans.length > 0) {
+  // 显示已修复的路径失效 worktree
+  if (orphanResult.repairedOrphans.length > 0) {
+    outputLine();
+    output('已修复路径失效的 worktree：');
+    for (const dir of orphanResult.repairedOrphans) {
+      output(`  ✓ ${dir} (git 路径已更新)`);
+    }
+  }
+
+  // 显示修复失败的
+  if (orphanResult.repairFailed.length > 0) {
+    outputLine();
+    outputWarning('修复失败的 worktree：');
+    for (const item of orphanResult.repairFailed) {
+      output(`  ✗ ${item.dir}: ${item.error}`);
+    }
+  }
+
+  // 显示真孤儿目录详情
+  if (orphanResult.trueOrphans.length > 0) {
     outputLine();
     outputWarning('孤儿 worktree 目录：');
-    for (const orphan of orphans) {
+    for (const orphan of orphanResult.trueOrphans) {
       output(`  - ${orphan} (目录存在但 git 不识别)`);
     }
     outputLine();
@@ -371,21 +549,26 @@ export async function repairProject(): Promise<void> {
     gitSpinner.fail('Git worktree 修复失败');
   }
 
-  // 7. 检查孤儿 worktree 目录
+  // 7. 检测并修复孤儿 worktree 目录
   const orphanSpinner = ora({
-    text: '检查孤儿 worktree 目录...',
+    text: '检测并修复孤儿 worktree 目录...',
     stream: process.stderr
   }).start();
 
-  const gitWorktreePaths = worktrees.map(wt => wt.path);
-  const orphans = await findOrphanWorktrees(paths.worktreesDir, gitWorktreePaths);
+  const orphanResult = await detectAndRepairOrphans(paths.mainDir, paths.worktreesDir);
 
-  if (orphans.length === 0) {
+  const totalOrphans = orphanResult.repairedOrphans.length +
+                       orphanResult.trueOrphans.length +
+                       orphanResult.repairFailed.length;
+
+  if (totalOrphans === 0) {
     orphanSpinner.succeed('未发现孤儿 worktree 目录');
+  } else if (orphanResult.repairedOrphans.length > 0) {
+    orphanSpinner.succeed(`已修复 ${orphanResult.repairedOrphans.length} 个路径失效的 worktree`);
   } else {
-    orphanSpinner.warn(`发现 ${orphans.length} 个孤儿 worktree 目录`);
+    orphanSpinner.warn(`发现 ${totalOrphans} 个孤儿 worktree 目录`);
   }
 
   // 8. 显示修复摘要
-  displayRepairSummary(results, orphans);
+  displayRepairSummary(results, orphanResult);
 }
