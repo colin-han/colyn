@@ -113,7 +113,18 @@ async function getShortId(): Promise<string> {
   try {
     // 1. 尝试获取 colyn 信息
     const info = await getLocationInfo();
-    return `${info.project}/${info.worktreeDir} (⎇ ${info.branch})`;
+    // 格式: project/worktreeDir (⎇ branch)
+    // 颜色: cyan / gray / yellow ( gray ⎇ magenta )
+    return (
+      chalk.cyan(info.project) +
+      chalk.gray('/') +
+      chalk.yellow(info.worktreeDir) +
+      ' ' +
+      chalk.gray('(') +
+      chalk.gray('⎇ ') +
+      chalk.magenta(info.branch) +
+      chalk.gray(')')
+    );
   } catch {
     try {
       // 2. 尝试获取 git 仓库名和分支
@@ -122,14 +133,23 @@ async function getShortId(): Promise<string> {
         const git = simpleGit();
         const branch = await git.branchLocal();
         const repoName = path.basename(gitRoot);
-        return `${repoName} (⎇ ${branch.current})`;
+        // 格式: repoName (⎇ branch)
+        // 颜色: cyan ( gray ⎇ magenta )
+        return (
+          chalk.cyan(repoName) +
+          ' ' +
+          chalk.gray('(') +
+          chalk.gray('⎇ ') +
+          chalk.magenta(branch.current) +
+          chalk.gray(')')
+        );
       }
     } catch {
       // 忽略 git 错误，继续降级
     }
 
     // 3. 使用当前目录名
-    return path.basename(process.cwd());
+    return chalk.cyan(path.basename(process.cwd()));
   }
 }
 
