@@ -1,5 +1,10 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { registerAllCommands } from './commands/index.js';
+
+// 强制启用颜色输出
+// 即使通过 alias 或管道调用，也保持彩色输出
+chalk.level = 3; // 启用 TrueColor (24-bit) 支持
 
 const program = new Command();
 
