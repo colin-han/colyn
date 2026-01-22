@@ -94,8 +94,15 @@ async function processBranch(
   }
 
   // 检查远程分支是否存在
+  const fetchSpinner = ora({
+    text: '从远程仓库获取最新分支信息...',
+    stream: process.stderr
+  }).start();
+
   try {
     await git.fetch(['--all']);
+    fetchSpinner.succeed('已获取远程分支信息');
+
     const remoteBranches = await git.branch(['-r']);
     const remoteRef = remoteBranches.all.find(
       b => b.endsWith(`/${targetBranch}`) || b === `origin/${targetBranch}`
@@ -104,7 +111,8 @@ async function processBranch(
     if (remoteRef) {
       return { action: 'track', remoteBranch: remoteRef };
     }
-  } catch {
+  } catch (error) {
+    fetchSpinner.fail('获取远程分支信息失败');
     // fetch 失败时继续，可能没有远程
   }
 
