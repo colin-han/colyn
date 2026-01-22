@@ -83,33 +83,48 @@ async function isBranchUsedByOtherWorktree(
  */
 async function processBranch(
   worktreePath: string,
-  targetBranch: string
-): Promise<{ action: 'switch' | 'track' | 'create'; remoteBranch?: string }> {
+  targetBranch: string,
+  skipFetch = false
+): Promise<{ action: 'switch' | 'track' | 'create'; remoteBranch?: string; fetched: boolean }> {
   const git = simpleGit(worktreePath);
 
   // 检查本地分支是否存在
   const localBranches = await git.branchLocal();
   if (localBranches.all.includes(targetBranch)) {
-    return { action: 'switch' };
+    return { action: 'switch', fetched: false };
+  }
+
+  // 如果跳过 fetch，直接创建新分支
+  if (skipFetch) {
+    return { action: 'create', fetched: false };
   }
 
   // 检查远程分支是否存在
+  const fetchSpinner = ora({
+    text: '从远程仓库获取最新分支信息...',
+    stream: process.stderr
+  }).start();
+
   try {
     await git.fetch(['--all']);
+    fetchSpinner.succeed('已获取远程分支信息');
+
     const remoteBranches = await git.branch(['-r']);
     const remoteRef = remoteBranches.all.find(
       b => b.endsWith(`/${targetBranch}`) || b === `origin/${targetBranch}`
     );
 
     if (remoteRef) {
-      return { action: 'track', remoteBranch: remoteRef };
+      return { action: 'track', remoteBranch: remoteRef, fetched: true };
     }
-  } catch {
+  } catch (error) {
+    fetchSpinner.fail('获取远程分支信息失败');
     // fetch 失败时继续，可能没有远程
+    return { action: 'create', fetched: false };
   }
 
   // 分支不存在，需要创建
-  return { action: 'create' };
+  return { action: 'create', fetched: true };
 }
 
 /**
@@ -172,12 +187,69 @@ async function archiveLogs(
 }
 
 /**
+ * 更新主分支
+ * 在 fetch 后检查主分支是否落后于远程，如果是则更新
+ */
+async function updateMainBranch(
+  mainDir: string,
+  mainBranch: string
+): Promise<{ updated: boolean; message?: string }> {
+  const git = simpleGit(mainDir);
+
+  try {
+    // 检查主分支工作目录状态
+    const status = await git.status();
+    if (!status.isClean()) {
+      // 主分支有未提交的更改，不自动更新
+      return { updated: false };
+    }
+
+    // 检查当前是否在主分支上
+    const currentBranch = status.current;
+    if (currentBranch !== mainBranch) {
+      // 不在主分支上，不更新
+      return { updated: false };
+    }
+
+    // 检查是否落后于远程
+    const remoteBranch = `origin/${mainBranch}`;
+    const result = await git.raw(['rev-list', '--count', `${mainBranch}..${remoteBranch}`]);
+    const behindCount = parseInt(result.trim());
+
+    if (behindCount === 0) {
+      // 已是最新
+      return { updated: false };
+    }
+
+    // 主分支落后于远程，执行更新
+    await git.pull('origin', mainBranch);
+
+    return {
+      updated: true,
+      message: `主分支已更新 (合并了 ${behindCount} 个提交)`
+    };
+  } catch (error) {
+    // 更新失败，不影响主流程
+    return { updated: false };
+  }
+}
+
+/**
+ * Checkout 命令选项
+ */
+interface CheckoutOptions {
+  fetch?: boolean;
+}
+
+/**
  * Checkout 命令：在 worktree 中切换分支
  */
 async function checkoutCommand(
   target: string | undefined,
-  branch: string
+  branch: string,
+  options: CheckoutOptions = {}
 ): Promise<void> {
+  const skipFetch = options.fetch === false;
   try {
     // 步骤1: 获取项目路径并验证
     const paths = await getProjectPaths();
@@ -298,8 +370,17 @@ async function checkoutCommand(
     }
 
     // 步骤7: 处理分支
-    const branchInfo = await processBranch(worktree.path, branch);
+    const branchInfo = await processBranch(worktree.path, branch, skipFetch);
     const git = simpleGit(worktree.path);
+
+    // 步骤7.5: 如果执行了 fetch，尝试更新主分支
+    if (branchInfo.fetched) {
+      const updateResult = await updateMainBranch(paths.mainDir, mainBranch);
+      if (updateResult.updated && updateResult.message) {
+        outputLine();
+        output(chalk.green(`✓ ${updateResult.message}`));
+      }
+    }
 
     // 步骤8: 归档日志
     const archiveResult = await archiveLogs(worktree.path, currentBranch);
@@ -397,7 +478,8 @@ export function register(program: Command): void {
   program
     .command('checkout <args...>')
     .description('在 worktree 中切换分支')
-    .action(async (args: string[]) => {
+    .option('--no-fetch', '跳过从远程获取分支信息')
+    .action(async (args: string[], options: CheckoutOptions) => {
       let target: string | undefined;
       let branch: string;
 
@@ -415,14 +497,15 @@ export function register(program: Command): void {
         );
       }
 
-      await checkoutCommand(target, branch);
+      await checkoutCommand(target, branch, options);
     });
 
   // 别名 co
   program
     .command('co <args...>')
     .description('checkout 的别名')
-    .action(async (args: string[]) => {
+    .option('--no-fetch', '跳过从远程获取分支信息')
+    .action(async (args: string[], options: CheckoutOptions) => {
       let target: string | undefined;
       let branch: string;
 
@@ -438,6 +521,6 @@ export function register(program: Command): void {
         );
       }
 
-      await checkoutCommand(target, branch);
+      await checkoutCommand(target, branch, options);
     });
 }
