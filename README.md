@@ -89,6 +89,27 @@ my-project/
 
 ## 命令参考
 
+### 全局选项
+
+所有命令都支持以下全局选项：
+
+```bash
+-C, --no-color  禁用颜色输出
+```
+
+**使用场景**：
+- 在 CI/CD 环境中运行
+- 将输出重定向到文件
+- 终端不支持颜色显示
+- 需要纯文本输出用于脚本解析
+
+**示例**：
+```bash
+colyn list --no-color           # 列出 worktree（无颜色）
+colyn info --short -C           # 显示项目信息（无颜色，使用缩写）
+colyn checkout feature/test -C  # 切换分支（无颜色）
+```
+
 ### `colyn init`
 
 初始化 worktree 管理结构。
@@ -197,19 +218,24 @@ colyn remove [target] [options]
 在 worktree 中切换分支。
 
 ```bash
-colyn checkout [worktree-id] <branch>
+colyn checkout [worktree-id] <branch> [options]
 
 参数：
   worktree-id  可选，worktree 的 ID（在 worktree 目录中可省略）
   branch       目标分支名称
 
+选项：
+  --no-fetch   跳过从远程获取分支信息
+
 别名：
-  colyn co [worktree-id] <branch>
+  colyn co [worktree-id] <branch> [options]
 ```
 
 **功能**：
 - 在 worktree 目录中自动识别当前 worktree，或通过 ID 指定
 - 智能处理分支（本地分支、远程跟踪、创建新分支）
+- 自动从远程获取最新分支信息（可用 --no-fetch 跳过）
+- fetch 成功后自动更新主分支（如果主分支落后于远程）
 - 检查当前分支是否已合并，未合并时提示确认
 - 自动归档 `.claude/logs/` 下的日志文件到 `archived/<branch-name>/`
 - 已合并的分支可选删除
