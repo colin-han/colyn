@@ -6,8 +6,10 @@ import { formatError, output, outputResult, outputSuccess } from '../utils/logge
 import {
   detectShellConfig,
   getColynShellPath,
+  getCompletionScriptPath,
   updateShellConfig,
-  checkColynShellExists
+  checkColynShellExists,
+  checkCompletionScriptExists
 } from './system-integration.helpers.js';
 
 /**
@@ -39,6 +41,7 @@ async function systemIntegrationCommand(): Promise<void> {
 
     const shellConfig = await detectShellConfig();
     const colynShellPath = getColynShellPath();
+    const completionPath = getCompletionScriptPath(shellConfig.shellType);
 
     output(chalk.green(`✓ Shell 类型: ${shellConfig.shellType}`));
     output(chalk.green(`✓ 配置文件: ${shellConfig.configPath}`));
@@ -59,11 +62,22 @@ async function systemIntegrationCommand(): Promise<void> {
       );
     }
 
-    // 步骤 3: 配置 shell 集成
+    // 步骤 3: 检查补全脚本是否存在
+    const completionExists = await checkCompletionScriptExists(completionPath);
+    if (!completionExists) {
+      output(chalk.yellow(`⚠ 补全脚本未找到: ${completionPath}`));
+      output(chalk.yellow('  将仅配置 shell 集成功能'));
+    }
+
+    // 步骤 4: 配置 shell 集成
     output('');
     output('配置 shell 集成...');
 
-    const result = await updateShellConfig(shellConfig.configPath, colynShellPath);
+    const result = await updateShellConfig(
+      shellConfig.configPath,
+      colynShellPath,
+      completionExists ? completionPath : undefined
+    );
 
     const configFileName = shellConfig.configPath.replace(process.env.HOME || '', '~');
 
@@ -72,11 +86,17 @@ async function systemIntegrationCommand(): Promise<void> {
         output(chalk.green(`✓ 已创建 ${configFileName}`));
       }
       output(chalk.green(`✓ 已添加 shell 集成到 ${configFileName}`));
+      if (completionExists) {
+        output(chalk.green(`✓ 已添加补全脚本到 ${configFileName}`));
+      }
     } else {
       output(chalk.green(`✓ 已更新 ${configFileName} 中的 shell 集成配置`));
+      if (completionExists) {
+        output(chalk.green(`✓ 已更新补全脚本配置`));
+      }
     }
 
-    // 步骤 4: 显示完成信息
+    // 步骤 5: 显示完成信息
     output('');
     outputSuccess(result === 'added' ? '安装完成！' : '更新完成！');
     output('');
@@ -96,7 +116,9 @@ async function systemIntegrationCommand(): Promise<void> {
     if (result === 'added') {
       output(chalk.cyan('功能说明：'));
       output('  ✓ colyn 命令支持自动目录切换');
-      output('  ✓ 使用 Tab 键可自动完成命令和参数');
+      if (completionExists) {
+        output('  ✓ 使用 Tab 键可自动完成命令和参数');
+      }
       output('');
     }
 

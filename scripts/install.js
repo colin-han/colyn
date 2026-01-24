@@ -122,68 +122,6 @@ async function detectShellConfig() {
   return path.join(homeDir, '.bashrc');
 }
 
-/**
- * 添加 source 命令到 shell 配置文件
- */
-async function addToShellConfig(shellConfigPath, colynShellPath, completionPath) {
-  const marker = '# Colyn shell integration';
-  const sourceLine = `source "${colynShellPath}"`;
-  const completionLine = `source "${completionPath}"`;
-
-  let content = '';
-  try {
-    content = await fs.readFile(shellConfigPath, 'utf-8');
-  } catch {
-    // 文件不存在，创建新文件
-  }
-
-  // 检查是否已经添加过
-  if (content.includes(marker)) {
-    // 已存在，更新路径
-    const lines = content.split('\n');
-    const newLines = [];
-    let inColynSection = false;
-
-    for (const line of lines) {
-      if (line.includes(marker)) {
-        inColynSection = true;
-        newLines.push(line);
-        continue;
-      }
-
-      if (inColynSection) {
-        // 跳过旧的 source 行
-        if (line.startsWith('source') && line.includes('colyn')) {
-          continue;
-        }
-        // 遇到空行或新的注释，结束 colyn 区域
-        if (line.trim() === '' || (line.startsWith('#') && !line.includes('colyn'))) {
-          inColynSection = false;
-          // 插入新的配置
-          newLines.push(sourceLine);
-          newLines.push(completionLine);
-        }
-      }
-
-      newLines.push(line);
-    }
-
-    // 如果还在 colyn 区域（文件末尾），添加配置
-    if (inColynSection) {
-      newLines.push(sourceLine);
-      newLines.push(completionLine);
-    }
-
-    await fs.writeFile(shellConfigPath, newLines.join('\n'), 'utf-8');
-    return 'updated';
-  }
-
-  // 添加新配置
-  const newContent = content.trimEnd() + `\n\n${marker}\n${sourceLine}\n${completionLine}\n`;
-  await fs.writeFile(shellConfigPath, newContent, 'utf-8');
-  return 'added';
-}
-
 async function main() {
   // 步骤 0: 解析参数
   const args = process.argv.slice(2);
@@ -394,33 +332,34 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
     log('步骤 7: 配置 shell 集成', 'yellow');
 
     try {
-      const shellConfigPath = await detectShellConfig();
-      info(`检测到 shell 配置文件: ${shellConfigPath}`);
+      // 调用 colyn system-integration 命令
+      const colynCore = path.join(colynDir, 'dist', 'index.js');
+      info('运行: colyn system-integration');
 
-      // 确定使用哪个补全脚本
+      // 捕获 stderr（用户可见输出）并显示给用户
+      const result = execSync(`node "${colynCore}" system-integration`, {
+        cwd: colynDir,
+        env: process.env,
+        stdio: ['inherit', 'pipe', 'inherit'], // stdin: inherit, stdout: pipe, stderr: inherit
+        encoding: 'utf-8'
+      });
+
+      success('Shell 集成配置完成');
+    } catch (err) {
+      error(`配置 shell 集成失败: ${err.message}`);
+      console.log('');
+      info('你可以稍后手动运行以下命令配置：');
+
+      const shellConfigPath = await detectShellConfig();
+      info(`  node "${path.join(colynDir, 'dist', 'index.js')}" system-integration`);
+      info('');
+      info('或手动添加以下内容到 shell 配置文件：');
+      info(`  source "${shellDest}"`);
+
       const completionPath = shellConfigPath.includes('.zshrc')
         ? path.join(colynDir, 'completion.zsh')
         : path.join(colynDir, 'completion.bash');
-
-      const result = await addToShellConfig(shellConfigPath, shellDest, completionPath);
-
-      if (result === 'added') {
-        success(`已添加到 ${path.basename(shellConfigPath)}`);
-      } else {
-        success(`已更新 ${path.basename(shellConfigPath)} 中的配置`);
-      }
-
-      info('已配置以下功能：');
-      info('  - Shell 集成（目录切换）');
-      info('  - 自动补全（Tab 键补全命令和参数）');
-      console.log('');
-      info('请运行以下命令使配置生效：');
-      info(`  source ${shellConfigPath}`);
-    } catch (err) {
-      error(`配置 shell 自启动失败: ${err.message}`);
-      info('你可以手动添加以下内容到 shell 配置文件：');
-      info(`  source "${shellDest}"`);
-      info(`  source "${path.join(colynDir, 'completion.bash')}"  # 或 completion.zsh`);
+      info(`  source "${completionPath}"`);
     }
   }
 

@@ -85,6 +85,26 @@ export function getColynShellPath(): string {
 }
 
 /**
+ * 获取补全脚本的绝对路径
+ *
+ * @param shellType - shell 类型（bash/zsh）
+ */
+export function getCompletionScriptPath(shellType: string): string {
+  // 获取当前模块的路径
+  const currentModulePath = fileURLToPath(import.meta.url);
+
+  // 从 dist/commands/install.helpers.js 向上找到项目根目录
+  const distDir = path.dirname(path.dirname(currentModulePath));
+  const rootDir = path.dirname(distDir);
+
+  // 补全脚本位于 shell/completion.bash 或 shell/completion.zsh
+  const scriptName = shellType === 'zsh' ? 'completion.zsh' : 'completion.bash';
+  const completionPath = path.join(rootDir, 'shell', scriptName);
+
+  return completionPath;
+}
+
+/**
  * 配置标记
  */
 const CONFIG_MARKER = '# Colyn shell integration';
@@ -94,13 +114,16 @@ const CONFIG_MARKER = '# Colyn shell integration';
  *
  * @param configPath - shell 配置文件路径
  * @param colynShellPath - colyn.sh 文件路径
+ * @param completionPath - 补全脚本文件路径（可选）
  * @returns 'added' | 'updated' - 添加还是更新
  */
 export async function updateShellConfig(
   configPath: string,
-  colynShellPath: string
+  colynShellPath: string,
+  completionPath?: string
 ): Promise<'added' | 'updated'> {
   const sourceLine = `source "${colynShellPath}"`;
+  const completionLine = completionPath ? `source "${completionPath}"` : null;
 
   let content = '';
   let fileExists = true;
@@ -116,22 +139,56 @@ export async function updateShellConfig(
   if (content.includes(CONFIG_MARKER)) {
     // 已存在，更新路径
     const lines = content.split('\n');
-    const newLines = lines.map(line => {
-      // 查找以 source 开头且包含 colyn 的行
-      if (line.trim().startsWith('source') && line.includes('colyn.sh')) {
-        return sourceLine;
+    const newLines: string[] = [];
+    let inColynSection = false;
+
+    for (const line of lines) {
+      if (line.includes(CONFIG_MARKER)) {
+        inColynSection = true;
+        newLines.push(line);
+        continue;
       }
-      return line;
-    });
+
+      if (inColynSection) {
+        // 跳过旧的 source 行
+        if (line.trim().startsWith('source') && line.includes('colyn')) {
+          continue;
+        }
+        // 遇到空行或新的注释，结束 colyn 区域
+        if (line.trim() === '' || (line.startsWith('#') && !line.includes('colyn'))) {
+          inColynSection = false;
+          // 插入新的配置
+          newLines.push(sourceLine);
+          if (completionLine) {
+            newLines.push(completionLine);
+          }
+        }
+      }
+
+      newLines.push(line);
+    }
+
+    // 如果还在 colyn 区域（文件末尾），添加配置
+    if (inColynSection) {
+      newLines.push(sourceLine);
+      if (completionLine) {
+        newLines.push(completionLine);
+      }
+    }
 
     await fs.writeFile(configPath, newLines.join('\n'), 'utf-8');
     return 'updated';
   }
 
   // 添加新配置
+  const configLines = [CONFIG_MARKER, sourceLine];
+  if (completionLine) {
+    configLines.push(completionLine);
+  }
+
   const configBlock = fileExists
-    ? `\n\n${CONFIG_MARKER}\n${sourceLine}\n`
-    : `${CONFIG_MARKER}\n${sourceLine}\n`;
+    ? `\n\n${configLines.join('\n')}\n`
+    : `${configLines.join('\n')}\n`;
 
   const newContent = content.trimEnd() + configBlock;
   await fs.writeFile(configPath, newContent, 'utf-8');
@@ -145,6 +202,18 @@ export async function updateShellConfig(
 export async function checkColynShellExists(colynShellPath: string): Promise<boolean> {
   try {
     await fs.access(colynShellPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 检查补全脚本文件是否存在
+ */
+export async function checkCompletionScriptExists(completionPath: string): Promise<boolean> {
+  try {
+    await fs.access(completionPath);
     return true;
   } catch {
     return false;
