@@ -13,6 +13,8 @@ import { register as registerInfo } from './info.js';
 import { register as registerCheckout } from './checkout.js';
 import { register as registerRemove } from './remove.js';
 import { register as registerSystemIntegration } from './system-integration.js';
+import { register as registerCompletion } from './completion.js';
+import { register as registerRepair } from './repair.js';
 
 /**
  * 注册所有命令到 program
@@ -26,4 +28,6 @@ export function registerAllCommands(program: Command): void {
   registerCheckout(program);
   registerRemove(program);
   registerSystemIntegration(program);
+  registerCompletion(program);
+  registerRepair(program);
 }

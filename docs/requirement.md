@@ -102,6 +102,23 @@
      - 可选删除对应的本地分支
      - 如果当前在被删除的 worktree 中，自动切换到主分支目录
 
+#### ✅ 3. 查看项目信息（info）- 已实现
+   - **描述**：显示当前目录的 colyn 项目信息
+   - **用户价值**：快速了解当前所在位置和项目状态
+   - **主要功能**：
+     - 显示项目名称、路径、worktree ID、分支等信息
+     - 支持输出指定字段
+     - 支持模板字符串格式化
+
+#### ✅ 4. 自动补全（completion）- 已实现
+   - **描述**：生成 shell 自动补全脚本
+   - **用户价值**：提升命令行使用体验，快速补全命令和参数
+   - **主要功能**：
+     - 支持 Bash 和 Zsh
+     - 命令、选项、参数全面补全
+     - 实时查询 worktree 列表进行动态补全
+     - 安装脚本自动配置
+
 ### 2.3 功能范围
 
 **包含：**
@@ -386,6 +403,8 @@ graph TD
 - [x] 合并 worktree（`merge`）：两步合并策略，支持推送选项
 - [x] 删除 worktree（`remove`）：安全删除，自动目录切换
 - [x] 签出分支（`checkout`）：在 worktree 中切换分支，自动归档日志
+- [x] 查看项目信息（`info`）：显示当前目录的项目信息
+- [x] 自动补全（`completion`）：支持 Bash/Zsh 自动补全
 - [x] 从任意位置运行命令：自动定位项目根目录
 - [x] 完善的错误处理：分支冲突时提供详细的解决方案
 - [x] 跨平台支持：macOS、Linux、Windows
@@ -554,4 +573,11 @@ colyn remove 1 -y             # 跳过确认
 
 # 签出分支
 colyn checkout 1 bugfix-issue-123
+
+# 查看项目信息
+colyn info
+
+# 生成补全脚本
+colyn completion bash
+colyn completion zsh --install
 ```

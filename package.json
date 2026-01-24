@@ -1,6 +1,6 @@
 {
   "name": "colyn",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Git worktree 管理工具",
   "type": "module",
   "bin": "./bin/colyn",
@@ -13,7 +13,11 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+    "release": "node scripts/release.js",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
   },
   "keywords": [
     "git",
