@@ -88,74 +88,6 @@ function execCommand(command, cwd) {
   }
 }
 
-/**
- * 检测用户的 shell 配置文件
- */
-async function detectShellConfig() {
-  const homeDir = os.homedir();
-  const shell = process.env.SHELL || '';
-
-  // 按优先级检测配置文件
-  const candidates = [];
-
-  if (shell.includes('zsh')) {
-    candidates.push(path.join(homeDir, '.zshrc'));
-  }
-  if (shell.includes('bash')) {
-    candidates.push(path.join(homeDir, '.bashrc'));
-    candidates.push(path.join(homeDir, '.bash_profile'));
-  }
-  // 默认候选
-  candidates.push(path.join(homeDir, '.zshrc'));
-  candidates.push(path.join(homeDir, '.bashrc'));
-
-  for (const configPath of candidates) {
-    try {
-      await fs.access(configPath);
-      return configPath;
-    } catch {
-      // 文件不存在，继续检查下一个
-    }
-  }
-
-  // 如果都不存在，返回默认的 .bashrc
-  return path.join(homeDir, '.bashrc');
-}
-
-/**
- * 添加 source 命令到 shell 配置文件
- */
-async function addToShellConfig(shellConfigPath, colynShellPath) {
-  const marker = '# Colyn shell integration';
-  const sourceLine = `source "${colynShellPath}"`;
-
-  let content = '';
-  try {
-    content = await fs.readFile(shellConfigPath, 'utf-8');
-  } catch {
-    // 文件不存在，创建新文件
-  }
-
-  // 检查是否已经添加过
-  if (content.includes(marker)) {
-    // 已存在，更新路径
-    const lines = content.split('\n');
-    const newLines = lines.map(line => {
-      if (line.startsWith('source') && line.includes('colyn')) {
-        return sourceLine;
-      }
-      return line;
-    });
-    await fs.writeFile(shellConfigPath, newLines.join('\n'), 'utf-8');
-    return 'updated';
-  }
-
-  // 添加新配置
-  const newContent = content.trimEnd() + `\n\n${marker}\n${sourceLine}\n`;
-  await fs.writeFile(shellConfigPath, newContent, 'utf-8');
-  return 'added';
-}
-
 async function main() {
   // 步骤 0: 解析参数
   const args = process.argv.slice(2);
@@ -344,83 +276,33 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
     }
   }
 
-  // 步骤 7: 更新 shell/colyn.sh 中的路径
-  console.log('');
-  log('步骤 7: 更新 shell 集成脚本', 'yellow');
-
-  const shellIntegrationContent = `# Colyn Shell 集成（支持目录切换）
-# 自动生成 - 请勿手动修改
-# 使用方法：source ${shellDest}
-
-colyn() {
-  local COLYN_BIN="${path.join(targetDir, 'colyn')}"
-
-  if [[ ! -f "$COLYN_BIN" ]]; then
-    echo "错误: 找不到 colyn" >&2
-    return 1
-  fi
-
-  # 调用 colyn，捕获 stdout（JSON），stderr 直接显示
-  local result
-  result=$("$COLYN_BIN" "$@")
-  local exit_code=$?
-
-  # 处理输出
-  if [[ -n "$result" ]]; then
-    # 尝试解析 JSON
-    local target_dir display_path
-    target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.targetDir)console.log(r.targetDir)}catch(e){process.exit(1)}" "$result" 2>/dev/null)
-
-    if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
-      # 是 JSON 且有目标目录
-      display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log(r.displayPath||r.targetDir)}catch(e){}" "$result" 2>/dev/null)
-      cd "$target_dir" || return
-      echo "📂 已切换到: $display_path"
-    else
-      # 不是 JSON，原样输出（如 --help）
-      echo "$result"
-    fi
-  fi
-
-  return $exit_code
-}
-`;
-
-  try {
-    await fs.writeFile(shellDest, shellIntegrationContent, 'utf-8');
-    success('shell 集成脚本更新完成');
-  } catch (err) {
-    error(`更新 shell 集成脚本失败: ${err.message}`);
-    process.exit(1);
-  }
-
-  // 步骤 8: 添加到 shell 自启动配置（仅 Unix/macOS）
+  // 步骤 7: 配置 shell 集成（使用 colyn system-integration）
   if (platform !== 'win32') {
     console.log('');
-    log('步骤 8: 配置 shell 自启动', 'yellow');
+    log('步骤 7: 配置 shell 集成', 'yellow');
 
     try {
-      const shellConfigPath = await detectShellConfig();
-      info(`检测到 shell 配置文件: ${shellConfigPath}`);
+      // 调用 colyn system-integration 命令
+      const colynBin = path.join(targetDir, 'colyn');
+      info('执行: colyn system-integration');
 
-      const result = await addToShellConfig(shellConfigPath, shellDest);
+      const integrationSuccess = execCommand(`"${colynBin}" system-integration`, process.cwd());
 
-      if (result === 'added') {
-        success(`已添加到 ${path.basename(shellConfigPath)}`);
+      if (integrationSuccess) {
+        success('shell 集成配置完成');
       } else {
-        success(`已更新 ${path.basename(shellConfigPath)} 中的配置`);
+        error('shell 集成配置失败');
+        info('你可以稍后手动运行：');
+        info(`  ${colynBin} system-integration`);
       }
-
-      info('请运行以下命令使配置生效：');
-      info(`  source ${shellConfigPath}`);
     } catch (err) {
-      error(`配置 shell 自启动失败: ${err.message}`);
-      info('你可以手动添加以下内容到 shell 配置文件：');
-      info(`  source "${shellDest}"`);
+      error(`配置 shell 集成失败: ${err.message}`);
+      info('你可以稍后手动运行：');
+      info(`  ${path.join(targetDir, 'colyn')} system-integration`);
     }
   }
 
-  // 步骤 9: 完成
+  // 步骤 8: 完成
   console.log('');
   log('=== 安装完成！===', 'green');
   console.log('');
