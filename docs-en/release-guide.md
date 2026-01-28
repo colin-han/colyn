@@ -4,13 +4,13 @@
 
 Automated version release process, including:
 
-1. Verify git workspace status (must be clean)
-2. Run code quality checks (lint)
-3. Compile project
-4. Update package.json version number
-5. Create git commit
-6. Create git tag
-7. Push to remote repository
+1. ✅ Verify git working directory status (must be clean)
+2. ✅ Run code quality checks (lint)
+3. ✅ Build project
+4. ✅ Update package.json version number
+5. ✅ Create git commit
+6. ✅ Create git tag
+7. ✅ Push to remote repository
 
 ## Usage
 
@@ -48,14 +48,14 @@ node scripts/release.js 1.2.3
 Following [Semantic Versioning](https://semver.org/):
 
 - **Major version**: Incompatible API changes
-- **Minor version**: Backward-compatible new features
+- **Minor version**: Backward-compatible feature additions
 - **Patch version**: Backward-compatible bug fixes
 
 ### Examples
 
-| Current Version | Type | New Version | Use Case |
-|-----------------|------|-------------|----------|
-| 1.2.0 | patch | 1.2.1 | Bug fixes, performance optimization |
+| Current | Type | New | Use Case |
+|---------|------|-----|----------|
+| 1.2.0 | patch | 1.2.1 | Bug fixes, performance improvements |
 | 1.2.0 | minor | 1.3.0 | New features, new commands |
 | 1.2.0 | major | 2.0.0 | Breaking changes, refactoring |
 
@@ -64,9 +64,9 @@ Following [Semantic Versioning](https://semver.org/):
 ### 1. Preparation
 
 Ensure:
-- All code is committed
-- Workspace is clean (no uncommitted changes)
-- On correct branch (usually main)
+- ✅ All code committed
+- ✅ Working directory clean (no uncommitted changes)
+- ✅ On correct branch (usually main)
 
 ```bash
 # Check status
@@ -84,13 +84,13 @@ git commit -m "feat: add new feature"
 volta run yarn release:patch
 ```
 
-Script will automatically execute the following steps:
+The script will automatically execute the following steps:
 
 ```
 === Colyn Release Script ===
 
 Step 1: Check git status
-✓ Workspace clean
+✓ Working directory clean
   Current branch: main
 
 Step 2: Determine new version number
@@ -101,7 +101,7 @@ Step 3: Run tests and code checks
   Running lint...
 ✓ Lint check passed
 
-Step 4: Compile project
+Step 4: Build project
   Running build...
 ✓ Build successful
 
@@ -133,14 +133,14 @@ Next steps:
 
   2. Update installation documentation (if needed)
 
-  3. Notify users of new version release
+  3. Notify users of new release
 ```
 
 ### 3. Follow-up Actions
 
 #### Create GitHub Release
 
-1. Visit GitHub repository's Releases page
+1. Visit GitHub repository Releases page
 2. Click "Draft a new release"
 3. Select the newly created tag (e.g., v1.2.1)
 4. Fill in release notes:
@@ -155,23 +155,23 @@ Next steps:
 ## v1.2.1
 
 ### New Features
-- Added auto-completion feature (supports Bash/Zsh)
-- New `colyn completion` command
+- Add auto-completion support (Bash/Zsh)
+- Add `colyn completion` command
 
 ### Bug Fixes
-- Fixed color loss issue when running via alias
+- Fix color output lost when running via alias
 
 ### Improvements
-- Added colored display for `info --short` output
+- Add colored display for `info --short` output
 ```
 
 ## Error Handling
 
-### Workspace Not Clean
+### Working Directory Not Clean
 
 **Error message**:
 ```
-✗ Workspace not clean, please commit or stash all changes first
+✗ Working directory not clean, please commit or stash all changes first
 ```
 
 **Solution**:
@@ -211,7 +211,7 @@ volta run yarn lint:fix
 
 **Solution**:
 
-If push fails, script will provide rollback commands:
+If push fails, the script will provide rollback commands:
 
 ```bash
 # Delete tag
@@ -220,12 +220,12 @@ git tag -d v1.2.1
 # Rollback commit
 git reset --hard HEAD~1
 
-# Re-run release script after resolving issue
+# Re-run release script after fixing the issue
 ```
 
 ## Rollback Release
 
-If issues found after release, need to rollback:
+If issues are found after release, rollback:
 
 ### 1. Local Rollback
 
@@ -251,20 +251,20 @@ git push origin main --force
 
 1. Visit GitHub Releases page
 2. Find the corresponding Release
-3. Click "Delete" to delete
+3. Click "Delete" to remove
 
 ## Best Practices
 
 ### 1. Pre-release Checklist
 
-- Ensure all tests pass
-- Ensure lint check passes
-- Ensure documentation is updated
-- Ensure CHANGELOG is updated (if applicable)
+- ✅ Ensure all tests pass
+- ✅ Ensure lint check passes
+- ✅ Ensure documentation is updated
+- ✅ Ensure CHANGELOG is updated (if applicable)
 
 ### 2. Commit Message Convention
 
-Release script creates commit messages in the following format:
+Release script creates commit messages in this format:
 
 ```
 chore: release v1.2.1
@@ -278,16 +278,16 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 - **Minor version**: Every 1-2 weeks (new features)
 - **Major version**: Release carefully (breaking changes)
 
-### 4. Version Number Selection Guide
+### 4. Version Selection Guide
 
 | Change Type | Version Type | Example |
 |-------------|--------------|---------|
 | Bug fix | patch | 1.2.0 -> 1.2.1 |
 | New command | minor | 1.2.0 -> 1.3.0 |
 | New option | minor | 1.2.0 -> 1.3.0 |
-| Performance optimization | patch | 1.2.0 -> 1.2.1 |
+| Performance improvement | patch | 1.2.0 -> 1.2.1 |
 | Documentation improvement | patch | 1.2.0 -> 1.2.1 |
-| Code refactoring (no interface change) | patch | 1.2.0 -> 1.2.1 |
+| Code refactoring (no API change) | patch | 1.2.0 -> 1.2.1 |
 | Remove command | major | 1.2.0 -> 2.0.0 |
 | Change command behavior | major | 1.2.0 -> 2.0.0 |
 | Rename command | major | 1.2.0 -> 2.0.0 |
@@ -303,15 +303,15 @@ A: Not recommended. Each step in the release script is important:
 
 ### Q: What if release fails?
 
-A: Script provides detailed error messages and rollback commands. Follow the prompts.
+A: The script provides detailed error messages and rollback commands. Follow the prompts.
 
-### Q: Can I release on other branches?
+### Q: Can I release from other branches?
 
-A: Yes, but recommended to only release on main or release branches.
+A: Yes, but recommended to only release from main or release branches.
 
-### Q: What is the tag naming convention?
+### Q: What's the tag naming convention?
 
-A: Auto-created tags follow format `v<version>`, e.g., `v1.2.1`.
+A: Auto-created tags use format `v<version>`, e.g., `v1.2.1`.
 
 ## References
 
