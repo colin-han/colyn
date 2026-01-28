@@ -210,7 +210,7 @@ async function main() {
 
   info('运行 lint...');
   try {
-    execCommand('volta run yarn lint', projectRoot);
+    execCommand('yarn lint', projectRoot);
     success('Lint 检查通过');
   } catch (err) {
     error('Lint 检查失败');
@@ -224,7 +224,7 @@ async function main() {
 
   info('运行 build...');
   try {
-    execCommand('volta run yarn build', projectRoot);
+    execCommand('yarn build', projectRoot);
     success('编译成功');
   } catch (err) {
     error('编译失败');
