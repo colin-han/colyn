@@ -4,9 +4,9 @@ This document explains how to install Colyn to a local directory for testing.
 
 ---
 
-## Method 1: Using Installation Script (Recommended)
+## Method 1: Using Install Script (Recommended)
 
-### Step 1: Run Installation Script
+### Step 1: Run Install Script
 
 ```bash
 # Execute in project root directory
@@ -28,15 +28,15 @@ volta run yarn install-to /path/to/target/directory
 
 ### Step 2: Installation Process
 
-The script will automatically perform the following steps:
+The script will automatically execute the following steps:
 
-1. Compile project (`volta run yarn build`)
-2. Create target directory
-3. Copy compiled results (`dist/`)
-4. Copy `package.json` and `shell/colyn.sh`
-5. Install dependencies in target directory (`npm install --production`)
-6. Create startup scripts (`colyn` and `colyn.cmd`)
-7. Configure shell integration (automatically calls `colyn system-integration`)
+1. ✅ Build project (`volta run yarn build`)
+2. ✅ Create target directory
+3. ✅ Copy build output (`dist/`)
+4. ✅ Copy `package.json` and `shell/colyn.sh`
+5. ✅ Install dependencies in target directory (`npm install --production`)
+6. ✅ Create launcher scripts (`colyn` and `colyn.cmd`)
+7. ✅ Configure shell integration (automatically calls `colyn system-integration`)
 
 After installation, shell integration is automatically configured. Reopen terminal to use.
 
@@ -104,7 +104,7 @@ colyn add feature/test
 
 ### Notes
 
-- After using `yarn link`, project code changes take effect immediately (requires recompilation)
+- After using `yarn link`, code changes take effect immediately (requires recompilation)
 - To unlink: `volta run yarn unlink`
 
 ---
@@ -116,7 +116,7 @@ If published to npm:
 ```bash
 npm install -g colyn
 
-# Or use volta
+# Or using volta
 volta install colyn
 ```
 
@@ -128,15 +128,15 @@ colyn system-integration
 
 After configuration, reopen terminal or run `source ~/.zshrc` (or `~/.bashrc`) to use full functionality.
 
-**What is Shell Integration?**
+**What is shell integration?**
 
 Shell integration provides the following features:
-- **Automatic directory switching**: Commands like `colyn add` and `colyn remove` automatically switch to target directory after execution
-- **Command auto-completion**: Use Tab key to auto-complete commands and parameters (future support)
+- **Automatic directory switching**: `colyn add` and `colyn remove` commands automatically switch to target directory after execution
+- **Command auto-completion**: Use Tab key to auto-complete commands and arguments (future support)
 
 **Manual Configuration**
 
-If `system-integration` command fails, manually add to shell configuration file:
+If `system-integration` command fails, manually add to shell config file:
 
 ```bash
 # Find colyn.sh path
@@ -173,7 +173,7 @@ colyn --help
 #
 # Commands:
 #   init [options]     Initialize worktree management structure
-#   add <branch>       Create new worktree
+#   add <branch>       Create a new worktree
 #   help [command]     display help for command
 ```
 
@@ -212,7 +212,7 @@ colyn add feature/test
 
 ## Uninstall
 
-### Installed with Installation Script
+### Installed via Install Script
 
 Delete target directory directly:
 
@@ -220,25 +220,25 @@ Delete target directory directly:
 rm -rf ~/my-tools/colyn
 ```
 
-If symbolic link was created:
+If you created a symbolic link:
 
 ```bash
 sudo rm /usr/local/bin/colyn
 ```
 
-### Using yarn link
+### Installed via yarn link
 
 ```bash
 cd /path/to/colyn
 volta run yarn unlink
 ```
 
-### Global Installation
+### Installed Globally
 
 ```bash
 npm uninstall -g colyn
 
-# Or use volta
+# Or using volta
 volta uninstall colyn
 ```
 
@@ -246,7 +246,7 @@ volta uninstall colyn
 
 ## FAQ
 
-### Q: Installation script execution failed
+### Q: Install script execution failed
 
 **A:** Check the following:
 1. Ensure executing in project root directory
@@ -254,7 +254,7 @@ volta uninstall colyn
 3. Ensure Volta is installed
 4. Check target directory permissions
 
-### Q: Startup script has no execute permission
+### Q: Launcher script doesn't have execute permission
 
 **A:** Manually add execute permission:
 
@@ -262,16 +262,16 @@ volta uninstall colyn
 chmod +x ~/my-tools/colyn/colyn
 ```
 
-### Q: "command not found" error
+### Q: Shows "command not found"
 
 **A:** Check the following:
 1. Confirm target directory is added to PATH
-2. Reload shell configuration: `source ~/.zshrc` or `source ~/.bashrc`
+2. Reload shell config: `source ~/.zshrc` or `source ~/.bashrc`
 3. Or use absolute path to execute
 
 ### Q: Dependency installation failed
 
-**A:** May be network issue, try:
+**A:** Might be network issues, try:
 
 ```bash
 cd ~/my-tools/colyn
@@ -280,7 +280,7 @@ npm install --production --registry=https://registry.npmmirror.com
 
 ### Q: How to update after modifying code
 
-**A:** Re-run installation script:
+**A:** Re-run install script:
 
 ```bash
 cd /path/to/colyn
@@ -295,19 +295,19 @@ Script will overwrite previous installation.
 
 Recommended development testing workflow:
 
-1. **Development Phase**: Test directly in project
+1. **Development phase**: Test directly in project
    ```bash
    volta run yarn build
    volta run yarn colyn init
    ```
 
-2. **Local Testing**: Use installation script to install to test directory
+2. **Local testing**: Install to test directory using install script
    ```bash
    volta run yarn install-to ~/test/colyn
    ~/test/colyn/colyn init
    ```
 
-3. **Frequent Changes**: Use yarn link
+3. **Frequent changes**: Use yarn link
    ```bash
    volta run yarn link
    # Recompile after code changes
@@ -316,11 +316,11 @@ Recommended development testing workflow:
    colyn init
    ```
 
-4. **Pre-release Testing**: Use installation script to install, fully test all features
+4. **Pre-release testing**: Install using install script, fully test all features
 
 ---
 
-## Installation Script Details
+## Install Script Details
 
 ### Script Location
 
@@ -328,24 +328,24 @@ Recommended development testing workflow:
 scripts/install.js
 ```
 
-### Script Features
+### Script Functions
 
-1. **Compile Project**: Execute `volta run yarn build`
-2. **Copy Files**:
+1. **Build project**: Execute `volta run yarn build`
+2. **Copy files**:
    - `dist/` directory (compiled code)
-   - `package.json` (package configuration)
+   - `package.json` (package config)
    - `shell/colyn.sh` (shell integration script)
    - `README.md` (optional)
-3. **Install Dependencies**: Execute `npm install --production` in target directory
-4. **Create Startup Scripts** (platform-specific):
+3. **Install dependencies**: Execute `npm install --production` in target directory
+4. **Create launcher scripts** (by platform):
    - **macOS/Linux**: Create `colyn` (executable script)
    - **Windows**: Create `colyn.cmd` (batch script)
-5. **Configure Shell Integration** (macOS/Linux only):
+5. **Configure shell integration** (macOS/Linux only):
    - Automatically call `colyn system-integration` command
-   - Detect shell type and configuration file
-   - Add `source` command to shell configuration file
+   - Detect shell type and config file
+   - Add `source` command to shell config file
 
-**Platform Detection**: Script automatically detects operating system and only creates startup scripts for the corresponding platform, avoiding unnecessary files.
+**Platform detection**: Script automatically detects running OS, only creates launcher scripts for corresponding platform, avoiding unnecessary files.
 
 ### Target Directory Structure
 
@@ -356,8 +356,8 @@ scripts/install.js
 │   ├── dist/          # Compiled code
 │   ├── node_modules/  # Production dependencies
 │   ├── colyn.sh       # Shell integration script
-│   └── package.json   # Package configuration
-└── colyn              # Unix startup script
+│   └── package.json   # Package config
+└── colyn              # Unix launcher script
 ```
 
 **Windows**:
@@ -367,8 +367,8 @@ scripts/install.js
 │   ├── dist/          # Compiled code
 │   ├── node_modules/  # Production dependencies
 │   ├── colyn.sh       # Shell integration script (for reference only)
-│   └── package.json   # Package configuration
-└── colyn.cmd          # Windows startup script
+│   └── package.json   # Package config
+└── colyn.cmd          # Windows launcher script
 ```
 
 ---
@@ -379,5 +379,5 @@ After installation, you can:
 
 1. Read user documentation to learn how to use Colyn
 2. Check [README.md](../README.md) for project details
-3. Check [docs/](../docs/) directory for design documents
+3. Browse [docs/](../docs/) directory for design documents
 4. Start using Colyn to manage your git worktrees!

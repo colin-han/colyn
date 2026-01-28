@@ -8,20 +8,20 @@ This document describes the multi-language (i18n) support implementation for the
 
 ### Core Dependencies
 
-- **i18next**: Internationalization framework providing translation functionality and interpolation support
+- **i18next**: Internationalization framework providing translation and interpolation support
 
 ### Supported Languages
 
 | Language Code | Language Name | Status |
-|---------------|---------------|--------|
+|--------------|---------------|--------|
 | `en` | English | Default language |
-| `zh-CN` | Simplified Chinese | Full support |
+| `zh-CN` | Simplified Chinese | Fully supported |
 
 ### Language Detection Priority
 
 1. `COLYN_LANG` environment variable (user explicit setting)
 2. System language (`LANG`/`LC_ALL` environment variables)
-3. Default English (`en`)
+3. Default to English (`en`)
 
 ### File Structure
 
@@ -45,7 +45,6 @@ Translation resources use a hierarchical naming structure:
     error: "Error",
     success: "Success",
     hint: "Hint",
-    // ...
   },
 
   // CLI related
@@ -59,26 +58,21 @@ Translation resources use a hierarchical naming structure:
     add: {
       description: "Create a new worktree",
       branchNameEmpty: "Branch name cannot be empty",
-      // ...
     },
     list: {
       description: "List all worktrees",
-      // ...
     },
-    // Other commands...
   },
 
   // Error messages
   errors: {
     notGitRepo: "Not a git repository",
     projectNotInitialized: "Project not initialized",
-    // ...
   },
 
   // Output labels
   output: {
     projectRoot: "Project root",
-    // ...
   }
 }
 ```
@@ -119,21 +113,7 @@ DEBUG=colyn:i18n colyn --help
 
 1. Create a new language file in `src/i18n/locales/` directory (e.g., `ja.ts`)
 2. Copy the structure from `en.ts` and translate all text
-3. Register the new language in `src/i18n/index.ts`:
-
-```typescript
-import { ja } from './locales/ja.js';
-
-// Add to SUPPORTED_LANGUAGES
-const SUPPORTED_LANGUAGES = ['en', 'zh-CN', 'ja'] as const;
-
-// Add to i18next.init resources
-resources: {
-  en: { translation: en },
-  'zh-CN': { translation: zhCN },
-  ja: { translation: ja },
-},
-```
+3. Register the new language in `src/i18n/index.ts`
 
 ## Translation Key Naming Conventions
 
@@ -158,26 +138,9 @@ t('commands.add.branchExists', { branch: 'feature/x' })
 // Output: Branch "feature/x" already has a worktree
 ```
 
-## Pluralization Support
-
-i18next supports plural forms, but not currently used in this implementation. To add:
-
-```typescript
-// Translation file
-{
-  files: {
-    count_one: "{{count}} file",
-    count_other: "{{count}} files"
-  }
-}
-
-// Usage
-t('files.count', { count: 5 }) // "5 files"
-```
-
 ## Notes
 
 1. All user-visible text should use i18n
-2. Technical output (such as JSON, paths) does not need translation
+2. Technical output (JSON, paths) does not need translation
 3. Command names and parameter names remain in English
 4. Ensure translation file structure matches the English version exactly

@@ -2,7 +2,7 @@
 
 ## Overview
 
-`colyn checkout` command is used to switch or create branches in a worktree, allowing reuse of existing worktrees for different branch development.
+The `colyn checkout` command is used to switch or create branches within a worktree, allowing reuse of existing worktrees for different branch development.
 
 ## Command Syntax
 
@@ -16,7 +16,7 @@ colyn co <worktree-id> <branch>
 colyn co <branch>
 ```
 
-### Parameter Description
+### Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
@@ -29,9 +29,9 @@ colyn co <branch>
 
 | Scenario | Behavior |
 |----------|----------|
-| Has uncommitted changes | **Reject switch**, require commit first |
+| Uncommitted changes | **Reject switch**, require commit first |
 | Current branch not merged to main | **Warn and require confirmation** |
-| Target branch is main branch | **Reject switch**, avoid accidental operation |
+| Target branch is main branch | **Reject switch**, prevent accidental operation |
 | Target branch already used by another worktree | **Reject switch**, each branch should have only one working directory |
 
 ### Branch Handling
@@ -39,15 +39,15 @@ colyn co <branch>
 | Scenario | Behavior |
 |----------|----------|
 | Local branch exists | Switch directly |
-| Remote branch exists | Auto-create local branch and track remote |
+| Remote branch exists | Auto-create local branch tracking remote |
 | Branch doesn't exist | Auto-create new branch |
 
-### Log Archiving
+### Log Archival
 
-After successful branch switch, automatically archive current branch's work logs:
+After successful branch switch, automatically archive the current branch's work logs:
 
 1. Check if `.claude/logs/` directory exists
-2. Move **all files and subdirectories except `archived/`** under this directory to `.claude/logs/archived/{old-branch-name}/`
+2. Move **all files and subdirectories except `archived/`** to `.claude/logs/archived/{old-branch-name}/`
 3. If archive directory already exists, append content (don't overwrite same-named files/directories)
 
 ```
@@ -60,7 +60,7 @@ Before switch:
 └── archived/
     └── feature-old/
 
-After switch (switching away from feature/login):
+After switch (switching from feature/login):
 .claude/logs/
 └── archived/
     ├── feature-old/
@@ -73,7 +73,7 @@ After switch (switching away from feature/login):
 
 ### Old Branch Cleanup
 
-After successful switch, if old branch is merged to main, prompt user whether to delete old branch:
+After successful switch, if the old branch has been merged to main, prompt user whether to delete:
 
 ```
 ✓ Branch feature/old has been merged to main branch
@@ -82,29 +82,29 @@ After successful switch, if old branch is merged to main, prompt user whether to
 
 ### Post-execution Behavior
 
-- Auto-switch to target worktree directory (via shell function)
+- Automatically switch to target worktree directory (via shell function)
 
 ## Command Flow
 
 ```mermaid
 flowchart TD
-    Start([colyn checkout branch]) --> Parse[1. Parse parameters<br/>Determine target worktree]
+    Start([colyn checkout branch]) --> Parse[1. Parse arguments<br/>Determine target worktree]
     Parse --> Validate[2. Validate worktree exists]
-    Validate --> CheckClean{3. Has uncommitted changes?}
+    Validate --> CheckClean{3. Uncommitted changes?}
 
     CheckClean -->|Yes| ErrorDirty[❌ Reject switch<br/>Require commit first]
     ErrorDirty --> Exit1([Exit])
 
     CheckClean -->|No| CheckMain{4. Target is main branch?}
-    CheckMain -->|Yes| ErrorMain[❌ Reject switch<br/>Prompt to use main branch directory]
+    CheckMain -->|Yes| ErrorMain[❌ Reject switch<br/>Suggest using main directory]
     ErrorMain --> Exit2([Exit])
 
     CheckMain -->|No| CheckUsed{5. Branch used by<br/>another worktree?}
-    CheckUsed -->|Yes| ErrorUsed[❌ Reject switch<br/>Prompt to switch to corresponding worktree]
+    CheckUsed -->|Yes| ErrorUsed[❌ Reject switch<br/>Suggest switching to that worktree]
     ErrorUsed --> Exit3([Exit])
 
     CheckUsed -->|No| CheckMerged{6. Current branch<br/>merged?}
-    CheckMerged -->|No| WarnUnmerged[⚠️ Warn not merged]
+    CheckMerged -->|No| WarnUnmerged[⚠️ Warn unmerged]
     WarnUnmerged --> Confirm{User confirms?}
     Confirm -->|No| Cancel[Cancel operation]
     Cancel --> Exit4([Exit])
@@ -115,7 +115,7 @@ flowchart TD
     Archive --> Checkout[9. Execute git checkout]
 
     Checkout --> CheckMergedAgain{10. Old branch merged?}
-    CheckMergedAgain -->|Yes| AskDelete{Prompt to delete old branch?}
+    CheckMergedAgain -->|Yes| AskDelete{Prompt delete old branch?}
     AskDelete -->|Yes| DeleteBranch[Delete old branch]
     DeleteBranch --> Result
     AskDelete -->|No| Result
@@ -169,18 +169,18 @@ Current status:
   Path: /path/to/worktrees/task-1
 ```
 
-### Has Uncommitted Changes
+### Uncommitted Changes
 
 ```
-✗ worktree task-1 has uncommitted changes
+✗ Worktree task-1 has uncommitted changes
 
 Changed files (3):
   - src/index.ts
   - src/utils.ts
   - package.json
 
-Hints:
-  - View status: cd "/path/to/task-1" && git status
+Hint:
+  - Check status: cd "/path/to/task-1" && git status
   - Commit changes: git add . && git commit -m "..."
   - Or stash: git stash
 ```
@@ -188,18 +188,18 @@ Hints:
 ### Target Branch Already Used
 
 ```
-✗ Branch feature/login already used in task-2
+✗ Branch feature/login is already used in task-2
 
-Hint: Please switch directly to task-2 directory to work, or use a different branch name
+Hint: Please switch directly to task-2 directory, or use a different branch name
       cd "/path/to/worktrees/task-2"
 ```
 
 ### Target is Main Branch
 
 ```
-✗ Cannot switch to main branch in worktree
+✗ Cannot switch to main branch in a worktree
 
-Hint: Please use main branch directory directly
+Hint: Please use the main branch directory directly
       cd "/path/to/main"
 ```
 
@@ -208,7 +208,7 @@ Hint: Please use main branch directory directly
 | Exit Code | Description |
 |-----------|-------------|
 | 0 | Success |
-| 1 | Has uncommitted changes / Git operation failed |
+| 1 | Uncommitted changes / Git operation failed |
 | 2 | Target branch is main branch |
 | 3 | Target branch already used by another worktree |
 | 4 | User cancelled operation |

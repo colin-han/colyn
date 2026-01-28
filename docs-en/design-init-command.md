@@ -3,15 +3,15 @@
 **Created**: 2026-01-14
 **Last Updated**: 2026-01-15
 **Command Name**: `colyn init`
-**Status**: Implemented
+**Status**: ✅ Implemented
 
 ---
 
 ## 1. Command Overview
 
-### 1.1 User Goal
+### 1.1 User Goals
 
-Users want to convert an existing project to a Colyn project structure that supports parallel development, or create a Colyn project in a new directory.
+Users want to convert an existing project into a Colyn project structure that supports parallel development, or create a Colyn project in a new directory.
 
 ### 1.2 Command Usage
 
@@ -26,16 +26,16 @@ colyn init -p 3000
 
 ### 1.3 Execution Result
 
-After execution, project directory will be reorganized to the following structure:
+After execution, the project directory will be reorganized into the following structure:
 
 ```
 project-root/
-├── project-name/      # Main branch directory (original files are here)
+├── project-name/      # Main branch directory (original files here)
 │   ├── .env.local    # PORT=10000, WORKTREE=main
 │   ├── .gitignore    # Contains .env.local rule
 │   └── ...           # All original project files
 ├── worktrees/        # Future worktree directory
-└── .colyn/           # Colyn configuration directory
+└── .colyn/           # Colyn config directory
     └── config.json   # Project configuration file
 ```
 
@@ -43,32 +43,32 @@ project-root/
 
 ## 2. User Scenarios
 
-`colyn init` intelligently recognizes three different directory states and takes different approaches.
+`colyn init` intelligently identifies three different directory states and handles them differently.
 
 ### 2.1 Scenario 1: Empty Directory
 
-**User Situation**: Running `colyn init` in a completely empty directory
+**User situation**: Running `colyn init` in a completely empty directory
 
-**System Behavior**:
+**System behavior**:
 1. Create basic directory structure (main branch directory, worktrees, config directory)
-2. Configure environment variable file
+2. Configure environment variables file
 3. Prompt user to initialize project in main branch directory
 
-**User Sees**:
+**User sees**:
 
 ```
-✔ Creating directory structure
+✔ Create directory structure
 ✔ Environment variables configured
 ✔ .gitignore configured
-✔ Configuration file saved
+✔ Config file saved
 
 ✓ Initialization successful!
 
 Directory structure:
   .
-  ├── my-project/          # Main branch directory (please initialize project here)
+  ├── my-project/          # Main branch directory (initialize project here)
   ├── worktrees/           # Worktree directory
-  └── .colyn/              # Configuration directory
+  └── .colyn/              # Config directory
 
 Next steps:
   1. Enter main branch directory:
@@ -87,21 +87,21 @@ Next steps:
 
 ### 2.2 Scenario 2: Existing Project
 
-**User Situation**: Running `colyn init` in a directory containing project files
+**User situation**: Running `colyn init` in a directory containing project files
 
-**System Behavior**:
+**System behavior**:
 1. Display current file list
-2. Ask user for confirmation (explain that all files will be moved)
+2. Ask user for confirmation (explain files will be moved)
 3. If git repository, check if working directory is clean
 4. Create directory structure and move files
 5. Configure environment variables
 
-**User Sees**:
+**User sees**:
 
 ```
-⚠ Detected existing files, will perform the following operations:
+⚠ Existing files detected, the following will be performed:
   1. Create main branch directory and worktrees directory
-  2. Move all files in current directory to my-project/ directory
+  2. Move all files from current directory to my-project/ directory
 
 Current directory file list:
   - src
@@ -109,19 +109,19 @@ Current directory file list:
   - tsconfig.json
   - .git
   - README.md
-  ... and 15 more files
+  ... 15 more files
 
 ? Confirm to continue initialization? (y/N) › No
 ```
 
-**After User Selects Yes**:
+**After user selects Yes**:
 
 ```
-✔ Creating directory structure
-✔ Moving project files
+✔ Create directory structure
+✔ Move project files
 ✔ Environment variables configured
 ✔ .gitignore configured
-✔ Configuration file saved
+✔ Config file saved
 
 ✓ Initialization successful!
 
@@ -141,27 +141,27 @@ Next steps:
 
 ### 2.3 Scenario 3: Already Initialized (Completion Mode)
 
-**User Situation**: Running `colyn init` again in an already initialized directory
+**User situation**: Running `colyn init` again in an already initialized directory
 
-**System Behavior**:
+**System behavior**:
 1. Detect missing parts
 2. Complete missing directories or configurations
-3. If everything is complete, prompt no action needed
+3. If everything is complete, indicate no action needed
 
-**User Sees (Has Missing Parts)**:
+**User sees (has missing parts)**:
 
 ```
 ⚠ Detected already initialized, entering completion mode...
 
-✔ Creating worktrees directory
-✔ Checking and updating configuration file
-✔ Checking and configuring .env.local
-✔ Checking and configuring .gitignore
+✔ Create worktrees directory
+✔ Check and update config file
+✔ Check and configure .env.local
+✔ Check and configure .gitignore
 
 ✓ Completion done!
 ```
 
-**User Sees (Nothing Missing)**:
+**User sees (nothing missing)**:
 
 ```
 ⚠ Detected already initialized, entering completion mode...
@@ -179,7 +179,7 @@ All configurations are complete, no completion needed.
 
 ```mermaid
 graph TD
-    Start([User runs colyn init]) --> CheckPort{--port parameter provided?}
+    Start([User runs colyn init]) --> CheckPort{Provided --port parameter?}
 
     CheckPort -->|Yes| UsePort[Use parameter value]
     CheckPort -->|No| AskPort[Interactive port prompt<br/>Default: 10000]
@@ -193,18 +193,18 @@ graph TD
     DirType -->|Empty directory| EmptyCreate[Create directory structure]
     EmptyCreate --> EmptyEnv[Configure environment variables]
     EmptyEnv --> EmptySuccess[✓ Show success message<br/>Prompt to initialize project]
-    EmptySuccess --> End([Complete])
+    EmptySuccess --> End([Done])
 
     %% Existing project flow
     DirType -->|Existing project| ShowFiles[Show file list]
-    ShowFiles --> AskConfirm{User confirms to continue?}
+    ShowFiles --> AskConfirm{User confirms continue?}
     AskConfirm -->|No| Cancel[Cancel initialization]
-    AskConfirm -->|Yes| CheckGit{Is git repository?}
+    AskConfirm -->|Yes| CheckGit{Is git repo?}
 
     CheckGit -->|Yes| CheckClean{Working directory clean?}
     CheckGit -->|No| CreateDirs
 
-    CheckClean -->|No| ErrorDirty[✗ Error: Commit changes first]
+    CheckClean -->|No| ErrorDirty[✗ Error: commit changes first]
     CheckClean -->|Yes| CreateDirs[Create directory structure]
 
     CreateDirs --> MoveFiles[Move all files]
@@ -214,7 +214,7 @@ graph TD
 
     %% Already initialized flow
     DirType -->|Already initialized| CheckMissing[Detect missing parts]
-    CheckMissing --> HasMissing{Has missing parts?}
+    CheckMissing --> HasMissing{Has missing?}
     HasMissing -->|Yes| CompleteMissing[Complete missing parts]
     HasMissing -->|No| SkipComplete[Skip, already complete]
     CompleteMissing --> CompleteSuccess[✓ Show completion info]
@@ -239,21 +239,21 @@ sequenceDiagram
 
     U->>C: colyn init
 
-    alt --port parameter provided
+    alt Provided --port parameter
         C->>C: Validate port number
         alt Port invalid
             C->>U: ✗ Invalid port number<br/>Port must be between 1-65535
         else Port valid
             C->>C: Use provided port
         end
-    else --port not provided
-        C->>U: ? Please enter main branch development server port: (10000)
+    else No --port provided
+        C->>U: ? Enter main branch dev server port: (10000)
         U->>C: Enter port number
         C->>C: Validate input
         alt Input invalid
             C->>U: Port must be between 1-65535
         else Input valid
-            C->>C: Use entered port
+            C->>C: Use input port
         end
     end
 ```
@@ -265,7 +265,7 @@ sequenceDiagram
     participant U as User
     participant C as Colyn
 
-    C->>U: ⚠ Detected existing files, will perform the following operations:<br/>1. Create directory structure<br/>2. Move all files
+    C->>U: ⚠ Existing files detected, will perform:<br/>1. Create directory structure<br/>2. Move all files
     C->>U: Current directory file list:<br/>- src<br/>- package.json<br/>...
     C->>U: ? Confirm to continue initialization? (y/N)
 
@@ -274,8 +274,8 @@ sequenceDiagram
     alt User selects No
         C->>U: Initialization cancelled
     else User selects Yes
-        alt Is git repository and not clean
-            C->>U: ✗ Working directory not clean, has uncommitted changes<br/>Hint: Please commit or stash changes first
+        alt Is git repo and not clean
+            C->>U: ✗ Working directory not clean, uncommitted changes exist<br/>Hint: Please commit or stash changes first
         else Can continue
             C->>C: Execute initialization
             C->>U: ✓ Initialization successful!
@@ -290,25 +290,25 @@ sequenceDiagram
 ### 4.1 User Input
 
 | Input | Method | Required | Default | Validation Rules |
-|-------|--------|----------|---------|------------------|
-| Port number | `--port` parameter or interactive input | Yes | 10000 | Integer between 1-65535 |
+|-------|--------|----------|---------|-----------------|
+| Port number | `--port` parameter or interactive | Yes | 10000 | Integer between 1-65535 |
 | Confirm continue (for existing project) | Interactive selection | Yes | No | Yes/No |
 
 ### 4.2 System Output
 
-**Progress Info** (using spinner):
-- ✔ Creating directory structure
-- ✔ Moving project files
+**Progress information** (using spinner):
+- ✔ Create directory structure
+- ✔ Move project files
 - ✔ Environment variables configured
 - ✔ .gitignore configured
-- ✔ Configuration file saved
+- ✔ Config file saved
 
-**Success Info**:
+**Success information**:
 - Directory structure description
 - Configuration info (main branch, port)
-- Next step suggestions
+- Next steps suggestions
 
-**Error Info** (see Section 5)
+**Error information** (see section 5)
 
 ---
 
@@ -317,9 +317,9 @@ sequenceDiagram
 ### 5.1 Common Errors and Solutions
 
 | Error Scenario | User Sees | How to Resolve |
-|----------------|-----------|----------------|
-| Working directory not clean<br/>(has uncommitted changes) | ✗ Working directory not clean, has uncommitted changes<br/>Hint: Please commit or stash changes before running init command | Run `git add .` and `git commit` to commit changes,<br/>or run `git stash` to stash changes |
-| Directory name conflict<br/>(main branch directory name already used by file) | ✗ Main branch directory name "my-project" conflicts with existing file<br/>Hint: Please rename that file before running init command | Rename or delete file with same name as main branch directory |
+|---------------|-----------|----------------|
+| Working directory not clean<br/>(uncommitted changes) | ✗ Working directory not clean, uncommitted changes exist<br/>Hint: Please commit or stash changes before running init | Run `git add .` and `git commit` to commit changes,<br/>or run `git stash` to stash changes |
+| Directory name conflict<br/>(main branch dir name taken by file) | ✗ Main branch directory name "my-project" conflicts with existing file<br/>Hint: Please rename that file before running init | Rename or delete file with same name as main branch directory |
 | Invalid port number | ✗ Invalid port number<br/>Hint: Port must be between 1-65535 | Enter port number between 1-65535 |
 | File move failed | ✗ Error occurred while moving files<br/>Hint: Please check file permissions or manually restore directory structure | Check file permissions, manually operate if necessary |
 
@@ -336,27 +336,27 @@ graph TD
     Error --> ShowHint[Show resolution hint]
     ShowHint --> Exit[Exit program<br/>exit code: 1]
 
-    Success --> Continue[Continue to next step]
+    Success --> Continue[Continue next step]
 
     style Error fill:#ffcccc
     style Success fill:#ccffcc
 ```
 
-**Important**: Operations won't auto-rollback on failure, user needs to manually recover based on hints.
+**Important**: Operations don't auto-rollback on failure, users need to manually recover based on hints.
 
 ---
 
 ## 6. Directory State Detection Logic
 
-How system determines which type a directory belongs to:
+How the system determines which type a directory belongs to:
 
 ```mermaid
 graph TD
-    Start[Detect directory] --> CountFiles[Count file count]
+    Start[Detect directory] --> CountFiles[Count files]
     CountFiles --> CheckEmpty{File count = 0?}
 
     CheckEmpty -->|Yes| Empty[Empty directory]
-    CheckEmpty -->|No| CheckInit{Has main branch directory<br/>or worktrees<br/>or .colyn?}
+    CheckEmpty -->|No| CheckInit{Has main branch dir<br/>or worktrees<br/>or .colyn?}
 
     CheckInit -->|Yes| Initialized[Already initialized]
     CheckInit -->|No| Existing[Existing project]
@@ -373,10 +373,10 @@ graph TD
 ### 6.1 Detection Criteria
 
 | Directory Type | Criteria | Description |
-|----------------|----------|-------------|
+|---------------|----------|-------------|
 | Empty directory | No files (including hidden files) | Completely empty directory |
-| Already initialized | Has main branch directory, worktrees, or .colyn | Already ran `colyn init` |
-| Existing project | Has files but doesn't match above two | Regular project directory |
+| Already initialized | Has main branch dir, worktrees, or .colyn | Already ran `colyn init` |
+| Existing project | Has files but not above two types | Regular project directory |
 
 ---
 
@@ -393,19 +393,19 @@ my-project/                 # Project root directory
 │   ├── .gitignore         # Contains .env.local ignore rule
 │   └── ...                # Other project files
 ├── worktrees/             # Worktree directory (initially empty)
-└── .colyn/                # Colyn configuration directory (project identifier only)
+└── .colyn/                # Colyn config directory (only as project marker)
 ```
 
 ### 7.2 Data Sources
 
-Project info obtained dynamically from filesystem, no config file needed:
+Project info is dynamically obtained from filesystem, no config file needed:
 
 | Data | Source |
 |------|--------|
 | Main branch name | `git branch --show-current` in main branch directory |
 | Main port | `PORT` in main branch directory's `.env.local` |
 | Next Worktree ID | Scan `worktrees/task-*` directories, take max ID + 1 |
-| Worktree list | `git worktree list` + `.env.local` in each directory |
+| Worktree list | `git worktree list` + each directory's `.env.local` |
 
 **`my-project/.env.local`**:
 ```env
@@ -416,9 +416,9 @@ PORT=10000
 WORKTREE=main
 ```
 
-### 7.3 What User Can Do
+### 7.3 What Users Can Do
 
-After successful initialization, user can:
+After successful initialization, users can:
 
 1. **Create worktree**:
    ```bash
@@ -445,18 +445,18 @@ After successful initialization, user can:
 - If git repository: Use current branch name as main branch name
 - If not git repository or detection fails: Default to "main"
 
-### 8.2 Environment Variable Smart Merge
+### 8.2 Environment Variables Smart Merge
 
 If main branch directory already has `.env.local` file:
 
-**Original Content**:
+**Original content**:
 ```env
 # My custom env
 API_URL=http://localhost:3000
 DEBUG=true
 ```
 
-**After Merge**:
+**After merge**:
 ```env
 # My custom env
 API_URL=http://localhost:3000
@@ -471,7 +471,7 @@ WORKTREE=main
 
 **Rules**:
 - Preserve all original content and comments
-- Add Colyn-required environment variables at the end
+- Add Colyn-required environment variables at end
 - If PORT or WORKTREE already exists, update their values
 
 ### 8.3 .gitignore Smart Update
@@ -483,30 +483,30 @@ Check if ignore rule already exists:
 
 ---
 
-## 9. User Experience Highlights
+## 9. User Experience Points
 
 ### 9.1 Clear Progress Prompts
 
-Use spinner to show real-time progress of each step, letting user know what's happening.
+Use spinner to show real-time progress of each step, letting users know what's happening.
 
 ### 9.2 Safe Confirmation Mechanism
 
 Before executing destructive operations (moving files), must:
-1. Show operations to be performed
+1. Show what operations will be performed
 2. Show affected files
-3. Ask user for confirmation
+3. Ask for user confirmation
 4. Default to "No", requires user to actively confirm
 
 ### 9.3 Detailed Error Prompts
 
-Error messages include:
-- What exactly the error is
+Error messages contain:
+- What the error is specifically
 - Why it happened
 - How to resolve
 
-### 9.4 Next Step Suggestions
+### 9.4 Next Steps Suggestions
 
-After success, clearly tell user:
+After success, clearly tell users:
 - What they can do
 - How to do it
 - Provide specific command examples
@@ -528,30 +528,30 @@ graph LR
     style Init fill:#90EE90
 ```
 
-**Notes**:
-- `init` is prerequisite for all other commands
-- Only after initialization can worktrees be created (`add`)
-- After creating worktrees, other management commands can be used
+**Description**:
+- `init` is a prerequisite for all other commands
+- Can only create worktree (`add`) after initialization
+- Can use other management commands after creating worktree
 
 ---
 
 ## 11. FAQ
 
-### Q1: Where are my original files after initialization?
+### Q1: Where are the original files after initialization?
 
-A: All files are in the main branch directory (directory with same name as project). For example, if project is called "my-project", files are in `my-project/my-project/`.
+A: All files are in the main branch directory (directory named same as project). For example, if project is called "my-project", files are in `my-project/my-project/`.
 
 ### Q2: Can I initialize in an existing project?
 
-A: Yes. System will move all files to main branch directory. If it's a git repository, must commit or stash all changes first.
+A: Yes. System will move all files to main branch directory. If it's a git repository, you must commit or stash all changes first.
 
 ### Q3: What if initialization fails?
 
-A: System won't auto-rollback, manually recover based on error hints or re-run. In most cases, you can directly re-run `colyn init`.
+A: System won't auto-rollback, manually recover based on error hints or re-run. In most cases, you can just re-run `colyn init`.
 
-### Q4: Can I modify port configuration?
+### Q4: Can I modify the port configuration?
 
-A: Yes, directly edit `PORT` value in main branch directory's `.env.local`. Since config info is obtained dynamically from filesystem, changes take effect immediately.
+A: Yes, directly edit the `PORT` value in main branch directory's `.env.local`. Since configuration is dynamically obtained from filesystem, changes take effect immediately.
 
 ### Q5: Will completion mode overwrite my configuration?
 
@@ -561,10 +561,10 @@ A: No. Completion mode only adds missing parts, won't overwrite existing configu
 
 ## 12. Summary
 
-`colyn init` command design highlights:
+`colyn init` command design priorities:
 
-1. **Intelligent Recognition**: Auto-recognize three directory states, take different strategies
-2. **Safety First**: Destructive operations require user confirmation
-3. **Clear Feedback**: Each step has clear progress and result prompts
-4. **Fault Tolerance**: Detailed error messages and resolution suggestions
-5. **User Friendly**: Provide next step suggestions and FAQ
+1. **Smart identification**: Auto-identify three directory states, take different strategies
+2. **Safety first**: User confirmation required before destructive operations
+3. **Clear feedback**: Each operation has clear progress and result prompts
+4. **Error tolerance**: Detailed error messages and resolution suggestions
+5. **User friendly**: Provide next steps suggestions and FAQ

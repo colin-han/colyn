@@ -2,7 +2,7 @@
 
 ## Overview
 
-`colyn info` command is used to query the status information of the current directory in a colyn project, supporting multiple output formats for different use cases.
+The `colyn info` command is used to query the current directory's status within a colyn project, supporting multiple output formats for different use cases.
 
 ## Command Syntax
 
@@ -31,16 +31,16 @@ colyn info [options]
 
 ## Use Cases
 
-### 1. Output Short Identifier (Recommended for Shell Prompt)
+### 1. Output Short Identifier (Recommended for Shell Prompts)
 
-Output format: `{project}/{worktree-dir} (⎇ {branch})`, supports intelligent fallback.
+Output format: `{project}/{worktree-dir} (⎇ {branch})`, with smart fallback.
 
 ```bash
 # In colyn project
 $ colyn info --short
 myapp/task-1 (⎇ feature/login)
 
-# In git repository (colyn not initialized)
+# In git repo (colyn not initialized)
 $ colyn info --short
 my-repo (⎇ main)
 
@@ -50,16 +50,16 @@ my-folder
 ```
 
 **Fallback Strategy**:
-1. **Colyn Project**: Display `{project}/{worktree-dir} (⎇ {branch})`
-2. **Git Repository**: Display `{repo-name} (⎇ {branch})`
-3. **Regular Directory**: Display `{dir-name}`
+1. **Colyn project**: Display `{project}/{worktree-dir} (⎇ {branch})`
+2. **Git repository**: Display `{repo-name} (⎇ {branch})`
+3. **Regular directory**: Display `{dir-name}`
 
 **Use Cases**:
 - Shell prompt: `PS1='[$(colyn info -S)] $ '`
 - Terminal title: `echo -ne "\033]0;$(colyn info -S)\007"`
 - Log prefix: `echo "[$(colyn info -S)] Starting build..."`
 
-### 2. Human-readable Status (No Arguments)
+### 2. Manual Status Check (No Arguments)
 
 Display all information with colors and labels for easy reading.
 
@@ -86,7 +86,7 @@ $ colyn info --field=project-path
 
 ### 4. Get Multiple Fields
 
-Default separator is tab, can be customized.
+Default separator is tab, customizable.
 
 ```bash
 $ colyn info -f project -f branch
@@ -118,30 +118,30 @@ myapp:1:feature/login
 
 ### Using --short Option
 
-`--short` option supports running from any location, will auto-fallback:
-- In colyn project: Display full info
+The `--short` option supports running from any location, with automatic fallback:
+- In colyn project: Display full information
 - In git repository: Display repo name and branch
 - In regular directory: Display directory name
 
 ### Using Other Options
 
-Command must be executed in one of the following locations:
+Command must be executed from one of the following locations:
 
 1. **Main branch directory** (or its subdirectories)
    - `worktree-id` is `0`
-   - `worktree-dir` is main branch directory name (same as `project`)
+   - `worktree-dir` is the main branch directory name (same as `project`)
 
 2. **Worktree directory** (or its subdirectories)
-   - `worktree-id` is actual worktree ID
+   - `worktree-id` is the actual worktree ID
    - `worktree-dir` is in `task-{id}` format
 
-Executing in other locations (like project root, `.colyn` directory) will error:
+Running from other locations (project root, `.colyn` directory) will show an error:
 
 ```bash
 $ cd /path/to/project
 $ colyn info
-Error: Current directory is not in worktree or main branch
-Hint: Please switch to main branch directory or a worktree directory
+Error: Current directory is not in a worktree or main branch
+Hint: Please switch to the main branch directory or a worktree directory
 ```
 
 ## Implementation Details
@@ -151,19 +151,19 @@ Hint: Please switch to main branch directory or a worktree directory
 1. Call `findProjectRoot()` to find project root directory
 2. Check if current directory is under `{root}/{mainDirName}` (main branch)
 3. Check if current directory is under `{root}/worktrees/task-*` (worktree)
-4. If neither, error and exit
+4. If neither, exit with error
 
-### Getting Branch Info
+### Getting Branch Information
 
 - Use simple-git's `branch()` method to get current branch name
 
 ### Output Format Selection
 
 ```
-Has --short parameter?  → Output short identifier (supports fallback)
-Has --format parameter? → Use template string rendering
-Has --field parameter?  → Output specified fields (joined by separator)
-None of above?          → Output full info with colored labels
+Has --short parameter?  → Output short identifier (with fallback)
+Has --format parameter? → Render using template string
+Has --field parameter?  → Output specified fields (joined with separator)
+None of the above?      → Output full information with colored labels
 ```
 
 ### --short Option Fallback Logic
@@ -185,7 +185,7 @@ async function getShortId(): Promise<string> {
         return `${repoName} (⎇ ${branch.current})`;
       }
     } catch {
-      // Ignore git errors, continue fallback
+      // Ignore git error, continue fallback
     }
 
     // 3. Use current directory name
