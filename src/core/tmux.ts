@@ -5,6 +5,7 @@
  */
 
 import { execSync } from 'child_process';
+import type { ResolvedPaneCommands } from './tmux-config.js';
 
 /**
  * tmux 环境信息
@@ -384,8 +385,10 @@ export interface SetupWindowOptions {
   windowName: string;
   /** 工作目录 */
   workingDir: string;
-  /** dev server 启动命令（如果有） */
+  /** dev server 启动命令（如果有）- 向后兼容 */
   devCommand?: string;
+  /** 各 pane 的命令配置 */
+  paneCommands?: ResolvedPaneCommands;
   /** 是否跳过 window 创建（用于 window 0） */
   skipWindowCreation?: boolean;
 }
@@ -402,6 +405,7 @@ export function setupWindow(options: SetupWindowOptions): boolean {
     windowName,
     workingDir,
     devCommand,
+    paneCommands,
     skipWindowCreation = false,
   } = options;
 
@@ -421,8 +425,20 @@ export function setupWindow(options: SetupWindowOptions): boolean {
       return false;
     }
 
-    // 3. 如果有 dev command，在右上 pane (pane 1) 启动
-    if (devCommand) {
+    // 3. 发送命令到各个 pane
+    if (paneCommands) {
+      // 使用新的 paneCommands 配置
+      if (paneCommands.pane0) {
+        sendKeys(sessionName, windowIndex, 0, paneCommands.pane0);
+      }
+      if (paneCommands.pane1) {
+        sendKeys(sessionName, windowIndex, 1, paneCommands.pane1);
+      }
+      if (paneCommands.pane2) {
+        sendKeys(sessionName, windowIndex, 2, paneCommands.pane2);
+      }
+    } else if (devCommand) {
+      // 向后兼容：如果只提供 devCommand，在 pane 1 执行
       sendKeys(sessionName, windowIndex, 1, devCommand);
     }
 

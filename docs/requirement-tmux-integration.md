@@ -219,23 +219,84 @@ tmux select-pane -t 0
 
 ### 2.5 Pane 内容自动化
 
-#### 2.5.1 左侧 Pane（Claude Code）
+#### 2.5.1 配置文件
 
-**行为**：
-- 切换到 worktree 目录
-- **不**自动启动 Claude
-- 等待用户手动运行 `claude`
+Pane 命令可通过 `.colyn/tmux.json` 配置文件自定义（可选）。
+
+**配置文件位置**：`{projectRoot}/.colyn/tmux.json`
+
+**配置格式**：
+
+```json
+{
+  "autoRun": true,
+  "panes": {
+    "left": "auto",
+    "rightTop": "auto",
+    "rightBottom": null
+  }
+}
+```
+
+**配置说明**：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `autoRun` | boolean | `true` | 是否自动运行命令，`false` 禁用所有自动运行 |
+| `panes.left` | string \| "auto" \| null | `"auto"` | Pane 0（左侧 Claude）命令 |
+| `panes.rightTop` | string \| "auto" \| null | `"auto"` | Pane 1（右上 Dev Server）命令 |
+| `panes.rightBottom` | string \| "auto" \| null | `null` | Pane 2（右下 Bash）命令 |
+
+**"auto" 检测逻辑**：
+
+| Pane | 检测逻辑 |
+|------|---------|
+| left | 检查 `.claude` 目录，存在则 `claude -c`，否则 `claude` |
+| rightTop | 检查 package.json 的 dev 脚本，存在则运行 |
+| rightBottom | 不执行任何命令 |
+
+**配置示例**：
+
+```json
+// 禁用所有自动命令
+{"autoRun": false}
+
+// 自定义命令
+{
+  "panes": {
+    "left": "nvim",
+    "rightTop": "npm run start",
+    "rightBottom": "htop"
+  }
+}
+
+// 只禁用 Claude 自动启动
+{
+  "panes": {
+    "left": null
+  }
+}
+```
+
+**遵循最小配置原则**：配置文件完全可选，不存在时使用默认行为。
+
+#### 2.5.2 左侧 Pane（Claude Code）
+
+**默认行为（"auto"）**：
+- 检测 worktree 目录下是否存在 `.claude` 目录
+- 如果存在，执行 `claude -c` 继续会话
+- 如果不存在，执行 `claude` 启动新会话
 
 **原因**：
-- 用户可能想先检查代码
-- Claude 启动后会占据 pane
-- 给用户完全的控制权
+- `.claude` 目录表示之前有 Claude 会话
+- `-c` 参数可以继续之前的会话
+- 新 worktree 启动新会话
 
-#### 2.5.2 右上 Pane（Dev Server）
+#### 2.5.3 右上 Pane（Dev Server）
 
-**行为**：
+**默认行为（"auto"）**：
 - 检测 package.json 的 `dev` 脚本
-- 自动执行 `npm run dev`
+- 自动执行 `npm run dev` / `yarn dev` / `pnpm dev`
 - PORT 从 .env.local 自动读取
 
 **检测逻辑**：
@@ -258,9 +319,9 @@ else {
 - ✅ npm 项目（MVP）
 - ❌ Rails、Django 等（未来可扩展）
 
-#### 2.5.3 右下 Pane（Bash）
+#### 2.5.4 右下 Pane（Bash）
 
-**行为**：
+**默认行为（null）**：
 - 切换到 worktree 目录
 - **不**执行额外命令
 - 保持干净的 shell
