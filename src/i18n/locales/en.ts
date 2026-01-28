@@ -272,6 +272,79 @@ Main branch directory: {{path}}`,
       pushFailedHint: 'Local merge complete, you can push later manually:',
     },
 
+    // update command
+    update: {
+      description: 'Update worktree with main branch code',
+      noRebaseOption: 'Use merge instead of rebase',
+      allOption: 'Update all worktrees',
+      cannotAutoDetect: 'Cannot auto-detect worktree',
+      cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
+  colyn update <id>
+  colyn update <branch-name>
+
+View all worktrees:
+  colyn list`,
+      worktreeNotFound: 'Cannot find worktree with ID {{id}}',
+      worktreeNotFoundHint: `The WORKTREE value in current directory's .env.local may be outdated
+
+View all worktrees:
+  colyn list`,
+      branchNotFound: 'Cannot find worktree for branch "{{branch}}"',
+      branchNotFoundHint: `View all worktrees:
+  colyn list`,
+      detectedWorktree: 'Detected worktree:',
+      branchLabel: 'Branch',
+      pathLabel: 'Path',
+      pullingMain: 'Pulling main branch latest code...',
+      pullSuccess: 'Main branch updated',
+      pullFailed: 'Failed to pull main branch',
+      pullFailedHint: 'Please check network connection or remote repository configuration\nError: {{error}}',
+      checkingStatus: 'Checking working directory status...',
+      statusClean: 'Working directory clean',
+      statusDirty: 'Working directory has uncommitted changes',
+      dirHasUncommitted: '{{name}} has uncommitted changes',
+      dirHasUncommittedHint: `{{name}} directory: {{path}}
+
+Changed files ({{count}}):
+{{files}}
+
+Hints:
+  - View status: cd "{{path}}" && git status
+  - Commit changes: git add . && git commit -m "..."
+  - Or stash: git stash`,
+      updating: 'Updating with {{strategy}}...',
+      updateDir: '  Directory: {{path}}',
+      updateCmd: '  Execute: {{cmd}}',
+      updateSuccess: 'Update successful',
+      updateFailed: 'Update failed',
+      updateComplete: 'Update complete!',
+      mainBranchLabel: 'Main branch ({{branch}})',
+      strategyLabel: 'Strategy',
+      rebaseConflictTitle: 'Rebase failed, conflicts exist',
+      mergeConflictTitle: 'Merge failed, conflicts exist',
+      conflictFiles: 'Conflict files:',
+      resolveSteps: 'Resolution steps:',
+      rebaseStep1: '1. Edit conflict files, resolve conflict markers',
+      rebaseStep2: '2. Add resolved files:',
+      rebaseStep3: '3. Continue rebase:',
+      rebaseStep4: '4. To abort rebase:',
+      mergeStep1: '1. Edit conflict files, resolve conflict markers',
+      mergeStep2: '2. Add resolved files:',
+      mergeStep3: '3. Complete merge:',
+      mergeStep4: '4. To abort merge:',
+      noWorktrees: 'No worktrees found',
+      noWorktreesHint: 'Please use colyn add to create a worktree first',
+      foundWorktrees: 'Found {{count}} worktrees:',
+      batchUpdating: 'Batch updating (strategy: {{strategy}})...',
+      batchResult: 'Update results:',
+      batchSucceeded: '✓ {{count}} worktrees updated successfully',
+      batchFailed: '✗ {{count}} worktrees failed to update',
+      batchSkipped: '○ {{count}} worktrees skipped',
+      failedDetails: 'Failed details:',
+      dirtySkipped: 'Working directory not clean, skipped',
+      hasConflict: 'Conflicts exist, please resolve manually',
+    },
+
     // remove command
     remove: {
       description: 'Delete worktree',
