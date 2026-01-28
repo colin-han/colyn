@@ -30,6 +30,7 @@ import { t } from '../i18n/index.js';
  */
 interface MergeOptions {
   push?: boolean;
+  noRebase?: boolean;
 }
 
 /**
@@ -37,14 +38,14 @@ interface MergeOptions {
  *
  * 流程：
  * 1. 前置检查（主分支和 worktree 都干净）
- * 2. 在 worktree 中合并主分支（允许 ff），确保 worktree 包含主分支的所有更改
+ * 2. 在 worktree 中 rebase 主分支（默认），确保 worktree 包含主分支的所有更改
  * 3. 如果有冲突，提示用户在 worktree 中解决
  * 4. 在主分支中合并 worktree 分支（--no-ff），此时不会有冲突
  * 5. 推送处理
  */
 async function mergeCommand(
   target: string | undefined,
-  _options: MergeOptions
+  options: MergeOptions
 ): Promise<void> {
   try {
     // 步骤1: 获取项目路径并验证
@@ -86,39 +87,47 @@ async function mergeCommand(
     // 步骤5: 获取主分支名称
     const mainBranch = await getMainBranch(paths.mainDir);
 
-    // 步骤6: 在 worktree 中合并主分支（确保 worktree 包含主分支的所有更改）
+    // 确定是否使用 rebase（默认 true）
+    const useRebase = !options.noRebase;
+
+    // 步骤6: 在 worktree 中更新主分支代码（确保 worktree 包含主分支的所有更改）
     output(t('commands.merge.step1Title'));
     output(t('commands.merge.step1Dir', { path: worktree.path }));
-    output(t('commands.merge.step1Cmd', { branch: mainBranch }));
+    if (useRebase) {
+      output(t('commands.merge.step1CmdRebase', { branch: mainBranch }));
+    } else {
+      output(t('commands.merge.step1Cmd', { branch: mainBranch }));
+    }
 
-    const step1Spinner = ora({ text: t('commands.merge.mergingMain'), stream: process.stderr }).start();
+    const step1Spinner = ora({ text: useRebase ? t('commands.merge.rebasingMain') : t('commands.merge.mergingMain'), stream: process.stderr }).start();
 
     const step1Result = await executeInDirectory(worktree.path, async () => {
-      return await mergeMainIntoWorktree(worktree.path, mainBranch);
+      return await mergeMainIntoWorktree(worktree.path, mainBranch, useRebase);
     });
 
     if (!step1Result.success) {
-      step1Spinner.fail(t('commands.merge.mainMergeFailed'));
+      step1Spinner.fail(useRebase ? t('commands.merge.mainRebaseFailed') : t('commands.merge.mainMergeFailed'));
 
-      if (step1Result.error === 'merge_conflict') {
-        // 合并冲突 - 在 worktree 中解决
+      if (step1Result.error === 'rebase_conflict' || step1Result.error === 'merge_conflict') {
+        // 冲突 - 在 worktree 中解决
         displayMergeConflict(
           step1Result.conflictFiles || [],
           worktree.path,
           worktree.branch,
-          mainBranch
+          mainBranch,
+          useRebase
         );
         outputResult({ success: false });
         process.exit(1);
       } else {
         throw new ColynError(
-          t('commands.merge.mainMergeFailed'),
+          useRebase ? t('commands.merge.mainRebaseFailed') : t('commands.merge.mainMergeFailed'),
           step1Result.error || t('common.unknownError')
         );
       }
     }
 
-    step1Spinner.succeed(t('commands.merge.mainMerged'));
+    step1Spinner.succeed(useRebase ? t('commands.merge.mainRebased') : t('commands.merge.mainMerged'));
 
     // 步骤7: 在主分支中合并 worktree 分支
     output(t('commands.merge.step2Title'));
@@ -218,6 +227,7 @@ export function register(program: Command): void {
   program
     .command('merge [target]')
     .description(t('commands.merge.description'))
+    .option('--no-rebase', t('commands.merge.noRebaseOption'))
     .option('--push', t('commands.merge.pushOption'))
     .option('--no-push', t('commands.merge.noPushOption'))
     .action(async (target: string | undefined, options: MergeOptions) => {

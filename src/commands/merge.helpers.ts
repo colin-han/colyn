@@ -142,20 +142,26 @@ export interface MergeResult {
 }
 
 /**
- * 在 worktree 中合并主分支（允许 fast-forward）
+ * 在 worktree 中更新主分支代码（默认使用 rebase，可选 merge）
  * 这一步确保 worktree 包含主分支的所有更改
  */
 export async function mergeMainIntoWorktree(
   worktreePath: string,
-  mainBranch: string
+  mainBranch: string,
+  useRebase: boolean = true
 ): Promise<MergeResult> {
   const git = simpleGit(worktreePath);
 
   try {
-    // 执行合并（允许 fast-forward）
-    await git.merge([mainBranch]);
+    if (useRebase) {
+      // 使用 rebase
+      await git.rebase([mainBranch]);
+    } else {
+      // 使用 merge（允许 fast-forward）
+      await git.merge([mainBranch]);
+    }
 
-    // 获取合并后的 commit hash
+    // 获取最新的 commit hash
     const log = await git.log({ n: 1 });
     const commitHash = log.latest?.hash?.substring(0, 7) || 'unknown';
 
@@ -166,17 +172,31 @@ export async function mergeMainIntoWorktree(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // 检查是否是合并冲突
-    if (errorMessage.includes('CONFLICT') || errorMessage.includes('Automatic merge failed')) {
-      // 获取冲突文件列表
-      const status = await git.status();
-      const conflictFiles = status.conflicted;
+    // 检查是否是冲突
+    if (useRebase) {
+      // rebase 冲突
+      if (errorMessage.includes('CONFLICT') || errorMessage.includes('could not apply')) {
+        const status = await git.status();
+        const conflictFiles = status.conflicted;
 
-      return {
-        success: false,
-        conflictFiles,
-        error: 'merge_conflict'
-      };
+        return {
+          success: false,
+          conflictFiles,
+          error: 'rebase_conflict'
+        };
+      }
+    } else {
+      // merge 冲突
+      if (errorMessage.includes('CONFLICT') || errorMessage.includes('Automatic merge failed')) {
+        const status = await git.status();
+        const conflictFiles = status.conflicted;
+
+        return {
+          success: false,
+          conflictFiles,
+          error: 'merge_conflict'
+        };
+      }
     }
 
     return {
@@ -341,7 +361,8 @@ export function displayMergeConflict(
   conflictFiles: string[],
   worktreePath: string,
   worktreeBranch: string,
-  mainBranch: string
+  mainBranch: string,
+  isRebase: boolean = false
 ): void {
   outputLine();
   outputError(t('commands.merge.conflictTitle', { main: mainBranch, branch: worktreeBranch }));
@@ -362,8 +383,19 @@ export function displayMergeConflict(
   outputStep(`  ${t('commands.merge.resolveStep3')}`);
   output('     git add <file>');
   outputLine();
-  outputStep(`  ${t('commands.merge.resolveStep4')}`);
-  output('     git commit');
+
+  if (isRebase) {
+    // rebase 冲突的解决步骤
+    outputStep(`  ${t('commands.merge.resolveStep4Rebase')}`);
+    output('     git rebase --continue');
+    outputLine();
+    outputStep(`  ${t('commands.merge.resolveStep4RebaseAbort')}`);
+    output('     git rebase --abort');
+  } else {
+    // merge 冲突的解决步骤
+    outputStep(`  ${t('commands.merge.resolveStep4')}`);
+    output('     git commit');
+  }
   outputLine();
   outputStep(`  ${t('commands.merge.resolveStep5')}`);
   output(`     colyn merge ${worktreeBranch}`);

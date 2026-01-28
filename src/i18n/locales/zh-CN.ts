@@ -195,6 +195,7 @@ export const zhCN = {
       description: '将 worktree 分支合并回主分支',
       pushOption: '合并后自动推送到远程',
       noPushOption: '合并后不推送（跳过询问）',
+      noRebaseOption: '使用 merge 而非 rebase 更新 worktree',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -226,12 +227,16 @@ export const zhCN = {
   - 查看状态: cd "{{path}}" && git status
   - 提交更改: git add . && git commit -m "..."
   - 或者暂存: git stash`,
-      step1Title: '步骤 1/2: 在 worktree 中合并主分支',
+      step1Title: '步骤 1/2: 在 worktree 中更新主分支代码',
       step1Dir: '  目录: {{path}}',
       step1Cmd: '  执行: git merge {{branch}}',
+      step1CmdRebase: '  执行: git rebase {{branch}}',
       mergingMain: '合并主分支到 worktree...',
+      rebasingMain: '变基主分支到 worktree...',
       mainMergeFailed: '合并主分支失败',
+      mainRebaseFailed: '变基主分支失败',
       mainMerged: '主分支已合并到 worktree',
+      mainRebased: '主分支已变基到 worktree',
       step2Title: '步骤 2/2: 在主分支中合并 worktree 分支',
       step2Dir: '  目录: {{path}}',
       step2Cmd: '  执行: git merge --no-ff {{branch}}',
@@ -266,6 +271,8 @@ export const zhCN = {
       resolveStep2: '2. 编辑冲突文件，解决冲突标记',
       resolveStep3: '3. 添加已解决的文件：',
       resolveStep4: '4. 完成合并：',
+      resolveStep4Rebase: '4. 继续变基：',
+      resolveStep4RebaseAbort: '5. 如需放弃变基：',
       resolveStep5: '5. 重新运行合并命令：',
       pushFailedTitle: '推送到远程仓库失败',
       pushFailedError: '错误信息: {{error}}',
