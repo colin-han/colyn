@@ -678,7 +678,7 @@ export async function repairProject(): Promise<void> {
   await validateProjectInitialized(paths);
 
   // 2. 检查是否是 git 仓库
-  if (!(await checkIsRepo())) {
+  if (!(await checkIsRepo(paths.mainDir))) {
     throw new ColynError(
       '主分支目录不是 git 仓库',
       '请确保在 git 项目中运行 repair 命令'
