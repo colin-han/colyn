@@ -17,7 +17,22 @@ Git Worktree 管理工具 - 简化多分支并行开发工作流。
 
 ## 安装
 
-### 方式 1：使用安装脚本（推荐）
+### 方式 1：npm 全局安装（推荐）
+
+```bash
+# 使用 npm 安装
+npm install -g colyn
+
+# 或使用 volta（推荐）
+volta install colyn
+
+# 配置 shell 集成（支持自动目录切换）
+colyn system-integration
+```
+
+配置完成后，重新打开终端或运行 `source ~/.zshrc`（或 `~/.bashrc`）即可使用完整功能。
+
+### 方式 2：使用安装脚本
 
 ```bash
 # 在项目根目录执行
@@ -26,7 +41,7 @@ volta run yarn install-to ~/my-tools/colyn
 
 安装完成后，重新打开终端即可使用 `colyn` 命令（已自动配置 shell 集成和自动补全）。
 
-### 方式 2：手动配置
+### 方式 3：手动配置
 
 如果自动配置未生效，手动添加到 shell 配置文件：
 
@@ -345,6 +360,25 @@ $ colyn repair
 ✓ 修复完成！
 ```
 
+### `colyn system-integration`
+
+配置 shell 集成（支持自动目录切换和命令补全）。
+
+```bash
+colyn system-integration
+```
+
+**功能**：
+- 自动检测 shell 类型（bash/zsh）和配置文件
+- 添加 shell 集成到配置文件（`~/.zshrc` 或 `~/.bashrc`）
+- 支持更新已有配置
+- 配置后需要重新打开终端或运行 `source` 命令生效
+
+**使用场景**：
+- npm 全局安装后首次配置
+- 升级 colyn 后更新配置
+- 配置文件被误删后恢复
+
 ---
 
 ## 环境变量
@@ -447,6 +481,7 @@ colyn/
 - [x] `info` - 显示当前目录信息
 - [x] `completion` - 自动补全功能
 - [x] `repair` - 检查并修复项目配置
+- [x] `system-integration` - 配置 shell 集成
 
 ---
 

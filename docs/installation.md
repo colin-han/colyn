@@ -33,9 +33,12 @@ volta run yarn install-to /path/to/target/directory
 1. ✅ 编译项目（`volta run yarn build`）
 2. ✅ 创建目标目录
 3. ✅ 复制编译结果（`dist/`）
-4. ✅ 复制 `package.json`
+4. ✅ 复制 `package.json` 和 `shell/colyn.sh`
 5. ✅ 在目标目录安装依赖（`npm install --production`）
 6. ✅ 创建启动脚本（`colyn` 和 `colyn.cmd`）
+7. ✅ 配置 shell 集成（自动调用 `colyn system-integration`）
+
+安装完成后，shell 集成已自动配置，重新打开终端即可使用。
 
 ### 步骤 3: 使用 Colyn
 
@@ -115,6 +118,33 @@ npm install -g colyn
 
 # 或使用 volta
 volta install colyn
+```
+
+安装后需要配置 shell 集成：
+
+```bash
+colyn system-integration
+```
+
+配置完成后，重新打开终端或运行 `source ~/.zshrc`（或 `~/.bashrc`）即可使用完整功能。
+
+**什么是 shell 集成？**
+
+shell 集成提供以下功能：
+- **自动目录切换**：`colyn add` 和 `colyn remove` 等命令执行后自动切换到目标目录
+- **命令自动补全**：使用 Tab 键自动补全命令和参数（未来支持）
+
+**手动配置**
+
+如果 `system-integration` 命令失败，可以手动添加到 shell 配置文件：
+
+```bash
+# 找到 colyn.sh 的路径
+which colyn
+# 输出示例：/Users/username/.volta/bin/colyn
+
+# 添加到 ~/.zshrc 或 ~/.bashrc
+source /path/to/colyn/shell/colyn.sh
 ```
 
 ---
@@ -304,11 +334,16 @@ scripts/install.js
 2. **复制文件**：
    - `dist/` 目录（编译后的代码）
    - `package.json`（包配置）
+   - `shell/colyn.sh`（shell 集成脚本）
    - `README.md`（可选）
 3. **安装依赖**：在目标目录执行 `npm install --production`
 4. **创建启动脚本**（根据平台）：
    - **macOS/Linux**：创建 `colyn`（可执行脚本）
    - **Windows**：创建 `colyn.cmd`（批处理脚本）
+5. **配置 shell 集成**（仅 macOS/Linux）：
+   - 自动调用 `colyn system-integration` 命令
+   - 检测 shell 类型和配置文件
+   - 添加 `source` 命令到 shell 配置文件
 
 **平台检测**：脚本会自动检测运行的操作系统，只创建对应平台的启动脚本，避免不必要的文件。
 
@@ -320,6 +355,7 @@ scripts/install.js
 ├── colyn.d/           # 程序文件目录
 │   ├── dist/          # 编译后的代码
 │   ├── node_modules/  # 生产依赖
+│   ├── colyn.sh       # Shell 集成脚本
 │   └── package.json   # 包配置
 └── colyn              # Unix 启动脚本
 ```
@@ -330,6 +366,7 @@ scripts/install.js
 ├── colyn.d/           # 程序文件目录
 │   ├── dist/          # 编译后的代码
 │   ├── node_modules/  # 生产依赖
+│   ├── colyn.sh       # Shell 集成脚本（仅供参考）
 │   └── package.json   # 包配置
 └── colyn.cmd          # Windows 启动脚本
 ```
