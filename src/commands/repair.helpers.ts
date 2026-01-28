@@ -23,7 +23,9 @@ import {
   createSession,
   windowExists,
   setupWindow,
-  getWindowName
+  getWindowName,
+  getWindowCurrentName,
+  renameWindow
 } from '../core/tmux.js';
 import { getDevServerCommand } from '../core/dev-server.js';
 
@@ -59,6 +61,8 @@ interface TmuxRepairResult {
   createdWindows: Array<{ id: number; name: string }>;
   /** 已存在的 window 列表（跳过） */
   existingWindows: Array<{ id: number; name: string }>;
+  /** 重命名的 window 列表 */
+  renamedWindows: Array<{ id: number; oldName: string; newName: string }>;
   /** 修复失败的 */
   failedWindows: Array<{ id: number; error: string }>;
 }
@@ -81,6 +85,7 @@ async function repairTmuxWindows(
     createdSession: false,
     createdWindows: [],
     existingWindows: [],
+    renamedWindows: [],
     failedWindows: []
   };
 
@@ -148,12 +153,32 @@ async function repairSingleWindow(
   branch: string,
   workingDir: string
 ): Promise<void> {
-  const windowName = getWindowName(branch);
+  const expectedName = getWindowName(branch);
 
   // 检查 window 是否存在
   if (windowExists(sessionName, windowIndex)) {
-    // Window 已存在，不修改
-    result.existingWindows.push({ id: windowIndex, name: windowName });
+    // Window 已存在，检查名称是否一致
+    const currentName = getWindowCurrentName(sessionName, windowIndex);
+
+    if (currentName && currentName !== expectedName) {
+      // 名称不一致，需要重命名
+      const renamed = renameWindow(sessionName, windowIndex, expectedName);
+      if (renamed) {
+        result.renamedWindows.push({
+          id: windowIndex,
+          oldName: currentName,
+          newName: expectedName
+        });
+      } else {
+        result.failedWindows.push({
+          id: windowIndex,
+          error: `重命名失败: ${currentName} → ${expectedName}`
+        });
+      }
+    } else {
+      // 名称一致，跳过
+      result.existingWindows.push({ id: windowIndex, name: expectedName });
+    }
     return;
   }
 
@@ -163,14 +188,14 @@ async function repairSingleWindow(
     const success = setupWindow({
       sessionName,
       windowIndex,
-      windowName,
+      windowName: expectedName,
       workingDir,
       devCommand,
       skipWindowCreation: windowIndex === 0 // Window 0 需要特殊处理
     });
 
     if (success) {
-      result.createdWindows.push({ id: windowIndex, name: windowName });
+      result.createdWindows.push({ id: windowIndex, name: expectedName });
     } else {
       result.failedWindows.push({
         id: windowIndex,
@@ -578,11 +603,14 @@ function displayRepairSummary(
       if (tmuxResult.createdWindows.length > 0) {
         output(`  ✓ 创建了 ${tmuxResult.createdWindows.length} 个 tmux window`);
       }
+      if (tmuxResult.renamedWindows.length > 0) {
+        output(`  ✓ 重命名了 ${tmuxResult.renamedWindows.length} 个 tmux window`);
+      }
       if (tmuxResult.existingWindows.length > 0) {
         output(`  ✓ ${tmuxResult.existingWindows.length} 个 tmux window 已存在（保持原布局）`);
       }
       if (tmuxResult.failedWindows.length > 0) {
-        outputWarning(`  ⚠ ${tmuxResult.failedWindows.length} 个 tmux window 创建失败`);
+        outputWarning(`  ⚠ ${tmuxResult.failedWindows.length} 个 tmux window 修复失败`);
       }
     }
   }
@@ -652,6 +680,14 @@ function displayRepairSummary(
       output('已存在的 tmux window（保持原布局）：');
       for (const win of tmuxResult.existingWindows) {
         output(`  - Window ${win.id}: ${win.name}`);
+      }
+    }
+
+    if (tmuxResult.renamedWindows.length > 0) {
+      outputLine();
+      output('已重命名的 tmux window：');
+      for (const win of tmuxResult.renamedWindows) {
+        output(`  ✓ Window ${win.id}: ${win.oldName} → ${win.newName}`);
       }
     }
 
