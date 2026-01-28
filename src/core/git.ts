@@ -4,9 +4,10 @@ import { t } from '../i18n/index.js';
 
 /**
  * 检查是否为 git 仓库
+ * @param dir 要检查的目录，默认为当前目录
  */
-export async function checkIsRepo(): Promise<boolean> {
-  const git = simpleGit();
+export async function checkIsRepo(dir?: string): Promise<boolean> {
+  const git = simpleGit(dir);
   return await git.checkIsRepo();
 }
 

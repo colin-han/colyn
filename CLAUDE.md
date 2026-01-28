@@ -16,6 +16,20 @@
 ### 语言
 * 总是用中文和我交互
 
+### 术语规范
+* **必须使用统一的术语**：项目中的所有文档、代码注释、提示信息都应使用一致的术语
+* **术语参考**：使用前请查阅 `docs/glossary.md` 确认正确的术语和用法
+* **常用术语**：
+  - ✅ 使用 "Worktree"（不是 "work tree" 或 "working tree"）
+  - ✅ 使用 "Main branch"（不是 "master branch" 或 "primary branch"）
+  - ✅ 使用 "Base port"（不是 "initial port" 或 "starting port"）
+  - ✅ 使用 "Worktree ID"（不是 "worktree number" 或 "worktree index"）
+  - ✅ 使用 "Window name"（不是 "window title"）
+  - ✅ 使用 "Session name"（不是 "session id"）
+  - ✅ 使用 "Dev server"（不是 "development server" 或 "local server"）
+  - ✅ 使用 "并行 Vibe Coding"（这是项目特有术语）
+* **新术语引入**：如果需要引入新术语，必须先在 `docs/glossary.md` 中定义后再使用
+
 ### 包管理
 * node 包管理使用 `volta run yarn` 命令
 
@@ -38,6 +52,77 @@
 5. **验证问题** - 确认问题已解决
 
 ⚠️ **重要**：在重现问题之前不要猜测问题的根源，必须通过重现问题来确定问题的根源。
+
+---
+
+## 配置设计原则
+
+### 最小配置原则
+
+**核心理念**：能够自动推断出来的配置，就不要在配置文件中保存。
+
+**目标**：
+- 降低配置复杂度
+- 减少配置文件维护成本
+- 避免配置与实际状态不一致
+- 提升用户体验（零配置即可使用）
+
+**实施规则**：
+
+1. **优先自动推断**
+   - 能从环境、项目结构、命名规则中推断的信息，不应存储
+   - 示例：tmux session name 永远等于 project name，无需保存
+
+2. **只存储必要信息**
+   - 用户显式配置的选项
+   - 无法通过其他信息推断的状态
+   - 必须持久化的用户选择
+
+3. **配置即文档**
+   - 配置文件应该简洁明了
+   - 每个配置项都应该有明确的必要性
+   - 避免冗余信息
+
+**示例**：
+
+```typescript
+// ❌ 错误 - 存储可推断的信息
+{
+  "project": "my-app",
+  "mainBranch": "main",
+  "basePort": 3000
+}
+
+// ✅ 正确 - 所有信息都从环境推断，无需配置文件
+// 不需要配置文件！
+
+// 推断逻辑
+getProjectName() => path.basename(projectRoot)  // 从主目录名推断
+getMainBranch() => execSync('git branch --show-current')  // 从主分支目录推断
+getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
+```
+
+**推断来源**：
+
+| 信息 | 推断来源 | 说明 |
+|------|---------|------|
+| Project name | 主目录名称 | `my-task-app/` → `my-task-app` |
+| Main branch | 主分支目录的当前分支 | `git branch --show-current` |
+| Base port | 主分支的 .env.local | 已配置的 PORT 环境变量 |
+| Session name | Project name | 等于项目名 |
+| Window name | Branch name | 分支名的最后一段 |
+
+**例外情况**：
+
+如果将来有特殊需求（例如：session name 必须与 project name 不同），需要：
+1. 与用户充分讨论必要性
+2. 评估是否有其他解决方案
+3. 确认后再添加配置选项
+
+**应用场景**：
+- 设计新功能时，优先考虑自动推断
+- 评审配置文件时，检查是否有冗余项
+- 重构代码时，移除不必要的配置存储
 
 ---
 

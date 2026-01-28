@@ -22,6 +22,15 @@ import {
   outputSuccess
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
+import {
+  isTmuxAvailable,
+  isInTmux,
+  getCurrentSession,
+  createSession,
+  setupWindow,
+  getWindowName
+} from '../core/tmux.js';
+import { getDevServerCommand } from '../core/dev-server.js';
 
 /**
  * 处理结果接口
@@ -29,6 +38,120 @@ import { t } from '../i18n/index.js';
 export interface InitHandlerResult {
   mainDirPath: string;
   mainDirName: string;
+}
+
+/**
+ * tmux 设置结果
+ */
+interface TmuxSetupResult {
+  /** 是否设置成功 */
+  success: boolean;
+  /** session 名称 */
+  sessionName?: string;
+  /** 是否在 tmux 中 */
+  inTmux: boolean;
+  /** 是否创建了新 session */
+  createdSession?: boolean;
+}
+
+/**
+ * 设置 tmux 环境（Window 0 for main branch）
+ * @param projectName 项目名称（用作 session 名称）
+ * @param mainDirPath 主分支目录路径
+ * @param mainBranch 主分支名称
+ */
+async function setupTmuxEnvironment(
+  projectName: string,
+  mainDirPath: string,
+  mainBranch: string
+): Promise<TmuxSetupResult> {
+  // 如果 tmux 不可用，直接返回
+  if (!isTmuxAvailable()) {
+    return { success: false, inTmux: false };
+  }
+
+  const sessionName = projectName;
+  const windowName = getWindowName(mainBranch);
+  const devCommand = await getDevServerCommand(mainDirPath);
+
+  // 检测当前环境
+  const inTmux = isInTmux();
+
+  if (inTmux) {
+    // 在 tmux 中：使用当前 session，设置 Window 0 布局
+    const currentSession = getCurrentSession();
+
+    if (currentSession) {
+      // 设置 Window 0 的布局
+      const success = setupWindow({
+        sessionName: currentSession,
+        windowIndex: 0,
+        windowName,
+        workingDir: mainDirPath,
+        devCommand,
+        skipWindowCreation: true, // Window 0 已存在，只设置布局
+      });
+
+      return {
+        success,
+        sessionName: currentSession,
+        inTmux: true,
+      };
+    }
+
+    return { success: false, inTmux: true };
+  } else {
+    // 不在 tmux 中：创建新 session，设置 Window 0
+    const created = createSession(sessionName, mainDirPath);
+
+    if (created) {
+      // 设置 Window 0 的布局
+      const success = setupWindow({
+        sessionName,
+        windowIndex: 0,
+        windowName,
+        workingDir: mainDirPath,
+        devCommand,
+        skipWindowCreation: true, // session 创建时会自动创建 window 0
+      });
+
+      return {
+        success,
+        sessionName,
+        inTmux: false,
+        createdSession: true,
+      };
+    }
+
+    return { success: false, inTmux: false };
+  }
+}
+
+/**
+ * 显示 tmux 设置结果信息
+ */
+function displayTmuxSetupInfo(result: TmuxSetupResult): void {
+  if (!result.success) {
+    return;
+  }
+
+  if (result.inTmux) {
+    outputSuccess('检测到在 tmux session 中');
+    outputSuccess(`将使用当前 session: ${result.sessionName}`);
+    outputSuccess('已设置 Window 0: main');
+    output('  ├─ Claude Code  (左侧 60%)');
+    output('  ├─ Dev Server   (右上 12%)');
+    output('  └─ Bash         (右下 28%)');
+  } else {
+    outputSuccess('检测到你不在 tmux 中');
+    outputSuccess(`已创建 tmux session: ${result.sessionName}`);
+    outputSuccess('已设置 Window 0: main');
+    output('  ├─ Claude Code  (左侧 60%)');
+    output('  ├─ Dev Server   (右上 12%)');
+    output('  └─ Bash         (右下 28%)');
+    output('');
+    output(chalk.cyan(`💡 提示: 运行 'tmux attach -t ${result.sessionName}' 进入工作环境`));
+  }
 }
 
 /**
@@ -61,8 +184,17 @@ export async function handleEmptyDirectory(
   // 步骤3: 创建 .gitignore
   await configureGitignore(mainDirPath);
 
-  // 步骤4: 显示成功信息
+  // 步骤4: 设置 tmux 环境
+  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch);
+
+  // 步骤5: 显示成功信息
   displayEmptyDirectorySuccess(mainDirName, port, mainBranch);
+
+  // 步骤6: 显示 tmux 设置信息
+  if (tmuxResult.success) {
+    output('');
+    displayTmuxSetupInfo(tmuxResult);
+  }
 
   return { mainDirPath, mainDirName };
 }
@@ -149,6 +281,22 @@ export async function handleInitializedDirectory(
     outputInfo(t('commands.init.noCompletionNeeded') + '\n');
   }
 
+  // 设置 tmux 环境（获取主分支名称）
+  let mainBranch = 'main';
+  if (dirInfo.hasGitRepo) {
+    try {
+      mainBranch = await detectMainBranch();
+    } catch {
+      // 如果无法获取主分支，使用默认值
+    }
+  }
+
+  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch);
+  if (tmuxResult.success) {
+    output('');
+    displayTmuxSetupInfo(tmuxResult);
+  }
+
   return { mainDirPath, mainDirName };
 }
 
@@ -220,8 +368,17 @@ export async function handleExistingProject(
   // 步骤10: 配置 .gitignore
   await configureGitignore(mainDirPath);
 
-  // 步骤11: 显示成功信息
+  // 步骤11: 设置 tmux 环境
+  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch);
+
+  // 步骤12: 显示成功信息
   displaySuccessInfo(mainDirName, port, mainBranch);
+
+  // 步骤13: 显示 tmux 设置信息
+  if (tmuxResult.success) {
+    output('');
+    displayTmuxSetupInfo(tmuxResult);
+  }
 
   return { mainDirPath, mainDirName };
 }

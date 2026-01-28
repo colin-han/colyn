@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import type { Command } from 'commander';
 import {
   getProjectPaths,
@@ -11,7 +12,7 @@ import {
 } from '../core/discovery.js';
 import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
-import { formatError, outputResult } from '../utils/logger.js';
+import { formatError, outputResult, output, outputSuccess } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import {
   isValidBranchName,
@@ -22,6 +23,139 @@ import {
   configureWorktreeEnv,
   displayAddSuccess
 } from './add.helpers.js';
+import {
+  isTmuxAvailable,
+  isInTmux,
+  getCurrentSession,
+  sessionExists,
+  setupWindow,
+  switchWindow,
+  getWindowName
+} from '../core/tmux.js';
+import { getDevServerCommand } from '../core/dev-server.js';
+import chalk from 'chalk';
+
+/**
+ * tmux 提示文件路径
+ */
+const TMUX_HINT_FILE = '.tmux-hint-shown';
+
+/**
+ * 检查是否已显示过 tmux 提示
+ */
+async function hasTmuxHintShown(configDir: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(configDir, TMUX_HINT_FILE));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 标记已显示 tmux 提示
+ */
+async function markTmuxHintShown(configDir: string): Promise<void> {
+  try {
+    await fs.writeFile(path.join(configDir, TMUX_HINT_FILE), '', 'utf-8');
+  } catch {
+    // 忽略写入失败
+  }
+}
+
+/**
+ * 设置 tmux window 并启动 dev server
+ */
+async function setupTmuxWindow(
+  projectName: string,
+  windowIndex: number,
+  branchName: string,
+  worktreePath: string
+): Promise<{ success: boolean; inTmux: boolean; sessionName?: string }> {
+  // 如果 tmux 不可用，直接返回
+  if (!isTmuxAvailable()) {
+    return { success: false, inTmux: false };
+  }
+
+  const windowName = getWindowName(branchName);
+  const devCommand = await getDevServerCommand(worktreePath);
+  const inTmux = isInTmux();
+
+  if (inTmux) {
+    // 在 tmux 中：使用当前 session
+    const currentSession = getCurrentSession();
+    if (currentSession) {
+      // 创建新 window 并设置布局
+      const success = setupWindow({
+        sessionName: currentSession,
+        windowIndex,
+        windowName,
+        workingDir: worktreePath,
+        devCommand,
+      });
+
+      if (success) {
+        // 切换到新创建的 window
+        switchWindow(currentSession, windowIndex);
+      }
+
+      return { success, inTmux: true, sessionName: currentSession };
+    }
+    return { success: false, inTmux: true };
+  } else {
+    // 不在 tmux 中：检查 session 是否存在，如果存在则创建 window
+    if (sessionExists(projectName)) {
+      // session 存在，创建新 window
+      const success = setupWindow({
+        sessionName: projectName,
+        windowIndex,
+        windowName,
+        workingDir: worktreePath,
+        devCommand,
+      });
+      return { success, inTmux: false, sessionName: projectName };
+    }
+    return { success: false, inTmux: false };
+  }
+}
+
+/**
+ * 显示 tmux 设置结果信息
+ */
+function displayTmuxInfo(
+  result: { success: boolean; inTmux: boolean; sessionName?: string },
+  windowIndex: number,
+  branchName: string
+): void {
+  if (!result.success) {
+    return;
+  }
+
+  const windowName = getWindowName(branchName);
+
+  output('');
+  if (result.inTmux) {
+    outputSuccess(`已创建 Window ${windowIndex}: ${windowName}`);
+    output('  ├─ Claude Code  (左侧 60%)');
+    output('  ├─ Dev Server   (右上 12%)');
+    output('  └─ Bash         (右下 28%)');
+    outputSuccess(`已自动切换到 Window ${windowIndex}`);
+  } else {
+    outputSuccess(`已在后台 session "${result.sessionName}" 中创建 Window ${windowIndex}: ${windowName}`);
+    output('  ├─ Claude Code  (左侧 60%)');
+    output('  ├─ Dev Server   (右上 12%)');
+    output('  └─ Bash         (右下 28%)');
+  }
+}
+
+/**
+ * 显示首次 tmux 提示
+ */
+function displayFirstTimeTmuxHint(projectName: string): void {
+  output('');
+  output(chalk.cyan('💡 提示: Colyn 支持 tmux 集成，获得更好的多 worktree 体验'));
+  output(chalk.cyan(`   运行 'tmux attach -t ${projectName}' 进入 tmux 环境`));
+}
 
 /**
  * Add 命令：创建新的 worktree
@@ -90,7 +224,23 @@ async function addCommand(branchName: string): Promise<void> {
     const displayPath = path.relative(paths.rootDir, worktreePath);
     displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath);
 
-    // 步骤11: 输出 JSON 结果到 stdout（供 bash 解析）
+    // 步骤11: 设置 tmux window（如果可用）
+    const projectName = paths.mainDirName;
+    const tmuxResult = await setupTmuxWindow(projectName, id, cleanBranchName, worktreePath);
+
+    // 显示 tmux 信息
+    displayTmuxInfo(tmuxResult, id, cleanBranchName);
+
+    // 如果不在 tmux 中且这是第一次创建 worktree，显示 tmux 提示
+    if (!tmuxResult.inTmux && isTmuxAvailable()) {
+      const hintShown = await hasTmuxHintShown(paths.configDir);
+      if (!hintShown) {
+        displayFirstTimeTmuxHint(projectName);
+        await markTmuxHintShown(paths.configDir);
+      }
+    }
+
+    // 步骤12: 输出 JSON 结果到 stdout（供 bash 解析）
     const result: CommandResult = {
       success: true,
       targetDir: worktreePath,

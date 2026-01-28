@@ -30,6 +30,13 @@ import {
   checkGitWorkingDirectory
 } from './merge.helpers.js';
 import { t } from '../i18n/index.js';
+import {
+  isTmuxAvailable,
+  isInTmux,
+  getCurrentSession,
+  renameWindow,
+  getWindowName
+} from '../core/tmux.js';
 
 /**
  * 检查分支是否已合并到主分支
@@ -400,6 +407,16 @@ async function checkoutCommand(
       switchSpinner.fail(t('commands.checkout.switchFailed'));
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new ColynError(t('commands.checkout.gitCheckoutFailed'), errorMessage);
+    }
+
+    // 步骤9.5: 更新 tmux window 名称（如果在 tmux 中）
+    if (isTmuxAvailable() && isInTmux()) {
+      const currentSession = getCurrentSession();
+      if (currentSession) {
+        const newWindowName = getWindowName(branch);
+        renameWindow(currentSession, worktree.id, newWindowName);
+        output(chalk.gray(`tmux window 名称已更新为: ${newWindowName}`));
+      }
     }
 
     // 步骤10: 如果旧分支已合并，提示删除
