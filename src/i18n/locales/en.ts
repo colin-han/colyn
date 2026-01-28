@@ -521,6 +521,28 @@ Or force delete:
       gitRepairDetail: 'Git worktree connections repaired',
     },
 
+    // config command
+    config: {
+      description: 'Show tmux configuration info',
+      jsonOption: 'Output in JSON format',
+      title: 'Tmux Configuration Info',
+      userConfig: 'User Config',
+      projectConfig: 'Project Config',
+      effectiveConfig: 'Effective Configuration',
+      availableBuiltinCommands: 'Available Builtin Commands',
+      path: 'Path',
+      status: 'Status',
+      exists: 'exists',
+      notExists: 'not exists',
+      content: 'Content',
+      default: '(default)',
+      noCommand: '(no command)',
+      builtin: '(builtin)',
+      autoClaudeDesc: 'Auto continue Claude session (detect .claude directory)',
+      autoClaudeDangerouslyDesc: 'Same as above, but add --dangerously-skip-permissions flag',
+      autoDevServerDesc: 'Auto start dev server (detect package.json)',
+    },
+
     // completion command
     completion: {
       description: 'Generate shell auto-completion script',

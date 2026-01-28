@@ -5,7 +5,7 @@
  */
 
 import { execSync } from 'child_process';
-import type { ResolvedPaneCommands } from './tmux-config.js';
+import type { ResolvedPaneCommands, ResolvedPaneLayout } from './tmux-config.js';
 
 /**
  * tmux 环境信息
@@ -220,31 +220,48 @@ export function createWindow(
 }
 
 /**
- * 设置 3-pane 固定布局
- * 布局: 左 60% | 右上 30% | 右下 70%
+ * 设置 3-pane 布局
+ * 布局: 左侧 | 右上 | 右下
  *
  * @param sessionName session 名称
  * @param windowIndex window 索引
  * @param workingDir 工作目录
+ * @param layout 可选的布局配置
  * @returns 是否成功
  */
 export function setupPaneLayout(
   sessionName: string,
   windowIndex: number,
-  workingDir: string
+  workingDir: string,
+  layout?: ResolvedPaneLayout
 ): boolean {
   const target = `${sessionName}:${windowIndex}`;
 
-  try {
-    // 1. 垂直分割：左 60%，右 40%
-    execTmux(`split-window -t "${target}" -h -p 40 -c "${workingDir}"`, {
-      silent: true,
-    });
+  // 使用配置的大小或默认值
+  const leftSize = layout?.leftSize ?? 60;
+  const rightTopSize = layout?.rightTopSize ?? 30;
 
-    // 2. 分割右侧为上下：上 30%，下 70%
-    execTmux(`split-window -t "${target}" -v -p 70 -c "${workingDir}"`, {
-      silent: true,
-    });
+  // 计算右侧大小（100 - 左侧大小）
+  const rightSize = 100 - leftSize;
+  // 计算右下大小（100 - 右上大小）
+  const rightBottomSize = 100 - rightTopSize;
+
+  try {
+    // 1. 垂直分割：左侧 leftSize%，右侧 rightSize%
+    execTmux(
+      `split-window -t "${target}" -h -p ${rightSize} -c "${workingDir}"`,
+      {
+        silent: true,
+      }
+    );
+
+    // 2. 分割右侧为上下：上 rightTopSize%，下 rightBottomSize%
+    execTmux(
+      `split-window -t "${target}" -v -p ${rightBottomSize} -c "${workingDir}"`,
+      {
+        silent: true,
+      }
+    );
 
     // 3. 选择左侧 pane (pane 0)
     execTmux(`select-pane -t "${target}.0"`, { silent: true });
@@ -389,6 +406,8 @@ export interface SetupWindowOptions {
   devCommand?: string;
   /** 各 pane 的命令配置 */
   paneCommands?: ResolvedPaneCommands;
+  /** pane 布局配置 */
+  paneLayout?: ResolvedPaneLayout;
   /** 是否跳过 window 创建（用于 window 0） */
   skipWindowCreation?: boolean;
 }
@@ -406,6 +425,7 @@ export function setupWindow(options: SetupWindowOptions): boolean {
     workingDir,
     devCommand,
     paneCommands,
+    paneLayout,
     skipWindowCreation = false,
   } = options;
 
@@ -421,7 +441,7 @@ export function setupWindow(options: SetupWindowOptions): boolean {
     }
 
     // 2. 设置 3-pane 布局
-    if (!setupPaneLayout(sessionName, windowIndex, workingDir)) {
+    if (!setupPaneLayout(sessionName, windowIndex, workingDir, paneLayout)) {
       return false;
     }
 

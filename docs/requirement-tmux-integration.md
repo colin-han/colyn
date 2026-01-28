@@ -221,19 +221,35 @@ tmux select-pane -t 0
 
 #### 2.5.1 配置文件
 
-Pane 命令可通过 `.colyn/tmux.json` 配置文件自定义（可选）。
+Pane 命令可通过配置文件自定义（可选）。
 
-**配置文件位置**：`{projectRoot}/.colyn/tmux.json`
+**两层配置机制**：
+
+| 层级 | 路径 | 说明 |
+|------|------|------|
+| 用户级 | `~/.colyn/settings.json` | 用户默认配置，适用于所有项目 |
+| 项目级 | `{projectRoot}/.colyn/settings.json` | 项目特定配置，覆盖用户级设置 |
+
+**优先级**：项目级 > 用户级 > 内置默认值
 
 **配置格式**：
 
 ```json
 {
-  "autoRun": true,
-  "panes": {
-    "left": "auto",
-    "rightTop": "auto",
-    "rightBottom": null
+  "tmux": {
+    "autoRun": true,
+    "leftPane": {
+      "command": "auto continues claude session",
+      "size": "60%"
+    },
+    "rightTopPane": {
+      "command": "auto start dev server",
+      "size": "30%"
+    },
+    "rightBottomPane": {
+      "command": null,
+      "size": "70%"
+    }
   }
 }
 ```
@@ -243,37 +259,131 @@ Pane 命令可通过 `.colyn/tmux.json` 配置文件自定义（可选）。
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `autoRun` | boolean | `true` | 是否自动运行命令，`false` 禁用所有自动运行 |
-| `panes.left` | string \| "auto" \| null | `"auto"` | Pane 0（左侧 Claude）命令 |
-| `panes.rightTop` | string \| "auto" \| null | `"auto"` | Pane 1（右上 Dev Server）命令 |
-| `panes.rightBottom` | string \| "auto" \| null | `null` | Pane 2（右下 Bash）命令 |
+| `leftPane.command` | string \| null | 见下方 | 左侧 Pane 命令 |
+| `leftPane.size` | string | `"60%"` | 左侧 Pane 宽度 |
+| `rightTopPane.command` | string \| null | 见下方 | 右上 Pane 命令 |
+| `rightTopPane.size` | string | `"30%"` | 右上 Pane 占右侧高度比例 |
+| `rightBottomPane.command` | string \| null | `null` | 右下 Pane 命令 |
+| `rightBottomPane.size` | string | `"70%"` | 右下 Pane 占右侧高度比例 |
+
+**内置命令**：
+
+| 命令 | 说明 |
+|------|------|
+| `auto continues claude session` | 自动继续 Claude 会话（检测 `.claude` 目录，存在则 `claude -c`，否则 `claude`）|
+| `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` 参数 |
+| `auto start dev server` | 自动启动 dev server（检测 package.json 的 dev 脚本）|
+
+**默认值**：
+- `leftPane.command`: `"auto continues claude session"`
+- `rightTopPane.command`: `"auto start dev server"`
+- `rightBottomPane.command`: `null`（不执行命令）
 
 **"auto" 检测逻辑**：
 
-| Pane | 检测逻辑 |
-|------|---------|
-| left | 检查 `.claude` 目录，存在则 `claude -c`，否则 `claude` |
-| rightTop | 检查 package.json 的 dev 脚本，存在则运行 |
-| rightBottom | 不执行任何命令 |
+| 内置命令 | 检测逻辑 |
+|---------|---------|
+| `auto continues claude session` | 检查 `.claude` 目录，存在则 `claude -c`，否则 `claude` |
+| `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` 参数 |
+| `auto start dev server` | 检查 package.json 的 dev 脚本，存在则运行 |
 
 **配置示例**：
 
 ```json
 // 禁用所有自动命令
-{"autoRun": false}
-
-// 自定义命令
 {
-  "panes": {
-    "left": "nvim",
-    "rightTop": "npm run start",
-    "rightBottom": "htop"
+  "tmux": {
+    "autoRun": false
   }
 }
 
-// 只禁用 Claude 自动启动
+// 自定义命令
 {
-  "panes": {
-    "left": null
+  "tmux": {
+    "leftPane": {
+      "command": "nvim"
+    },
+    "rightTopPane": {
+      "command": "npm run start"
+    },
+    "rightBottomPane": {
+      "command": "htop"
+    }
+  }
+}
+
+// 自定义布局大小
+{
+  "tmux": {
+    "leftPane": {
+      "size": "50%"
+    },
+    "rightTopPane": {
+      "size": "40%"
+    }
+  }
+}
+
+// 使用 dangerously skip permissions 模式
+{
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions"
+    }
+  }
+}
+
+// 禁用 Claude 自动启动
+{
+  "tmux": {
+    "leftPane": {
+      "command": null
+    }
+  }
+}
+```
+
+**两层配置合并示例**：
+
+```json
+// ~/.colyn/settings.json（用户级）
+{
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions",
+      "size": "50%"
+    },
+    "rightBottomPane": {
+      "command": "htop"
+    }
+  }
+}
+
+// {projectRoot}/.colyn/settings.json（项目级）
+{
+  "tmux": {
+    "leftPane": {
+      "command": "nvim"  // 只覆盖 command，保留用户级的 size
+    }
+  }
+}
+
+// 最终生效配置
+{
+  "tmux": {
+    "autoRun": true,
+    "leftPane": {
+      "command": "nvim",
+      "size": "50%"
+    },
+    "rightTopPane": {
+      "command": "auto start dev server",
+      "size": "30%"
+    },
+    "rightBottomPane": {
+      "command": "htop",
+      "size": "70%"
+    }
   }
 }
 ```

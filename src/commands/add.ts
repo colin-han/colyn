@@ -81,7 +81,7 @@ async function setupTmuxWindow(
 
   const windowName = getWindowName(branchName);
 
-  // 加载 tmux 配置并解析 pane 命令
+  // 加载 tmux 配置并解析 pane 命令和布局
   const tmuxConfig = await loadTmuxConfig(projectRoot);
   const paneCommands = await resolvePaneCommands(tmuxConfig, worktreePath);
   const paneLayout = resolvePaneLayout(tmuxConfig);

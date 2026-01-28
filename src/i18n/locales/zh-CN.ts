@@ -521,6 +521,28 @@ export const zhCN = {
       gitRepairDetail: 'Git worktree 连接已修复',
     },
 
+    // config command
+    config: {
+      description: '显示 tmux 配置信息',
+      jsonOption: '以 JSON 格式输出',
+      title: 'Tmux 配置信息',
+      userConfig: '用户级配置',
+      projectConfig: '项目级配置',
+      effectiveConfig: '生效的配置',
+      availableBuiltinCommands: '可用的内置命令',
+      path: '路径',
+      status: '状态',
+      exists: '存在',
+      notExists: '不存在',
+      content: '内容',
+      default: '(默认)',
+      noCommand: '(不执行命令)',
+      builtin: '(内置)',
+      autoClaudeDesc: '自动继续 Claude 会话（检测 .claude 目录）',
+      autoClaudeDangerouslyDesc: '同上，但添加 --dangerously-skip-permissions 参数',
+      autoDevServerDesc: '自动启动 dev server（检测 package.json）',
+    },
+
     // completion command
     completion: {
       description: '生成 shell 自动补全脚本',

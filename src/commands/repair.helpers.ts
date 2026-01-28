@@ -28,7 +28,7 @@ import {
   getWindowCurrentName,
   renameWindow
 } from '../core/tmux.js';
-import { loadTmuxConfig, resolvePaneCommands, type TmuxConfig } from '../core/tmux-config.js';
+import { loadTmuxConfig, resolvePaneCommands, resolvePaneLayout, type TmuxConfig } from '../core/tmux-config.js';
 
 /**
  * 修复结果接口
@@ -195,7 +195,7 @@ async function repairSingleWindow(
 
   // Window 不存在，创建并设置布局
   try {
-    // 解析 pane 命令
+    // 解析 pane 命令和布局
     const paneCommands = await resolvePaneCommands(tmuxConfig, workingDir);
     const paneLayout = resolvePaneLayout(tmuxConfig);
 
