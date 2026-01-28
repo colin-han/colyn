@@ -33,6 +33,7 @@ import {
   getWindowName
 } from '../core/tmux.js';
 import { getDevServerCommand } from '../core/dev-server.js';
+import { getRunCommand } from '../core/config.js';
 import chalk from 'chalk';
 
 /**
@@ -70,7 +71,8 @@ async function setupTmuxWindow(
   projectName: string,
   windowIndex: number,
   branchName: string,
-  worktreePath: string
+  worktreePath: string,
+  configDir: string
 ): Promise<{ success: boolean; inTmux: boolean; sessionName?: string }> {
   // 如果 tmux 不可用，直接返回
   if (!isTmuxAvailable()) {
@@ -78,7 +80,7 @@ async function setupTmuxWindow(
   }
 
   const windowName = getWindowName(branchName);
-  const devCommand = await getDevServerCommand(worktreePath);
+  const devCommand = await getDevServerCommand(worktreePath, configDir);
   const inTmux = isInTmux();
 
   if (inTmux) {
@@ -222,11 +224,12 @@ async function addCommand(branchName: string): Promise<void> {
 
     // 步骤10: 计算相对路径并显示成功信息
     const displayPath = path.relative(paths.rootDir, worktreePath);
-    displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath);
+    const runCommand = await getRunCommand(paths.configDir);
+    displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath, runCommand);
 
     // 步骤11: 设置 tmux window（如果可用）
     const projectName = paths.mainDirName;
-    const tmuxResult = await setupTmuxWindow(projectName, id, cleanBranchName, worktreePath);
+    const tmuxResult = await setupTmuxWindow(projectName, id, cleanBranchName, worktreePath, paths.configDir);
 
     // 显示 tmux 信息
     displayTmuxInfo(tmuxResult, id, cleanBranchName);

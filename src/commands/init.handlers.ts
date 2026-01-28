@@ -59,11 +59,13 @@ interface TmuxSetupResult {
  * @param projectName 项目名称（用作 session 名称）
  * @param mainDirPath 主分支目录路径
  * @param mainBranch 主分支名称
+ * @param configDir .colyn 配置目录路径（可选）
  */
 async function setupTmuxEnvironment(
   projectName: string,
   mainDirPath: string,
-  mainBranch: string
+  mainBranch: string,
+  configDir?: string
 ): Promise<TmuxSetupResult> {
   // 如果 tmux 不可用，直接返回
   if (!isTmuxAvailable()) {
@@ -72,7 +74,7 @@ async function setupTmuxEnvironment(
 
   const sessionName = projectName;
   const windowName = getWindowName(mainBranch);
-  const devCommand = await getDevServerCommand(mainDirPath);
+  const devCommand = await getDevServerCommand(mainDirPath, configDir);
 
   // 检测当前环境
   const inTmux = isInTmux();
@@ -185,7 +187,7 @@ export async function handleEmptyDirectory(
   await configureGitignore(mainDirPath);
 
   // 步骤4: 设置 tmux 环境
-  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch);
+  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
 
   // 步骤5: 显示成功信息
   displayEmptyDirectorySuccess(mainDirName, port, mainBranch);
@@ -209,6 +211,7 @@ export async function handleInitializedDirectory(
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
   const mainDirPath = path.join(rootDir, mainDirName);
+  const configDirPath = path.join(rootDir, '.colyn');
 
   outputWarning(t('commands.init.detectedInitialized') + '\n');
 
@@ -291,7 +294,7 @@ export async function handleInitializedDirectory(
     }
   }
 
-  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch);
+  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
   if (tmuxResult.success) {
     output('');
     displayTmuxSetupInfo(tmuxResult);
@@ -309,6 +312,7 @@ export async function handleExistingProject(
 ): Promise<InitHandlerResult | null> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
+  const configDirPath = path.join(rootDir, '.colyn');
 
   // 步骤1: 显示当前目录的文件列表
   outputWarning('\n' + t('commands.init.detectedExistingFiles'));
@@ -369,7 +373,7 @@ export async function handleExistingProject(
   await configureGitignore(mainDirPath);
 
   // 步骤11: 设置 tmux 环境
-  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch);
+  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
 
   // 步骤12: 显示成功信息
   displaySuccessInfo(mainDirName, port, mainBranch);

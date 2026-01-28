@@ -6,6 +6,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getRunCommand } from './config.js';
 
 /**
  * Dev Server 信息
@@ -15,47 +16,18 @@ export interface DevServerInfo {
   hasDevCommand: boolean;
   /** 启动命令（如果检测到） */
   command?: string;
-  /** 包管理器 */
-  packageManager: 'npm' | 'yarn' | 'pnpm';
-}
-
-/**
- * 检测包管理器
- * @param projectDir 项目目录
- */
-async function detectPackageManager(
-  projectDir: string
-): Promise<'npm' | 'yarn' | 'pnpm'> {
-  // 检查 lock 文件来判断包管理器
-  const checks = [
-    { file: 'pnpm-lock.yaml', manager: 'pnpm' as const },
-    { file: 'yarn.lock', manager: 'yarn' as const },
-    { file: 'package-lock.json', manager: 'npm' as const },
-  ];
-
-  for (const check of checks) {
-    try {
-      await fs.access(path.join(projectDir, check.file));
-      return check.manager;
-    } catch {
-      // 文件不存在，继续检查
-    }
-  }
-
-  // 默认使用 npm
-  return 'npm';
 }
 
 /**
  * 检测 dev server 信息
  * @param projectDir 项目目录
+ * @param configDir .colyn 配置目录（可选，用于读取 npm 命令配置）
  * @returns Dev server 信息
  */
 export async function detectDevServer(
-  projectDir: string
+  projectDir: string,
+  configDir?: string
 ): Promise<DevServerInfo> {
-  const packageManager = await detectPackageManager(projectDir);
-
   try {
     // 读取 package.json
     const packageJsonPath = path.join(projectDir, 'package.json');
@@ -66,28 +38,24 @@ export async function detectDevServer(
     const devScript = packageJson.scripts?.dev;
 
     if (devScript) {
-      // 根据包管理器生成启动命令
-      const runCommand =
-        packageManager === 'npm' ? 'npm run' : `${packageManager}`;
+      // 获取运行命令
+      const runCommand = await getRunCommand(configDir);
       const command = `${runCommand} dev`;
 
       return {
         hasDevCommand: true,
-        command,
-        packageManager,
+        command
       };
     }
 
     // 没有 dev 脚本
     return {
-      hasDevCommand: false,
-      packageManager,
+      hasDevCommand: false
     };
   } catch {
     // package.json 不存在或无法解析
     return {
-      hasDevCommand: false,
-      packageManager,
+      hasDevCommand: false
     };
   }
 }
@@ -95,11 +63,13 @@ export async function detectDevServer(
 /**
  * 获取 dev server 启动命令
  * @param projectDir 项目目录
+ * @param configDir .colyn 配置目录（可选）
  * @returns 启动命令，如果没有 dev 脚本返回 undefined
  */
 export async function getDevServerCommand(
-  projectDir: string
+  projectDir: string,
+  configDir?: string
 ): Promise<string | undefined> {
-  const info = await detectDevServer(projectDir);
+  const info = await detectDevServer(projectDir, configDir);
   return info.command;
 }
