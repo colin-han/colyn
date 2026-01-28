@@ -37,8 +37,8 @@ interface UpdateOptions {
  * Update 命令：将主分支代码更新到 worktree
  *
  * 流程：
- * 1. 拉取主分支最新代码
- * 2. 检查 worktree 工作目录状态
+ * 1. 检查 worktree 工作目录状态
+ * 2. 拉取主分支最新代码
  * 3. 执行 rebase 或 merge
  */
 async function updateCommand(
@@ -61,21 +61,7 @@ async function updateCommand(
     // 确定是否使用 rebase（默认 true）
     const useRebase = !options.noRebase;
 
-    // 步骤3: 拉取主分支最新代码
-    const pullSpinner = ora({
-      text: t('commands.update.pullingMain'),
-      stream: process.stderr
-    }).start();
-
-    try {
-      await pullMainBranch(paths.mainDir);
-      pullSpinner.succeed(t('commands.update.pullSuccess'));
-    } catch (error) {
-      pullSpinner.fail(t('commands.update.pullFailed'));
-      throw error;
-    }
-
-    // 步骤4: 处理批量更新或单个更新
+    // 步骤3: 处理批量更新或单个更新
     if (options.all) {
       // 批量更新所有 worktree
       await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
@@ -111,7 +97,7 @@ async function handleSingleUpdate(
   // 显示 worktree 信息
   displayWorktreeInfo(worktree);
 
-  // 检查工作目录状态
+  // 步骤1: 检查工作目录状态
   const checkSpinner = ora({
     text: t('commands.update.checkingStatus'),
     stream: process.stderr
@@ -125,7 +111,21 @@ async function handleSingleUpdate(
     throw error;
   }
 
-  // 执行更新
+  // 步骤2: 拉取主分支最新代码
+  const pullSpinner = ora({
+    text: t('commands.update.pullingMain'),
+    stream: process.stderr
+  }).start();
+
+  try {
+    await pullMainBranch(mainDir);
+    pullSpinner.succeed(t('commands.update.pullSuccess'));
+  } catch (error) {
+    pullSpinner.fail(t('commands.update.pullFailed'));
+    throw error;
+  }
+
+  // 步骤3: 执行更新
   const strategy = useRebase ? 'rebase' : 'merge';
   const updateSpinner = ora({
     text: t('commands.update.updating', { strategy }),
@@ -183,7 +183,21 @@ async function handleBatchUpdate(
   // 显示 worktree 列表
   displayWorktreeList(worktrees);
 
-  // 执行批量更新
+  // 步骤1: 拉取主分支最新代码
+  const pullSpinner = ora({
+    text: t('commands.update.pullingMain'),
+    stream: process.stderr
+  }).start();
+
+  try {
+    await pullMainBranch(mainDir);
+    pullSpinner.succeed(t('commands.update.pullSuccess'));
+  } catch (error) {
+    pullSpinner.fail(t('commands.update.pullFailed'));
+    throw error;
+  }
+
+  // 步骤2: 执行批量更新（内部会检查每个 worktree 的状态）
   const strategy = useRebase ? 'rebase' : 'merge';
   output(t('commands.update.batchUpdating', { strategy }));
 

@@ -50,13 +50,13 @@ $ colyn update
   Branch: feature/login
   Path: /path/to/worktrees/task-1
 
-Step 1/3: Pull main branch latest code
+Step 1/3: Check working directory status
+✔ Worktree working directory clean
+
+Step 2/3: Pull main branch latest code
   Directory: /path/to/my-project
   Execute: git pull
 ✔ Main branch updated
-
-Step 2/3: Check working directory status
-✔ Worktree working directory clean
 
 Step 3/3: Rebase main branch onto current branch
   Directory: /path/to/worktrees/task-1
@@ -252,12 +252,7 @@ sequenceDiagram
     C->>C: Find worktree info
     C->>U: Display worktree info
 
-    Note over C,M: Step 1: Pull main branch latest code
-    C->>M: cd <main-dir>
-    C->>M: git pull
-    M->>C: Pull successful
-
-    Note over C,WT: Step 2: Check worktree status
+    Note over C,WT: Step 1: Check worktree status
     C->>WT: git status
 
     alt Working directory not clean
@@ -265,6 +260,11 @@ sequenceDiagram
         C->>U: ✗ Please commit or stash changes first
     else Working directory clean
         WT->>C: Clean
+
+        Note over C,M: Step 2: Pull main branch latest code
+        C->>M: cd <main-dir>
+        C->>M: git pull
+        M->>C: Pull successful
 
         Note over C,WT: Step 3: Execute update
         alt Default rebase

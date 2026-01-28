@@ -50,13 +50,13 @@ $ colyn update
   分支: feature/login
   路径: /path/to/worktrees/task-1
 
-步骤 1/3: 拉取主分支最新代码
+步骤 1/3: 检查工作目录状态
+✔ Worktree 工作目录干净
+
+步骤 2/3: 拉取主分支最新代码
   目录: /path/to/my-project
   执行: git pull
 ✔ 主分支已更新
-
-步骤 2/3: 检查工作目录状态
-✔ Worktree 工作目录干净
 
 步骤 3/3: 将主分支变基到当前分支
   目录: /path/to/worktrees/task-1
@@ -252,12 +252,7 @@ sequenceDiagram
     C->>C: 查找 worktree 信息
     C->>U: 显示 worktree 信息
 
-    Note over C,M: 步骤 1: 拉取主分支最新代码
-    C->>M: cd <main-dir>
-    C->>M: git pull
-    M->>C: 拉取成功
-
-    Note over C,WT: 步骤 2: 检查 worktree 状态
+    Note over C,WT: 步骤 1: 检查 worktree 状态
     C->>WT: git status
 
     alt 工作目录不干净
@@ -265,6 +260,11 @@ sequenceDiagram
         C->>U: ✗ 请先提交或 stash 更改
     else 工作目录干净
         WT->>C: 干净
+
+        Note over C,M: 步骤 2: 拉取主分支最新代码
+        C->>M: cd <main-dir>
+        C->>M: git pull
+        M->>C: 拉取成功
 
         Note over C,WT: 步骤 3: 执行更新
         alt 默认 rebase
