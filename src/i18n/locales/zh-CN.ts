@@ -195,6 +195,7 @@ export const zhCN = {
       description: '将 worktree 分支合并回主分支',
       pushOption: '合并后自动推送到远程',
       noPushOption: '合并后不推送（跳过询问）',
+      noRebaseOption: '使用 merge 而非 rebase 更新 worktree',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -226,12 +227,16 @@ export const zhCN = {
   - 查看状态: cd "{{path}}" && git status
   - 提交更改: git add . && git commit -m "..."
   - 或者暂存: git stash`,
-      step1Title: '步骤 1/2: 在 worktree 中合并主分支',
+      step1Title: '步骤 1/2: 在 worktree 中更新主分支代码',
       step1Dir: '  目录: {{path}}',
       step1Cmd: '  执行: git merge {{branch}}',
+      step1CmdRebase: '  执行: git rebase {{branch}}',
       mergingMain: '合并主分支到 worktree...',
+      rebasingMain: '变基主分支到 worktree...',
       mainMergeFailed: '合并主分支失败',
+      mainRebaseFailed: '变基主分支失败',
       mainMerged: '主分支已合并到 worktree',
+      mainRebased: '主分支已变基到 worktree',
       step2Title: '步骤 2/2: 在主分支中合并 worktree 分支',
       step2Dir: '  目录: {{path}}',
       step2Cmd: '  执行: git merge --no-ff {{branch}}',
@@ -266,10 +271,85 @@ export const zhCN = {
       resolveStep2: '2. 编辑冲突文件，解决冲突标记',
       resolveStep3: '3. 添加已解决的文件：',
       resolveStep4: '4. 完成合并：',
+      resolveStep4Rebase: '4. 继续变基：',
+      resolveStep4RebaseAbort: '5. 如需放弃变基：',
       resolveStep5: '5. 重新运行合并命令：',
       pushFailedTitle: '推送到远程仓库失败',
       pushFailedError: '错误信息: {{error}}',
       pushFailedHint: '本地合并已完成，可稍后手动推送：',
+    },
+
+    // update command
+    update: {
+      description: '将主分支代码更新到 worktree',
+      noRebaseOption: '使用 merge 而非 rebase',
+      allOption: '更新所有 worktree',
+      cannotAutoDetect: '无法自动识别 worktree',
+      cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
+  colyn update <id>
+  colyn update <branch-name>
+
+查看所有 worktree：
+  colyn list`,
+      worktreeNotFound: '找不到 ID 为 {{id}} 的 worktree',
+      worktreeNotFoundHint: `当前目录的 .env.local 中 WORKTREE 值可能已过期
+
+查看所有 worktree：
+  colyn list`,
+      branchNotFound: '找不到分支 "{{branch}}" 对应的 worktree',
+      branchNotFoundHint: `查看所有 worktree：
+  colyn list`,
+      detectedWorktree: '检测到 worktree:',
+      branchLabel: '分支',
+      pathLabel: '路径',
+      pullingMain: '拉取主分支最新代码...',
+      pullSuccess: '主分支已更新',
+      pullFailed: '拉取主分支失败',
+      pullFailedHint: '请检查网络连接或远程仓库配置\n错误信息: {{error}}',
+      checkingStatus: '检查工作目录状态...',
+      statusClean: '工作目录干净',
+      statusDirty: '工作目录有未提交的更改',
+      dirHasUncommitted: '{{name}} 有未提交的更改',
+      dirHasUncommittedHint: `{{name}} 目录: {{path}}
+
+变更文件 ({{count}} 个):
+{{files}}
+
+提示：
+  - 查看状态: cd "{{path}}" && git status
+  - 提交更改: git add . && git commit -m "..."
+  - 或者暂存: git stash`,
+      updating: '正在{{strategy}}...',
+      updateDir: '  目录: {{path}}',
+      updateCmd: '  执行: {{cmd}}',
+      updateSuccess: '更新成功',
+      updateFailed: '更新失败',
+      updateComplete: '更新完成！',
+      mainBranchLabel: '主分支 ({{branch}})',
+      strategyLabel: '策略',
+      rebaseConflictTitle: '变基失败，存在冲突',
+      mergeConflictTitle: '合并失败，存在冲突',
+      conflictFiles: '冲突文件：',
+      resolveSteps: '解决步骤：',
+      rebaseStep1: '1. 编辑冲突文件，解决冲突标记',
+      rebaseStep2: '2. 添加已解决的文件：',
+      rebaseStep3: '3. 继续变基：',
+      rebaseStep4: '4. 如需放弃变基：',
+      mergeStep1: '1. 编辑冲突文件，解决冲突标记',
+      mergeStep2: '2. 添加已解决的文件：',
+      mergeStep3: '3. 完成合并：',
+      mergeStep4: '4. 如需放弃合并：',
+      noWorktrees: '没有找到任何 worktree',
+      noWorktreesHint: '请先使用 colyn add 创建 worktree',
+      foundWorktrees: '发现 {{count}} 个 worktree:',
+      batchUpdating: '正在批量更新 (策略: {{strategy}})...',
+      batchResult: '更新结果:',
+      batchSucceeded: '✓ {{count}} 个 worktree 更新成功',
+      batchFailed: '✗ {{count}} 个 worktree 更新失败',
+      batchSkipped: '○ {{count}} 个 worktree 已跳过',
+      failedDetails: '失败详情:',
+      dirtySkipped: '工作目录不干净，已跳过',
+      hasConflict: '存在冲突，请手动解决',
     },
 
     // remove command

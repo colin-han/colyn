@@ -29,6 +29,7 @@ Provide a simple command that automatically completes all steps of the worktree 
 - ✅ **Simplified Operations**: Complete merge workflow with one command
 - ✅ **Smart Detection**: Support ID, branch name, auto-detection
 - ✅ **Safety Checks**: Prevent erroneous operations
+- ✅ **Linear History**: Use rebase by default to produce linear commit history
 - ✅ **Clear History**: Use --no-ff to maintain clear branch history
 - ✅ **Flexible Push**: Optional auto-push or manual push
 - ✅ **Preserve Worktree**: Retain after merge, let user decide on deletion
@@ -56,8 +57,8 @@ sequenceDiagram
 
     alt Working directory clean
         C->>U: ✓ Pre-checks passed
-        C->>G: Step 1: git merge main (in worktree)
-        G->>C: Merge successful
+        C->>G: Step 1: git rebase main (in worktree)
+        G->>C: Rebase successful
         C->>G: Step 2: git merge --no-ff feature/login (in main branch)
         G->>C: Merge successful
         C->>U: ✓ Merge successful!<br/>? Push to remote repository? (y/N)
@@ -83,10 +84,10 @@ Detected worktree:
 ✓ Main branch working directory clean
 ✓ Worktree working directory clean
 
-Step 1/2: Merge main branch into worktree
+Step 1/2: Update main branch code in worktree
   Directory: /path/to/worktrees/task-1
-  Executing: git merge main
-✔ Main branch merged into worktree
+  Executing: git rebase main
+✔ Main branch rebased onto worktree
 
 Step 2/2: Merge worktree branch into main
   Directory: /path/to/my-project
@@ -165,15 +166,15 @@ sequenceDiagram
     participant G as Git
 
     U->>C: colyn merge feature/login
-    C->>G: git merge main (in worktree)
-    G->>C: Merge conflict!
+    C->>G: git rebase main (in worktree)
+    G->>C: Rebase conflict!
 
-    C->>U: ✗ Conflict when merging main branch<br/><br/>Conflict files:<br/>  src/app.ts<br/>  src/config.ts
-    C->>U: Resolution steps:<br/>1. Enter worktree directory<br/>2. Edit conflict files<br/>3. git add<br/>4. git commit<br/>5. Re-run colyn merge
+    C->>U: ✗ Conflict when rebasing main branch<br/><br/>Conflict files:<br/>  src/app.ts<br/>  src/config.ts
+    C->>U: Resolution steps:<br/>1. Enter worktree directory<br/>2. Edit conflict files<br/>3. git add<br/>4. git rebase --continue<br/>5. Re-run colyn merge
 
     U->>U: Resolve conflicts in worktree
     U->>G: git add src/app.ts src/config.ts
-    U->>G: git commit
+    U->>G: git rebase --continue
     U->>C: colyn merge feature/login
     C->>C: Continue merge flow
 ```
@@ -182,7 +183,7 @@ sequenceDiagram
 ```bash
 $ colyn merge feature/login
 
-✗ Conflict when merging main branch
+✗ Conflict when rebasing main branch
 
 Conflict files:
   src/app.ts
@@ -194,13 +195,32 @@ Resolution steps:
   2. Edit conflict files, resolve conflict markers
   3. Add resolved files:
      git add <file>
-  4. Complete merge:
-     git commit
+  4. Continue rebase:
+     git rebase --continue
+  5. To abort rebase:
+     git rebase --abort
   5. Re-run merge command:
      colyn merge feature/login
 ```
 
 **Advantage**: Conflicts are resolved in the worktree directory, users can handle them in the development environment without affecting the main branch.
+
+---
+
+### 2.5 Scenario 5: Using Merge Strategy
+
+**User Situation**: Doesn't want to use rebase, wants to preserve complete branch history
+
+```bash
+$ colyn merge feature/login --no-rebase
+
+Step 1/2: Update main branch code in worktree
+  Directory: /path/to/worktrees/task-1
+  Executing: git merge main
+✔ Main branch merged into worktree
+
+# Continue with the same flow as Scenario 1
+```
 
 ---
 

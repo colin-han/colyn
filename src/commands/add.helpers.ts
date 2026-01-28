@@ -315,7 +315,8 @@ export function displayAddSuccess(
   branch: string,
   worktreePath: string,
   port: number,
-  displayPath: string
+  displayPath: string,
+  runCommand: string = 'npm run'
 ): void {
   outputLine();
   outputSuccess(t('commands.add.successTitle') + '\n');
@@ -332,7 +333,7 @@ export function displayAddSuccess(
   output(`     cd ${displayPath}`);
   outputLine();
   outputStep(`  ${t('commands.add.step2')}`);
-  output('     npm run dev');
+  output(`     ${runCommand} dev`);
   outputLine();
   outputStep(`  ${t('commands.add.step3')}`);
   output('     colyn list');

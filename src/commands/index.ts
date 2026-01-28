@@ -9,6 +9,7 @@ import { register as registerInit } from './init.js';
 import { register as registerAdd } from './add.js';
 import { register as registerList } from './list.js';
 import { register as registerMerge } from './merge.js';
+import { register as registerUpdate } from './update.js';
 import { register as registerInfo } from './info.js';
 import { register as registerCheckout } from './checkout.js';
 import { register as registerRemove } from './remove.js';
@@ -24,6 +25,7 @@ export function registerAllCommands(program: Command): void {
   registerAdd(program);
   registerList(program);
   registerMerge(program);
+  registerUpdate(program);
   registerInfo(program);
   registerCheckout(program);
   registerRemove(program);

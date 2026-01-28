@@ -29,6 +29,7 @@
 - ✅ **简化操作**：一条命令完成合并流程
 - ✅ **智能识别**：支持 ID、分支名、自动识别
 - ✅ **安全检查**：避免错误操作
+- ✅ **线性历史**：默认使用 rebase 产生线性提交历史
 - ✅ **清晰历史**：使用 --no-ff 保持清晰的分支历史
 - ✅ **灵活推送**：可选自动推送或手动推送
 - ✅ **保留 worktree**：合并后保留，由用户决定是否删除
@@ -56,8 +57,8 @@ sequenceDiagram
 
     alt 工作目录干净
         C->>U: ✓ 前置检查通过
-        C->>G: 步骤1: git merge main (在 worktree 中)
-        G->>C: 合并成功
+        C->>G: 步骤1: git rebase main (在 worktree 中)
+        G->>C: 变基成功
         C->>G: 步骤2: git merge --no-ff feature/login (在主分支中)
         G->>C: 合并成功
         C->>U: ✓ 合并成功！<br/>? 是否推送到远程仓库？(y/N)
@@ -83,10 +84,10 @@ $ colyn merge feature/login
 ✓ 主分支工作目录干净
 ✓ Worktree 工作目录干净
 
-步骤 1/2: 在 worktree 中合并主分支
+步骤 1/2: 在 worktree 中更新主分支代码
   目录: /path/to/worktrees/task-1
-  执行: git merge main
-✔ 主分支已合并到 worktree
+  执行: git rebase main
+✔ 主分支已变基到 worktree
 
 步骤 2/2: 在主分支中合并 worktree 分支
   目录: /path/to/my-project
@@ -165,15 +166,15 @@ sequenceDiagram
     participant G as Git
 
     U->>C: colyn merge feature/login
-    C->>G: git merge main (在 worktree 中)
-    G->>C: 合并冲突！
+    C->>G: git rebase main (在 worktree 中)
+    G->>C: 变基冲突！
 
-    C->>U: ✗ 合并主分支时发生冲突<br/><br/>冲突文件：<br/>  src/app.ts<br/>  src/config.ts
-    C->>U: 解决步骤：<br/>1. 进入 worktree 目录<br/>2. 编辑冲突文件<br/>3. git add<br/>4. git commit<br/>5. 重新运行 colyn merge
+    C->>U: ✗ 变基主分支时发生冲突<br/><br/>冲突文件：<br/>  src/app.ts<br/>  src/config.ts
+    C->>U: 解决步骤：<br/>1. 进入 worktree 目录<br/>2. 编辑冲突文件<br/>3. git add<br/>4. git rebase --continue<br/>5. 重新运行 colyn merge
 
     U->>U: 在 worktree 中解决冲突
     U->>G: git add src/app.ts src/config.ts
-    U->>G: git commit
+    U->>G: git rebase --continue
     U->>C: colyn merge feature/login
     C->>C: 继续完成合并流程
 ```
@@ -182,7 +183,7 @@ sequenceDiagram
 ```bash
 $ colyn merge feature/login
 
-✗ 合并主分支时发生冲突
+✗ 变基主分支时发生冲突
 
 冲突文件：
   src/app.ts
@@ -194,13 +195,32 @@ $ colyn merge feature/login
   2. 编辑冲突文件，解决冲突标记
   3. 添加已解决的文件：
      git add <file>
-  4. 完成合并：
-     git commit
+  4. 继续变基：
+     git rebase --continue
+  5. 如需放弃变基：
+     git rebase --abort
   5. 重新运行合并命令：
      colyn merge feature/login
 ```
 
 **优势**：冲突在 worktree 目录中解决，用户可以在开发环境中处理，不影响主分支。
+
+---
+
+### 2.5 场景 5：使用 merge 策略
+
+**用户情况**：不想使用 rebase，想保留完整的分支历史
+
+```bash
+$ colyn merge feature/login --no-rebase
+
+步骤 1/2: 在 worktree 中更新主分支代码
+  目录: /path/to/worktrees/task-1
+  执行: git merge main
+✔ 主分支已合并到 worktree
+
+# 后续流程同场景 1
+```
 
 ---
 

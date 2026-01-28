@@ -78,7 +78,8 @@ async function repairTmuxWindows(
   projectName: string,
   mainDir: string,
   mainBranch: string,
-  worktrees: Array<{ id: number; branch: string; path: string }>
+  worktrees: Array<{ id: number; branch: string; path: string }>,
+  configDir: string
 ): Promise<TmuxRepairResult> {
   const result: TmuxRepairResult = {
     available: false,
@@ -127,7 +128,8 @@ async function repairTmuxWindows(
     sessionName,
     0,
     mainBranch,
-    mainDir
+    mainDir,
+    configDir
   );
 
   // 修复所有 worktree windows
@@ -137,7 +139,8 @@ async function repairTmuxWindows(
       sessionName,
       wt.id,
       wt.branch,
-      wt.path
+      wt.path,
+      configDir
     );
   }
 
@@ -152,7 +155,8 @@ async function repairSingleWindow(
   sessionName: string,
   windowIndex: number,
   branch: string,
-  workingDir: string
+  workingDir: string,
+  configDir: string
 ): Promise<void> {
   const expectedName = getWindowName(branch);
 
@@ -185,7 +189,7 @@ async function repairSingleWindow(
 
   // Window 不存在，创建并设置布局
   try {
-    const devCommand = await getDevServerCommand(workingDir);
+    const devCommand = await getDevServerCommand(workingDir, configDir);
     const success = setupWindow({
       sessionName,
       windowIndex,
@@ -826,7 +830,8 @@ export async function repairProject(): Promise<void> {
     paths.mainDirName,
     paths.mainDir,
     mainBranch,
-    worktrees.map(wt => ({ id: wt.id, branch: wt.branch, path: wt.path }))
+    worktrees.map(wt => ({ id: wt.id, branch: wt.branch, path: wt.path })),
+    paths.configDir
   );
 
   if (!tmuxResult.available) {

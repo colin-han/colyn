@@ -166,8 +166,8 @@ async function main() {
   console.log('');
   log('步骤 2: 编译项目', 'yellow');
 
-  info('执行: volta run yarn build');
-  const buildSuccess = execCommand('volta run yarn build', projectRoot);
+  info('执行: yarn build');
+  const buildSuccess = execCommand('yarn build', projectRoot);
 
   if (!buildSuccess) {
     error('编译失败');
