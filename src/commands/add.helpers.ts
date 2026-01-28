@@ -12,6 +12,7 @@ import {
   outputBold,
   outputStep
 } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 验证分支名称是否有效
@@ -48,8 +49,8 @@ export async function checkInitialized(rootDir: string): Promise<void> {
     await fs.access(configDir);
   } catch {
     throw new ColynError(
-      '当前目录未初始化',
-      '请先运行 colyn init 命令初始化项目'
+      t('commands.add.notInitialized'),
+      t('commands.add.notInitializedHint')
     );
   }
 }
@@ -63,8 +64,8 @@ export async function checkIsGitRepo(): Promise<void> {
 
   if (!isRepo) {
     throw new ColynError(
-      '当前目录不是 git 仓库',
-      '请在 git 仓库中运行此命令'
+      t('commands.add.notGitRepo'),
+      t('commands.add.notGitRepoHint')
     );
   }
 }
@@ -80,8 +81,8 @@ export async function checkMainEnvFile(rootDir: string, mainDirName: string): Pr
     await fs.access(envFilePath);
   } catch {
     throw new ColynError(
-      '主分支目录缺少 .env.local 文件',
-      '请先在主分支目录配置环境变量'
+      t('commands.add.missingEnvFile'),
+      t('commands.add.missingEnvFileHint')
     );
   }
 }
@@ -99,12 +100,12 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
 
   if (branchExists) {
     // 本地分支存在，直接使用
-    output(chalk.gray(`使用本地分支: ${branchName}`));
+    output(chalk.gray(t('commands.add.usingLocalBranch', { branch: branchName })));
     return;
   }
 
   // 本地分支不存在，检查远程
-  const spinner = ora({ text: '检查远程分支...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.add.checkingRemote'), stream: process.stderr }).start();
 
   try {
     // Fetch 最新的远程分支信息
@@ -117,13 +118,13 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
 
     if (remoteExists) {
       // 远程分支存在，创建跟踪分支（但不签出）
-      spinner.text = `从远程创建分支: ${branchName}`;
+      spinner.text = t('commands.add.creatingFromRemote', { branch: branchName });
       // 使用 --track 创建分支，但不签出
       await git.raw(['branch', '--track', branchName, remoteBranchName]);
-      spinner.succeed(`已从远程创建分支: ${branchName}`);
+      spinner.succeed(t('commands.add.createdFromRemote', { branch: branchName }));
     } else {
       // 远程也不存在，基于主分支创建新分支
-      spinner.text = `基于主分支创建新分支: ${branchName}`;
+      spinner.text = t('commands.add.creatingNewBranch', { branch: branchName });
 
       // 确保当前在主分支
       const currentBranch = await git.revparse(['--abbrev-ref', 'HEAD']);
@@ -134,10 +135,10 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
       // 创建新分支（但不签出）
       await git.raw(['branch', branchName]);
 
-      spinner.succeed(`已创建新分支: ${branchName}`);
+      spinner.succeed(t('commands.add.createdNewBranch', { branch: branchName }));
     }
   } catch (error) {
-    spinner.fail('分支处理失败');
+    spinner.fail(t('commands.add.branchHandleFailed'));
     throw error;
   }
 }
@@ -156,7 +157,7 @@ export async function createWorktree(
   id: number,
   worktrees: WorktreeInfo[]
 ): Promise<string> {
-  const spinner = ora({ text: '创建 worktree...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.add.creatingWorktree'), stream: process.stderr }).start();
 
   try {
     // worktree 的绝对路径
@@ -171,10 +172,10 @@ export async function createWorktree(
     // 使用 git worktree add 命令（使用相对路径）
     await git.raw(['worktree', 'add', relativePath, branchName]);
 
-    spinner.succeed(`Worktree 创建完成: task-${id}`);
+    spinner.succeed(t('commands.add.worktreeCreated', { id: String(id) }));
     return worktreePath;
   } catch (error) {
-    spinner.fail('创建 worktree 失败');
+    spinner.fail(t('commands.add.worktreeCreateFailed'));
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -190,47 +191,32 @@ export async function createWorktree(
       if (existingWorktree) {
         // 该分支在当前项目的配置中
         throw new ColynError(
-          `分支 "${branchName}" 已关联到现有 worktree`,
-          `Worktree 信息：\n` +
-          `  ID: ${existingWorktree.id}\n` +
-          `  路径: ${existingWorktree.path}\n` +
-          `  端口: ${existingWorktree.port}\n\n` +
-          `提示：\n` +
-          `  - 如果要切换到该 worktree，请使用: cd ${existingWorktree.path}\n` +
-          `  - 如果要删除该 worktree，请使用: colyn remove ${existingWorktree.id}\n` +
-          `  - 如果要使用不同的分支名，请重新运行 add 命令`
+          t('commands.add.branchAlreadyUsed', { branch: branchName }),
+          t('commands.add.branchAlreadyUsedHint', {
+            id: String(existingWorktree.id),
+            path: existingWorktree.path,
+            port: String(existingWorktree.port)
+          })
         );
       } else if (existingPath) {
         // 分支被其他项目或手动创建的 worktree 使用
         throw new ColynError(
-          `分支 "${branchName}" 已被其他 worktree 使用`,
-          `该分支当前被以下 worktree 使用：\n` +
-          `  ${existingPath}\n\n` +
-          `提示：\n` +
-          `  - 这可能是其他 colyn 项目或手动创建的 worktree\n` +
-          `  - 如果不再需要，请手动删除: git worktree remove "${existingPath}"\n` +
-          `  - 或者使用不同的分支名`
+          t('commands.add.branchUsedByOther', { branch: branchName }),
+          t('commands.add.branchUsedByOtherHint', { path: existingPath })
         );
       } else {
         // 无法提取路径信息，但确定是分支冲突
         throw new ColynError(
-          `分支 "${branchName}" 已被其他 worktree 使用`,
-          `提示：\n` +
-          `  - 运行 "git worktree list" 查看所有 worktree\n` +
-          `  - 删除不需要的 worktree: git worktree remove <path>\n` +
-          `  - 或者使用不同的分支名`
+          t('commands.add.branchUsedUnknown', { branch: branchName }),
+          t('commands.add.branchUsedUnknownHint')
         );
       }
     }
 
     // 其他错误
     throw new ColynError(
-      '创建 worktree 时发生错误',
-      `错误信息: ${errorMessage}\n\n` +
-      `提示：\n` +
-      `  - 检查分支是否存在\n` +
-      `  - 检查 worktree 目录是否可写\n` +
-      `  - 运行 "git worktree list" 查看现有 worktree`
+      t('commands.add.worktreeError'),
+      t('commands.add.worktreeErrorHint', { error: errorMessage })
     );
   }
 }
@@ -296,7 +282,7 @@ export async function configureWorktreeEnv(
   id: number,
   port: number
 ): Promise<void> {
-  const spinner = ora({ text: '配置环境变量...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.add.configuringEnv'), stream: process.stderr }).start();
 
   try {
     // 读取主分支的 .env.local
@@ -314,9 +300,9 @@ export async function configureWorktreeEnv(
     const worktreeEnvPath = path.join(worktreePath, '.env.local');
     await writeEnvFile(worktreeEnvPath, worktreeEnv);
 
-    spinner.succeed('环境变量配置完成');
+    spinner.succeed(t('commands.add.envConfigured'));
   } catch (error) {
-    spinner.fail('配置环境变量失败');
+    spinner.fail(t('commands.add.envConfigFailed'));
     throw error;
   }
 }
@@ -332,23 +318,23 @@ export function displayAddSuccess(
   displayPath: string
 ): void {
   outputLine();
-  outputSuccess(`Worktree 创建成功！\n`);
+  outputSuccess(t('commands.add.successTitle') + '\n');
 
-  outputBold('Worktree 信息：');
-  output(`  ID: ${id}`);
-  output(`  分支: ${branch}`);
-  output(`  路径: ${displayPath}`);
-  output(`  端口: ${port}`);
+  outputBold(t('commands.add.worktreeInfo'));
+  output(`  ${t('commands.add.infoId', { id: String(id) })}`);
+  output(`  ${t('commands.add.infoBranch', { branch })}`);
+  output(`  ${t('commands.add.infoPath', { path: displayPath })}`);
+  output(`  ${t('commands.add.infoPort', { port: String(port) })}`);
   outputLine();
 
-  outputBold('后续操作：');
-  outputStep('  1. 进入 worktree 目录：');
+  outputBold(t('commands.add.nextSteps'));
+  outputStep(`  ${t('commands.add.step1')}`);
   output(`     cd ${displayPath}`);
   outputLine();
-  outputStep('  2. 启动开发服务器（端口已自动配置）：');
+  outputStep(`  ${t('commands.add.step2')}`);
   output('     npm run dev');
   outputLine();
-  outputStep('  3. 查看所有 worktree：');
+  outputStep(`  ${t('commands.add.step3')}`);
   output('     colyn list');
   outputLine();
 }

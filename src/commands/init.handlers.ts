@@ -21,6 +21,7 @@ import {
   outputInfo,
   outputSuccess
 } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -165,7 +166,7 @@ export async function handleEmptyDirectory(
   const mainBranch = 'main'; // 空目录默认使用 main
 
   // 步骤1: 创建目录结构
-  const spinner = ora({ text: '创建目录结构...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.init.creatingStructure'), stream: process.stderr }).start();
 
   const mainDirPath = path.join(rootDir, mainDirName);
   const worktreesDirPath = path.join(rootDir, 'worktrees');
@@ -175,7 +176,7 @@ export async function handleEmptyDirectory(
   await fs.mkdir(worktreesDirPath, { recursive: true });
   await fs.mkdir(configDirPath, { recursive: true });
 
-  spinner.succeed('目录结构创建完成');
+  spinner.succeed(t('commands.init.structureCreated'));
 
   // 步骤2: 创建 .env.local
   await configureEnvFile(mainDirPath, port, 'main');
@@ -209,14 +210,14 @@ export async function handleInitializedDirectory(
   const mainDirName = dirInfo.currentDirName;
   const mainDirPath = path.join(rootDir, mainDirName);
 
-  outputWarning('检测到已初始化，进入补全模式...\n');
+  outputWarning(t('commands.init.detectedInitialized') + '\n');
 
   const tasks: Array<{ name: string; action: () => Promise<void> }> = [];
 
   // 检查并补全主分支目录
   if (!dirInfo.hasMainDir) {
     tasks.push({
-      name: `创建主分支目录: ${mainDirName}`,
+      name: t('commands.init.createMainDir', { name: mainDirName }),
       action: async () => {
         await fs.mkdir(mainDirPath, { recursive: true });
       }
@@ -226,7 +227,7 @@ export async function handleInitializedDirectory(
   // 检查并补全 worktrees 目录
   if (!dirInfo.hasWorktreesDir) {
     tasks.push({
-      name: '创建 worktrees 目录',
+      name: t('commands.init.createWorktreesDir'),
       action: async () => {
         const worktreesDirPath = path.join(rootDir, 'worktrees');
         await fs.mkdir(worktreesDirPath, { recursive: true });
@@ -237,7 +238,7 @@ export async function handleInitializedDirectory(
   // 检查并补全 .colyn 配置目录（仅目录，不再需要 config.json）
   if (!dirInfo.hasConfigDir) {
     tasks.push({
-      name: '创建 .colyn 配置目录',
+      name: t('commands.init.createConfigDir'),
       action: async () => {
         const configDirPath = path.join(rootDir, '.colyn');
         await fs.mkdir(configDirPath, { recursive: true });
@@ -248,14 +249,14 @@ export async function handleInitializedDirectory(
   // 如果主分支目录存在，检查环境变量配置
   if (dirInfo.hasMainDir) {
     tasks.push({
-      name: '检查并配置 .env.local',
+      name: t('commands.init.checkEnvLocal'),
       action: async () => {
         await configureEnvFile(mainDirPath, port, 'main');
       }
     });
 
     tasks.push({
-      name: '检查并配置 .gitignore',
+      name: t('commands.init.checkGitignore'),
       action: async () => {
         await configureGitignore(mainDirPath);
       }
@@ -274,10 +275,10 @@ export async function handleInitializedDirectory(
     }
   }
 
-  outputSuccess('\n补全完成！\n');
+  outputSuccess('\n' + t('commands.init.completionDone') + '\n');
 
   if (tasks.length === 0) {
-    outputInfo('所有配置已完整，无需补全。\n');
+    outputInfo(t('commands.init.noCompletionNeeded') + '\n');
   }
 
   // 设置 tmux 环境（获取主分支名称）
@@ -310,12 +311,12 @@ export async function handleExistingProject(
   const mainDirName = dirInfo.currentDirName;
 
   // 步骤1: 显示当前目录的文件列表
-  outputWarning('\n检测到已有文件，将执行以下操作：');
-  outputInfo('  1. 创建主分支目录和 worktrees 目录');
-  outputInfo(`  2. 将当前目录所有文件移动到 ${mainDirName}/ 目录下\n`);
+  outputWarning('\n' + t('commands.init.detectedExistingFiles'));
+  outputInfo('  ' + t('commands.init.existingStep1'));
+  outputInfo('  ' + t('commands.init.existingStep2', { name: mainDirName }) + '\n');
 
   const entries = await fs.readdir(rootDir);
-  output(chalk.bold('当前目录文件列表：'));
+  output(chalk.bold(t('commands.init.currentFileList')));
 
   // 显示前10个文件，如果超过10个则显示省略
   const displayEntries = entries.slice(0, 10);
@@ -324,7 +325,7 @@ export async function handleExistingProject(
   });
 
   if (entries.length > 10) {
-    outputInfo(`  ... 还有 ${entries.length - 10} 个文件`);
+    outputInfo('  ' + t('commands.init.moreFiles', { count: String(entries.length - 10) }));
   }
   output('');
 
@@ -332,14 +333,14 @@ export async function handleExistingProject(
   const { confirmed } = await prompt<{ confirmed: boolean }>({
     type: 'confirm',
     name: 'confirmed',
-    message: '确认继续初始化？',
+    message: t('commands.init.confirmContinue'),
     initial: false, // 默认为否，需要用户主动确认
     stdout: process.stderr
   });
 
   // 步骤3: 如果取消，退出
   if (!confirmed) {
-    outputInfo('已取消初始化');
+    outputInfo(t('commands.init.initCanceled'));
     return null;
   }
 

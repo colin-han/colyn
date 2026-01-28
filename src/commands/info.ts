@@ -5,6 +5,7 @@ import simpleGit from 'simple-git';
 import { getLocationInfo, type LocationInfo } from '../core/paths.js';
 import { ColynError } from '../types/index.js';
 import { output, formatError } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 可用的字段名
@@ -45,8 +46,8 @@ function renderTemplate(template: string, info: LocationInfo): string {
     const trimmedField = fieldName.trim();
     if (!validateField(trimmedField)) {
       throw new ColynError(
-        `无效的字段名: ${trimmedField}`,
-        `有效字段: ${VALID_FIELDS.join(', ')}`
+        t('commands.info.invalidField', { field: trimmedField }),
+        t('commands.info.invalidFieldHint', { fields: VALID_FIELDS.join(', ') })
       );
     }
     return getFieldValue(info, trimmedField);
@@ -62,27 +63,27 @@ function printFullInfo(info: LocationInfo): void {
   const lines = [
     {
       icon: '📁',
-      label: 'Project:',
+      label: t('commands.info.labelProject'),
       value: chalk.cyan(info.project)
     },
     {
       icon: '📂',
-      label: 'Project Path:',
+      label: t('commands.info.labelProjectPath'),
       value: chalk.gray(info.projectPath)
     },
     {
       icon: '🔢',
-      label: 'Worktree ID:',
-      value: info.worktreeId === 0 ? chalk.yellow('0 (main)') : chalk.green(String(info.worktreeId))
+      label: t('commands.info.labelWorktreeId'),
+      value: info.worktreeId === 0 ? chalk.yellow(t('commands.info.mainIndicator')) : chalk.green(String(info.worktreeId))
     },
     {
       icon: '📁',
-      label: 'Worktree Dir:',
+      label: t('commands.info.labelWorktreeDir'),
       value: chalk.cyan(info.worktreeDir)
     },
     {
       icon: '🌿',
-      label: 'Branch:',
+      label: t('commands.info.labelBranch'),
       value: chalk.magenta(info.branch)
     }
   ];
@@ -192,8 +193,8 @@ async function infoCommand(options: InfoOptions): Promise<void> {
       for (const field of options.field) {
         if (!validateField(field)) {
           throw new ColynError(
-            `无效的字段名: ${field}`,
-            `有效字段: ${VALID_FIELDS.join(', ')}`
+            t('commands.info.invalidField', { field }),
+            t('commands.info.invalidFieldHint', { fields: VALID_FIELDS.join(', ') })
           );
         }
       }
@@ -224,13 +225,13 @@ async function infoCommand(options: InfoOptions): Promise<void> {
 export function register(program: Command): void {
   const cmd = program
     .command('info')
-    .description('显示当前目录的 colyn 项目信息')
-    .option('-S, --short', '输出简短标识符（带分支信息）')
-    .option('-f, --field <name>', '输出指定字段（可多次使用）', (value, previous: string[]) => {
+    .description(t('commands.info.description'))
+    .option('-S, --short', t('commands.info.shortOption'))
+    .option('-f, --field <name>', t('commands.info.fieldOption'), (value, previous: string[]) => {
       return previous.concat([value]);
     }, [])
-    .option('--format <template>', '使用模板字符串格式化输出')
-    .option('-s, --separator <char>', '多字段时的分隔符（默认 tab）')
+    .option('--format <template>', t('commands.info.formatOption'))
+    .option('-s, --separator <char>', t('commands.info.separatorOption'))
     .action(async (options) => {
       await infoCommand(options);
     });

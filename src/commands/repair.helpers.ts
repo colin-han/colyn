@@ -15,6 +15,7 @@ import {
   outputBold
 } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
+import { t } from '../i18n/index.js';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -194,7 +195,7 @@ async function checkMainEnv(
 ): Promise<RepairResult> {
   const envPath = path.join(mainDir, '.env.local');
   const result: RepairResult = {
-    item: '主分支 .env.local',
+    item: t('commands.repair.checkingMainEnv').replace('...', ''),
     success: true,
     fixed: false,
     details: []
@@ -209,7 +210,7 @@ async function checkMainEnv(
     if (!env.PORT) {
       updates.PORT = mainPort.toString();
       needsFix = true;
-      result.details!.push(`添加 PORT=${mainPort}`);
+      result.details!.push(t('commands.repair.addPort', { port: mainPort }));
     }
 
     // 检查 WORKTREE
@@ -217,9 +218,9 @@ async function checkMainEnv(
       updates.WORKTREE = 'main';
       needsFix = true;
       if (env.WORKTREE) {
-        result.details!.push(`WORKTREE: ${env.WORKTREE} → main`);
+        result.details!.push(t('commands.repair.updateWorktree', { old: env.WORKTREE, new: 'main' }));
       } else {
-        result.details!.push('添加 WORKTREE=main');
+        result.details!.push(t('commands.repair.addWorktree', { value: 'main' }));
       }
     }
 
@@ -268,9 +269,9 @@ async function checkWorktreeEnv(
       updates.PORT = expectedPort.toString();
       needsFix = true;
       if (env.PORT) {
-        result.details!.push(`PORT: ${env.PORT} → ${expectedPort}`);
+        result.details!.push(t('commands.repair.updatePort', { old: env.PORT, new: expectedPort }));
       } else {
-        result.details!.push(`添加 PORT=${expectedPort}`);
+        result.details!.push(t('commands.repair.addPort', { port: expectedPort }));
       }
     }
 
@@ -279,9 +280,9 @@ async function checkWorktreeEnv(
       updates.WORKTREE = expectedWorktree;
       needsFix = true;
       if (env.WORKTREE) {
-        result.details!.push(`WORKTREE: ${env.WORKTREE} → ${expectedWorktree}`);
+        result.details!.push(t('commands.repair.updateWorktree', { old: env.WORKTREE, new: expectedWorktree }));
       } else {
-        result.details!.push(`添加 WORKTREE=${expectedWorktree}`);
+        result.details!.push(t('commands.repair.addWorktree', { value: expectedWorktree }));
       }
     }
 
@@ -317,7 +318,7 @@ async function checkWorktreeEnv(
  */
 async function repairGitWorktree(mainDir: string): Promise<RepairResult> {
   const result: RepairResult = {
-    item: 'Git worktree 连接',
+    item: t('commands.repair.repairingGit').replace('...', ''),
     success: true,
     fixed: false,
     details: []
@@ -327,7 +328,7 @@ async function repairGitWorktree(mainDir: string): Promise<RepairResult> {
     const git = simpleGit(mainDir);
     await git.raw(['worktree', 'repair']);
     result.fixed = true;
-    result.details!.push('Git worktree 连接已修复');
+    result.details!.push(t('commands.repair.gitRepairDetail'));
   } catch (error) {
     result.success = false;
     result.error = error instanceof Error ? error.message : String(error);
@@ -527,7 +528,7 @@ function displayRepairSummary(
   tmuxResult?: TmuxRepairResult
 ): void {
   outputLine();
-  outputSuccess('修复完成！\n');
+  outputSuccess(t('commands.repair.repairComplete') + '\n');
 
   // 统计
   const fixedCount = results.filter(r => r.fixed).length;
@@ -536,33 +537,33 @@ function displayRepairSummary(
                        orphanResult.trueOrphans.length +
                        orphanResult.repairFailed.length;
 
-  outputBold('修复摘要：');
+  outputBold(t('commands.repair.repairSummary'));
 
   // 显示修复的项
   const totalFixed = fixedCount + orphanResult.repairedOrphans.length;
   if (totalFixed > 0) {
-    output(`  ✓ 修复了 ${totalFixed} 个配置项`);
+    output(`  ${t('commands.repair.fixedItems', { count: totalFixed })}`);
   } else {
-    output('  ✓ 所有配置正确，无需修复');
+    output(`  ${t('commands.repair.allCorrect')}`);
   }
 
   // 显示错误
   if (errorCount > 0 || orphanResult.repairFailed.length > 0) {
     const totalErrors = errorCount + orphanResult.repairFailed.length;
-    outputWarning(`  ⚠ ${totalErrors} 个项修复失败（见下方详情）`);
+    outputWarning(`  ${t('commands.repair.failedItems', { count: totalErrors })}`);
   }
 
   // 显示孤儿目录
   if (orphanResult.repairedOrphans.length > 0) {
-    output(`  ✓ 修复了 ${orphanResult.repairedOrphans.length} 个路径失效的 worktree`);
+    output(`  ${t('commands.repair.repairedOrphans', { count: orphanResult.repairedOrphans.length })}`);
   }
 
   if (orphanResult.trueOrphans.length > 0) {
-    outputWarning(`  ⚠ 发现 ${orphanResult.trueOrphans.length} 个孤儿 worktree 目录`);
+    outputWarning(`  ${t('commands.repair.trueOrphans', { count: orphanResult.trueOrphans.length })}`);
   }
 
   if (totalOrphans === 0) {
-    output('  ✓ 未发现孤儿 worktree 目录');
+    output(`  ${t('commands.repair.noOrphansFound')}`);
   }
 
   // 显示 tmux 修复结果
@@ -590,12 +591,12 @@ function displayRepairSummary(
   outputLine();
 
   // 详细信息
-  outputBold('详细信息：');
+  outputBold(t('commands.repair.detailsTitle'));
 
   for (const result of results) {
     if (result.success && !result.fixed) {
       output(`  ${result.item}:`);
-      output('    ✓ 配置正确');
+      output(`    ${t('commands.repair.configCorrect')}`);
     } else if (result.success && result.fixed) {
       output(`  ${result.item}:`);
       for (const detail of result.details || []) {
@@ -603,38 +604,38 @@ function displayRepairSummary(
       }
     } else {
       output(`  ${result.item}:`);
-      outputError(`    ✗ 修复失败: ${result.error}`);
+      outputError(`    ${t('commands.repair.repairFailed', { error: result.error ?? '' })}`);
     }
   }
 
   // 显示已修复的路径失效 worktree
   if (orphanResult.repairedOrphans.length > 0) {
     outputLine();
-    output('已修复路径失效的 worktree：');
+    output(t('commands.repair.repairedOrphansTitle'));
     for (const dir of orphanResult.repairedOrphans) {
-      output(`  ✓ ${dir} (git 路径已更新)`);
+      output(`  ${t('commands.repair.orphanRepaired', { dir })}`);
     }
   }
 
   // 显示修复失败的
   if (orphanResult.repairFailed.length > 0) {
     outputLine();
-    outputWarning('修复失败的 worktree：');
+    outputWarning(t('commands.repair.repairFailedTitle'));
     for (const item of orphanResult.repairFailed) {
-      output(`  ✗ ${item.dir}: ${item.error}`);
+      output(`  ${t('commands.repair.orphanFailed', { dir: item.dir, error: item.error })}`);
     }
   }
 
   // 显示真孤儿目录详情
   if (orphanResult.trueOrphans.length > 0) {
     outputLine();
-    outputWarning('孤儿 worktree 目录：');
+    outputWarning(t('commands.repair.trueOrphansTitle'));
     for (const orphan of orphanResult.trueOrphans) {
-      output(`  - ${orphan} (目录存在但 git 不识别)`);
+      output(`  ${t('commands.repair.orphanDir', { dir: orphan })}`);
     }
     outputLine();
-    output('建议操作：');
-    output('  运行 colyn remove 命令清理，或手动删除目录');
+    output(t('commands.repair.orphanSuggestion'));
+    output(`  ${t('commands.repair.orphanSuggestionHint')}`);
   }
 
   // 显示 tmux window 详细信息
@@ -680,8 +681,8 @@ export async function repairProject(): Promise<void> {
   // 2. 检查是否是 git 仓库
   if (!(await checkIsRepo(paths.mainDir))) {
     throw new ColynError(
-      '主分支目录不是 git 仓库',
-      '请确保在 git 项目中运行 repair 命令'
+      t('commands.repair.notGitRepo'),
+      t('commands.repair.notGitRepoHint')
     );
   }
 
@@ -696,7 +697,7 @@ export async function repairProject(): Promise<void> {
 
   // 4. 检查主分支 .env.local
   const spinner = ora({
-    text: '检查主分支 .env.local...',
+    text: t('commands.repair.checkingMainEnv'),
     stream: process.stderr
   }).start();
 
@@ -704,11 +705,11 @@ export async function repairProject(): Promise<void> {
   results.push(mainEnvResult);
 
   if (mainEnvResult.success && !mainEnvResult.fixed) {
-    spinner.succeed('主分支 .env.local 配置正确');
+    spinner.succeed(t('commands.repair.mainEnvCorrect'));
   } else if (mainEnvResult.success && mainEnvResult.fixed) {
-    spinner.warn('已修复主分支 .env.local');
+    spinner.warn(t('commands.repair.mainEnvFixed'));
   } else {
-    spinner.fail('修复主分支 .env.local 失败');
+    spinner.fail(t('commands.repair.mainEnvFailed'));
   }
 
   // 5. 获取所有 worktree 并检查
@@ -716,7 +717,7 @@ export async function repairProject(): Promise<void> {
 
   for (const wt of worktrees) {
     const wtSpinner = ora({
-      text: `检查 worktree task-${wt.id} .env.local...`,
+      text: t('commands.repair.checkingWorktreeEnv', { id: wt.id }),
       stream: process.stderr
     }).start();
 
@@ -729,17 +730,17 @@ export async function repairProject(): Promise<void> {
     results.push(wtResult);
 
     if (wtResult.success && !wtResult.fixed) {
-      wtSpinner.succeed(`Worktree task-${wt.id} .env.local 配置正确`);
+      wtSpinner.succeed(t('commands.repair.worktreeEnvCorrect', { id: wt.id }));
     } else if (wtResult.success && wtResult.fixed) {
-      wtSpinner.warn(`已修复 worktree task-${wt.id} .env.local`);
+      wtSpinner.warn(t('commands.repair.worktreeEnvFixed', { id: wt.id }));
     } else {
-      wtSpinner.fail(`修复 worktree task-${wt.id} .env.local 失败`);
+      wtSpinner.fail(t('commands.repair.worktreeEnvFailed', { id: wt.id }));
     }
   }
 
   // 6. 修复 git worktree 连接
   const gitSpinner = ora({
-    text: '修复 git worktree 连接...',
+    text: t('commands.repair.repairingGit'),
     stream: process.stderr
   }).start();
 
@@ -747,14 +748,14 @@ export async function repairProject(): Promise<void> {
   results.push(gitResult);
 
   if (gitResult.success) {
-    gitSpinner.succeed('Git worktree 连接已修复');
+    gitSpinner.succeed(t('commands.repair.gitRepaired'));
   } else {
-    gitSpinner.fail('Git worktree 修复失败');
+    gitSpinner.fail(t('commands.repair.gitRepairFailed'));
   }
 
   // 7. 检测并修复孤儿 worktree 目录
   const orphanSpinner = ora({
-    text: '检测并修复孤儿 worktree 目录...',
+    text: t('commands.repair.detectingOrphans'),
     stream: process.stderr
   }).start();
 
@@ -765,11 +766,11 @@ export async function repairProject(): Promise<void> {
                        orphanResult.repairFailed.length;
 
   if (totalOrphans === 0) {
-    orphanSpinner.succeed('未发现孤儿 worktree 目录');
+    orphanSpinner.succeed(t('commands.repair.noOrphans'));
   } else if (orphanResult.repairedOrphans.length > 0) {
-    orphanSpinner.succeed(`已修复 ${orphanResult.repairedOrphans.length} 个路径失效的 worktree`);
+    orphanSpinner.succeed(t('commands.repair.orphansRepaired', { count: orphanResult.repairedOrphans.length }));
   } else {
-    orphanSpinner.warn(`发现 ${totalOrphans} 个孤儿 worktree 目录`);
+    orphanSpinner.warn(t('commands.repair.orphansFound', { count: totalOrphans }));
   }
 
   // 8. 修复 tmux windows

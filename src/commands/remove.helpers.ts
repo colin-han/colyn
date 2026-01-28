@@ -11,6 +11,7 @@ import {
   outputStep
 } from '../utils/logger.js';
 import { discoverWorktrees, getCurrentWorktreeId, getMainBranch } from '../core/discovery.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 识别目标类型
@@ -52,21 +53,15 @@ export async function findWorktreeTarget(
     const worktreeId = await getCurrentWorktreeId();
     if (worktreeId === null) {
       throw new ColynError(
-        '无法自动识别 worktree',
-        '请在 worktree 目录中运行此命令，或指定 ID/分支名：\n' +
-        '  colyn remove <id>\n' +
-        '  colyn remove <branch-name>\n\n' +
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.remove.cannotAutoDetect'),
+        t('commands.remove.cannotAutoDetectHint')
       );
     }
     worktree = worktrees.find(w => w.id === worktreeId);
     if (!worktree) {
       throw new ColynError(
-        `找不到 ID 为 ${worktreeId} 的 worktree`,
-        '当前目录的 .env.local 中 WORKTREE 值可能已过期\n\n' +
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.remove.worktreeNotFound', { id: worktreeId }),
+        t('commands.remove.worktreeNotFoundHint')
       );
     }
   } else if (targetType === 'id') {
@@ -75,9 +70,8 @@ export async function findWorktreeTarget(
     worktree = worktrees.find(w => w.id === id);
     if (!worktree) {
       throw new ColynError(
-        `找不到 ID 为 ${id} 的 worktree`,
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.remove.worktreeNotFound', { id }),
+        t('commands.remove.branchNotFoundHint')
       );
     }
   } else {
@@ -85,9 +79,8 @@ export async function findWorktreeTarget(
     worktree = worktrees.find(w => w.branch === target);
     if (!worktree) {
       throw new ColynError(
-        `找不到分支 "${target}" 对应的 worktree`,
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.remove.branchNotFound', { branch: target ?? '' }),
+        t('commands.remove.branchNotFoundHint')
       );
     }
   }
@@ -210,11 +203,11 @@ export async function deleteLocalBranch(
  */
 export function displayWorktreeInfo(worktree: WorktreeInfo): void {
   outputLine();
-  outputBold('将要删除的 worktree:');
+  outputBold(t('commands.remove.toBeDeleted'));
   output(`  ID: ${worktree.id}`);
-  output(`  分支: ${worktree.branch}`);
-  output(`  路径: ${worktree.path}`);
-  output(`  端口: ${worktree.port}`);
+  output(`  ${t('commands.add.infoBranch', { branch: '' }).replace(': ', '')}: ${worktree.branch}`);
+  output(`  ${t('commands.add.infoPath', { path: '' }).replace(': ', '')}: ${worktree.path}`);
+  output(`  ${t('commands.add.infoPort', { port: '' }).replace(': ', '')}: ${worktree.port}`);
   outputLine();
 }
 
@@ -222,14 +215,14 @@ export function displayWorktreeInfo(worktree: WorktreeInfo): void {
  * 显示未提交更改警告
  */
 export function displayUncommittedChanges(changedFiles: string[]): void {
-  outputWarning('检测到未提交的更改');
+  outputWarning(t('commands.remove.uncommittedChanges'));
   outputLine();
-  outputBold('变更文件:');
+  outputBold(t('commands.remove.changedFiles'));
   for (const file of changedFiles.slice(0, 5)) {
     output(`  - ${file}`);
   }
   if (changedFiles.length > 5) {
-    output(`  ... 以及其他 ${changedFiles.length - 5} 个文件`);
+    output(`  ${t('commands.remove.moreFiles', { count: changedFiles.length - 5 })}`);
   }
   outputLine();
 }
@@ -238,8 +231,8 @@ export function displayUncommittedChanges(changedFiles: string[]): void {
  * 显示未合并警告
  */
 export function displayUnmergedWarning(branch: string, mainBranch: string): void {
-  outputWarning(`分支 "${branch}" 尚未合并到 ${mainBranch}`);
-  output(chalk.gray('  删除后可能丢失未合并的更改'));
+  outputWarning(t('commands.remove.unmergedWarning', { branch, main: mainBranch }));
+  output(chalk.gray(`  ${t('commands.remove.unmergedWarningHint')}`));
   outputLine();
 }
 
@@ -253,17 +246,18 @@ export function displayRemoveSuccess(
   mainDir: string
 ): void {
   outputLine();
-  outputSuccess('Worktree 已删除');
+  outputSuccess(t('commands.remove.successTitle'));
   outputLine();
 
-  outputBold('删除信息:');
+  outputBold(t('commands.remove.deleteInfo'));
   output(`  ID: ${worktree.id}`);
-  output(`  分支: ${worktree.branch}${branchDeleted ? ' (已删除)' : ' (保留)'}`);
-  output(`  路径: ${worktree.path}`);
+  const branchStatus = branchDeleted ? t('commands.remove.branchStatusDeleted') : t('commands.remove.branchStatusKept');
+  output(`  ${t('commands.remove.branchStatus', { branch: worktree.branch, status: branchStatus })}`);
+  output(`  ${t('commands.add.infoPath', { path: '' }).replace(': ', '')}: ${worktree.path}`);
   outputLine();
 
   if (switchedToMain) {
-    outputStep('已自动切换到主分支目录:');
+    outputStep(t('commands.remove.switchedToMain'));
     output(`  ${mainDir}`);
     outputLine();
   }

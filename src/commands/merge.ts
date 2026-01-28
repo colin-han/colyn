@@ -23,6 +23,7 @@ import {
   displayMergeConflict,
   displayPushFailed
 } from './merge.helpers.js';
+import { t } from '../i18n/index.js';
 
 /**
  * Merge 命令选项
@@ -66,19 +67,19 @@ async function mergeCommand(
     displayWorktreeInfo(worktree);
 
     // 步骤4: 前置检查
-    const checkSpinner = ora({ text: '执行前置检查...', stream: process.stderr }).start();
+    const checkSpinner = ora({ text: t('commands.merge.preCheck'), stream: process.stderr }).start();
 
     try {
       // 检查主分支工作目录
-      await checkGitWorkingDirectory(paths.mainDir, '主分支');
+      await checkGitWorkingDirectory(paths.mainDir, t('commands.merge.mainDirClean').replace('✓ ', '').replace(' working directory clean', ''));
 
       // 检查 worktree 工作目录
       await checkGitWorkingDirectory(worktree.path, 'Worktree');
 
-      checkSpinner.succeed('前置检查通过');
+      checkSpinner.succeed(t('commands.merge.preCheckPassed'));
       displayCheckPassed();
     } catch (error) {
-      checkSpinner.fail('前置检查失败');
+      checkSpinner.fail(t('commands.merge.preCheckFailed'));
       throw error;
     }
 
@@ -86,18 +87,18 @@ async function mergeCommand(
     const mainBranch = await getMainBranch(paths.mainDir);
 
     // 步骤6: 在 worktree 中合并主分支（确保 worktree 包含主分支的所有更改）
-    output(`步骤 1/2: 在 worktree 中合并主分支`);
-    output(`  目录: ${worktree.path}`);
-    output(`  执行: git merge ${mainBranch}`);
+    output(t('commands.merge.step1Title'));
+    output(t('commands.merge.step1Dir', { path: worktree.path }));
+    output(t('commands.merge.step1Cmd', { branch: mainBranch }));
 
-    const step1Spinner = ora({ text: '合并主分支到 worktree...', stream: process.stderr }).start();
+    const step1Spinner = ora({ text: t('commands.merge.mergingMain'), stream: process.stderr }).start();
 
     const step1Result = await executeInDirectory(worktree.path, async () => {
       return await mergeMainIntoWorktree(worktree.path, mainBranch);
     });
 
     if (!step1Result.success) {
-      step1Spinner.fail('合并主分支失败');
+      step1Spinner.fail(t('commands.merge.mainMergeFailed'));
 
       if (step1Result.error === 'merge_conflict') {
         // 合并冲突 - 在 worktree 中解决
@@ -111,45 +112,44 @@ async function mergeCommand(
         process.exit(1);
       } else {
         throw new ColynError(
-          '合并主分支失败',
-          step1Result.error || '未知错误'
+          t('commands.merge.mainMergeFailed'),
+          step1Result.error || t('common.unknownError')
         );
       }
     }
 
-    step1Spinner.succeed('主分支已合并到 worktree');
+    step1Spinner.succeed(t('commands.merge.mainMerged'));
 
     // 步骤7: 在主分支中合并 worktree 分支
-    output(`步骤 2/2: 在主分支中合并 worktree 分支`);
-    output(`  目录: ${paths.mainDir}`);
-    output(`  执行: git merge --no-ff ${worktree.branch}`);
+    output(t('commands.merge.step2Title'));
+    output(t('commands.merge.step2Dir', { path: paths.mainDir }));
+    output(t('commands.merge.step2Cmd', { branch: worktree.branch }));
 
-    const step2Spinner = ora({ text: '合并 worktree 到主分支...', stream: process.stderr }).start();
+    const step2Spinner = ora({ text: t('commands.merge.mergingWorktree'), stream: process.stderr }).start();
 
     const step2Result = await executeInDirectory(paths.mainDir, async () => {
       return await mergeWorktreeIntoMain(paths.mainDir, worktree.branch);
     });
 
     if (!step2Result.success) {
-      step2Spinner.fail('合并到主分支失败');
+      step2Spinner.fail(t('commands.merge.worktreeMergeFailed'));
 
       // 理论上不应该发生冲突，但还是处理一下
       if (step2Result.error === 'merge_conflict') {
         throw new ColynError(
-          '合并到主分支时发生意外冲突',
-          '这种情况不应该发生。请检查 git 状态并手动解决。\n' +
-          `主分支目录: ${paths.mainDir}`
+          t('commands.merge.unexpectedConflict'),
+          t('commands.merge.unexpectedConflictHint', { path: paths.mainDir })
         );
       } else {
         throw new ColynError(
-          '合并到主分支失败',
-          step2Result.error || '未知错误'
+          t('commands.merge.mergeFailed'),
+          step2Result.error || t('common.unknownError')
         );
       }
     }
 
-    step2Spinner.succeed('worktree 已合并到主分支');
-    outputSuccess('合并完成！');
+    step2Spinner.succeed(t('commands.merge.worktreeMerged'));
+    outputSuccess(t('commands.merge.mergeComplete'));
 
     // 步骤8: 推送处理
     let pushed = false;
@@ -164,7 +164,7 @@ async function mergeCommand(
       if (pushResult.success) {
         pushed = true;
       } else {
-        displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
+        displayPushFailed(pushResult.error || t('common.unknownError'), paths.mainDir, mainBranch);
       }
     } else if (!explicitNoPush) {
       // 没有指定 --no-push：询问用户
@@ -172,7 +172,7 @@ async function mergeCommand(
       const response = await enquirer.prompt({
         type: 'confirm',
         name: 'shouldPush',
-        message: '是否推送到远程仓库？',
+        message: t('commands.merge.shouldPush'),
         initial: false
       }) as { shouldPush: boolean };
 
@@ -181,7 +181,7 @@ async function mergeCommand(
         if (pushResult.success) {
           pushed = true;
         } else {
-          displayPushFailed(pushResult.error || '未知错误', paths.mainDir, mainBranch);
+          displayPushFailed(pushResult.error || t('common.unknownError'), paths.mainDir, mainBranch);
         }
       }
     }
@@ -217,9 +217,9 @@ async function mergeCommand(
 export function register(program: Command): void {
   program
     .command('merge [target]')
-    .description('将 worktree 分支合并回主分支')
-    .option('--push', '合并后自动推送到远程')
-    .option('--no-push', '合并后不推送（跳过询问）')
+    .description(t('commands.merge.description'))
+    .option('--push', t('commands.merge.pushOption'))
+    .option('--no-push', t('commands.merge.noPushOption'))
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });

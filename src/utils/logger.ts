@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { ColynError, CommandResult } from '../types/index.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 输出到 stderr（彩色，给用户看）
@@ -71,11 +72,11 @@ export function formatError(error: unknown): void {
   if (error instanceof ColynError) {
     output(chalk.red(`\n✗ ${error.message}`));
     if (error.hint) {
-      output(chalk.yellow(`  提示: ${error.hint}\n`));
+      output(chalk.yellow(`  ${t('logger.hintPrefix')} ${error.hint}\n`));
     }
   } else if (error instanceof Error) {
-    output(chalk.red(`\n✗ 错误: ${error.message}\n`));
+    output(chalk.red(`\n✗ ${t('logger.errorPrefix')} ${error.message}\n`));
   } else {
-    output(chalk.red('\n✗ 未知错误\n'));
+    output(chalk.red(`\n✗ ${t('common.unknownError')}\n`));
   }
 }
