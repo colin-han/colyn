@@ -29,6 +29,7 @@ import {
   findWorktreeTarget,
   checkGitWorkingDirectory
 } from './merge.helpers.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 检查分支是否已合并到主分支
@@ -101,13 +102,13 @@ async function processBranch(
 
   // 检查远程分支是否存在
   const fetchSpinner = ora({
-    text: '从远程仓库获取最新分支信息...',
+    text: t('commands.checkout.fetchingRemote'),
     stream: process.stderr
   }).start();
 
   try {
     await git.fetch(['--all']);
-    fetchSpinner.succeed('已获取远程分支信息');
+    fetchSpinner.succeed(t('commands.checkout.fetchedRemote'));
 
     const remoteBranches = await git.branch(['-r']);
     const remoteRef = remoteBranches.all.find(
@@ -117,8 +118,8 @@ async function processBranch(
     if (remoteRef) {
       return { action: 'track', remoteBranch: remoteRef, fetched: true };
     }
-  } catch (error) {
-    fetchSpinner.fail('获取远程分支信息失败');
+  } catch {
+    fetchSpinner.fail(t('commands.checkout.fetchFailed'));
     // fetch 失败时继续，可能没有远程
     return { action: 'create', fetched: false };
   }
@@ -226,9 +227,9 @@ async function updateMainBranch(
 
     return {
       updated: true,
-      message: `主分支已更新 (合并了 ${behindCount} 个提交)`
+      message: t('commands.checkout.mainBranchUpdateMsg', { count: behindCount })
     };
-  } catch (error) {
+  } catch {
     // 更新失败，不影响主流程
     return { updated: false };
   }
@@ -264,10 +265,8 @@ async function checkoutCommand(
         const location = await getLocationInfo();
         if (location.isMainBranch) {
           throw new ColynError(
-            '当前在主分支目录中',
-            '请指定 worktree ID，或切换到 worktree 目录后执行：\n' +
-            '  colyn checkout <worktree-id> <branch>\n' +
-            '  colyn list  # 查看所有 worktree'
+            t('commands.checkout.inMainBranch'),
+            t('commands.checkout.inMainBranchHint')
           );
         }
         // 使用当前 worktree
@@ -281,10 +280,8 @@ async function checkoutCommand(
           throw error;
         }
         throw new ColynError(
-          '无法确定目标 worktree',
-          '请指定 worktree ID：\n' +
-          '  colyn checkout <worktree-id> <branch>\n' +
-          '  colyn list  # 查看所有 worktree'
+          t('commands.checkout.cannotDetermineWorktree'),
+          t('commands.checkout.cannotDetermineWorktreeHint')
         );
       }
     } else {
@@ -300,7 +297,7 @@ async function checkoutCommand(
 
     // 如果已经在目标分支上
     if (currentBranch === branch) {
-      output(chalk.yellow(`已经在分支 ${branch} 上`));
+      output(chalk.yellow(t('commands.checkout.alreadyOnBranch', { branch })));
       outputResult({
         success: true,
         targetDir: worktree.path,
@@ -310,13 +307,13 @@ async function checkoutCommand(
     }
 
     // 步骤3: 检查未提交更改
-    const checkSpinner = ora({ text: '检查工作目录状态...', stream: process.stderr }).start();
+    const checkSpinner = ora({ text: t('commands.checkout.checkingStatus'), stream: process.stderr }).start();
 
     try {
       await checkGitWorkingDirectory(worktree.path, `task-${worktree.id}`);
-      checkSpinner.succeed('工作目录干净');
+      checkSpinner.succeed(t('commands.checkout.dirClean'));
     } catch (error) {
-      checkSpinner.fail('工作目录有未提交的更改');
+      checkSpinner.fail(t('commands.checkout.dirHasChanges'));
       throw error;
     }
 
@@ -324,8 +321,8 @@ async function checkoutCommand(
     const mainBranch = await getMainBranch(paths.mainDir);
     if (branch === mainBranch || branch === 'main' || branch === 'master') {
       throw new ColynError(
-        '不能在 worktree 中切换到主分支',
-        `请直接使用主分支目录：\n  cd "${paths.mainDir}"`
+        t('commands.checkout.cannotSwitchToMain'),
+        t('commands.checkout.cannotSwitchToMainHint', { path: paths.mainDir })
       );
     }
 
@@ -339,8 +336,8 @@ async function checkoutCommand(
 
     if (branchUsage.used) {
       throw new ColynError(
-        `分支 ${branch} 已在 task-${branchUsage.worktreeId} 中使用`,
-        `请直接切换到该 worktree 目录工作：\n  cd "${branchUsage.worktreePath}"`
+        t('commands.checkout.branchUsedByOther', { branch, id: branchUsage.worktreeId ?? 0 }),
+        t('commands.checkout.branchUsedByOtherHint', { path: branchUsage.worktreePath ?? '' })
       );
     }
 
@@ -349,21 +346,21 @@ async function checkoutCommand(
 
     if (!merged) {
       outputLine();
-      output(chalk.yellow(`⚠ 当前分支 ${currentBranch} 尚未合并到主分支`));
+      output(chalk.yellow(t('commands.checkout.branchNotMerged', { branch: currentBranch })));
       outputLine();
-      output('如果切换分支，这些更改将保留在原分支上。');
+      output(t('commands.checkout.branchNotMergedInfo'));
       outputLine();
 
       const response = await prompt<{ confirm: boolean }>({
         type: 'confirm',
         name: 'confirm',
-        message: '是否继续切换？',
+        message: t('commands.checkout.confirmSwitch'),
         initial: false,
         stdout: process.stderr
       });
 
       if (!response.confirm) {
-        output(chalk.gray('已取消切换'));
+        output(chalk.gray(t('commands.checkout.switchCanceled')));
         outputResult({ success: false });
         process.exit(4);
       }
@@ -378,7 +375,7 @@ async function checkoutCommand(
       const updateResult = await updateMainBranch(paths.mainDir, mainBranch);
       if (updateResult.updated && updateResult.message) {
         outputLine();
-        output(chalk.green(`✓ ${updateResult.message}`));
+        output(chalk.green(t('commands.checkout.mainBranchUpdated', { message: updateResult.message })));
       }
     }
 
@@ -386,72 +383,72 @@ async function checkoutCommand(
     const archiveResult = await archiveLogs(worktree.path, currentBranch);
 
     // 步骤9: 执行切换
-    const switchSpinner = ora({ text: `切换到分支 ${branch}...`, stream: process.stderr }).start();
+    const switchSpinner = ora({ text: t('commands.checkout.switchingTo', { branch }), stream: process.stderr }).start();
 
     try {
       if (branchInfo.action === 'switch') {
         await git.checkout(branch);
-        switchSpinner.succeed(`已切换到分支 ${branch}`);
+        switchSpinner.succeed(t('commands.checkout.switchedTo', { branch }));
       } else if (branchInfo.action === 'track') {
         await git.checkout(['-b', branch, '--track', branchInfo.remoteBranch!]);
-        switchSpinner.succeed(`已切换到分支 ${branch}（跟踪 ${branchInfo.remoteBranch}）`);
+        switchSpinner.succeed(t('commands.checkout.switchedToTrack', { branch, remote: branchInfo.remoteBranch ?? '' }));
       } else {
         await git.checkout(['-b', branch]);
-        switchSpinner.succeed(`已创建并切换到新分支 ${branch}`);
+        switchSpinner.succeed(t('commands.checkout.switchedToNew', { branch }));
       }
     } catch (error) {
-      switchSpinner.fail('切换分支失败');
+      switchSpinner.fail(t('commands.checkout.switchFailed'));
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new ColynError('Git checkout 失败', errorMessage);
+      throw new ColynError(t('commands.checkout.gitCheckoutFailed'), errorMessage);
     }
 
     // 步骤10: 如果旧分支已合并，提示删除
     let oldBranchDeleted = false;
     if (merged) {
       outputLine();
-      output(chalk.green(`✓ 分支 ${currentBranch} 已合并到主分支`));
+      output(chalk.green(t('commands.checkout.branchMerged', { branch: currentBranch })));
 
       const deleteResponse = await prompt<{ deleteOldBranch: boolean }>({
         type: 'confirm',
         name: 'deleteOldBranch',
-        message: `是否删除旧分支 ${currentBranch}？`,
+        message: t('commands.checkout.deleteOldBranch', { branch: currentBranch }),
         initial: true,
         stdout: process.stderr
       });
 
       if (deleteResponse.deleteOldBranch) {
-        const deleteSpinner = ora({ text: `删除分支 ${currentBranch}...`, stream: process.stderr }).start();
+        const deleteSpinner = ora({ text: t('commands.checkout.deletingBranch', { branch: currentBranch }), stream: process.stderr }).start();
         try {
           await git.branch(['-d', currentBranch]);
-          deleteSpinner.succeed(`已删除分支 ${currentBranch}`);
+          deleteSpinner.succeed(t('commands.checkout.branchDeleted', { branch: currentBranch }));
           oldBranchDeleted = true;
         } catch (error) {
-          deleteSpinner.fail(`删除分支失败`);
+          deleteSpinner.fail(t('commands.checkout.branchDeleteFailed'));
           const errorMessage = error instanceof Error ? error.message : String(error);
-          output(chalk.yellow(`提示: ${errorMessage}`));
-          output(chalk.gray(`可稍后手动删除: git branch -d ${currentBranch}`));
+          output(chalk.yellow(t('commands.checkout.branchDeleteHint', { error: errorMessage })));
+          output(chalk.gray(t('commands.checkout.branchDeleteManual', { branch: currentBranch })));
         }
       }
     }
 
     // 步骤11: 显示结果
     outputLine();
-    outputSuccess(`已切换到分支 ${branch}`);
+    outputSuccess(t('commands.checkout.successTitle', { branch }));
 
     if (archiveResult.archived) {
       const safeBranchName = currentBranch.replace(/\//g, '-');
-      output(chalk.gray(`日志已归档到: .claude/logs/archived/${safeBranchName}/ (${archiveResult.count} 项)`));
+      output(chalk.gray(t('commands.checkout.logsArchived', { branch: safeBranchName, count: archiveResult.count })));
     }
 
     if (oldBranchDeleted) {
-      output(chalk.gray(`旧分支 ${currentBranch} 已删除`));
+      output(chalk.gray(t('commands.checkout.oldBranchDeleted', { branch: currentBranch })));
     }
 
     outputLine();
-    outputBold('当前状态：');
-    output(`  Worktree: task-${worktree.id}`);
-    output(`  分支: ${branch}`);
-    output(`  路径: ${worktree.path}`);
+    outputBold(t('commands.checkout.currentStatus'));
+    output(`  ${t('commands.checkout.statusWorktree', { id: worktree.id })}`);
+    output(`  ${t('commands.checkout.statusBranch', { branch })}`);
+    output(`  ${t('commands.checkout.statusPath', { path: worktree.path })}`);
     outputLine();
 
     // 步骤12: 输出 JSON 结果
@@ -477,8 +474,8 @@ export function register(program: Command): void {
   // 主命令 - 使用 variadic 参数处理
   program
     .command('checkout <args...>')
-    .description('在 worktree 中切换分支')
-    .option('--no-fetch', '跳过从远程获取分支信息')
+    .description(t('commands.checkout.description'))
+    .option('--no-fetch', t('commands.checkout.noFetchOption'))
     .action(async (args: string[], options: CheckoutOptions) => {
       let target: string | undefined;
       let branch: string;
@@ -492,8 +489,8 @@ export function register(program: Command): void {
         branch = args[1];
       } else {
         throw new ColynError(
-          '参数错误',
-          '用法: colyn checkout [worktree-id] <branch>'
+          t('commands.checkout.argError'),
+          t('commands.checkout.argErrorHint')
         );
       }
 
@@ -503,8 +500,8 @@ export function register(program: Command): void {
   // 别名 co
   program
     .command('co <args...>')
-    .description('checkout 的别名')
-    .option('--no-fetch', '跳过从远程获取分支信息')
+    .description(t('commands.checkout.coDescription'))
+    .option('--no-fetch', t('commands.checkout.noFetchOption'))
     .action(async (args: string[], options: CheckoutOptions) => {
       let target: string | undefined;
       let branch: string;
@@ -516,8 +513,8 @@ export function register(program: Command): void {
         branch = args[1];
       } else {
         throw new ColynError(
-          '参数错误',
-          '用法: colyn co [worktree-id] <branch>'
+          t('commands.checkout.argError'),
+          t('commands.checkout.argErrorHint')
         );
       }
 

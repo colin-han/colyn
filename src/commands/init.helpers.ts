@@ -18,6 +18,7 @@ import {
   outputBold,
   outputStep
 } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 检测目录状态
@@ -31,13 +32,13 @@ export async function detectDirectoryStatus(): Promise<DirectoryInfo> {
     const existingRoot = await findProjectRoot(rootDir);
     if (existingRoot !== rootDir) {
       throw new ColynError(
-        '当前目录已在 colyn 项目中',
-        `项目根目录: ${existingRoot}\n请不要在项目子目录中运行 init 命令`
+        t('commands.init.alreadyInProject'),
+        t('commands.init.alreadyInProjectHint', { root: existingRoot })
       );
     }
   } catch (error) {
     // 如果找不到项目根目录，说明不在项目中，可以继续
-    if (!(error instanceof ColynError) || !error.message.includes('未找到项目根目录')) {
+    if (!(error instanceof ColynError) || !error.message.includes(t('errors.projectRootNotFound'))) {
       throw error;
     }
   }
@@ -96,7 +97,7 @@ export async function getPortConfig(options: { port?: string }): Promise<number>
   if (options.port) {
     const port = parseInt(options.port);
     if (isNaN(port) || port < 1 || port > 65535) {
-      throw new ColynError('无效的端口号', '端口必须在 1-65535 之间');
+      throw new ColynError(t('commands.init.invalidPort'), t('commands.init.invalidPortHint'));
     }
     return port;
   }
@@ -105,12 +106,12 @@ export async function getPortConfig(options: { port?: string }): Promise<number>
   const { port } = await prompt<{ port: string }>({
     type: 'input',
     name: 'port',
-    message: '请输入主分支开发服务器端口',
+    message: t('commands.init.enterPort'),
     initial: '10000',
     stdout: process.stderr,
     validate: (value) => {
       const num = parseInt(value);
-      return num > 0 && num < 65536 ? true : '端口必须在 1-65535 之间';
+      return num > 0 && num < 65536 ? true : t('commands.init.portValidation');
     }
   });
 
@@ -132,8 +133,8 @@ export async function checkDirectoryConflict(
     // 如果已存在且是文件（不是目录），则报错
     if (stats.isFile()) {
       throw new ColynError(
-        `主分支目录名 "${mainDirName}" 与现有文件冲突`,
-        '请重命名该文件后再运行 init 命令'
+        t('commands.init.directoryConflict', { name: mainDirName }),
+        t('commands.init.directoryConflictHint')
       );
     }
 
@@ -179,7 +180,7 @@ export async function moveFilesToMainDir(
   rootDir: string,
   mainDirName: string
 ): Promise<void> {
-  const spinner = ora({ text: '移动项目文件...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.init.movingFiles'), stream: process.stderr }).start();
 
   try {
     const mainDirPath = path.join(rootDir, mainDirName);
@@ -199,15 +200,15 @@ export async function moveFilesToMainDir(
 
       // 移动文件或目录
       await fs.rename(sourcePath, targetPath);
-      spinner.text = `移动: ${entry}`;
+      spinner.text = t('commands.init.moving', { file: entry });
     }
 
-    spinner.succeed('项目文件移动完成');
+    spinner.succeed(t('commands.init.filesMoved'));
   } catch (error) {
-    spinner.fail('移动文件失败');
+    spinner.fail(t('commands.init.moveFilesFailed'));
     throw new ColynError(
-      '移动文件时发生错误',
-      '请检查文件权限或手动恢复目录结构'
+      t('commands.init.moveFilesError'),
+      t('commands.init.moveFilesErrorHint')
     );
   }
 }
@@ -220,7 +221,7 @@ export async function configureEnvFile(
   port: number,
   worktree: string
 ): Promise<void> {
-  const spinner = ora({ text: '配置环境变量文件...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.init.configuringEnv'), stream: process.stderr }).start();
 
   try {
     const envFilePath = path.join(mainDirPath, '.env.local');
@@ -234,9 +235,9 @@ export async function configureEnvFile(
     // 智能合并
     await updateEnvFilePreserveComments(envFilePath, requiredEnv);
 
-    spinner.succeed('环境变量配置完成');
+    spinner.succeed(t('commands.init.envConfigured'));
   } catch (error) {
-    spinner.fail('配置环境变量失败');
+    spinner.fail(t('commands.init.envConfigFailed'));
     throw error;
   }
 }
@@ -245,7 +246,7 @@ export async function configureEnvFile(
  * 配置 .gitignore 文件
  */
 export async function configureGitignore(mainDirPath: string): Promise<void> {
-  const spinner = ora({ text: '配置 .gitignore...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.init.configuringGitignore'), stream: process.stderr }).start();
 
   try {
     const gitignorePath = path.join(mainDirPath, '.gitignore');
@@ -269,12 +270,12 @@ export async function configureGitignore(mainDirPath: string): Promise<void> {
         : '# Environment files\n.env.local\n';
 
       await fs.writeFile(gitignorePath, newContent, 'utf-8');
-      spinner.succeed('.gitignore 配置完成（已添加 .env.local）');
+      spinner.succeed(t('commands.init.gitignoreConfigured'));
     } else {
-      spinner.succeed('.gitignore 已有忽略规则，跳过');
+      spinner.succeed(t('commands.init.gitignoreSkipped'));
     }
   } catch (error) {
-    spinner.fail('配置 .gitignore 失败');
+    spinner.fail(t('commands.init.gitignoreFailed'));
     throw error;
   }
 }
@@ -288,25 +289,25 @@ export function displaySuccessInfo(
   mainBranch: string
 ): void {
   outputLine();
-  outputSuccess('初始化成功！\n');
+  outputSuccess(t('commands.init.successTitle') + '\n');
 
-  outputBold('目录结构：');
+  outputBold(t('commands.init.directoryStructure'));
   output('  .');
-  output(`  ├── ${mainDirName}/          # 主分支目录`);
-  output('  ├── worktrees/             # Worktree 目录');
-  output('  └── .colyn/                # 配置目录');
+  output(`  \u251C\u2500\u2500 ${mainDirName}/          ${t('commands.init.mainDirComment')}`);
+  output(`  \u251C\u2500\u2500 worktrees/             ${t('commands.init.worktreesDirComment')}`);
+  output(`  \u2514\u2500\u2500 .colyn/                ${t('commands.init.configDirComment')}`);
   outputLine();
 
-  outputBold('配置信息：');
-  output(`  主分支: ${mainBranch}`);
-  output(`  端口: ${port}`);
+  outputBold(t('commands.init.configInfo'));
+  output(`  ${t('commands.init.mainBranch', { branch: mainBranch })}`);
+  output(`  ${t('commands.init.port', { port: String(port) })}`);
   outputLine();
 
-  outputBold('后续操作：');
-  outputStep('  1. 创建 worktree:');
+  outputBold(t('commands.init.nextSteps'));
+  outputStep(`  ${t('commands.init.step1CreateWorktree')}`);
   output('     colyn add <branch-name>');
   outputLine();
-  outputStep('  2. 查看 worktree 列表:');
+  outputStep(`  ${t('commands.init.step2ListWorktrees')}`);
   output('     colyn list');
   outputLine();
 }
@@ -320,25 +321,25 @@ export function displayEmptyDirectorySuccess(
   _mainBranch: string
 ): void {
   outputLine();
-  outputSuccess('初始化成功！\n');
+  outputSuccess(t('commands.init.successTitle') + '\n');
 
-  outputBold('目录结构：');
+  outputBold(t('commands.init.directoryStructure'));
   output('  .');
-  output(`  ├── ${mainDirName}/          # 主分支目录（请在此目录中初始化项目）`);
-  output('  ├── worktrees/             # Worktree 目录');
-  output('  └── .colyn/                # 配置目录');
+  output(`  \u251C\u2500\u2500 ${mainDirName}/          ${t('commands.init.mainDirCommentEmpty')}`);
+  output(`  \u251C\u2500\u2500 worktrees/             ${t('commands.init.worktreesDirComment')}`);
+  output(`  \u2514\u2500\u2500 .colyn/                ${t('commands.init.configDirComment')}`);
   outputLine();
 
-  outputBold('后续操作：');
-  outputStep('  1. 进入主分支目录：');
+  outputBold(t('commands.init.nextSteps'));
+  outputStep(`  ${t('commands.init.step1EnterDir')}`);
   output(`     cd ${mainDirName}`);
   outputLine();
-  outputStep('  2. 初始化 git 仓库（如果还没有）：');
+  outputStep(`  ${t('commands.init.step2InitGit')}`);
   output('     git init');
   outputLine();
-  outputStep('  3. 初始化你的项目（例如 npm/yarn init）');
+  outputStep(`  ${t('commands.init.step3InitProject')}`);
   outputLine();
-  outputStep('  4. 创建 worktree：');
+  outputStep(`  ${t('commands.init.step4CreateWorktree')}`);
   output('     colyn add <branch-name>');
   outputLine();
 }

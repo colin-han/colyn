@@ -21,6 +21,7 @@ import {
   displayUnmergedWarning,
   displayRemoveSuccess
 } from './remove.helpers.js';
+import { t } from '../i18n/index.js';
 
 /**
  * Remove 命令选项
@@ -67,12 +68,8 @@ async function removeCommand(
       if (hasChanges) {
         displayUncommittedChanges(changedFiles);
         throw new ColynError(
-          '无法删除：存在未提交的更改',
-          '请先提交或暂存更改，或使用 --force 强制删除：\n' +
-          `  cd "${worktree.path}"\n` +
-          '  git add . && git commit -m "..."\n\n' +
-          '或者强制删除：\n' +
-          `  colyn remove ${worktree.id} --force`
+          t('commands.remove.cannotDelete'),
+          t('commands.remove.cannotDeleteHint', { path: worktree.path, id: worktree.id })
         );
       }
     }
@@ -90,12 +87,12 @@ async function removeCommand(
       const confirmResponse = await enquirer.prompt({
         type: 'confirm',
         name: 'confirm',
-        message: '确定要删除这个 worktree 吗？',
+        message: t('commands.remove.confirmDelete'),
         initial: false
       }) as { confirm: boolean };
 
       if (!confirmResponse.confirm) {
-        output('已取消删除');
+        output(t('commands.remove.deleteCanceled'));
         outputResult({ success: true });
         return;
       }
@@ -105,7 +102,7 @@ async function removeCommand(
     const needSwitchDir = isCurrentDirInWorktree(worktree.path);
 
     // 步骤6: 执行删除
-    const removeSpinner = ora({ text: '正在删除 worktree...', stream: process.stderr }).start();
+    const removeSpinner = ora({ text: t('commands.remove.deleting'), stream: process.stderr }).start();
 
     const removeResult = await executeWorktreeRemove(
       paths.mainDir,
@@ -114,14 +111,14 @@ async function removeCommand(
     );
 
     if (!removeResult.success) {
-      removeSpinner.fail('删除 worktree 失败');
+      removeSpinner.fail(t('commands.remove.deleteFailed'));
       throw new ColynError(
-        '删除 worktree 失败',
-        removeResult.error || '未知错误'
+        t('commands.remove.deleteFailed'),
+        removeResult.error || t('common.unknownError')
       );
     }
 
-    removeSpinner.succeed('Worktree 已删除');
+    removeSpinner.succeed(t('commands.remove.deleted'));
 
     // 步骤7: 询问是否删除分支
     let branchDeleted = false;
@@ -131,12 +128,12 @@ async function removeCommand(
     const branchResponse = await enquirer.prompt({
       type: 'confirm',
       name: 'deleteBranch',
-      message: `是否同时删除本地分支 "${worktree.branch}"？`,
+      message: t('commands.remove.deleteBranch', { branch: worktree.branch }),
       initial: isMerged  // 如果已合并，默认删除
     }) as { deleteBranch: boolean };
 
     if (branchResponse.deleteBranch) {
-      const branchSpinner = ora({ text: '正在删除分支...', stream: process.stderr }).start();
+      const branchSpinner = ora({ text: t('commands.remove.deletingBranch'), stream: process.stderr }).start();
 
       const branchResult = await deleteLocalBranch(
         paths.mainDir,
@@ -145,10 +142,10 @@ async function removeCommand(
       );
 
       if (branchResult.success) {
-        branchSpinner.succeed(`分支 "${worktree.branch}" 已删除`);
+        branchSpinner.succeed(t('commands.remove.branchDeleted', { branch: worktree.branch }));
         branchDeleted = true;
       } else {
-        branchSpinner.fail(`删除分支失败: ${branchResult.error}`);
+        branchSpinner.fail(t('commands.remove.branchDeleteFailed', { error: branchResult.error ?? '' }));
       }
     }
 
@@ -174,7 +171,7 @@ async function removeCommand(
   } catch (error) {
     // 如果是 enquirer 取消（用户按 Ctrl+C），静默退出
     if (error instanceof Error && error.message === '') {
-      output('已取消');
+      output(t('common.canceled'));
       outputResult({ success: false });
       process.exit(1);
     }
@@ -191,9 +188,9 @@ async function removeCommand(
 export function register(program: Command): void {
   program
     .command('remove [target]')
-    .description('删除 worktree')
-    .option('-f, --force', '强制删除（忽略未提交的更改）')
-    .option('-y, --yes', '跳过确认提示')
+    .description(t('commands.remove.description'))
+    .option('-f, --force', t('commands.remove.forceOption'))
+    .option('-y, --yes', t('commands.remove.yesOption'))
     .action(async (target: string | undefined, options: RemoveOptions) => {
       await removeCommand(target, options);
     });

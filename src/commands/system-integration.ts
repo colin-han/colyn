@@ -11,6 +11,7 @@ import {
   checkColynShellExists,
   checkCompletionScriptExists
 } from './system-integration.helpers.js';
+import { t } from '../i18n/index.js';
 
 /**
  * System Integration 命令：配置 shell 集成
@@ -26,9 +27,9 @@ async function systemIntegrationCommand(): Promise<void> {
     // 检查平台
     if (process.platform === 'win32') {
       output('');
-      output(chalk.yellow('⚠ Windows 平台暂不支持自动配置'));
+      output(chalk.yellow(t('commands.systemIntegration.windowsNotSupported')));
       output('');
-      output('请参考文档手动配置 shell 集成：');
+      output(t('commands.systemIntegration.windowsManualHint'));
       output('  https://github.com/your-repo/colyn#windows-setup');
       output('');
       outputResult({ success: false });
@@ -37,41 +38,35 @@ async function systemIntegrationCommand(): Promise<void> {
 
     // 步骤 1: 检测系统环境
     output('');
-    output('检测系统环境...');
+    output(t('commands.systemIntegration.detectingEnv'));
 
     const shellConfig = await detectShellConfig();
     const colynShellPath = getColynShellPath();
     const completionPath = getCompletionScriptPath(shellConfig.shellType);
 
-    output(chalk.green(`✓ Shell 类型: ${shellConfig.shellType}`));
-    output(chalk.green(`✓ 配置文件: ${shellConfig.configPath}`));
-    output(chalk.green(`✓ Colyn 安装路径: ${colynShellPath}`));
+    output(chalk.green(t('commands.systemIntegration.shellType', { type: shellConfig.shellType })));
+    output(chalk.green(t('commands.systemIntegration.configFile', { path: shellConfig.configPath })));
+    output(chalk.green(t('commands.systemIntegration.installPath', { path: colynShellPath })));
 
     // 步骤 2: 检查 colyn.sh 是否存在
     const shellExists = await checkColynShellExists(colynShellPath);
     if (!shellExists) {
       throw new ColynError(
-        '找不到 shell 集成脚本',
-        `路径: ${colynShellPath}\n` +
-        '\n' +
-        '可能原因：\n' +
-        '  - colyn 安装不完整\n' +
-        '\n' +
-        '解决方法：\n' +
-        '  重新安装：npm install -g colyn'
+        t('commands.systemIntegration.shellScriptNotFound'),
+        t('commands.systemIntegration.shellScriptNotFoundHint', { path: colynShellPath })
       );
     }
 
     // 步骤 3: 检查补全脚本是否存在
     const completionExists = await checkCompletionScriptExists(completionPath);
     if (!completionExists) {
-      output(chalk.yellow(`⚠ 补全脚本未找到: ${completionPath}`));
-      output(chalk.yellow('  将仅配置 shell 集成功能'));
+      output(chalk.yellow(t('commands.systemIntegration.completionNotFound', { path: completionPath })));
+      output(chalk.yellow(`  ${t('commands.systemIntegration.completionNotFoundHint')}`));
     }
 
     // 步骤 4: 配置 shell 集成
     output('');
-    output('配置 shell 集成...');
+    output(t('commands.systemIntegration.configuringShell'));
 
     const result = await updateShellConfig(
       shellConfig.configPath,
@@ -83,41 +78,41 @@ async function systemIntegrationCommand(): Promise<void> {
 
     if (result === 'added') {
       if (!shellConfig.configExists) {
-        output(chalk.green(`✓ 已创建 ${configFileName}`));
+        output(chalk.green(t('commands.systemIntegration.configCreated', { file: configFileName })));
       }
-      output(chalk.green(`✓ 已添加 shell 集成到 ${configFileName}`));
+      output(chalk.green(t('commands.systemIntegration.configAdded', { file: configFileName })));
       if (completionExists) {
-        output(chalk.green(`✓ 已添加补全脚本到 ${configFileName}`));
+        output(chalk.green(t('commands.systemIntegration.completionAdded', { file: configFileName })));
       }
     } else {
-      output(chalk.green(`✓ 已更新 ${configFileName} 中的 shell 集成配置`));
+      output(chalk.green(t('commands.systemIntegration.configUpdated', { file: configFileName })));
       if (completionExists) {
-        output(chalk.green(`✓ 已更新补全脚本配置`));
+        output(chalk.green(t('commands.systemIntegration.completionUpdated')));
       }
     }
 
     // 步骤 5: 显示完成信息
     output('');
-    outputSuccess(result === 'added' ? '安装完成！' : '更新完成！');
+    outputSuccess(result === 'added' ? t('commands.systemIntegration.installComplete') : t('commands.systemIntegration.updateComplete'));
     output('');
 
     // 生效配置指引
-    output(chalk.cyan('生效配置：'));
+    output(chalk.cyan(t('commands.systemIntegration.activateConfig')));
     if (result === 'added') {
-      output('  方式 1（推荐）：重新打开终端');
-      output(`  方式 2：运行命令：${chalk.gray(`source ${shellConfig.configPath}`)}`);
+      output(`  ${t('commands.systemIntegration.activateMethod1')}`);
+      output(`  ${t('commands.systemIntegration.activateMethod2')} ${chalk.gray(`source ${shellConfig.configPath}`)}`);
     } else {
-      output(`  运行命令：${chalk.gray(`source ${shellConfig.configPath}`)}`);
+      output(`  ${t('commands.systemIntegration.activateMethod2')} ${chalk.gray(`source ${shellConfig.configPath}`)}`);
     }
 
     output('');
 
     // 功能说明
     if (result === 'added') {
-      output(chalk.cyan('功能说明：'));
-      output('  ✓ colyn 命令支持自动目录切换');
+      output(chalk.cyan(t('commands.systemIntegration.features')));
+      output(`  ${t('commands.systemIntegration.featureAutoSwitch')}`);
       if (completionExists) {
-        output('  ✓ 使用 Tab 键可自动完成命令和参数');
+        output(`  ${t('commands.systemIntegration.featureCompletion')}`);
       }
       output('');
     }
@@ -141,7 +136,7 @@ async function systemIntegrationCommand(): Promise<void> {
 export function register(program: Command): void {
   program
     .command('system-integration')
-    .description('配置 shell 集成（支持自动目录切换和命令补全）')
+    .description(t('commands.systemIntegration.description'))
     .action(async () => {
       await systemIntegrationCommand();
     });

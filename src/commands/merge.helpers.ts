@@ -12,6 +12,7 @@ import {
   outputStep
 } from '../utils/logger.js';
 import { discoverWorktrees, getCurrentWorktreeId } from '../core/discovery.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 识别目标类型
@@ -61,21 +62,15 @@ export async function findWorktreeTarget(
     const worktreeId = await autoDetectWorktree();
     if (worktreeId === null) {
       throw new ColynError(
-        '无法自动识别 worktree',
-        '请在 worktree 目录中运行此命令，或指定 ID/分支名：\n' +
-        '  colyn merge <id>\n' +
-        '  colyn merge <branch-name>\n\n' +
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.merge.cannotAutoDetect'),
+        t('commands.merge.cannotAutoDetectHint')
       );
     }
     worktree = worktrees.find(w => w.id === worktreeId);
     if (!worktree) {
       throw new ColynError(
-        `找不到 ID 为 ${worktreeId} 的 worktree`,
-        '当前目录的 .env.local 中 WORKTREE 值可能已过期\n\n' +
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.merge.worktreeNotFound', { id: worktreeId }),
+        t('commands.merge.worktreeNotFoundHint')
       );
     }
   } else if (targetType === 'id') {
@@ -84,9 +79,8 @@ export async function findWorktreeTarget(
     worktree = worktrees.find(w => w.id === id);
     if (!worktree) {
       throw new ColynError(
-        `找不到 ID 为 ${id} 的 worktree`,
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.merge.worktreeNotFound', { id }),
+        t('commands.merge.branchNotFoundHint')
       );
     }
   } else {
@@ -94,9 +88,8 @@ export async function findWorktreeTarget(
     worktree = worktrees.find(w => w.branch === target);
     if (!worktree) {
       throw new ColynError(
-        `找不到分支 "${target}" 对应的 worktree`,
-        '查看所有 worktree：\n' +
-        '  colyn list'
+        t('commands.merge.branchNotFound', { branch: target ?? '' }),
+        t('commands.merge.branchNotFoundHint')
       );
     }
   }
@@ -123,16 +116,17 @@ export async function checkGitWorkingDirectory(
       ...status.not_added
     ];
 
+    const filesStr = changedFiles.slice(0, 5).map(f => `  - ${f}`).join('\n') +
+      (changedFiles.length > 5 ? `\n  ... ${t('commands.remove.moreFiles', { count: changedFiles.length - 5 })}` : '');
+
     throw new ColynError(
-      `${dirName}目录有未提交的更改`,
-      `${dirName}目录: ${dirPath}\n\n` +
-      `变更文件 (${changedFiles.length} 个):\n` +
-      changedFiles.slice(0, 5).map(f => `  - ${f}`).join('\n') +
-      (changedFiles.length > 5 ? `\n  ... 以及其他 ${changedFiles.length - 5} 个文件` : '') +
-      '\n\n提示：\n' +
-      `  - 查看状态: cd "${dirPath}" && git status\n` +
-      '  - 提交更改: git add . && git commit -m "..."\n' +
-      '  - 或者暂存: git stash'
+      t('commands.merge.dirHasUncommitted', { name: dirName }),
+      t('commands.merge.dirHasUncommittedHint', {
+        name: dirName,
+        path: dirPath,
+        count: changedFiles.length,
+        files: filesStr
+      })
     );
   }
 }
@@ -260,17 +254,17 @@ export async function pushToRemote(
   mainDir: string,
   mainBranch: string
 ): Promise<{ success: boolean; error?: string }> {
-  const spinner = ora({ text: '推送到远程仓库...', stream: process.stderr }).start();
+  const spinner = ora({ text: t('commands.merge.pushToRemote'), stream: process.stderr }).start();
 
   try {
     const git = simpleGit(mainDir);
     await git.push('origin', mainBranch);
 
-    spinner.succeed('已推送到远程仓库');
+    spinner.succeed(t('commands.merge.pushed'));
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    spinner.fail('推送失败');
+    spinner.fail(t('commands.merge.pushFailed'));
     return { success: false, error: errorMessage };
   }
 }
@@ -280,10 +274,10 @@ export async function pushToRemote(
  */
 export function displayWorktreeInfo(worktree: WorktreeInfo): void {
   outputLine();
-  outputBold('检测到 worktree:');
+  outputBold(t('commands.merge.detectedWorktree'));
   output(`  ID: ${worktree.id}`);
-  output(`  分支: ${worktree.branch}`);
-  output(`  路径: ${worktree.path}`);
+  output(`  ${t('commands.add.infoBranch', { branch: worktree.branch }).replace('Branch: ', '')}: ${worktree.branch}`);
+  output(`  ${t('commands.add.infoPath', { path: worktree.path }).replace('Path: ', '')}: ${worktree.path}`);
   outputLine();
 }
 
@@ -291,9 +285,9 @@ export function displayWorktreeInfo(worktree: WorktreeInfo): void {
  * 显示前置检查结果
  */
 export function displayCheckPassed(): void {
-  outputSuccess('前置检查通过');
-  output(chalk.gray('✓ 主分支工作目录干净'));
-  output(chalk.gray('✓ Worktree 工作目录干净'));
+  outputSuccess(t('commands.merge.preCheckPassed'));
+  output(chalk.gray(t('commands.merge.mainDirClean')));
+  output(chalk.gray(t('commands.merge.worktreeDirClean')));
   outputLine();
 }
 
@@ -310,33 +304,33 @@ export function displayMergeSuccess(
   pushed: boolean
 ): void {
   outputLine();
-  outputSuccess('合并成功！');
+  outputSuccess(t('commands.merge.mergeSuccess'));
   outputLine();
 
-  outputBold('合并信息：');
-  output(`  主分支: ${mainBranch}`);
-  output(`  合并分支: ${branch}`);
-  output(`  提交: ${commitHash} Merge branch '${branch}'`);
+  outputBold(t('commands.merge.mergeInfo'));
+  output(`  ${t('commands.merge.mainBranchLabel', { branch: mainBranch })}`);
+  output(`  ${t('commands.merge.mergeBranchLabel', { branch })}`);
+  output(`  ${t('commands.merge.commitLabel', { hash: commitHash, branch })}`);
   outputLine();
 
   if (pushed) {
-    outputSuccess('合并完成并已推送到远程！');
+    outputSuccess(t('commands.merge.mergeAndPushed'));
   } else {
-    outputSuccess('合并完成！');
-    output(chalk.gray('提示：可稍后手动推送：'));
+    outputSuccess(t('commands.merge.mergeCompleteNoPush'));
+    output(chalk.gray(t('commands.merge.pushLaterHint')));
     output(chalk.gray(`  cd "${mainDir}" && git push`));
   }
 
   outputLine();
-  outputBold('后续操作：');
-  outputStep('  1. 查看合并后的代码：');
+  outputBold(t('commands.merge.nextSteps'));
+  outputStep(`  ${t('commands.merge.step1ViewCode')}`);
   output(`     cd "${mainDir}"`);
   outputLine();
-  outputStep('  2. 如需继续使用 worktree：');
+  outputStep(`  ${t('commands.merge.step2ContinueWorktree')}`);
   output(`     cd "${worktreePath}"`);
   outputLine();
-  outputStep('  3. 如需删除 worktree：');
-  output(`     colyn remove ${worktreeId}  (待实现)`);
+  outputStep(`  ${t('commands.merge.step3RemoveWorktree')}`);
+  output(`     colyn remove ${worktreeId}`);
   outputLine();
 }
 
@@ -350,28 +344,28 @@ export function displayMergeConflict(
   mainBranch: string
 ): void {
   outputLine();
-  outputError(`合并 ${mainBranch} 到 ${worktreeBranch} 时发生冲突`);
+  outputError(t('commands.merge.conflictTitle', { main: mainBranch, branch: worktreeBranch }));
   outputLine();
 
-  outputBold('冲突文件：');
+  outputBold(t('commands.merge.conflictFiles'));
   for (const file of conflictFiles) {
     output(`  ${file}`);
   }
   outputLine();
 
-  outputBold('解决步骤：');
-  outputStep('  1. 进入 worktree 目录解决冲突：');
+  outputBold(t('commands.merge.resolveSteps'));
+  outputStep(`  ${t('commands.merge.resolveStep1')}`);
   output(`     cd "${worktreePath}"`);
   outputLine();
-  outputStep('  2. 编辑冲突文件，解决冲突标记');
+  outputStep(`  ${t('commands.merge.resolveStep2')}`);
   outputLine();
-  outputStep('  3. 添加已解决的文件：');
+  outputStep(`  ${t('commands.merge.resolveStep3')}`);
   output('     git add <file>');
   outputLine();
-  outputStep('  4. 完成合并：');
+  outputStep(`  ${t('commands.merge.resolveStep4')}`);
   output('     git commit');
   outputLine();
-  outputStep('  5. 重新运行合并命令：');
+  outputStep(`  ${t('commands.merge.resolveStep5')}`);
   output(`     colyn merge ${worktreeBranch}`);
   outputLine();
 }
@@ -385,10 +379,10 @@ export function displayPushFailed(
   mainBranch: string
 ): void {
   outputLine();
-  outputError('推送到远程仓库失败');
-  output(chalk.gray(`错误信息: ${error}`));
+  outputError(t('commands.merge.pushFailedTitle'));
+  output(chalk.gray(t('commands.merge.pushFailedError', { error })));
   outputLine();
-  output('本地合并已完成，可稍后手动推送：');
+  output(t('commands.merge.pushFailedHint'));
   output(`  cd "${mainDir}" && git push origin ${mainBranch}`);
   outputLine();
 }

@@ -3,6 +3,7 @@ import * as path from 'path';
 import simpleGit from 'simple-git';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 项目发现信息
@@ -75,8 +76,8 @@ export async function getMainPort(mainDir: string): Promise<number> {
   const port = parseInt(env.PORT || '');
   if (isNaN(port)) {
     throw new ColynError(
-      '无法获取主分支端口',
-      `请确保 ${envPath} 中配置了 PORT 环境变量`
+      t('errors.cannotGetMainPort'),
+      t('errors.cannotGetMainPortHint', { path: envPath })
     );
   }
 
@@ -283,33 +284,28 @@ export async function getCurrentWorktreeId(): Promise<number | null> {
   const envWorktree = env.WORKTREE;
   if (!envWorktree) {
     throw new ColynError(
-      'Worktree 配置不完整',
-      `.env.local 文件中缺少 WORKTREE 变量\n` +
-      `文件路径: ${envPath}\n\n` +
-      `请确保 .env.local 包含 WORKTREE 配置`
+      t('errors.worktreeConfigIncomplete'),
+      t('errors.worktreeConfigIncompleteHint', { path: envPath })
     );
   }
 
   const envId = parseInt(envWorktree);
   if (isNaN(envId)) {
     throw new ColynError(
-      'Worktree 配置无效',
-      `.env.local 中 WORKTREE 值不是有效数字: "${envWorktree}"\n` +
-      `文件路径: ${envPath}`
+      t('errors.worktreeConfigInvalid'),
+      t('errors.worktreeConfigInvalidHint', { value: envWorktree, path: envPath })
     );
   }
 
   // 验证 .env.local 中的 WORKTREE 与目录名一致
   if (envId !== dirId) {
     throw new ColynError(
-      'Worktree 配置不一致',
-      `目录名与 .env.local 中的 WORKTREE 值不匹配\n\n` +
-      `  目录名: ${dirName} (ID: ${dirId})\n` +
-      `  WORKTREE: ${envId}\n\n` +
-      `可能原因：\n` +
-      `  - .env.local 文件被手动修改\n` +
-      `  - 目录被重命名\n\n` +
-      `请修正 .env.local 中的 WORKTREE 值为 ${dirId}，或检查目录是否正确`
+      t('errors.worktreeConfigMismatch'),
+      t('errors.worktreeConfigMismatchHint', {
+        dirName,
+        dirId: String(dirId),
+        envId: String(envId)
+      })
     );
   }
 

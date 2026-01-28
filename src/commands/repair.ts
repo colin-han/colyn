@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { repairProject } from './repair.helpers.js';
 import { formatError, outputResult } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 注册 repair 命令
@@ -8,7 +9,7 @@ import { formatError, outputResult } from '../utils/logger.js';
 export function register(program: Command): void {
   program
     .command('repair')
-    .description('检查并修复项目配置（移动目录后使用）')
+    .description(t('commands.repair.description'))
     .action(async () => {
       try {
         await repairProject();
