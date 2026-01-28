@@ -349,6 +349,27 @@ export function listWindows(
 }
 
 /**
+ * 获取指定 window 的当前名称
+ * @param sessionName session 名称
+ * @param windowIndex window 索引
+ * @returns window 名称，如果不存在返回 null
+ */
+export function getWindowCurrentName(
+  sessionName: string,
+  windowIndex: number
+): string | null {
+  try {
+    const output = execTmux(
+      `display-message -t "${sessionName}:${windowIndex}" -p "#{window_name}"`,
+      { silent: true }
+    );
+    return output || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 设置完整的 window 布局并启动服务
  * 这是一个高级函数，组合了创建 window、设置布局、启动 dev server
  *
