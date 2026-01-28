@@ -9,7 +9,7 @@ import {
   getMainPort
 } from '../core/discovery.js';
 import { ColynError } from '../types/index.js';
-import { formatError } from '../utils/logger.js';
+import { formatError, output } from '../utils/logger.js';
 import {
   getGitStatus,
   getGitDiff,
@@ -19,6 +19,7 @@ import {
   type GitStatus,
   type GitDiff
 } from './list.helpers.js';
+import { isInTmux, isTmuxAvailable } from '../core/tmux.js';
 
 /**
  * List 命令选项
@@ -71,7 +72,7 @@ function getColumnWidths(items: ListItem[]): {
   diff: number;
   path: number;
 } {
-  let maxId = 4; // "→ -" 或 "  1"
+  let maxId = 6; // "0-main" 或 "→ 1"
   let maxBranch = 6; // "Branch"
   let maxPort = 5; // "Port" + 1
   let maxStatus = 6; // "Status"
@@ -80,8 +81,9 @@ function getColumnWidths(items: ListItem[]): {
   let maxPath = 4; // "Path"
 
   for (const item of items) {
-    const idStr = item.isMain ? '-' : String(item.id);
-    const idDisplay = `→ ${idStr}`;
+    // 主分支显示 "0-main"，worktree 显示数字 ID
+    const idStr = item.isMain ? '0-main' : String(item.id);
+    const idDisplay = item.isCurrent ? `→ ${idStr}` : `  ${idStr}`;
     maxId = Math.max(maxId, idDisplay.length);
     maxBranch = Math.max(maxBranch, item.branch.length);
     maxPort = Math.max(maxPort, String(item.port).length);
@@ -202,7 +204,8 @@ function outputTable(items: ListItem[]): void {
   });
 
   for (const item of items) {
-    const idStr = item.isMain ? '-' : String(item.id);
+    // 主分支显示 "0-main"，worktree 显示数字 ID
+    const idStr = item.isMain ? '0-main' : String(item.id);
     const idDisplay = item.isCurrent ? `→ ${idStr}` : `  ${idStr}`;
 
     // 构建行数据
@@ -279,6 +282,15 @@ function outputTable(items: ListItem[]): void {
   }
 
   console.log(table.toString());
+
+  // 如果在 tmux 中，显示切换提示
+  if (isTmuxAvailable() && isInTmux()) {
+    const hasWorktrees = items.some(item => !item.isMain);
+    if (hasWorktrees) {
+      output('');
+      output(chalk.cyan('💡 使用 Ctrl-b 0-9 切换到对应 Window'));
+    }
+  }
 
   // 如果只有主分支，给出提示
   const hasWorktrees = items.some(item => !item.isMain);

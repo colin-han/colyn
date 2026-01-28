@@ -343,6 +343,7 @@ colyn repair
 - 运行 `git worktree repair` 修复 git 连接
 - 智能检测并修复路径失效的 worktree（项目移动后）
 - 检测孤儿 worktree 目录
+- **tmux 集成**：如果 session 不存在则创建，如果 window 不存在则创建并设置 3-pane 布局
 
 **使用场景**：
 ```bash
@@ -354,6 +355,7 @@ $ cd ~/Desktop/project
 $ colyn repair
 ✔ 检测并修复孤儿 worktree 目录...
 ✔ 已修复 2 个路径失效的 worktree
+✔ 创建了 session "project" 和 3 个 window
 
 ✓ 修复完成！
 ```
