@@ -46,8 +46,9 @@
 |------|---------|-----------|
 | `colyn init` | 设置 Window 0 | 创建 session (detached) |
 | `colyn add` | 创建 window + 切换 | 正常创建 worktree |
-| `colyn checkout` | 切换 window | 切换目录 |
-| `colyn list` | 显示 window 编号 | 正常列表 |
+| `colyn checkout` | 更新 window 名称 | 切换目录 |
+| `colyn list` | 显示 window 编号 + 切换提示 | 显示 ID 列（0-main） |
+| `colyn repair` | 修复缺失的 window | 创建 session + 修复 window |
 
 **无需新命令**：用户使用 tmux 原生快捷键切换 window。
 
@@ -293,6 +294,42 @@ else {
 
 - **Main**：总是显示 "0-main"（无论是否在 tmux 中）
 - **Worktree**：显示数字 ID（对应 tmux window 编号）
+
+### 2.8 colyn repair 集成
+
+#### 2.8.1 修复行为
+
+**colyn repair 行为**：
+
+```bash
+$ colyn repair
+
+✔ 检查主分支 .env.local...
+✔ 检查 worktree task-1 .env.local...
+✔ 修复 git worktree 连接...
+✔ 检测并修复孤儿 worktree 目录...
+✔ 创建了 session "my-task-app" 和 3 个 window
+
+修复摘要：
+  ✓ 创建了 tmux session: my-task-app
+  ✓ 创建了 3 个 tmux window
+  ✓ 1 个 tmux window 已存在（保持原布局）
+```
+
+#### 2.8.2 修复规则
+
+| 场景 | 行为 |
+|------|------|
+| Session 不存在 | 创建 session（detached 模式） |
+| Window 不存在 | 创建 window 并设置 3-pane 布局 |
+| Window 已存在 | 跳过，保持用户现有布局不变 |
+| tmux 未安装 | 跳过 tmux 修复，不报错 |
+
+#### 2.8.3 使用场景
+
+- 项目移动后，tmux session 丢失
+- 手动关闭了某些 window
+- 新 clone 的项目需要设置 tmux 环境
 
 ### 2.7 非 tmux 环境兼容性
 
