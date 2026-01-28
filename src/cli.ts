@@ -1,7 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { registerAllCommands } from './commands/index.js';
 import { t } from './i18n/index.js';
+
+// 获取 package.json 中的版本号
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '..', 'package.json'), 'utf-8')
+) as { version: string };
+const version = packageJson.version;
 
 // 检查是否禁用颜色输出
 const noColor = process.argv.includes('--no-color') || process.argv.includes('-C');
@@ -81,7 +92,7 @@ program.configureHelp({
 program
   .name('colyn')
   .description(t('cli.description'))
-  .version('0.1.0', '-V, --version', t('cli.versionDescription'))
+  .version(version, '-V, --version', t('cli.versionDescription'))
   .helpOption('-h, --help', t('cli.helpDescription'))
   .addHelpCommand(t('cli.helpCommand'), t('cli.helpCommandDescription'))
   .option('-C, --no-color', t('cli.noColorOption'));
