@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ColynError } from '../types/index.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 项目路径信息
@@ -65,8 +66,8 @@ export async function findProjectRoot(startDir: string = process.cwd()): Promise
   }
 
   throw new ColynError(
-    '未找到项目根目录',
-    '当前目录不在 colyn 项目中，请先运行 colyn init 初始化项目'
+    t('errors.projectRootNotFound'),
+    t('errors.projectRootNotFoundHint')
   );
 }
 
@@ -235,8 +236,8 @@ export async function getLocationInfo(
 
   // 不在有效位置
   throw new ColynError(
-    '当前目录不在 worktree 或主分支中',
-    '请切换到主分支目录或某个 worktree 目录'
+    t('commands.info.notInWorktree'),
+    t('commands.info.notInWorktreeHint')
   );
 }
 
@@ -247,11 +248,11 @@ export async function validateDirectoryExists(dirPath: string, errorMessage: str
   try {
     const stats = await fs.stat(dirPath);
     if (!stats.isDirectory()) {
-      throw new ColynError(errorMessage, `路径存在但不是目录: ${dirPath}`);
+      throw new ColynError(errorMessage, t('errors.pathExistsNotDir', { path: dirPath }));
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new ColynError(errorMessage, `目录不存在: ${dirPath}`);
+      throw new ColynError(errorMessage, t('errors.pathNotFound', { path: dirPath }));
     }
     throw err;
   }
@@ -266,21 +267,21 @@ export async function validateProjectInitialized(paths: ProjectPaths): Promise<v
     await fs.access(paths.configDir);
   } catch {
     throw new ColynError(
-      '项目未初始化',
-      '请先运行 colyn init 命令初始化项目'
+      t('errors.projectNotInitialized'),
+      t('errors.projectNotInitializedHint')
     );
   }
 
   // 检查主分支目录是否存在
   await validateDirectoryExists(
     paths.mainDir,
-    '主分支目录不存在'
+    t('errors.mainDirNotFound')
   );
 
   // 检查 worktrees 目录是否存在
   await validateDirectoryExists(
     paths.worktreesDir,
-    'worktrees 目录不存在'
+    t('errors.worktreesDirNotFound')
   );
 }
 
@@ -294,22 +295,22 @@ export function getDirectoryDescription(
   const relative = path.relative(paths.rootDir, currentDir);
 
   if (relative === '') {
-    return '项目根目录';
+    return t('output.projectRoot');
   }
 
   if (currentDir === paths.mainDir) {
-    return '主分支目录';
+    return t('output.mainBranchDir');
   }
 
   if (currentDir.startsWith(paths.worktreesDir)) {
-    return 'worktree 目录';
+    return t('output.worktreeDir');
   }
 
   if (currentDir === paths.configDir) {
-    return '配置目录';
+    return t('output.configDir');
   }
 
-  return `子目录 (${relative})`;
+  return t('output.subDir', { path: relative });
 }
 
 /**

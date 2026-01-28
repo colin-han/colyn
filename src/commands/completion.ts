@@ -4,6 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ColynError } from '../types/index.js';
 import { output, formatError } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,10 +38,10 @@ function readCompletionScript(shell: ShellType): string {
   try {
     const scriptPath = getCompletionScriptPath(shell);
     return readFileSync(scriptPath, 'utf-8');
-  } catch (error) {
+  } catch {
     throw new ColynError(
-      `无法读取 ${shell} 补全脚本`,
-      `请确保项目完整安装，脚本路径: shell/completion.${shell}`
+      t('commands.completion.cannotReadScript', { shell }),
+      t('commands.completion.cannotReadScriptHint', { shell })
     );
   }
 }
@@ -53,17 +54,17 @@ function showInstallInstructions(shell: ShellType): void {
   const scriptPath = getCompletionScriptPath(shell);
 
   output('');
-  output('📝 手动安装说明:');
+  output(t('commands.completion.installTitle'));
   output('');
-  output(`1. 将以下内容添加到 ${configFile}:`);
+  output(t('commands.completion.installStep1', { config: configFile }));
   output('');
   output(`   source ${scriptPath}`);
   output('');
-  output('2. 重新加载配置:');
+  output(t('commands.completion.installStep2'));
   output('');
   output(`   source ${configFile}`);
   output('');
-  output('或者直接运行以下命令自动安装:');
+  output(t('commands.completion.installAuto'));
   output('');
   output(`   echo "source ${scriptPath}" >> ${configFile}`);
   output(`   source ${configFile}`);
@@ -84,26 +85,26 @@ async function completionCommand(shell: string | undefined, options: CompletionO
   try {
     // 如果没有指定 shell，显示帮助信息
     if (!shell) {
-      output('用法: colyn completion <shell>');
+      output(t('commands.completion.usage'));
       output('');
-      output('支持的 shell:');
-      output('  bash    生成 Bash 补全脚本');
-      output('  zsh     生成 Zsh 补全脚本');
+      output(t('commands.completion.supportedShells'));
+      output(`  bash    ${t('commands.completion.bashDesc')}`);
+      output(`  zsh     ${t('commands.completion.zshDesc')}`);
       output('');
-      output('选项:');
-      output('  --install    显示安装说明');
+      output(t('commands.completion.options'));
+      output(`  --install    ${t('commands.completion.installDesc')}`);
       output('');
-      output('示例:');
-      output('  colyn completion bash           # 输出 bash 补全脚本');
-      output('  colyn completion zsh --install  # 显示 zsh 安装说明');
+      output(t('commands.completion.examples'));
+      output('  colyn completion bash           # output bash completion script');
+      output('  colyn completion zsh --install  # show zsh installation instructions');
       return;
     }
 
     // 验证 shell 类型
     if (!validateShell(shell)) {
       throw new ColynError(
-        `不支持的 shell: ${shell}`,
-        `支持的 shell: ${SUPPORTED_SHELLS.join(', ')}`
+        t('commands.completion.unsupportedShell', { shell }),
+        t('commands.completion.unsupportedShellHint', { shells: SUPPORTED_SHELLS.join(', ') })
       );
     }
 
@@ -131,8 +132,8 @@ async function completionCommand(shell: string | undefined, options: CompletionO
 export function register(program: Command): void {
   program
     .command('completion [shell]')
-    .description('生成 shell 自动补全脚本')
-    .option('--install', '显示安装说明')
+    .description(t('commands.completion.description'))
+    .option('--install', t('commands.completion.installOption'))
     .action(async (shell, options) => {
       await completionCommand(shell, options);
     });

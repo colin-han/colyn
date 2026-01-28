@@ -1,5 +1,6 @@
 import simpleGit from 'simple-git';
 import { ColynError } from '../types/index.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 检查是否为 git 仓库
@@ -19,8 +20,8 @@ export async function checkWorkingDirectoryClean(): Promise<void> {
 
   if (!status.isClean()) {
     throw new ColynError(
-      '工作目录不干净，存在未提交的更改',
-      '请先提交或 stash 更改后再运行 init 命令'
+      t('errors.workingDirNotClean'),
+      t('errors.workingDirNotCleanHint')
     );
   }
 }

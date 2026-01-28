@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { DirectoryStatus, CommandResult } from '../types/index.js';
 import { formatError, outputResult } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 import {
   detectDirectoryStatus,
   getPortConfig
@@ -67,8 +68,8 @@ async function initCommand(options: { port?: string }): Promise<void> {
 export function register(program: Command): void {
   program
     .command('init')
-    .description('初始化 worktree 管理结构')
-    .option('-p, --port <port>', '主分支开发服务器端口')
+    .description(t('commands.init.description'))
+    .option('-p, --port <port>', t('commands.init.portOption'))
     .action(async (options) => {
       await initCommand(options);
     });

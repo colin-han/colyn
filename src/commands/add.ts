@@ -13,6 +13,7 @@ import {
 import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { formatError, outputResult, output, outputSuccess } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 import {
   isValidBranchName,
   checkIsGitRepo,
@@ -163,15 +164,15 @@ async function addCommand(branchName: string): Promise<void> {
   try {
     // 步骤1: 验证和清理分支名称
     if (!branchName || branchName.trim() === '') {
-      throw new ColynError('分支名称不能为空', '请提供分支名称参数');
+      throw new ColynError(t('commands.add.branchNameEmpty'), t('commands.add.branchNameEmptyHint'));
     }
 
     const cleanBranchName = branchName.replace(/^origin\//, '');
 
     if (!isValidBranchName(cleanBranchName)) {
       throw new ColynError(
-        '无效的分支名称',
-        '分支名称只能包含字母、数字、下划线、连字符和斜杠'
+        t('commands.add.invalidBranchName'),
+        t('commands.add.invalidBranchNameHint')
       );
     }
 
@@ -197,8 +198,8 @@ async function addCommand(branchName: string): Promise<void> {
     );
     if (existingWorktree) {
       throw new ColynError(
-        `分支 "${cleanBranchName}" 已存在 worktree`,
-        `ID: ${existingWorktree.id}, 路径: ${existingWorktree.path}`
+        t('commands.add.branchExists', { branch: cleanBranchName }),
+        t('commands.add.branchExistsHint', { id: String(existingWorktree.id), path: existingWorktree.path })
       );
     }
 
@@ -261,7 +262,7 @@ async function addCommand(branchName: string): Promise<void> {
 export function register(program: Command): void {
   program
     .command('add <branch>')
-    .description('创建新的 worktree')
+    .description(t('commands.add.description'))
     .action(async (branch: string) => {
       await addCommand(branch);
     });

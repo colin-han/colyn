@@ -1,5 +1,7 @@
 # Colyn
 
+**中文** | [English](README-en.md)
+
 Git Worktree 管理工具 - 简化多分支并行开发工作流。
 
 ---

@@ -10,6 +10,7 @@ import {
 } from '../core/discovery.js';
 import { ColynError } from '../types/index.js';
 import { formatError, output } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 import {
   getGitStatus,
   getGitDiff,
@@ -166,8 +167,8 @@ function selectDisplayMode(widths: ReturnType<typeof getColumnWidths>, terminalW
  */
 function outputTable(items: ListItem[]): void {
   if (items.length === 0) {
-    console.error(chalk.yellow('\n暂无 worktree\n'));
-    console.error(chalk.dim('提示：使用 colyn add <branch> 创建新的 worktree'));
+    console.error(chalk.yellow(`\n${t('commands.list.noWorktrees')}\n`));
+    console.error(chalk.dim(t('commands.list.noWorktreesHint')));
     return;
   }
 
@@ -181,17 +182,17 @@ function outputTable(items: ListItem[]): void {
   const mode = selectDisplayMode(widths, terminalWidth);
 
   // 构建表头
-  const headers: string[] = [chalk.bold('ID'), chalk.bold('Branch')];
+  const headers: string[] = [chalk.bold(t('commands.list.tableId')), chalk.bold(t('commands.list.tableBranch'))];
   if (mode === 'full') {
-    headers.push(chalk.bold('Port'), chalk.bold('Status'), chalk.bold('Diff'), chalk.bold('Path'));
+    headers.push(chalk.bold(t('commands.list.tablePort')), chalk.bold(t('commands.list.tableStatus')), chalk.bold(t('commands.list.tableDiff')), chalk.bold(t('commands.list.tablePath')));
   } else if (mode === 'no-port') {
-    headers.push(chalk.bold('Status'), chalk.bold('Diff'), chalk.bold('Path'));
+    headers.push(chalk.bold(t('commands.list.tableStatus')), chalk.bold(t('commands.list.tableDiff')), chalk.bold(t('commands.list.tablePath')));
   } else if (mode === 'no-path') {
-    headers.push(chalk.bold('Status'), chalk.bold('Diff'));
+    headers.push(chalk.bold(t('commands.list.tableStatus')), chalk.bold(t('commands.list.tableDiff')));
   } else if (mode === 'simple-status') {
-    headers.push(chalk.bold('S'), chalk.bold('Diff'));
+    headers.push(chalk.bold('S'), chalk.bold(t('commands.list.tableDiff')));
   } else if (mode === 'no-status') {
-    headers.push(chalk.bold('Diff'));
+    headers.push(chalk.bold(t('commands.list.tableDiff')));
   }
   // minimal 模式只有 ID 和 Branch
 
@@ -295,7 +296,7 @@ function outputTable(items: ListItem[]): void {
   // 如果只有主分支，给出提示
   const hasWorktrees = items.some(item => !item.isMain);
   if (!hasWorktrees) {
-    console.error(chalk.dim('\n提示：使用 colyn add <branch> 创建新的 worktree'));
+    console.error(chalk.dim(`\n${t('commands.list.noWorktreesHint')}`));
   }
 }
 
@@ -323,8 +324,8 @@ async function listCommand(options: ListOptions): Promise<void> {
     // 检查选项冲突
     if (options.json && options.paths) {
       throw new ColynError(
-        '选项冲突：--json 和 --paths 不能同时使用',
-        '请选择其中一种输出格式'
+        t('commands.list.optionConflict'),
+        t('commands.list.optionConflictHint')
       );
     }
 
@@ -391,10 +392,10 @@ async function listCommand(options: ListOptions): Promise<void> {
 export function register(program: Command): void {
   program
     .command('list')
-    .description('列出所有 worktree')
-    .option('--json', '以 JSON 格式输出')
-    .option('-p, --paths', '只输出路径（每行一个）')
-    .option('--no-main', '不显示主分支')
+    .description(t('commands.list.description'))
+    .option('--json', t('commands.list.jsonOption'))
+    .option('-p, --paths', t('commands.list.pathsOption'))
+    .option('--no-main', t('commands.list.noMainOption'))
     .action(async (options) => {
       await listCommand(options);
     });
