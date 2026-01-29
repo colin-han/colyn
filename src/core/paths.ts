@@ -39,17 +39,7 @@ export interface CurrentWorktreeInfo {
  */
 async function isValidColynProject(rootDir: string): Promise<boolean> {
   try {
-    // 1. 检查 config.json 是否存在且有效
-    const configPath = path.join(rootDir, '.colyn', 'config.json');
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    const config = JSON.parse(configContent);
-
-    // 验证配置格式（必须包含 version 和 mainPort）
-    if (!config.version || !config.mainPort) {
-      return false;
-    }
-
-    // 2. 检查主分支目录是否存在
+    // 1. 检查主分支目录是否存在
     const mainDirName = path.basename(rootDir);
     const mainDir = path.join(rootDir, mainDirName);
     const mainDirStats = await fs.stat(mainDir);
@@ -57,13 +47,14 @@ async function isValidColynProject(rootDir: string): Promise<boolean> {
       return false;
     }
 
-    // 3. 检查 worktrees 目录是否存在
+    // 2. 检查 worktrees 目录是否存在
     const worktreesDir = path.join(rootDir, 'worktrees');
     const worktreesDirStats = await fs.stat(worktreesDir);
     if (!worktreesDirStats.isDirectory()) {
       return false;
     }
 
+    // 注意：config.json 不是必需的，所以不验证它
     return true;
   } catch {
     // 任何验证失败都返回 false
