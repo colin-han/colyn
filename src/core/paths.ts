@@ -34,8 +34,37 @@ export interface CurrentWorktreeInfo {
 }
 
 /**
+ * 验证是否是有效的 colyn 项目
+ * 避免误判 home 目录等其他包含 .colyn 目录的位置
+ */
+async function isValidColynProject(rootDir: string): Promise<boolean> {
+  try {
+    // 1. 检查主分支目录是否存在
+    const mainDirName = path.basename(rootDir);
+    const mainDir = path.join(rootDir, mainDirName);
+    const mainDirStats = await fs.stat(mainDir);
+    if (!mainDirStats.isDirectory()) {
+      return false;
+    }
+
+    // 2. 检查 worktrees 目录是否存在
+    const worktreesDir = path.join(rootDir, 'worktrees');
+    const worktreesDirStats = await fs.stat(worktreesDir);
+    if (!worktreesDirStats.isDirectory()) {
+      return false;
+    }
+
+    // 注意：config.json 不是必需的，所以不验证它
+    return true;
+  } catch {
+    // 任何验证失败都返回 false
+    return false;
+  }
+}
+
+/**
  * 从当前目录向上查找项目根目录
- * 根目录的标志是包含 .colyn 目录
+ * 根目录的标志是包含 .colyn 目录，并且通过多重验证确保是有效的 colyn 项目
  */
 export async function findProjectRoot(startDir: string = process.cwd()): Promise<string> {
   let currentDir = path.resolve(startDir);
@@ -47,8 +76,10 @@ export async function findProjectRoot(startDir: string = process.cwd()): Promise
     try {
       const stats = await fs.stat(colynDir);
       if (stats.isDirectory()) {
-        // 找到 .colyn 目录，这就是根目录
-        return currentDir;
+        // 找到 .colyn 目录，验证这是一个有效的 colyn 项目
+        if (await isValidColynProject(currentDir)) {
+          return currentDir;
+        }
       }
     } catch (err) {
       // .colyn 不存在，继续向上查找
