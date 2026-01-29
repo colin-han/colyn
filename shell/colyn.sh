@@ -18,13 +18,6 @@ colyn() {
 
   local COLYN_BIN="${COLYN_SHELL_DIR}/../../colyn"
 
-  # 调试日志
-  echo "调试: COLYN_SHELL_DIR = $COLYN_SHELL_DIR" >&2
-  echo "调试: COLYN_BIN = $COLYN_BIN" >&2
-  echo "调试: 文件存在? $(test -f "$COLYN_BIN" && echo '是' || echo '否')" >&2
-  echo "调试: ls -la $COLYN_BIN" >&2
-  ls -la "$COLYN_BIN" 2>&1 >&2 || echo "  (文件不存在)" >&2
-
   if [[ ! -f "$COLYN_BIN" ]]; then
     echo "错误: 找不到 colyn" >&2
     return 1
