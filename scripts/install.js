@@ -218,33 +218,18 @@ async function main() {
   }
   success('package.json 复制完成');
 
-  // 复制 shell/colyn.sh
-  info('复制 shell/colyn.sh 到 colyn.d/');
-  const shellSrc = path.join(projectRoot, 'shell', 'colyn.sh');
-  const shellDest = path.join(colynDir, 'colyn.sh');
+  // 复制 shell 目录
+  info('复制 shell/ 目录到 colyn.d/');
+  const shellDirSrc = path.join(projectRoot, 'shell');
+  const shellDirDest = path.join(colynDir, 'shell');
 
-  const shellCopied = await copyFile(shellSrc, shellDest);
-  if (!shellCopied) {
-    error('复制 shell/colyn.sh 失败');
+  try {
+    await copyDirectory(shellDirSrc, shellDirDest);
+    success('shell/ 目录复制完成');
+  } catch (err) {
+    error(`复制 shell/ 目录失败: ${err.message}`);
     process.exit(1);
   }
-  success('colyn.sh 复制完成');
-
-  // 复制补全脚本
-  info('复制补全脚本到 colyn.d/');
-  const completionBashSrc = path.join(projectRoot, 'shell', 'completion.bash');
-  const completionBashDest = path.join(colynDir, 'completion.bash');
-  const completionZshSrc = path.join(projectRoot, 'shell', 'completion.zsh');
-  const completionZshDest = path.join(colynDir, 'completion.zsh');
-
-  const bashCopied = await copyFile(completionBashSrc, completionBashDest);
-  const zshCopied = await copyFile(completionZshSrc, completionZshDest);
-
-  if (!bashCopied || !zshCopied) {
-    error('复制补全脚本失败');
-    process.exit(1);
-  }
-  success('补全脚本复制完成');
 
   // 复制 README.md（可选）
   const readmeSrc = path.join(projectRoot, 'README.md');
@@ -354,11 +339,11 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
       info(`  node "${path.join(colynDir, 'dist', 'index.js')}" system-integration`);
       info('');
       info('或手动添加以下内容到 shell 配置文件：');
-      info(`  source "${shellDest}"`);
+      info(`  source "${path.join(colynDir, 'shell', 'colyn.sh')}"`);
 
       const completionPath = shellConfigPath.includes('.zshrc')
-        ? path.join(colynDir, 'completion.zsh')
-        : path.join(colynDir, 'completion.bash');
+        ? path.join(colynDir, 'shell', 'completion.zsh')
+        : path.join(colynDir, 'shell', 'completion.bash');
       info(`  source "${completionPath}"`);
     }
   }
@@ -373,9 +358,10 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
   info('├── colyn.d/           # 程序文件');
   info('│   ├── dist/          # 编译后的代码');
   info('│   ├── node_modules/  # 依赖包');
-  info('│   ├── colyn.sh       # Shell 集成脚本');
-  info('│   ├── completion.bash # Bash 补全脚本');
-  info('│   ├── completion.zsh  # Zsh 补全脚本');
+  info('│   ├── shell/         # Shell 集成脚本');
+  info('│   │   ├── colyn.sh   # Shell 集成脚本');
+  info('│   │   ├── completion.bash # Bash 补全脚本');
+  info('│   │   └── completion.zsh  # Zsh 补全脚本');
   info('│   └── package.json   # 包配置');
 
   if (platform === 'win32') {
@@ -413,7 +399,7 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
 
     log('如需手动配置:', 'yellow');
     info('添加以下内容到 ~/.bashrc 或 ~/.zshrc：');
-    info(`  source "${shellDest}"`);
+    info(`  source "${path.join(colynDir, 'shell', 'colyn.sh')}"`);
   }
   console.log('');
 }
