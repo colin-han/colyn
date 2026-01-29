@@ -219,23 +219,194 @@ tmux select-pane -t 0
 
 ### 2.5 Pane 内容自动化
 
-#### 2.5.1 左侧 Pane（Claude Code）
+#### 2.5.1 配置文件
 
-**行为**：
-- 切换到 worktree 目录
-- **不**自动启动 Claude
-- 等待用户手动运行 `claude`
+Pane 命令可通过配置文件自定义（可选）。
+
+**两层配置机制**：
+
+| 层级 | 路径 | 说明 |
+|------|------|------|
+| 用户级 | `~/.colyn/settings.json` | 用户默认配置，适用于所有项目 |
+| 项目级 | `{projectRoot}/.colyn/settings.json` | 项目特定配置，覆盖用户级设置 |
+
+**优先级**：项目级 > 用户级 > 内置默认值
+
+**配置格式**：
+
+```json
+{
+  "tmux": {
+    "autoRun": true,
+    "leftPane": {
+      "command": "auto continues claude session",
+      "size": "60%"
+    },
+    "rightTopPane": {
+      "command": "auto start dev server",
+      "size": "30%"
+    },
+    "rightBottomPane": {
+      "command": null,
+      "size": "70%"
+    }
+  }
+}
+```
+
+**配置说明**：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `autoRun` | boolean | `true` | 是否自动运行命令，`false` 禁用所有自动运行 |
+| `leftPane.command` | string \| null | 见下方 | 左侧 Pane 命令 |
+| `leftPane.size` | string | `"60%"` | 左侧 Pane 宽度 |
+| `rightTopPane.command` | string \| null | 见下方 | 右上 Pane 命令 |
+| `rightTopPane.size` | string | `"30%"` | 右上 Pane 占右侧高度比例 |
+| `rightBottomPane.command` | string \| null | `null` | 右下 Pane 命令 |
+| `rightBottomPane.size` | string | `"70%"` | 右下 Pane 占右侧高度比例 |
+
+**内置命令**：
+
+| 命令 | 说明 |
+|------|------|
+| `auto continues claude session` | 自动继续 Claude 会话（检测 `.claude` 目录，存在则 `claude -c`，否则 `claude`）|
+| `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` 参数 |
+| `auto start dev server` | 自动启动 dev server（检测 package.json 的 dev 脚本）|
+
+**默认值**：
+- `leftPane.command`: `"auto continues claude session"`
+- `rightTopPane.command`: `"auto start dev server"`
+- `rightBottomPane.command`: `null`（不执行命令）
+
+**"auto" 检测逻辑**：
+
+| 内置命令 | 检测逻辑 |
+|---------|---------|
+| `auto continues claude session` | 检查 `.claude` 目录，存在则 `claude -c`，否则 `claude` |
+| `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` 参数 |
+| `auto start dev server` | 检查 package.json 的 dev 脚本，存在则运行 |
+
+**配置示例**：
+
+```json
+// 禁用所有自动命令
+{
+  "tmux": {
+    "autoRun": false
+  }
+}
+
+// 自定义命令
+{
+  "tmux": {
+    "leftPane": {
+      "command": "nvim"
+    },
+    "rightTopPane": {
+      "command": "npm run start"
+    },
+    "rightBottomPane": {
+      "command": "htop"
+    }
+  }
+}
+
+// 自定义布局大小
+{
+  "tmux": {
+    "leftPane": {
+      "size": "50%"
+    },
+    "rightTopPane": {
+      "size": "40%"
+    }
+  }
+}
+
+// 使用 dangerously skip permissions 模式
+{
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions"
+    }
+  }
+}
+
+// 禁用 Claude 自动启动
+{
+  "tmux": {
+    "leftPane": {
+      "command": null
+    }
+  }
+}
+```
+
+**两层配置合并示例**：
+
+```json
+// ~/.colyn/settings.json（用户级）
+{
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions",
+      "size": "50%"
+    },
+    "rightBottomPane": {
+      "command": "htop"
+    }
+  }
+}
+
+// {projectRoot}/.colyn/settings.json（项目级）
+{
+  "tmux": {
+    "leftPane": {
+      "command": "nvim"  // 只覆盖 command，保留用户级的 size
+    }
+  }
+}
+
+// 最终生效配置
+{
+  "tmux": {
+    "autoRun": true,
+    "leftPane": {
+      "command": "nvim",
+      "size": "50%"
+    },
+    "rightTopPane": {
+      "command": "auto start dev server",
+      "size": "30%"
+    },
+    "rightBottomPane": {
+      "command": "htop",
+      "size": "70%"
+    }
+  }
+}
+```
+
+**遵循最小配置原则**：配置文件完全可选，不存在时使用默认行为。
+
+#### 2.5.2 左侧 Pane（Claude Code）
+
+**默认行为（"auto"）**：
+- 检测 worktree 目录下是否存在 `.claude` 目录
+- 如果存在，执行 `claude -c` 继续会话
+- 如果不存在，执行 `claude` 启动新会话
 
 **原因**：
-- 用户可能想先检查代码
-- Claude 启动后会占据 pane
-- 给用户完全的控制权
+- `.claude` 目录表示之前有 Claude 会话
+- `-c` 参数可以继续之前的会话
+- 新 worktree 启动新会话
 
-#### 2.5.2 右上 Pane（Dev Server）
+#### 2.5.3 右上 Pane（Dev Server）
 
-**行为**：
+**默认行为（"auto"）**：
 - 检测 package.json 的 `dev` 脚本
-- 自动执行 `npm run dev`
+- 自动执行 `npm run dev` / `yarn dev` / `pnpm dev`
 - PORT 从 .env.local 自动读取
 
 **检测逻辑**：
@@ -258,9 +429,9 @@ else {
 - ✅ npm 项目（MVP）
 - ❌ Rails、Django 等（未来可扩展）
 
-#### 2.5.3 右下 Pane（Bash）
+#### 2.5.4 右下 Pane（Bash）
 
-**行为**：
+**默认行为（null）**：
 - 切换到 worktree 目录
 - **不**执行额外命令
 - 保持干净的 shell

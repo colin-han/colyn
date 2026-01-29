@@ -28,7 +28,7 @@ import {
   getWindowCurrentName,
   renameWindow
 } from '../core/tmux.js';
-import { getDevServerCommand } from '../core/dev-server.js';
+import { loadTmuxConfig, resolvePaneCommands, resolvePaneLayout, type TmuxConfig } from '../core/tmux-config.js';
 
 /**
  * 修复结果接口
@@ -76,10 +76,10 @@ interface TmuxRepairResult {
  */
 async function repairTmuxWindows(
   projectName: string,
+  projectRoot: string,
   mainDir: string,
   mainBranch: string,
-  worktrees: Array<{ id: number; branch: string; path: string }>,
-  configDir: string
+  worktrees: Array<{ id: number; branch: string; path: string }>
 ): Promise<TmuxRepairResult> {
   const result: TmuxRepairResult = {
     available: false,
@@ -122,6 +122,9 @@ async function repairTmuxWindows(
   }
   result.sessionName = sessionName;
 
+  // 加载 tmux 配置
+  const tmuxConfig = await loadTmuxConfig(projectRoot);
+
   // 修复 Window 0 (main)
   await repairSingleWindow(
     result,
@@ -129,7 +132,8 @@ async function repairTmuxWindows(
     0,
     mainBranch,
     mainDir,
-    configDir
+    tmuxConfig,
+    projectRoot
   );
 
   // 修复所有 worktree windows
@@ -140,7 +144,8 @@ async function repairTmuxWindows(
       wt.id,
       wt.branch,
       wt.path,
-      configDir
+      tmuxConfig,
+      projectRoot
     );
   }
 
@@ -156,7 +161,8 @@ async function repairSingleWindow(
   windowIndex: number,
   branch: string,
   workingDir: string,
-  configDir: string
+  tmuxConfig: TmuxConfig,
+  _projectRoot: string
 ): Promise<void> {
   const expectedName = getWindowName(branch);
 
@@ -189,13 +195,17 @@ async function repairSingleWindow(
 
   // Window 不存在，创建并设置布局
   try {
-    const devCommand = await getDevServerCommand(workingDir, configDir);
+    // 解析 pane 命令和布局
+    const paneCommands = await resolvePaneCommands(tmuxConfig, workingDir);
+    const paneLayout = resolvePaneLayout(tmuxConfig);
+
     const success = setupWindow({
       sessionName,
       windowIndex,
       windowName: expectedName,
       workingDir,
-      devCommand,
+      paneCommands,
+      paneLayout,
       skipWindowCreation: windowIndex === 0 // Window 0 需要特殊处理
     });
 
@@ -828,10 +838,10 @@ export async function repairProject(): Promise<void> {
 
   const tmuxResult = await repairTmuxWindows(
     paths.mainDirName,
+    paths.rootDir,
     paths.mainDir,
     mainBranch,
-    worktrees.map(wt => ({ id: wt.id, branch: wt.branch, path: wt.path })),
-    paths.configDir
+    worktrees.map(wt => ({ id: wt.id, branch: wt.branch, path: wt.path }))
   );
 
   if (!tmuxResult.available) {
