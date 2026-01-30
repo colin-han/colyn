@@ -128,8 +128,9 @@ function getEffectivePaneConfig(
   size: string;
   sizeIsDefault: boolean;
 } {
-  const command = config?.command ?? defaultConfig.command;
-  const size = config?.size ?? defaultConfig.size;
+  // 注意：必须区分 null（明确设置为不执行）和 undefined（未设置，使用默认值）
+  const command = config?.command !== undefined ? config.command : defaultConfig.command;
+  const size = config?.size !== undefined ? config.size : defaultConfig.size;
   return {
     command,
     commandIsDefault: config?.command === undefined,
@@ -215,22 +216,30 @@ function printBuiltinCommands(): void {
  */
 function buildEffectiveConfig(config: TmuxConfig): TmuxConfig {
   return {
-    autoRun: config.autoRun ?? DEFAULT_CONFIG.autoRun,
+    autoRun: config.autoRun !== undefined ? config.autoRun : DEFAULT_CONFIG.autoRun,
     leftPane: {
-      command: config.leftPane?.command ?? DEFAULT_CONFIG.leftPane.command,
-      size: config.leftPane?.size ?? DEFAULT_CONFIG.leftPane.size,
+      command: config.leftPane?.command !== undefined
+        ? config.leftPane.command
+        : DEFAULT_CONFIG.leftPane.command,
+      size: config.leftPane?.size !== undefined
+        ? config.leftPane.size
+        : DEFAULT_CONFIG.leftPane.size,
     },
     rightTopPane: {
-      command:
-        config.rightTopPane?.command ?? DEFAULT_CONFIG.rightTopPane.command,
-      size: config.rightTopPane?.size ?? DEFAULT_CONFIG.rightTopPane.size,
+      command: config.rightTopPane?.command !== undefined
+        ? config.rightTopPane.command
+        : DEFAULT_CONFIG.rightTopPane.command,
+      size: config.rightTopPane?.size !== undefined
+        ? config.rightTopPane.size
+        : DEFAULT_CONFIG.rightTopPane.size,
     },
     rightBottomPane: {
-      command:
-        config.rightBottomPane?.command ??
-        DEFAULT_CONFIG.rightBottomPane.command,
-      size:
-        config.rightBottomPane?.size ?? DEFAULT_CONFIG.rightBottomPane.size,
+      command: config.rightBottomPane?.command !== undefined
+        ? config.rightBottomPane.command
+        : DEFAULT_CONFIG.rightBottomPane.command,
+      size: config.rightBottomPane?.size !== undefined
+        ? config.rightBottomPane.size
+        : DEFAULT_CONFIG.rightBottomPane.size,
     },
   };
 }
