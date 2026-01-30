@@ -5,7 +5,7 @@
  *
  * 配置文件层级（优先级从低到高）：
  * 1. 内置默认值
- * 2. 用户级配置：~/.colyn/settings.json
+ * 2. 用户级配置：~/.config/colyn/settings.json
  * 3. 项目级配置：{projectRoot}/.colyn/settings.json
  */
 
@@ -120,9 +120,10 @@ const DEFAULT_CONFIG: Required<TmuxConfig> = {
 
 /**
  * 获取用户级配置目录
+ * 遵循 XDG Base Directory 规范
  */
 export function getUserConfigDir(): string {
-  return path.join(os.homedir(), CONFIG_DIR);
+  return path.join(os.homedir(), '.config', 'colyn');
 }
 
 /**
@@ -225,7 +226,7 @@ function mergeConfigs(base: TmuxConfig, override: TmuxConfig): TmuxConfig {
  *
  * 配置加载顺序（优先级从低到高）：
  * 1. 内置默认值
- * 2. 用户级配置：~/.colyn/settings.json 中的 tmux 字段
+ * 2. 用户级配置：~/.config/colyn/settings.json 中的 tmux 字段
  * 3. 项目级配置：{projectRoot}/.colyn/settings.json 中的 tmux 字段
  *
  * @param projectRoot 项目根目录
@@ -358,13 +359,17 @@ export async function resolvePaneCommands(
   worktreePath: string
 ): Promise<ResolvedPaneCommands> {
   // 合并默认配置
-  const autoRun = config.autoRun ?? DEFAULT_CONFIG.autoRun;
-  const leftCommand =
-    config.leftPane?.command ?? DEFAULT_CONFIG.leftPane.command;
-  const rightTopCommand =
-    config.rightTopPane?.command ?? DEFAULT_CONFIG.rightTopPane.command;
-  const rightBottomCommand =
-    config.rightBottomPane?.command ?? DEFAULT_CONFIG.rightBottomPane.command;
+  // 注意：必须区分 null（明确设置为不执行）和 undefined（未设置，使用默认值）
+  const autoRun = config.autoRun !== undefined ? config.autoRun : DEFAULT_CONFIG.autoRun;
+  const leftCommand = config.leftPane?.command !== undefined
+    ? config.leftPane.command
+    : DEFAULT_CONFIG.leftPane.command;
+  const rightTopCommand = config.rightTopPane?.command !== undefined
+    ? config.rightTopPane.command
+    : DEFAULT_CONFIG.rightTopPane.command;
+  const rightBottomCommand = config.rightBottomPane?.command !== undefined
+    ? config.rightBottomPane.command
+    : DEFAULT_CONFIG.rightBottomPane.command;
 
   // 如果禁用自动运行，返回空对象
   if (!autoRun) {
