@@ -538,7 +538,7 @@ export const zhCN = {
       default: '(默认)',
       noCommand: '(不执行命令)',
       builtin: '(内置)',
-      autoClaudeDesc: '自动继续 Claude 会话（检测 .claude 目录）',
+      autoClaudeDesc: '自动继续 Claude 会话（检测已有会话）',
       autoClaudeDangerouslyDesc: '同上，但添加 --dangerously-skip-permissions 参数',
       autoDevServerDesc: '自动启动 dev server（检测 package.json）',
     },

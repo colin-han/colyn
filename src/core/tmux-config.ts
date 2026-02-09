@@ -257,17 +257,39 @@ export async function loadTmuxConfig(projectRoot: string): Promise<TmuxConfig> {
 
 /**
  * 检查 worktree 是否存在 Claude session
- * 通过检查 .claude 目录是否存在来判断
+ * 通过检查 ~/.claude/projects/{encodedPath} 下是否存在会话文件来判断
  * @param worktreePath worktree 路径
  */
 export async function hasClaudeSession(worktreePath: string): Promise<boolean> {
-  const claudeDir = path.join(worktreePath, '.claude');
   try {
-    const stat = await fs.stat(claudeDir);
-    return stat.isDirectory();
+    const projectDir = getClaudeProjectDir(worktreePath);
+    const stat = await fs.stat(projectDir);
+    if (!stat.isDirectory()) {
+      return false;
+    }
+
+    const files = await fs.readdir(projectDir);
+    return files.some((file) => file.endsWith('.jsonl'));
   } catch {
     return false;
   }
+}
+
+/**
+ * 获取 Claude 项目会话目录
+ * Claude CLI 将每个目录的会话写入 ~/.claude/projects/{encodedPath}
+ */
+function getClaudeProjectDir(worktreePath: string): string {
+  const encodedPath = encodeClaudeProjectPath(worktreePath);
+  return path.join(os.homedir(), '.claude', 'projects', encodedPath);
+}
+
+/**
+ * Claude 项目目录编码规则：将路径分隔符替换为 '-'
+ * 例：/Users/name/project -> -Users-name-project
+ */
+function encodeClaudeProjectPath(worktreePath: string): string {
+  return worktreePath.split(path.sep).join('-');
 }
 
 /**
