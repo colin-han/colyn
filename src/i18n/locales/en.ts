@@ -538,7 +538,7 @@ Or force delete:
       default: '(default)',
       noCommand: '(no command)',
       builtin: '(builtin)',
-      autoClaudeDesc: 'Auto continue Claude session (detect .claude directory)',
+      autoClaudeDesc: 'Auto continue Claude session (detect existing session)',
       autoClaudeDangerouslyDesc: 'Same as above, but add --dangerously-skip-permissions flag',
       autoDevServerDesc: 'Auto start dev server (detect package.json)',
     },

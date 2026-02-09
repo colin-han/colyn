@@ -270,7 +270,7 @@ Pane 命令可通过配置文件自定义（可选）。
 
 | 命令 | 说明 |
 |------|------|
-| `auto continues claude session` | 自动继续 Claude 会话（检测 `.claude` 目录，存在则 `claude -c`，否则 `claude`）|
+| `auto continues claude session` | 自动继续 Claude 会话（检测当前目录是否已有 Claude session，存在则 `claude -c`，否则 `claude`）|
 | `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` 参数 |
 | `auto start dev server` | 自动启动 dev server（检测 package.json 的 dev 脚本）|
 
@@ -283,7 +283,7 @@ Pane 命令可通过配置文件自定义（可选）。
 
 | 内置命令 | 检测逻辑 |
 |---------|---------|
-| `auto continues claude session` | 检查 `.claude` 目录，存在则 `claude -c`，否则 `claude` |
+| `auto continues claude session` | 检查当前目录是否已有 Claude session，存在则 `claude -c`，否则 `claude` |
 | `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` 参数 |
 | `auto start dev server` | 检查 package.json 的 dev 脚本，存在则运行 |
 
@@ -393,14 +393,16 @@ Pane 命令可通过配置文件自定义（可选）。
 #### 2.5.2 左侧 Pane（Claude Code）
 
 **默认行为（"auto"）**：
-- 检测 worktree 目录下是否存在 `.claude` 目录
+- 检测当前目录是否已有 Claude session
+- 通过检查 `~/.claude/projects/{encodedPath}` 是否存在 `.jsonl` 会话文件判断
+- `{encodedPath}` 规则：将绝对路径中的分隔符 `/` 替换为 `-`（例：`/Users/name/project` → `-Users-name-project`）
 - 如果存在，执行 `claude -c` 继续会话
 - 如果不存在，执行 `claude` 启动新会话
 
 **原因**：
-- `.claude` 目录表示之前有 Claude 会话
-- `-c` 参数可以继续之前的会话
-- 新 worktree 启动新会话
+- `.claude` 目录可能仅包含日志，不能准确代表 Claude session
+- `~/.claude/projects/{encodedPath}` 记录了该目录的 Claude 会话
+- `-c` 参数仅在已有会话时继续，避免错误复用
 
 #### 2.5.3 右上 Pane（Dev Server）
 
