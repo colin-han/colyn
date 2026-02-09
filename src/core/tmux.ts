@@ -524,3 +524,16 @@ export function switchClient(sessionName: string): boolean {
     return false;
   }
 }
+
+/**
+ * 断开当前客户端连接（在 tmux 中时使用）
+ * @returns 是否成功
+ */
+export function detachClient(): boolean {
+  try {
+    execTmux('detach-client', { silent: true });
+    return true;
+  } catch {
+    return false;
+  }
+}

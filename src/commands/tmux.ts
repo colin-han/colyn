@@ -5,7 +5,9 @@
  */
 
 import { Command } from 'commander';
+import enquirer from 'enquirer';
 import ora from 'ora';
+import { t } from '../i18n/index.js';
 import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import {
@@ -20,7 +22,8 @@ import {
   getWindowCurrentName,
   renameWindow,
   switchClient,
-  killSession
+  killSession,
+  detachClient
 } from '../core/tmux.js';
 import {
   loadTmuxConfig,
@@ -407,7 +410,7 @@ async function tmuxStartCommand(): Promise<void> {
 /**
  * tmux stop 命令主函数
  */
-async function tmuxStopCommand(): Promise<void> {
+async function tmuxStopCommand(options: { force?: boolean }): Promise<void> {
   try {
     // 检查 tmux 是否可用
     if (!isTmuxAvailable()) {
@@ -425,36 +428,60 @@ async function tmuxStopCommand(): Promise<void> {
 
     // 2. 检查 session 是否存在
     if (!sessionExists(sessionName)) {
-      outputWarning(`Session "${sessionName}" 不存在`);
+      outputWarning(t('commands.tmux.sessionNotExists', { sessionName }));
       outputResult({ success: true });
       return;
     }
 
     // 3. 检查是否在目标 session 中
     const inTmux = isInTmux();
+    let needDetach = false;
+
     if (inTmux) {
       const currentSession = getCurrentSession();
       if (currentSession === sessionName) {
-        throw new ColynError(
-          '无法结束当前 session',
-          `您正在 session "${sessionName}" 中，无法结束当前 session。请先切换到其他 session 或退出 tmux。`
-        );
+        needDetach = true;
       }
     }
 
-    // 4. 结束 session
+    // 4. 如果需要 detach 且没有 --force，则请求确认
+    if (needDetach && !options.force) {
+      const { confirmed } = await enquirer.prompt<{ confirmed: boolean }>({
+        type: 'confirm',
+        name: 'confirmed',
+        message: t('commands.tmux.confirmStop', { sessionName }),
+        initial: false,
+        stdout: process.stderr // 重要：输出到 stderr
+      });
+
+      if (!confirmed) {
+        output(t('commands.tmux.stopCanceled'));
+        outputResult({ success: false });
+        return;
+      }
+    }
+
+    // 5. 结束 session
     const spinner = ora({
-      text: `正在结束 tmux session "${sessionName}"...`,
+      text: t('commands.tmux.stoppingSession', { sessionName }),
       stream: process.stderr
     }).start();
+
+    // 如果需要 detach，先断开连接
+    if (needDetach) {
+      spinner.text = t('commands.tmux.detachingAndStopping', { sessionName });
+      detachClient();
+      // 给 tmux 一点时间处理 detach
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     const success = killSession(sessionName);
 
     if (success) {
-      spinner.succeed(`已结束 tmux session "${sessionName}"`);
+      spinner.succeed(t('commands.tmux.sessionStopped', { sessionName }));
       outputResult({ success: true });
     } else {
-      spinner.fail(`结束 tmux session "${sessionName}" 失败`);
+      spinner.fail(t('commands.tmux.stopFailed', { sessionName }));
       outputResult({ success: false });
       process.exit(1);
     }
@@ -473,12 +500,12 @@ async function tmuxStopCommand(): Promise<void> {
 export function register(program: Command): void {
   const tmux = program
     .command('tmux')
-    .description('管理项目的 tmux session 和 windows');
+    .description(t('commands.tmux.description'));
 
   // start 子命令
   tmux
     .command('start')
-    .description('启动并修复项目的 tmux session 和 windows')
+    .description(t('commands.tmux.startDescription'))
     .action(async () => {
       await tmuxStartCommand();
     });
@@ -486,9 +513,10 @@ export function register(program: Command): void {
   // stop 子命令
   tmux
     .command('stop')
-    .description('结束当前项目的 tmux session')
-    .action(async () => {
-      await tmuxStopCommand();
+    .description(t('commands.tmux.stopDescription'))
+    .option('-f, --force', t('commands.tmux.forceOption'))
+    .action(async (options: { force?: boolean }) => {
+      await tmuxStopCommand(options);
     });
 
   // 默认执行 start 命令

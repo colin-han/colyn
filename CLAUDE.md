@@ -133,6 +133,123 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
 
 ---
 
+## 国际化规范（i18n）
+
+本项目使用 i18next 实现国际化，**所有用户可见的文本都必须本地化**。
+
+### 基本要求
+
+1. **禁止硬编码文本**
+   - ❌ 不要在代码中直接使用中文或英文字符串
+   - ✅ 所有用户提示、错误消息、命令描述都必须使用 `t()` 函数
+
+2. **必须本地化的内容**
+   - 命令描述（`.description()`）
+   - 选项描述（`.option()`）
+   - 所有用户提示信息
+   - 错误消息和提示
+   - 交互式 prompt 的 message
+   - Spinner 加载动画的文本
+   - 成功/警告/错误消息
+
+### 实现步骤
+
+**步骤 1：在翻译文件中添加文本**
+
+中文翻译文件：`src/i18n/locales/zh-CN.ts`
+英文翻译文件：`src/i18n/locales/en.ts`
+
+```typescript
+// 在 zh-CN.ts 的 commands 部分添加
+myCommand: {
+  description: '命令描述',
+  confirmAction: '确认要执行操作吗？',
+  actionSuccess: '操作成功',
+  actionFailed: '操作失败：{{error}}',
+}
+```
+
+**步骤 2：在代码中使用 t() 函数**
+
+```typescript
+import { t } from '../i18n/index.js';
+
+// ✅ 正确 - 使用 t() 函数
+program
+  .command('myCommand')
+  .description(t('commands.myCommand.description'))
+  .action(async () => {
+    const spinner = ora({
+      text: t('commands.myCommand.processing'),
+      stream: process.stderr
+    }).start();
+
+    spinner.succeed(t('commands.myCommand.actionSuccess'));
+  });
+
+// ❌ 错误 - 硬编码文本
+program
+  .command('myCommand')
+  .description('我的命令')  // 不要这样做！
+```
+
+**步骤 3：使用变量插值**
+
+```typescript
+// 翻译文件
+sessionNotExists: 'Session "{{sessionName}}" 不存在',
+
+// 代码中使用
+outputWarning(t('commands.tmux.sessionNotExists', { sessionName }));
+```
+
+### 特殊情况处理
+
+**交互式 prompt**
+
+```typescript
+// ✅ 正确 - message 使用 t()
+const { confirmed } = await enquirer.prompt<{ confirmed: boolean }>({
+  type: 'confirm',
+  name: 'confirmed',
+  message: t('commands.myCommand.confirmAction'),
+  initial: false,
+  stdout: process.stderr
+});
+```
+
+**命令选项**
+
+```typescript
+// ✅ 正确 - 描述使用 t()
+.option('-f, --force', t('commands.myCommand.forceOption'))
+```
+
+### 翻译文件组织
+
+在 `commands` 部分按命令名组织：
+
+```typescript
+commands: {
+  add: { ... },
+  remove: { ... },
+  merge: { ... },
+  tmux: { ... },  // 新命令的翻译放在这里
+}
+```
+
+### 检查清单
+
+在提交代码前，确保：
+
+- [ ] 所有硬编码文本都已移到翻译文件
+- [ ] 中文和英文翻译文件都已更新
+- [ ] 使用 `LANG=zh_CN.UTF-8` 测试中文输出
+- [ ] 使用 `LANG=en_US.UTF-8` 测试英文输出
+- [ ] 变量插值格式正确（使用 `{{variableName}}`）
+
+---
+
 ## 命令输出规范（双层架构）
 
 本项目使用 Bash + Node.js 双层架构，**必须严格区分 stdout 和 stderr**：

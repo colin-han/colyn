@@ -598,6 +598,21 @@ export const zhCN = {
       featureAutoSwitch: '✓ colyn 命令支持自动目录切换',
       featureCompletion: '✓ 使用 Tab 键可自动完成命令和参数',
     },
+
+    // tmux command
+    tmux: {
+      description: '管理项目的 tmux session 和 windows',
+      startDescription: '启动并修复项目的 tmux session 和 windows',
+      stopDescription: '结束当前项目的 tmux session',
+      forceOption: '跳过确认直接结束',
+      confirmStop: '确认要结束当前 session "{{sessionName}}" 吗？这将断开您的连接。',
+      stopCanceled: '已取消',
+      sessionNotExists: 'Session "{{sessionName}}" 不存在',
+      stoppingSession: '正在结束 tmux session "{{sessionName}}"...',
+      detachingAndStopping: '正在断开连接并结束 session "{{sessionName}}"...',
+      sessionStopped: '已结束 tmux session "{{sessionName}}"',
+      stopFailed: '结束 tmux session "{{sessionName}}" 失败',
+    },
   },
 
   // Errors
