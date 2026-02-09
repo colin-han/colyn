@@ -598,6 +598,21 @@ Solution:
       featureAutoSwitch: '✓ colyn command supports auto directory switching',
       featureCompletion: '✓ Use Tab key for auto-completion',
     },
+
+    // tmux command
+    tmux: {
+      description: 'Manage tmux session and windows for the project',
+      startDescription: 'Start and repair tmux session and windows',
+      stopDescription: 'Stop the current project tmux session',
+      forceOption: 'Skip confirmation and stop directly',
+      confirmStop: 'Confirm to stop current session "{{sessionName}}"? This will disconnect you.',
+      stopCanceled: 'Canceled',
+      sessionNotExists: 'Session "{{sessionName}}" does not exist',
+      stoppingSession: 'Stopping tmux session "{{sessionName}}"...',
+      detachingAndStopping: 'Detaching and stopping session "{{sessionName}}"...',
+      sessionStopped: 'Stopped tmux session "{{sessionName}}"',
+      stopFailed: 'Failed to stop tmux session "{{sessionName}}"',
+    },
   },
 
   // Errors
