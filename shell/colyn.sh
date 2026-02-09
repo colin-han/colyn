@@ -31,10 +31,14 @@ colyn() {
   # 处理输出
   if [[ -n "$result" ]]; then
     # 尝试解析 JSON
-    local target_dir display_path
+    local target_dir display_path attach_session
     target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.targetDir)console.log(r.targetDir)}catch(e){process.exit(1)}" "$result" 2>/dev/null)
+    attach_session=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.attachSession)console.log(r.attachSession)}catch(e){}" "$result" 2>/dev/null)
 
-    if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
+    if [[ $? -eq 0 && -n "$attach_session" ]]; then
+      # 需要连接到 tmux session
+      exec tmux attach-session -t "$attach_session"
+    elif [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
       # 是 JSON 且有目标目录
       display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log(r.displayPath||r.targetDir)}catch(e){}" "$result" 2>/dev/null)
       cd "$target_dir" || return

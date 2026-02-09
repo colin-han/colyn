@@ -3,7 +3,7 @@ import * as path from 'path';
 import ora from 'ora';
 import simpleGit from 'simple-git';
 import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
-import { getMainPort, discoverWorktrees, getMainBranch } from '../core/discovery.js';
+import { getMainPort, discoverWorktrees } from '../core/discovery.js';
 import { updateEnvFilePreserveComments, readEnvFile } from '../core/env.js';
 import { checkIsRepo } from '../core/git.js';
 import {
@@ -16,19 +16,6 @@ import {
 } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
-import {
-  isTmuxAvailable,
-  isInTmux,
-  getCurrentSession,
-  sessionExists,
-  createSession,
-  windowExists,
-  setupWindow,
-  getWindowName,
-  getWindowCurrentName,
-  renameWindow
-} from '../core/tmux.js';
-import { loadTmuxConfig, resolvePaneCommands, resolvePaneLayout, type TmuxConfig } from '../core/tmux-config.js';
 
 /**
  * 修复结果接口
@@ -44,185 +31,6 @@ interface RepairResult {
   details?: string[];
   /** 错误信息 */
   error?: string;
-}
-
-/**
- * tmux 修复结果
- */
-interface TmuxRepairResult {
-  /** 是否可用 */
-  available: boolean;
-  /** session 名称 */
-  sessionName?: string;
-  /** 是否在 tmux 中 */
-  inTmux: boolean;
-  /** 是否创建了 session */
-  createdSession: boolean;
-  /** 创建的 window 列表 */
-  createdWindows: Array<{ id: number; name: string }>;
-  /** 已存在的 window 列表（跳过） */
-  existingWindows: Array<{ id: number; name: string }>;
-  /** 重命名的 window 列表 */
-  renamedWindows: Array<{ id: number; oldName: string; newName: string }>;
-  /** 修复失败的 */
-  failedWindows: Array<{ id: number; error: string }>;
-}
-
-/**
- * 修复 tmux windows
- * - 如果 session 不存在，创建 session
- * - 如果 window 不存在，创建并设置三分布局
- * - 如果 window 已存在，不修改已有布局
- */
-async function repairTmuxWindows(
-  projectName: string,
-  projectRoot: string,
-  mainDir: string,
-  mainBranch: string,
-  worktrees: Array<{ id: number; branch: string; path: string }>
-): Promise<TmuxRepairResult> {
-  const result: TmuxRepairResult = {
-    available: false,
-    inTmux: false,
-    createdSession: false,
-    createdWindows: [],
-    existingWindows: [],
-    renamedWindows: [],
-    failedWindows: []
-  };
-
-  // 检查 tmux 是否可用
-  if (!isTmuxAvailable()) {
-    return result;
-  }
-  result.available = true;
-
-  // 确定 session 名称
-  const inTmux = isInTmux();
-  result.inTmux = inTmux;
-
-  let sessionName: string;
-  if (inTmux) {
-    const currentSession = getCurrentSession();
-    if (!currentSession) {
-      return result;
-    }
-    sessionName = currentSession;
-  } else {
-    // 不在 tmux 中，检查项目 session 是否存在
-    if (!sessionExists(projectName)) {
-      // Session 不存在，创建它
-      const created = createSession(projectName, mainDir);
-      if (!created) {
-        return result;
-      }
-      result.createdSession = true;
-    }
-    sessionName = projectName;
-  }
-  result.sessionName = sessionName;
-
-  // 加载 tmux 配置
-  const tmuxConfig = await loadTmuxConfig(projectRoot);
-
-  // 修复 Window 0 (main)
-  await repairSingleWindow(
-    result,
-    sessionName,
-    0,
-    mainBranch,
-    mainDir,
-    tmuxConfig,
-    projectRoot
-  );
-
-  // 修复所有 worktree windows
-  for (const wt of worktrees) {
-    await repairSingleWindow(
-      result,
-      sessionName,
-      wt.id,
-      wt.branch,
-      wt.path,
-      tmuxConfig,
-      projectRoot
-    );
-  }
-
-  return result;
-}
-
-/**
- * 修复单个 tmux window
- */
-async function repairSingleWindow(
-  result: TmuxRepairResult,
-  sessionName: string,
-  windowIndex: number,
-  branch: string,
-  workingDir: string,
-  tmuxConfig: TmuxConfig,
-  _projectRoot: string
-): Promise<void> {
-  const expectedName = getWindowName(branch);
-
-  // 检查 window 是否存在
-  if (windowExists(sessionName, windowIndex)) {
-    // Window 已存在，检查名称是否一致
-    const currentName = getWindowCurrentName(sessionName, windowIndex);
-
-    if (currentName && currentName !== expectedName) {
-      // 名称不一致，需要重命名
-      const renamed = renameWindow(sessionName, windowIndex, expectedName);
-      if (renamed) {
-        result.renamedWindows.push({
-          id: windowIndex,
-          oldName: currentName,
-          newName: expectedName
-        });
-      } else {
-        result.failedWindows.push({
-          id: windowIndex,
-          error: `重命名失败: ${currentName} → ${expectedName}`
-        });
-      }
-    } else {
-      // 名称一致，跳过
-      result.existingWindows.push({ id: windowIndex, name: expectedName });
-    }
-    return;
-  }
-
-  // Window 不存在，创建并设置布局
-  try {
-    // 解析 pane 命令和布局
-    const paneCommands = await resolvePaneCommands(tmuxConfig, workingDir);
-    const paneLayout = resolvePaneLayout(tmuxConfig);
-
-    const success = setupWindow({
-      sessionName,
-      windowIndex,
-      windowName: expectedName,
-      workingDir,
-      paneCommands,
-      paneLayout,
-      skipWindowCreation: windowIndex === 0 // Window 0 需要特殊处理
-    });
-
-    if (success) {
-      result.createdWindows.push({ id: windowIndex, name: expectedName });
-    } else {
-      result.failedWindows.push({
-        id: windowIndex,
-        error: '创建 window 失败'
-      });
-    }
-  } catch (error) {
-    result.failedWindows.push({
-      id: windowIndex,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
 }
 
 /**
@@ -563,8 +371,7 @@ async function detectAndRepairOrphans(
  */
 function displayRepairSummary(
   results: RepairResult[],
-  orphanResult: OrphanDetectionResult,
-  tmuxResult?: TmuxRepairResult
+  orphanResult: OrphanDetectionResult
 ): void {
   outputLine();
   outputSuccess(t('commands.repair.repairComplete') + '\n');
@@ -603,31 +410,6 @@ function displayRepairSummary(
 
   if (totalOrphans === 0) {
     output(`  ${t('commands.repair.noOrphansFound')}`);
-  }
-
-  // 显示 tmux 修复结果
-  if (tmuxResult) {
-    if (!tmuxResult.available) {
-      output('  - tmux 未安装，跳过 window 修复');
-    } else if (!tmuxResult.sessionName) {
-      output('  - tmux session 创建失败');
-    } else {
-      if (tmuxResult.createdSession) {
-        output(`  ✓ 创建了 tmux session: ${tmuxResult.sessionName}`);
-      }
-      if (tmuxResult.createdWindows.length > 0) {
-        output(`  ✓ 创建了 ${tmuxResult.createdWindows.length} 个 tmux window`);
-      }
-      if (tmuxResult.renamedWindows.length > 0) {
-        output(`  ✓ 重命名了 ${tmuxResult.renamedWindows.length} 个 tmux window`);
-      }
-      if (tmuxResult.existingWindows.length > 0) {
-        output(`  ✓ ${tmuxResult.existingWindows.length} 个 tmux window 已存在（保持原布局）`);
-      }
-      if (tmuxResult.failedWindows.length > 0) {
-        outputWarning(`  ⚠ ${tmuxResult.failedWindows.length} 个 tmux window 修复失败`);
-      }
-    }
   }
 
   outputLine();
@@ -678,41 +460,6 @@ function displayRepairSummary(
     outputLine();
     output(t('commands.repair.orphanSuggestion'));
     output(`  ${t('commands.repair.orphanSuggestionHint')}`);
-  }
-
-  // 显示 tmux window 详细信息
-  if (tmuxResult && tmuxResult.sessionName) {
-    if (tmuxResult.createdWindows.length > 0) {
-      outputLine();
-      output('已创建的 tmux window：');
-      for (const win of tmuxResult.createdWindows) {
-        output(`  ✓ Window ${win.id}: ${win.name}`);
-      }
-    }
-
-    if (tmuxResult.existingWindows.length > 0) {
-      outputLine();
-      output('已存在的 tmux window（保持原布局）：');
-      for (const win of tmuxResult.existingWindows) {
-        output(`  - Window ${win.id}: ${win.name}`);
-      }
-    }
-
-    if (tmuxResult.renamedWindows.length > 0) {
-      outputLine();
-      output('已重命名的 tmux window：');
-      for (const win of tmuxResult.renamedWindows) {
-        output(`  ✓ Window ${win.id}: ${win.oldName} → ${win.newName}`);
-      }
-    }
-
-    if (tmuxResult.failedWindows.length > 0) {
-      outputLine();
-      outputWarning('创建失败的 tmux window：');
-      for (const win of tmuxResult.failedWindows) {
-        output(`  ✗ Window ${win.id}: ${win.error}`);
-      }
-    }
   }
 
   outputLine();
@@ -823,45 +570,6 @@ export async function repairProject(): Promise<void> {
     orphanSpinner.warn(t('commands.repair.orphansFound', { count: totalOrphans }));
   }
 
-  // 8. 修复 tmux windows
-  const tmuxSpinner = ora({
-    text: '检查并修复 tmux windows...',
-    stream: process.stderr
-  }).start();
-
-  let mainBranch = 'main';
-  try {
-    mainBranch = await getMainBranch(paths.mainDir);
-  } catch {
-    // 使用默认值
-  }
-
-  const tmuxResult = await repairTmuxWindows(
-    paths.mainDirName,
-    paths.rootDir,
-    paths.mainDir,
-    mainBranch,
-    worktrees.map(wt => ({ id: wt.id, branch: wt.branch, path: wt.path }))
-  );
-
-  if (!tmuxResult.available) {
-    tmuxSpinner.info('tmux 未安装，跳过 window 修复');
-  } else if (!tmuxResult.sessionName) {
-    tmuxSpinner.fail('tmux session 创建失败');
-  } else if (tmuxResult.createdSession) {
-    if (tmuxResult.createdWindows.length > 0) {
-      tmuxSpinner.succeed(`创建了 session "${tmuxResult.sessionName}" 和 ${tmuxResult.createdWindows.length} 个 window`);
-    } else {
-      tmuxSpinner.succeed(`创建了 session "${tmuxResult.sessionName}"`);
-    }
-  } else if (tmuxResult.createdWindows.length > 0) {
-    tmuxSpinner.succeed(`创建了 ${tmuxResult.createdWindows.length} 个 tmux window`);
-  } else if (tmuxResult.failedWindows.length > 0) {
-    tmuxSpinner.warn(`${tmuxResult.failedWindows.length} 个 tmux window 创建失败`);
-  } else {
-    tmuxSpinner.succeed('所有 tmux window 已存在');
-  }
-
-  // 9. 显示修复摘要
-  displayRepairSummary(results, orphanResult, tmuxResult);
+  // 8. 显示修复摘要
+  displayRepairSummary(results, orphanResult);
 }
