@@ -58,6 +58,8 @@ export interface CommandResult {
   targetDir?: string;
   /** 相对于项目根目录的路径（显示给用户） */
   displayPath?: string;
+  /** 需要连接的 tmux session 名称 */
+  attachSession?: string;
 }
 
 /**

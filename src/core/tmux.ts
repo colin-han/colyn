@@ -496,3 +496,31 @@ export function killSession(sessionName: string): boolean {
     return false;
   }
 }
+
+/**
+ * 连接到 session（不在 tmux 中时使用）
+ * @param sessionName session 名称
+ * @returns 是否成功（此函数会接管当前进程，通常不会返回）
+ */
+export function attachSession(sessionName: string): boolean {
+  try {
+    execTmux(`attach-session -t "${sessionName}"`, { silent: false });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 切换客户端到指定 session（在 tmux 中时使用）
+ * @param sessionName 目标 session 名称
+ * @returns 是否成功
+ */
+export function switchClient(sessionName: string): boolean {
+  try {
+    execTmux(`switch-client -t "${sessionName}"`, { silent: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
