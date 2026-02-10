@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { spawnSync } from 'child_process';
 import { getProjectPaths, validateProjectInitialized, executeInDirectory } from '../core/paths.js';
 import { ColynError } from '../types/index.js';
-import { formatError, outputStep } from '../utils/logger.js';
+import { formatError } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import { checkIsGitRepo } from './add.helpers.js';
 
@@ -66,7 +66,6 @@ async function releaseCommand(versionType: string): Promise<void> {
     });
 
     // 步骤3: 在主分支目录执行发布脚本
-    outputStep(t('commands.release.runInMain', { path: paths.mainDir }));
     runReleaseScript(paths.mainDir, versionType);
   } catch (error) {
     formatError(error);
