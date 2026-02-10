@@ -29,6 +29,7 @@ export interface ListOptions {
   json?: boolean;
   paths?: boolean;
   main?: boolean;  // --no-main 会设置为 false
+  refresh?: boolean | string; // -r 或 -r [interval]
 }
 
 /**
@@ -317,6 +318,70 @@ function outputPaths(items: ListItem[]): void {
 }
 
 /**
+ * 清屏并将光标移到左上角
+ */
+function clearScreen(): void {
+  // 使用 ANSI 转义码清屏
+  process.stdout.write('\x1b[2J\x1b[0;0H');
+}
+
+/**
+ * 渲染列表（用于刷新模式）
+ */
+async function renderList(options: ListOptions): Promise<void> {
+  try {
+    // 获取项目路径并验证
+    const paths = await getProjectPaths();
+    await validateProjectInitialized(paths);
+
+    // 获取项目信息
+    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+
+    // 获取主分支信息
+    const mainBranch = await getMainBranch(paths.mainDir);
+    const mainPort = await getMainPort(paths.mainDir);
+
+    // 构建列表项
+    const items: ListItem[] = [];
+
+    // 添加主分支（如果不排除）
+    if (options.main !== false) {
+      items.push({
+        id: null,
+        branch: mainBranch,
+        port: mainPort,
+        path: path.relative(paths.rootDir, paths.mainDir) || '.',
+        isMain: true,
+        isCurrent: isCurrentDirectory(paths.mainDir),
+        status: getGitStatus(paths.mainDir),
+        diff: { ahead: 0, behind: 0 }  // 主分支没有差异
+      });
+    }
+
+    // 添加任务 worktree
+    for (const wt of projectInfo.worktrees) {
+      items.push({
+        id: wt.id,
+        branch: wt.branch,
+        port: wt.port,
+        path: path.relative(paths.rootDir, wt.path),
+        isMain: false,
+        isCurrent: isCurrentDirectory(wt.path),
+        status: getGitStatus(wt.path),
+        diff: getGitDiff(wt.path, mainBranch)
+      });
+    }
+
+    // 输出表格（刷新模式下只支持表格输出）
+    outputTable(items);
+
+  } catch (error) {
+    formatError(error);
+    process.exit(1);
+  }
+}
+
+/**
  * List 命令：列出所有 worktree
  */
 async function listCommand(options: ListOptions): Promise<void> {
@@ -329,6 +394,56 @@ async function listCommand(options: ListOptions): Promise<void> {
       );
     }
 
+    // 检查刷新模式与其他输出格式的冲突
+    if (options.refresh && (options.json || options.paths)) {
+      throw new ColynError(
+        t('commands.list.refreshConflict'),
+        t('commands.list.refreshConflictHint')
+      );
+    }
+
+    // 刷新模式
+    if (options.refresh) {
+      // 解析刷新间隔
+      let interval = 2000; // 默认 2 秒
+      if (typeof options.refresh === 'string') {
+        const parsed = parseInt(options.refresh, 10);
+        if (isNaN(parsed) || parsed < 1) {
+          throw new ColynError(
+            t('commands.list.invalidInterval'),
+            t('commands.list.invalidIntervalHint')
+          );
+        }
+        interval = parsed * 1000;
+      }
+
+      // 首次渲染
+      clearScreen();
+      await renderList(options);
+      output('');
+      output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+
+      // 设置定时刷新
+      const timer = setInterval(async () => {
+        clearScreen();
+        await renderList(options);
+        output('');
+        output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+      }, interval);
+
+      // 处理 Ctrl+C 优雅退出
+      process.on('SIGINT', () => {
+        clearInterval(timer);
+        output('');
+        output(t('commands.list.refreshStopped'));
+        process.exit(0);
+      });
+
+      // 保持进程运行
+      return;
+    }
+
+    // 普通模式（不刷新）
     // 获取项目路径并验证
     const paths = await getProjectPaths();
     await validateProjectInitialized(paths);
@@ -396,6 +511,7 @@ export function register(program: Command): void {
     .option('--json', t('commands.list.jsonOption'))
     .option('-p, --paths', t('commands.list.pathsOption'))
     .option('--no-main', t('commands.list.noMainOption'))
+    .option('-r, --refresh [interval]', t('commands.list.refreshOption'))
     .action(async (options) => {
       await listCommand(options);
     });

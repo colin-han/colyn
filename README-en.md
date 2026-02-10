@@ -194,16 +194,32 @@ List all worktrees.
 colyn list [options]
 
 Options:
-  --json     Output in JSON format
-  -p, --paths  Output paths only (one per line)
-  --no-main  Don't show main branch
+  --json               Output in JSON format
+  -p, --paths          Output paths only (one per line)
+  --no-main            Don't show main branch
+  -r, --refresh [interval]  Auto-refresh list (optional: interval in seconds, default 2)
 ```
 
 **Features**:
 - Display all worktrees in table format
-- Show ID, branch name, port, path
+- Show ID, branch name, port, path, and status
 - Highlight current worktree
 - Support JSON output for scripting
+- Auto-refresh mode for real-time monitoring
+
+**Auto-refresh examples**:
+```bash
+# Use default interval (2 seconds)
+colyn list -r
+
+# Custom refresh interval (5 seconds)
+colyn list -r 5
+
+# Fast monitoring (1 second refresh)
+colyn list -r 1
+
+# Press Ctrl+C to exit refresh mode
+```
 
 ### `colyn remove [target]`
 
