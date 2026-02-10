@@ -140,12 +140,19 @@ Hints:
 
     // release command
     release: {
-      description: 'Run release process in main branch directory',
+      description: 'Run release process in main branch directory (default: patch)',
       versionArgument: 'version type (patch/minor/major) or version (e.g. 1.2.3)',
       versionMissing: 'Please specify a version type or version number',
       versionMissingHint: 'Examples: colyn release patch / colyn release 1.2.3',
       execFailed: 'Failed to execute release script',
       runInMain: 'Running release script in main branch directory: {{path}}',
+      noUpdateOption: 'Skip automatic update of all worktrees',
+      updatingWorktrees: 'Updating all worktrees...',
+      updateFailed: '⚠ Failed to update worktrees, but release completed successfully',
+      currentDirNotClean: 'Current directory has uncommitted changes',
+      currentDirNotCleanHint: 'Please commit or stash changes before releasing:\ncd "{{path}}"\ngit add .\ngit commit -m "..."\n\nDetected {{count}} changed file(s):\n{{files}}',
+      branchNotMerged: 'Branch "{{branch}}" has not been merged to "{{main}}"',
+      branchNotMergedHint: 'Please merge the branch to main branch before releasing:\ncolyn merge {{branch}}\n\nOr run release from main branch directory',
     },
 
     // init command

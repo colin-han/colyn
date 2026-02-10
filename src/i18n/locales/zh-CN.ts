@@ -140,12 +140,19 @@ export const zhCN = {
 
     // release command
     release: {
-      description: '在主分支目录执行发布流程',
+      description: '在主分支目录执行发布流程（默认 patch 版本）',
       versionArgument: '版本类型（patch/minor/major）或版本号（如 1.2.3）',
       versionMissing: '请指定版本类型或版本号',
       versionMissingHint: '示例：colyn release patch / colyn release 1.2.3',
       execFailed: '执行发布脚本失败',
       runInMain: '将在主分支目录执行发布脚本：{{path}}',
+      noUpdateOption: '跳过自动更新所有 worktree',
+      updatingWorktrees: '正在更新所有 worktree...',
+      updateFailed: '⚠ 更新 worktree 失败，但发布已成功完成',
+      currentDirNotClean: '当前目录有未提交的更改',
+      currentDirNotCleanHint: '请先提交或暂存更改后再发布：\ncd "{{path}}"\ngit add .\ngit commit -m "..."\n\n检测到 {{count}} 个更改的文件：\n{{files}}',
+      branchNotMerged: '分支 "{{branch}}" 尚未合并到 "{{main}}"',
+      branchNotMergedHint: '请先将分支合并到主分支后再发布：\ncolyn merge {{branch}}\n\n或者在主分支目录中执行发布',
     },
 
     // init command

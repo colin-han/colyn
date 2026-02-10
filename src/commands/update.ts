@@ -28,7 +28,7 @@ import { t } from '../i18n/index.js';
 /**
  * Update 命令选项
  */
-interface UpdateOptions {
+export interface UpdateOptions {
   noRebase?: boolean;
   all?: boolean;
 }
@@ -210,6 +210,38 @@ async function handleBatchUpdate(
   if (result.failed > 0) {
     outputResult({ success: false });
     process.exit(1);
+  }
+}
+
+/**
+ * 执行 update 命令（供其他命令内部调用，不输出 JSON）
+ */
+export async function executeUpdate(
+  target: string | undefined,
+  options: UpdateOptions
+): Promise<void> {
+  // 步骤1: 获取项目路径并验证
+  const paths = await getProjectPaths();
+  await validateProjectInitialized(paths);
+
+  // 步骤2: 在主分支目录中检查 git 仓库
+  await executeInDirectory(paths.mainDir, async () => {
+    await checkIsGitRepo();
+  });
+
+  // 获取主分支名称
+  const mainBranch = await getMainBranch(paths.mainDir);
+
+  // 确定是否使用 rebase（默认 true）
+  const useRebase = !options.noRebase;
+
+  // 步骤3: 处理批量更新或单个更新
+  if (options.all) {
+    // 批量更新所有 worktree
+    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
+  } else {
+    // 单个更新
+    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
   }
 }
 
