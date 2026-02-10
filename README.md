@@ -194,9 +194,31 @@ colyn merge [target] [options]
 colyn list [options]
 
 选项：
-  --json     以 JSON 格式输出
-  -p, --paths  只输出路径（每行一个）
-  --no-main  不显示主分支
+  --json               以 JSON 格式输出
+  -p, --paths          只输出路径（每行一个）
+  --no-main            不显示主分支
+  -r, --refresh [间隔]  自动刷新列表（可选：刷新间隔秒数，默认 2）
+```
+
+**功能**：
+- 显示所有 worktree 的分支、端口、路径、状态
+- 支持多种输出格式（表格、JSON、路径列表）
+- 自动刷新模式，实时监控 worktree 状态
+- 当前所在 worktree 会高亮显示
+
+**自动刷新示例**：
+```bash
+# 使用默认间隔（2 秒）刷新
+colyn list -r
+
+# 自定义刷新间隔（5 秒）
+colyn list -r 5
+
+# 快速监控（1 秒刷新）
+colyn list -r 1
+
+# 按 Ctrl+C 退出刷新模式
+```
 ```
 
 **功能**：
