@@ -81,7 +81,6 @@ export function register(program: Command): void {
   program
     .command('release <version>')
     .description(t('commands.release.description'))
-    .argument('<version>', t('commands.release.versionArgument'))
     .action(async (version) => {
       await releaseCommand(version);
     });
