@@ -146,6 +146,9 @@ Hints:
       versionMissingHint: 'Examples: colyn release patch / colyn release 1.2.3',
       execFailed: 'Failed to execute release script',
       runInMain: 'Running release script in main branch directory: {{path}}',
+      noUpdateOption: 'Skip automatic update of all worktrees',
+      updatingWorktrees: 'Updating all worktrees...',
+      updateFailed: '⚠ Failed to update worktrees, but release completed successfully',
     },
 
     // init command

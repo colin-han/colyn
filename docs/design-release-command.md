@@ -1,7 +1,7 @@
 # Release 命令设计文档（用户交互视角）
 
 **创建时间**：2026-02-09
-**最后更新**：2026-02-09
+**最后更新**：2026-02-10
 **命令名称**：`colyn release`
 **状态**：✅ 已实现
 
@@ -20,12 +20,14 @@
 - 使用一条 `colyn release` 命令完成现有发布流程
 - 不必手动切换到 Main Branch 目录
 - 行为与现有 `yarn release:xxx` 保持一致
+- 发布后自动将最新代码同步到所有 Worktree
 
 ### 1.3 核心价值
 
 - ✅ **统一入口**：替代 `yarn release:xxx` 的命令门面
 - ✅ **强制主分支**：永远在 Main Branch 目录执行发布
 - ✅ **流程一致**：复用现有发布脚本逻辑
+- ✅ **自动同步**：发布后自动更新所有 Worktree（可通过 `--no-update` 跳过）
 
 ---
 
@@ -34,19 +36,23 @@
 ### 2.1 基本用法
 
 ```bash
-colyn release <version-type>
+colyn release <version-type> [选项]
 ```
 
 `<version-type>` 支持：
 - `patch` / `minor` / `major`
 - 显式版本号：`1.2.3`
 
+**选项：**
+- `--no-update` - 跳过发布后自动更新所有 Worktree
+
 示例：
 ```bash
-colyn release patch
-colyn release minor
-colyn release major
-colyn release 1.2.3
+colyn release patch              # 发布 patch 版本并自动更新所有 worktree
+colyn release minor              # 发布 minor 版本并自动更新所有 worktree
+colyn release major              # 发布 major 版本并自动更新所有 worktree
+colyn release 1.2.3              # 发布指定版本并自动更新所有 worktree
+colyn release patch --no-update  # 发布但不更新 worktree
 ```
 
 ### 2.2 运行位置规则
@@ -90,11 +96,12 @@ $ colyn release major
 
 ## 4. 处理流程（高层）
 
-1. 解析参数（version-type）
+1. 解析参数（version-type 和选项）
 2. 发现项目路径（Main Branch 目录、Worktrees 目录）
 3. 校验项目已初始化（支持 Worktree 结构）
 4. 进入 Main Branch 目录执行发布流程
-5. 返回发布结果
+5. **发布成功后，自动更新所有 Worktree（除非指定 `--no-update`）**
+6. 返回发布结果
 
 ---
 
@@ -116,6 +123,13 @@ $ colyn release major
 - 更新 `package.json` 版本
 - 创建提交与 tag
 - 推送到远程
+
+### 5.4 自动更新 Worktree
+
+- 发布成功后，自动执行 `colyn update --all`
+- 将主分支最新代码（刚发布的版本）同步到所有 Worktree
+- 如果更新失败，仅显示警告，不影响发布成功状态
+- 可通过 `--no-update` 选项跳过自动更新
 
 ---
 

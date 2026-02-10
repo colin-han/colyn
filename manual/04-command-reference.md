@@ -1236,7 +1236,7 @@ $ colyn system-integration
 ### 语法
 
 ```bash
-colyn release <version-type>
+colyn release <version-type> [选项]
 ```
 
 ### 参数
@@ -1245,9 +1245,15 @@ colyn release <version-type>
 |------|------|------|
 | `version-type` | 是 | 版本类型或显式版本号：<br>- `patch` / `minor` / `major`<br>- 显式版本号：`1.2.3` |
 
+### 选项
+
+| 选项 | 说明 |
+|------|------|
+| `--no-update` | 跳过发布后自动更新所有 worktree |
+
 ### 功能说明
 
-`colyn release` 提供统一的发布入口，无论从哪个目录执行，始终在主分支中完成发布。
+`colyn release` 提供统一的发布入口，无论从哪个目录执行，始终在主分支中完成发布，并默认自动将最新代码同步到所有 worktree。
 
 **执行流程：**
 1. 检查 git 状态（主分支）
@@ -1255,6 +1261,7 @@ colyn release <version-type>
 3. 更新 package.json 版本
 4. 创建提交与 tag
 5. 推送到远程
+6. **自动更新所有 worktree（除非使用 `--no-update`）**
 
 ### 运行位置规则
 
@@ -1274,12 +1281,18 @@ $ colyn release patch
 ...
 ✓ 发布完成
 
+正在更新所有 worktree...
+✓ 所有 worktree 已更新
+
 # 在主分支中发布 minor 版本
 $ cd my-project
 $ colyn release minor
 
 # 发布指定版本号
 $ colyn release 1.2.3
+
+# 发布但不自动更新 worktree
+$ colyn release patch --no-update
 ```
 
 ### 常见错误
@@ -1295,6 +1308,8 @@ $ colyn release 1.2.3
 - 复用现有发布脚本逻辑
 - 无需手动切换到主分支目录
 - 发布流程与 `yarn release:xxx` 保持一致
+- 默认自动更新所有 worktree，确保所有开发分支基于最新版本
+- 如果不希望自动更新，使用 `--no-update` 选项
 
 ---
 

@@ -146,6 +146,9 @@ export const zhCN = {
       versionMissingHint: '示例：colyn release patch / colyn release 1.2.3',
       execFailed: '执行发布脚本失败',
       runInMain: '将在主分支目录执行发布脚本：{{path}}',
+      noUpdateOption: '跳过自动更新所有 worktree',
+      updatingWorktrees: '正在更新所有 worktree...',
+      updateFailed: '⚠ 更新 worktree 失败，但发布已成功完成',
     },
 
     // init command
