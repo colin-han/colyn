@@ -2,6 +2,7 @@ import * as path from 'path';
 import type { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import ora from 'ora';
 import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
 import {
   discoverProjectInfo,
@@ -283,7 +284,7 @@ function outputTable(items: ListItem[]): void {
     }
   }
 
-  console.log(table.toString());
+  console.error(table.toString());
 
   // 如果在 tmux 中，显示切换提示
   if (isTmuxAvailable() && isInTmux()) {
@@ -326,59 +327,53 @@ function clearScreen(): void {
 }
 
 /**
- * 渲染列表（用于刷新模式）
+ * 获取列表数据（用于刷新模式）
+ * 返回 ListItem 数组而不是直接输出
  */
-async function renderList(options: ListOptions): Promise<void> {
-  try {
-    // 获取项目路径并验证
-    const paths = await getProjectPaths();
-    await validateProjectInitialized(paths);
+async function fetchListData(options: ListOptions): Promise<ListItem[]> {
+  // 获取项目路径并验证
+  const paths = await getProjectPaths();
+  await validateProjectInitialized(paths);
 
-    // 获取项目信息
-    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+  // 获取项目信息
+  const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
 
-    // 获取主分支信息
-    const mainBranch = await getMainBranch(paths.mainDir);
-    const mainPort = await getMainPort(paths.mainDir);
+  // 获取主分支信息
+  const mainBranch = await getMainBranch(paths.mainDir);
+  const mainPort = await getMainPort(paths.mainDir);
 
-    // 构建列表项
-    const items: ListItem[] = [];
+  // 构建列表项
+  const items: ListItem[] = [];
 
-    // 添加主分支（如果不排除）
-    if (options.main !== false) {
-      items.push({
-        id: null,
-        branch: mainBranch,
-        port: mainPort,
-        path: path.relative(paths.rootDir, paths.mainDir) || '.',
-        isMain: true,
-        isCurrent: isCurrentDirectory(paths.mainDir),
-        status: getGitStatus(paths.mainDir),
-        diff: { ahead: 0, behind: 0 }  // 主分支没有差异
-      });
-    }
-
-    // 添加任务 worktree
-    for (const wt of projectInfo.worktrees) {
-      items.push({
-        id: wt.id,
-        branch: wt.branch,
-        port: wt.port,
-        path: path.relative(paths.rootDir, wt.path),
-        isMain: false,
-        isCurrent: isCurrentDirectory(wt.path),
-        status: getGitStatus(wt.path),
-        diff: getGitDiff(wt.path, mainBranch)
-      });
-    }
-
-    // 输出表格（刷新模式下只支持表格输出）
-    outputTable(items);
-
-  } catch (error) {
-    formatError(error);
-    process.exit(1);
+  // 添加主分支（如果不排除）
+  if (options.main !== false) {
+    items.push({
+      id: null,
+      branch: mainBranch,
+      port: mainPort,
+      path: path.relative(paths.rootDir, paths.mainDir) || '.',
+      isMain: true,
+      isCurrent: isCurrentDirectory(paths.mainDir),
+      status: getGitStatus(paths.mainDir),
+      diff: { ahead: 0, behind: 0 }  // 主分支没有差异
+    });
   }
+
+  // 添加任务 worktree
+  for (const wt of projectInfo.worktrees) {
+    items.push({
+      id: wt.id,
+      branch: wt.branch,
+      port: wt.port,
+      path: path.relative(paths.rootDir, wt.path),
+      isMain: false,
+      isCurrent: isCurrentDirectory(wt.path),
+      status: getGitStatus(wt.path),
+      diff: getGitDiff(wt.path, mainBranch)
+    });
+  }
+
+  return items;
 }
 
 /**
@@ -417,19 +412,44 @@ async function listCommand(options: ListOptions): Promise<void> {
         interval = parsed * 1000;
       }
 
+      // 渲染函数：先获取数据，再清屏并立即显示（减少闪烁）
+      const render = async () => {
+        try {
+          // 显示加载动画（在底部）
+          const spinner = ora({
+            text: t('commands.list.refreshingData'),
+            stream: process.stderr,
+            // 使用简单的 spinner 样式
+            spinner: 'dots'
+          }).start();
+
+          // 1. 先获取数据（耗时操作）
+          const items = await fetchListData(options);
+
+          // 停止 spinner
+          spinner.stop();
+
+          // 2. 清屏
+          clearScreen();
+
+          // 3. 立即显示数据（无延迟）
+          outputTable(items);
+          output('');
+          output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+        } catch (error) {
+          // 刷新过程中出错，显示错误但不退出
+          clearScreen();
+          formatError(error);
+          output('');
+          output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+        }
+      };
+
       // 首次渲染
-      clearScreen();
-      await renderList(options);
-      output('');
-      output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+      await render();
 
       // 设置定时刷新
-      const timer = setInterval(async () => {
-        clearScreen();
-        await renderList(options);
-        output('');
-        output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
-      }, interval);
+      const timer = setInterval(render, interval);
 
       // 处理 Ctrl+C 优雅退出
       process.on('SIGINT', () => {

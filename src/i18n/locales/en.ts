@@ -125,6 +125,7 @@ Hints:
       refreshConflictHint: 'Refresh mode only supports table output',
       invalidInterval: 'Invalid refresh interval',
       invalidIntervalHint: 'Refresh interval must be a positive integer (seconds)',
+      refreshingData: 'Refreshing data...',
       refreshing: 'Auto-refreshing every {{interval}} seconds (press Ctrl+C to exit)',
       refreshStopped: 'Refresh stopped',
       noWorktrees: 'No worktrees',
