@@ -36,10 +36,10 @@
 ### 2.1 基本用法
 
 ```bash
-colyn release <version-type> [选项]
+colyn release [version-type] [选项]
 ```
 
-`<version-type>` 支持：
+`[version-type]` 支持（可选，默认 `patch`）：
 - `patch` / `minor` / `major`
 - 显式版本号：`1.2.3`
 
@@ -48,11 +48,13 @@ colyn release <version-type> [选项]
 
 示例：
 ```bash
+colyn release                    # 发布 patch 版本（默认）并自动更新所有 worktree
 colyn release patch              # 发布 patch 版本并自动更新所有 worktree
 colyn release minor              # 发布 minor 版本并自动更新所有 worktree
 colyn release major              # 发布 major 版本并自动更新所有 worktree
 colyn release 1.2.3              # 发布指定版本并自动更新所有 worktree
 colyn release patch --no-update  # 发布但不更新 worktree
+colyn release --no-update        # 发布 patch 版本但不更新 worktree
 ```
 
 ### 2.2 运行位置规则
@@ -96,12 +98,14 @@ $ colyn release major
 
 ## 4. 处理流程（高层）
 
-1. 解析参数（version-type 和选项）
+1. 解析参数（version-type 和选项，version-type 默认为 `patch`）
 2. 发现项目路径（Main Branch 目录、Worktrees 目录）
 3. 校验项目已初始化（支持 Worktree 结构）
-4. 进入 Main Branch 目录执行发布流程
-5. **发布成功后，自动更新所有 Worktree（除非指定 `--no-update`）**
-6. 返回发布结果
+4. **检查当前目录是否有未提交的代码 - 如果有，报错退出**
+5. **检查当前分支是否已合并到主分支（仅在 worktree 中执行时）- 如果未合并，报错退出**
+6. 进入 Main Branch 目录执行发布流程
+7. **发布成功后，自动更新所有 Worktree（除非指定 `--no-update`）**
+8. 返回发布结果
 
 ---
 
@@ -131,12 +135,27 @@ $ colyn release major
 - 如果更新失败，仅显示警告，不影响发布成功状态
 - 可通过 `--no-update` 选项跳过自动更新
 
+### 5.5 发布前安全检查
+
+**检查当前目录状态**：
+- 检查当前工作目录是否有未提交的更改
+- 如果有未提交代码，报错退出
+- 确保用户不会在有未保存工作的情况下误操作
+
+**检查分支合并状态**（方案 A）：
+- 如果在 worktree 中执行 release，检查该分支是否已合并到主分支
+- 如果未合并，报错退出，提示先合并
+- 如果在主分支目录执行，不进行此检查
+- 目的：防止在未完成的功能分支上误触发发布
+
 ---
 
 ## 6. 错误处理
 
-- 参数缺失：提示正确用法
+- 参数缺失：不再报错，默认使用 `patch`
 - 项目未初始化：提示先执行 `colyn init`
+- 当前目录有未提交代码：报错退出，提示先提交代码
+- 当前分支未合并（在 worktree 中）：报错退出，提示先合并分支
 - 发布脚本任一步骤失败：输出明确错误与回滚建议
 
 ---

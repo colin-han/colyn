@@ -1236,14 +1236,14 @@ $ colyn system-integration
 ### 语法
 
 ```bash
-colyn release <version-type> [选项]
+colyn release [version-type] [选项]
 ```
 
 ### 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `version-type` | 是 | 版本类型或显式版本号：<br>- `patch` / `minor` / `major`<br>- 显式版本号：`1.2.3` |
+| `version-type` | 否 | 版本类型或显式版本号（默认：`patch`）：<br>- `patch` / `minor` / `major`<br>- 显式版本号：`1.2.3` |
 
 ### 选项
 
@@ -1256,12 +1256,14 @@ colyn release <version-type> [选项]
 `colyn release` 提供统一的发布入口，无论从哪个目录执行，始终在主分支中完成发布，并默认自动将最新代码同步到所有 worktree。
 
 **执行流程：**
-1. 检查 git 状态（主分支）
-2. 运行 lint 和 build
-3. 更新 package.json 版本
-4. 创建提交与 tag
-5. 推送到远程
-6. **自动更新所有 worktree（除非使用 `--no-update`）**
+1. 检查当前目录是否有未提交代码
+2. 检查当前分支是否已合并（仅在 worktree 中执行时）
+3. 检查 git 状态（主分支）
+4. 运行 lint 和 build
+5. 更新 package.json 版本
+6. 创建提交与 tag
+7. 推送到远程
+8. **自动更新所有 worktree（除非使用 `--no-update`）**
 
 ### 运行位置规则
 
@@ -1272,11 +1274,21 @@ colyn release <version-type> [选项]
 ### 示例
 
 ```bash
+# 快速发布 patch 版本（最常用）
+$ colyn release
+✓ 发布 v1.2.4 成功
+正在更新所有 worktree...
+✓ 所有 worktree 已更新
+
 # 在 worktree 中发布 patch 版本
 $ cd worktrees/task-1
 $ colyn release patch
 
-步骤 1: 检查 git 状态 (Main Branch)
+步骤 1: 检查当前目录状态
+✓ 工作目录干净
+步骤 2: 检查分支合并状态
+✓ 分支 feature/login 已合并到 main
+步骤 3: 检查 git 状态 (Main Branch)
 ✓ 工作区干净
 ...
 ✓ 发布完成
@@ -1292,7 +1304,7 @@ $ colyn release minor
 $ colyn release 1.2.3
 
 # 发布但不自动更新 worktree
-$ colyn release patch --no-update
+$ colyn release --no-update
 ```
 
 ### 常见错误
@@ -1300,7 +1312,8 @@ $ colyn release patch --no-update
 | 错误场景 | 错误信息 | 解决方法 |
 |---------|---------|---------|
 | 在项目外执行 | `✗ 当前目录不属于 Colyn 项目` | 在项目目录内执行 |
-| 参数缺失 | `✗ 缺少版本类型参数` | 提供 version-type 参数 |
+| 当前目录有未提交代码 | `✗ 当前目录有未提交的更改` | 提交或 stash 更改 |
+| 当前分支未合并 | `✗ 分支未合并到主分支` | 先合并分支：`colyn merge <branch>` |
 | 主分支工作区不干净 | `✗ 工作区有未提交更改` | 提交或 stash 更改 |
 
 ### 提示
@@ -1310,7 +1323,7 @@ $ colyn release patch --no-update
 - 发布流程与 `yarn release:xxx` 保持一致
 - 默认自动更新所有 worktree，确保所有开发分支基于最新版本
 - 如果不希望自动更新，使用 `--no-update` 选项
-
+- **最常用方式**：直接运行 `colyn release` 即可发布 patch 版本
 ---
 
 ## 总结
