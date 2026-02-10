@@ -125,6 +125,7 @@ export const zhCN = {
       refreshConflictHint: '刷新模式只支持表格输出',
       invalidInterval: '无效的刷新间隔',
       invalidIntervalHint: '刷新间隔必须是大于 0 的整数（秒）',
+      refreshingData: '正在刷新数据...',
       refreshing: '每 {{interval}} 秒自动刷新 (按 Ctrl+C 退出)',
       refreshStopped: '已停止刷新',
       noWorktrees: '暂无 worktree',
