@@ -137,6 +137,16 @@ Hints:
       tablePath: 'Path',
     },
 
+    // release command
+    release: {
+      description: 'Run release process in main branch directory',
+      versionArgument: 'version type (patch/minor/major) or version (e.g. 1.2.3)',
+      versionMissing: 'Please specify a version type or version number',
+      versionMissingHint: 'Examples: colyn release patch / colyn release 1.2.3',
+      execFailed: 'Failed to execute release script',
+      runInMain: 'Running release script in main branch directory: {{path}}',
+    },
+
     // init command
     init: {
       description: 'Initialize worktree management structure',

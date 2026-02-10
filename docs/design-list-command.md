@@ -52,7 +52,7 @@ colyn list --json --no-main
 
 ```
 ID    Branch            Port   Status      Diff   Path
-  -   main              10000              -      my-app
+  0-main   main         10000              -      my-app
   1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
@@ -77,7 +77,7 @@ ID    Branch            Port   Status      Diff   Path
 $ colyn list
 
 ID    Branch            Port   Status      Diff   Path
-  -   main              10000              -      my-app
+  0-main   main         10000              -      my-app
   1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
@@ -220,14 +220,14 @@ ID    Branch            Port   Status      Diff   Path
 **特点**：
 - 彩色输出，美观易读
 - 当前所在 worktree 用 `→` 箭头标识，整行高亮
-- 主分支 ID 显示为 `-`
+- 主分支 ID 显示为 `0-main`
 - 路径显示为相对于项目根目录的相对路径
 - **响应式布局**：根据终端宽度自动调整显示列
 
 **输出示例**：
 ```
 ID    Branch            Port   Status      Diff   Path
-  -   main              10000              -      my-app
+  0-main   main         10000              -      my-app
   1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
@@ -490,7 +490,7 @@ $ cd worktrees/task-1/src/components
 $ colyn list
 
 ID    Branch            Port   Status   Diff   Path
-  -   main              10000           -      my-app
+  0-main   main         10000           -      my-app
 → 1   feature/login     10001           ✓      worktrees/task-1
   2   feature/dashboard 10002           ↑5     worktrees/task-2
 ```
@@ -539,7 +539,7 @@ graph TD
 $ colyn list
 
 ID    Branch  Port   Status   Diff   Path
-→ -   main    10000           -      my-app
+→ 0-main   main    10000           -      my-app
 
 提示：使用 colyn add <branch> 创建新的 worktree
 ```
@@ -579,7 +579,7 @@ worktree 列表按以下规则排序：
 
 ```
 ID    Branch            Port   Status   Diff   Path
-  -   main              10000           -      my-app              # 主分支在前
+  0-main   main         10000           -      my-app              # 主分支在前
   1   feature/login     10001           ✓      worktrees/task-1
   2   feature/dashboard 10002  M:2      ↑3     worktrees/task-2
   5   feature/payment   10005           ↑1     worktrees/task-5    # 按 ID 排序

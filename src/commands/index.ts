@@ -18,6 +18,7 @@ import { register as registerCompletion } from './completion.js';
 import { register as registerRepair } from './repair.js';
 import { register as registerConfig } from './config.js';
 import { register as registerTmux } from './tmux.js';
+import { register as registerRelease } from './release.js';
 
 /**
  * 注册所有命令到 program
@@ -36,4 +37,5 @@ export function registerAllCommands(program: Command): void {
   registerRepair(program);
   registerConfig(program);
   registerTmux(program);
+  registerRelease(program);
 }
