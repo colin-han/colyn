@@ -13,9 +13,15 @@ _colyn() {
         'add:创建新的 worktree'
         'list:列出所有 worktree'
         'merge:合并 worktree 到主分支'
+        'update:将主分支更新到 worktree'
         'remove:删除 worktree'
         'checkout:在 worktree 中切换分支'
         'info:显示当前目录的项目信息'
+        'repair:修复 worktree 状态'
+        'config:查看或更新配置'
+        'system-integration:配置 shell 集成'
+        'tmux:tmux 集成管理'
+        'release:在主分支目录执行发布流程'
         'completion:生成 shell 自动补全脚本'
     )
 
@@ -51,6 +57,12 @@ _colyn() {
                         '--push[合并后自动推送]' \
                         '--no-push[合并后不推送]'
                     ;;
+                update)
+                    _arguments \
+                        '1: :_colyn_worktrees' \
+                        '--all[更新所有 worktree]' \
+                        '--no-rebase[使用 merge 而不是 rebase]'
+                    ;;
                 remove)
                     _arguments \
                         '1: :_colyn_worktrees' \
@@ -68,6 +80,25 @@ _colyn() {
                         '(-f --field)'{-f,--field}'[输出指定字段]:field:_colyn_info_fields' \
                         '--format[使用模板字符串格式化输出]:template:' \
                         '(-s --separator)'{-s,--separator}'[多字段时的分隔符]:separator:'
+                    ;;
+                repair)
+                    # repair 命令无参数
+                    ;;
+                config)
+                    _arguments \
+                        '--json[以 JSON 格式输出]'
+                    ;;
+                system-integration)
+                    # system-integration 命令无参数
+                    ;;
+                tmux)
+                    _arguments \
+                        '1: :(start stop)' \
+                        '(-f --force)'{-f,--force}'[强制停止 session]'
+                    ;;
+                release)
+                    _arguments \
+                        '1: :('patch' 'minor' 'major')'
                     ;;
                 completion)
                     _arguments \

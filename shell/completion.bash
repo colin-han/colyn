@@ -11,7 +11,7 @@ _colyn_completion() {
     _init_completion || return
 
     # 所有可用命令
-    local commands="init add list merge remove checkout info completion"
+    local commands="init add list merge update remove checkout info repair config system-integration tmux release completion"
 
     # 当前命令（第一个参数）
     local command="${words[1]}"
@@ -60,6 +60,17 @@ _colyn_completion() {
             return 0
             ;;
 
+        update)
+            # update [target] [--all] [--no-rebase]
+            if [[ $cur == -* ]]; then
+                local update_opts="--all --no-rebase"
+                COMPREPLY=($(compgen -W "$update_opts" -- "$cur"))
+            elif [[ $cword -eq 2 ]]; then
+                _colyn_complete_worktrees
+            fi
+            return 0
+            ;;
+
         remove)
             # remove [id|branch] [-y|--yes] [-f|--force] [-d|--delete-branch]
             if [[ $cur == -* ]]; then
@@ -94,6 +105,43 @@ _colyn_completion() {
                 # 补全字段名
                 local fields="project project-path worktree-id worktree-dir branch"
                 COMPREPLY=($(compgen -W "$fields" -- "$cur"))
+            fi
+            return 0
+            ;;
+
+        repair)
+            # repair 命令无参数
+            return 0
+            ;;
+
+        config)
+            # config 命令选项
+            if [[ $cur == -* ]]; then
+                COMPREPLY=($(compgen -W "--json" -- "$cur"))
+            fi
+            return 0
+            ;;
+
+        system-integration)
+            # system-integration 命令无参数
+            return 0
+            ;;
+
+        tmux)
+            # tmux [start|stop] [-f|--force]
+            if [[ $cur == -* ]]; then
+                local tmux_opts="-f --force"
+                COMPREPLY=($(compgen -W "$tmux_opts" -- "$cur"))
+            elif [[ $cword -eq 2 ]]; then
+                COMPREPLY=($(compgen -W "start stop" -- "$cur"))
+            fi
+            return 0
+            ;;
+
+        release)
+            # release <version-type>
+            if [[ $cword -eq 2 ]]; then
+                COMPREPLY=($(compgen -W "patch minor major" -- "$cur"))
             fi
             return 0
             ;;

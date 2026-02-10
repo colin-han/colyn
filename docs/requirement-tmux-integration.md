@@ -23,7 +23,7 @@
 1. **零配置**：无需用户配置即可使用
 2. **自动检测**：智能适配 tmux 环境
 3. **非侵入**：不在 tmux 中也完全可用
-4. **零学习成本**：现有命令自动升级，无需新命令
+4. **零学习成本**：现有命令自动升级，另提供 `colyn tmux` 作为补充
 
 ### 1.3 用户价值
 
@@ -38,9 +38,9 @@
 
 ### 2.1 命令设计
 
-**设计方案**：完全自动化，无需新命令
+**设计方案**：自动化为主，提供 `colyn tmux` 作为补充命令
 
-所有现有命令自动适配 tmux 环境：
+所有现有命令自动适配 tmux 环境，另提供 `colyn tmux` 进行主动修复与管理：
 
 | 命令 | tmux 中 | 非 tmux 中 |
 |------|---------|-----------|
@@ -49,8 +49,9 @@
 | `colyn checkout` | 更新 window 名称 | 切换目录 |
 | `colyn list` | 显示 window 编号 + 切换提示 | 显示 ID 列（0-main） |
 | `colyn repair` | 修复缺失的 window | 创建 session + 修复 window |
+| `colyn tmux` | 运行 tmux 修复/管理 | 运行 tmux 修复/管理 |
 
-**无需新命令**：用户使用 tmux 原生快捷键切换 window。
+**补充命令**：`colyn tmux` 用于手动修复或管理 tmux，用户仍可使用 tmux 原生快捷键切换 window。
 
 ### 2.2 Session 管理
 
@@ -105,11 +106,11 @@ function getSessionName(config: Config): string {
 配置文件中不需要 tmux 相关配置：
 
 ```json
-// .colyn/config.json
+// .colyn/settings.json
 {
-  "project": "my-task-app",
-  "mainBranch": "main",
-  "basePort": 3000
+  "tmux": {
+    "autoRun": true
+  }
   // ❌ 不需要 tmux.sessionName - 从 project 自动推断
 }
 ```
@@ -227,7 +228,7 @@ Pane 命令可通过配置文件自定义（可选）。
 
 | 层级 | 路径 | 说明 |
 |------|------|------|
-| 用户级 | `~/.colyn/settings.json` | 用户默认配置，适用于所有项目 |
+| 用户级 | `~/.config/colyn/settings.json` | 用户默认配置，适用于所有项目 |
 | 项目级 | `{projectRoot}/.colyn/settings.json` | 项目特定配置，覆盖用户级设置 |
 
 **优先级**：项目级 > 用户级 > 内置默认值
@@ -346,7 +347,7 @@ Pane 命令可通过配置文件自定义（可选）。
 **两层配置合并示例**：
 
 ```json
-// ~/.colyn/settings.json（用户级）
+// ~/.config/colyn/settings.json（用户级）
 {
   "tmux": {
     "leftPane": {

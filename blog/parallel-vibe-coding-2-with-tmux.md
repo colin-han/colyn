@@ -68,7 +68,7 @@ Colyn 检测到我不在 tmux 中，自动：
 │                        │ $ npm run dev                     │
 │ my-task-app (main)     │                                   │
 │                        │ > next dev                        │
-│ $ _                    │   ▲ Next.js 14.0.0                │
+│ $ claude               │   ▲ Next.js 14.0.0                │
 │                        │   - Local:   http://localhost:3000│
 │                        │                                   │
 │                        ├───────────────────────────────────┤
@@ -84,7 +84,7 @@ Colyn 检测到我不在 tmux 中，自动：
 ```
 
 **三个 pane 自动就位**：
-- **左侧**（60%）：等待我启动 Claude Code
+- **左侧**（60%）：自动启动/继续 Claude 会话
 - **右上**（12%）：开发服务器已经在运行（自动检测到 `npm run dev`）
 - **右下**（28%）：普通的 bash，随时执行命令
 
@@ -152,7 +152,7 @@ colyn add feature/dashboard   # → Window 4 (PORT=3004)
 └────────────────────────┴───────────────────────────────────┘
 ```
 
-我在左侧 pane 启动了 Claude，开始对话。同时：
+左侧 pane 已自动启动 Claude，会话直接开始。同时：
 - **右上**：开发服务器已经在运行（3001 端口）
 - **右下**：可以随时执行 git、测试等命令
 
@@ -457,7 +457,9 @@ async function createWorktreeWindow(
   // PORT 环境变量已经在 .env.local 中配置好了
   execSync(`tmux send-keys -t 1 "npm run dev" Enter`);
 
-  // 5. 选择左侧 pane（等待用户启动 Claude）
+  // 5. 自动启动/继续 Claude 会话（存在会话则 claude -c）
+  const claudeCmd = hasClaudeSession(worktreePath) ? 'claude -c' : 'claude';
+  execSync(`tmux send-keys -t 0 "${claudeCmd}" Enter`);
   execSync(`tmux select-pane -t 0`);
 }
 ```

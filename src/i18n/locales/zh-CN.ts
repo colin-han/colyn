@@ -137,6 +137,16 @@ export const zhCN = {
       tablePath: 'Path',
     },
 
+    // release command
+    release: {
+      description: '在主分支目录执行发布流程',
+      versionArgument: '版本类型（patch/minor/major）或版本号（如 1.2.3）',
+      versionMissing: '请指定版本类型或版本号',
+      versionMissingHint: '示例：colyn release patch / colyn release 1.2.3',
+      execFailed: '执行发布脚本失败',
+      runInMain: '将在主分支目录执行发布脚本：{{path}}',
+    },
+
     // init command
     init: {
       description: '初始化 worktree 管理结构',

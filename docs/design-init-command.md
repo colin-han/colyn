@@ -36,7 +36,7 @@ project-root/
 │   └── ...           # 原有的所有项目文件
 ├── worktrees/        # 未来的 worktree 目录
 └── .colyn/           # Colyn 配置目录
-    └── config.json   # 项目配置文件
+    └── (空目录)       # 不再需要 config.json
 ```
 
 ---
