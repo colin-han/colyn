@@ -123,11 +123,11 @@ export async function checkBranchMerged(
   const mainBranch = await getMainBranch(mainDir);
 
   try {
-    // 获取已合并到主分支的分支列表
+    // 获取已合并到主分支的分支列表（* 表示当前分支，+ 表示 worktree 分支）
     const result = await git.raw(['branch', '--merged', mainBranch]);
     const mergedBranches = result
       .split('\n')
-      .map(b => b.trim().replace(/^\* /, ''))
+      .map(b => b.trim().replace(/^[*+] /, ''))
       .filter(b => b.length > 0);
 
     return mergedBranches.includes(branch);
