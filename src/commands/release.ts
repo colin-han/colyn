@@ -19,18 +19,10 @@ function runReleaseScript(mainDir: string, versionType: string): void {
     ['scripts/release.js', versionType],
     {
       cwd: mainDir,
-      stdio: ['inherit', 'pipe', 'pipe'],
+      stdio: 'inherit',  // 直接继承 stdio，实时显示输出
       env: process.env
     }
   );
-
-  if (result.stdout && result.stdout.length > 0) {
-    process.stderr.write(result.stdout);
-  }
-
-  if (result.stderr && result.stderr.length > 0) {
-    process.stderr.write(result.stderr);
-  }
 
   if (result.error) {
     throw new ColynError(
