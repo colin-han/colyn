@@ -36,7 +36,7 @@ project-root/
 │   └── ...           # All original project files
 ├── worktrees/        # Future worktree directory
 └── .colyn/           # Colyn config directory
-    └── config.json   # Project configuration file
+    └── (empty)       # config.json no longer required
 ```
 
 ---

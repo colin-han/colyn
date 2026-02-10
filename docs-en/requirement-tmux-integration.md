@@ -23,7 +23,7 @@ Add tmux integration to Colyn, implementing:
 1. **Zero configuration**: Works without user configuration
 2. **Auto detection**: Intelligently adapts to tmux environment
 3. **Non-intrusive**: Fully functional without tmux
-4. **Zero learning curve**: Existing commands auto-upgrade, no new commands needed
+4. **Zero learning curve**: Existing commands auto-upgrade, plus `colyn tmux` as a supplement
 
 ### 1.3 User Value
 
@@ -38,7 +38,7 @@ Add tmux integration to Colyn, implementing:
 
 ### 2.1 Command Design
 
-**Design approach**: Fully automated, no new commands needed
+**Design approach**: Automated by default, plus `colyn tmux` as a supplement
 
 All existing commands auto-adapt to tmux environment:
 
@@ -49,8 +49,9 @@ All existing commands auto-adapt to tmux environment:
 | `colyn checkout` | Update window name | Switch directory |
 | `colyn list` | Show window number + switch hint | Show ID column (0-main) |
 | `colyn repair` | Fix missing windows | Create session + fix windows |
+| `colyn tmux` | Manual tmux repair/management | Manual tmux repair/management |
 
-**No new commands needed**: Users use native tmux shortcuts to switch windows.
+**Supplement command**: `colyn tmux` is available for manual repair/management; users can still use native tmux shortcuts to switch windows.
 
 ### 2.2 Session Management
 
@@ -105,11 +106,11 @@ function getSessionName(config: Config): string {
 No tmux-related config needed in config file:
 
 ```json
-// .colyn/config.json
+// .colyn/settings.json
 {
-  "project": "my-task-app",
-  "mainBranch": "main",
-  "basePort": 3000
+  "tmux": {
+    "autoRun": true
+  }
   // ❌ No need for tmux.sessionName - auto-inferred from project
 }
 ```
@@ -219,57 +220,174 @@ tmux select-pane -t 0
 
 ### 2.5 Pane Content Automation
 
-#### 2.5.1 Left Pane (Claude Code)
+#### 2.5.1 Config File
 
-**Behavior**:
-- Switch to worktree directory
-- **Don't** auto-start Claude
-- Wait for user to manually run `claude`
+Pane commands can be customized via config (optional).
 
-**Reason**:
-- User may want to check code first
-- Claude occupies pane after starting
-- Give user full control
+**Two-level config mechanism**:
 
-#### 2.5.2 Top Right Pane (Dev Server)
+| Level | Path | Description |
+|------|------|-------------|
+| User-level | `~/.config/colyn/settings.json` | User defaults for all projects |
+| Project-level | `{projectRoot}/.colyn/settings.json` | Project-specific overrides |
 
-**Behavior**:
-- Detect `dev` script in package.json
-- Auto-execute `npm run dev`
-- PORT auto-read from .env.local
+**Priority**: Project-level > User-level > Built-in defaults
 
-**Detection logic**:
-```typescript
-// 1. Read package.json
-const devScript = packageJson.scripts?.dev;
+**Config format**:
 
-// 2. If exists, auto-start
-if (devScript) {
-  tmux send-keys "npm run dev" Enter
-}
-
-// 3. If doesn't exist, show hint
-else {
-  echo "# No dev script detected"
+```json
+{
+  "tmux": {
+    "autoRun": true,
+    "leftPane": {
+      "command": "auto continues claude session",
+      "size": "60%"
+    },
+    "rightTopPane": {
+      "command": "auto start dev server",
+      "size": "30%"
+    },
+    "rightBottomPane": {
+      "command": null,
+      "size": "70%"
+    }
+  }
 }
 ```
 
-**Project type support**:
-- ✅ npm projects (MVP)
-- ❌ Rails, Django, etc. (can extend in future)
+**Config fields**:
 
-#### 2.5.3 Bottom Right Pane (Bash)
+| Field | Type | Default | Description |
+|------|------|---------|-------------|
+| `autoRun` | boolean | `true` | Auto-run commands; `false` disables all auto-run |
+| `leftPane.command` | string \| null | see below | Left pane command |
+| `leftPane.size` | string | `"60%"` | Left pane width |
+| `rightTopPane.command` | string \| null | see below | Top-right pane command |
+| `rightTopPane.size` | string | `"30%"` | Top-right pane height ratio |
+| `rightBottomPane.command` | string \| null | `null` | Bottom-right pane command |
+| `rightBottomPane.size` | string | `"70%"` | Bottom-right pane height ratio |
 
-**Behavior**:
-- Switch to worktree directory
-- **Don't** execute additional commands
-- Keep clean shell
+**Built-in commands**:
 
-**Use cases**:
-- Execute git commands
-- Run tests
-- Install dependencies
-- Any command line operations
+| Command | Description |
+|------|------|
+| `auto continues claude session` | Auto-continue Claude session (detect existing session; use `claude -c` if found, otherwise `claude`) |
+| `auto continues claude session with dangerously skip permissions` | Same as above, plus `--dangerously-skip-permissions` |
+| `auto start dev server` | Auto-start dev server (detect `dev` script in package.json) |
+
+**Defaults**:
+- `leftPane.command`: `"auto continues claude session"`
+- `rightTopPane.command`: `"auto start dev server"`
+- `rightBottomPane.command`: `null` (no command)
+
+**Auto detection logic**:
+
+| Built-in | Detection |
+|---------|-----------|
+| `auto continues claude session` | Detect existing Claude session in current directory; use `claude -c` if found, otherwise `claude` |
+| `auto continues claude session with dangerously skip permissions` | Same as above, plus `--dangerously-skip-permissions` |
+| `auto start dev server` | Detect `dev` script in package.json; run if present |
+
+**Examples**:
+
+```json
+// Disable all auto commands
+{
+  "tmux": {
+    "autoRun": false
+  }
+}
+
+// Custom commands
+{
+  "tmux": {
+    "leftPane": {
+      "command": "nvim"
+    },
+    "rightTopPane": {
+      "command": "npm run start"
+    },
+    "rightBottomPane": {
+      "command": "htop"
+    }
+  }
+}
+
+// Custom layout sizes
+{
+  "tmux": {
+    "leftPane": {
+      "size": "50%"
+    },
+    "rightTopPane": {
+      "size": "40%"
+    }
+  }
+}
+
+// dangerously skip permissions mode
+{
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions"
+    }
+  }
+}
+
+// Disable Claude auto-start
+{
+  "tmux": {
+    "leftPane": {
+      "command": null
+    }
+  }
+}
+```
+
+**Two-level merge example**:
+
+```json
+// ~/.config/colyn/settings.json (user-level)
+{
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions",
+      "size": "50%"
+    },
+    "rightBottomPane": {
+      "command": "htop"
+    }
+  }
+}
+
+// {projectRoot}/.colyn/settings.json (project-level)
+{
+  "tmux": {
+    "leftPane": {
+      "command": "nvim"  // override command only, keep user-level size
+    }
+  }
+}
+
+// Final merged config
+{
+  "tmux": {
+    "autoRun": true,
+    "leftPane": {
+      "command": "nvim",
+      "size": "50%"
+    },
+    "rightTopPane": {
+      "command": "auto start dev server",
+      "size": "30%"
+    },
+    "rightBottomPane": {
+      "command": "htop",
+      "size": "70%"
+    }
+  }
+}
+```
 
 ### 2.6 colyn list Integration
 
@@ -657,14 +775,10 @@ Ctrl-b 1
    - User-defined pane sizes
    - Multiple preset layouts
 
-3. **Session management commands**
-   - `colyn tmux status` - View session status
-   - `colyn tmux attach` - Quick attach
-
-4. **Window repair**
+3. **Window repair**
    - `colyn repair` - Fix broken layouts
 
-5. **Remote collaboration**
+4. **Remote collaboration**
    - Share tmux session
    - Multi-person collaboration on same project
 

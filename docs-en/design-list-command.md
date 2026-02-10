@@ -45,7 +45,7 @@ Display information about all worktrees in the project, including main branch an
 
 ```
 ID    Branch            Port   Status      Diff   Path
-  -   main              10000              -      my-app
+  0-main   main         10000              -      my-app
   1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
@@ -70,7 +70,7 @@ ID    Branch            Port   Status      Diff   Path
 $ colyn list
 
 ID    Branch            Port   Status      Diff   Path
-  -   main              10000              -      my-app
+  0-main   main         10000              -      my-app
   1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
@@ -179,14 +179,14 @@ ID    Branch            Port   Status      Diff   Path
 **Features**:
 - Colored output, beautiful and readable
 - Current worktree marked with `→` arrow, entire row highlighted
-- Main branch ID shown as `-`
+- Main branch ID shown as `0-main`
 - Path shown as relative path from project root
 - **Responsive layout**: Auto-adjust displayed columns based on terminal width
 
 **Output Example**:
 ```
 ID    Branch            Port   Status      Diff   Path
-  -   main              10000              -      my-app
+  0-main   main         10000              -      my-app
   1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     worktrees/task-2
 ```
@@ -435,7 +435,7 @@ $ cd worktrees/task-1/src/components
 $ colyn list
 
 ID    Branch            Port   Status   Diff   Path
-  -   main              10000           -      my-app
+  0-main   main         10000           -      my-app
 → 1   feature/login     10001           ✓      worktrees/task-1
   2   feature/dashboard 10002           ↑5     worktrees/task-2
 ```
@@ -484,7 +484,7 @@ graph TD
 $ colyn list
 
 ID    Branch  Port   Status   Diff   Path
-→ -   main    10000           -      my-app
+→ 0-main   main    10000           -      my-app
 
 Hint: Use colyn add <branch> to create a new worktree
 ```
@@ -524,7 +524,7 @@ Worktree list sorted by the following rules:
 
 ```
 ID    Branch            Port   Status   Diff   Path
-  -   main              10000           -      my-app              # Main branch first
+  0-main   main         10000           -      my-app              # Main branch first
   1   feature/login     10001           ✓      worktrees/task-1
   2   feature/dashboard 10002  M:2      ↑3     worktrees/task-2
   5   feature/payment   10005           ↑1     worktrees/task-5    # Sorted by ID
