@@ -1,6 +1,6 @@
 {
   "name": "colyn",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "description": "Git worktree 管理工具",
   "type": "module",
   "bin": "./bin/colyn",
