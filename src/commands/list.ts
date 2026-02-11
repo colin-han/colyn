@@ -3,6 +3,7 @@ import type { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora from 'ora';
+import chokidar from 'chokidar';
 import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
 import {
   discoverProjectInfo,
@@ -30,7 +31,7 @@ export interface ListOptions {
   json?: boolean;
   paths?: boolean;
   main?: boolean;  // --no-main 会设置为 false
-  refresh?: boolean | string; // -r 或 -r [interval]
+  refresh?: boolean; // -r 开启 file watch 模式
 }
 
 /**
@@ -399,18 +400,13 @@ async function listCommand(options: ListOptions): Promise<void> {
 
     // 刷新模式
     if (options.refresh) {
-      // 解析刷新间隔
-      let interval = 2000; // 默认 2 秒
-      if (typeof options.refresh === 'string') {
-        const parsed = parseInt(options.refresh, 10);
-        if (isNaN(parsed) || parsed < 1) {
-          throw new ColynError(
-            t('commands.list.invalidInterval'),
-            t('commands.list.invalidIntervalHint')
-          );
-        }
-        interval = parsed * 1000;
-      }
+      // 获取项目路径
+      const paths = await getProjectPaths();
+      await validateProjectInitialized(paths);
+
+      // 防抖：避免短时间内多次刷新
+      let debounceTimer: NodeJS.Timeout | null = null;
+      const DEBOUNCE_DELAY = 300; // 300ms 防抖延迟
 
       // 渲染函数：先获取数据，再清屏并立即显示（减少闪烁）
       const render = async () => {
@@ -419,7 +415,6 @@ async function listCommand(options: ListOptions): Promise<void> {
           const spinner = ora({
             text: t('commands.list.refreshingData'),
             stream: process.stderr,
-            // 使用简单的 spinner 样式
             spinner: 'dots'
           }).start();
 
@@ -435,25 +430,83 @@ async function listCommand(options: ListOptions): Promise<void> {
           // 3. 立即显示数据（无延迟）
           outputTable(items);
           output('');
-          output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+          output(chalk.dim(t('commands.list.watchMode')));
         } catch (error) {
           // 刷新过程中出错，显示错误但不退出
           clearScreen();
           formatError(error);
           output('');
-          output(chalk.dim(t('commands.list.refreshing', { interval: interval / 1000 })));
+          output(chalk.dim(t('commands.list.watchMode')));
         }
+      };
+
+      // 带防抖的渲染函数
+      const debouncedRender = () => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        debounceTimer = setTimeout(() => {
+          render();
+          debounceTimer = null;
+        }, DEBOUNCE_DELAY);
       };
 
       // 首次渲染
       await render();
 
-      // 设置定时刷新
-      const timer = setInterval(render, interval);
+      // 需要监听的路径
+      const watchPaths: string[] = [];
+
+      // 1. 主分支目录的 .git 目录
+      watchPaths.push(path.join(paths.mainDir, '.git'));
+
+      // 2. 所有 worktree 的 .git 文件（worktree 的 .git 是个文件，不是目录）
+      const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+      for (const wt of projectInfo.worktrees) {
+        watchPaths.push(path.join(wt.path, '.git'));
+      }
+
+      // 3. worktrees 目录本身（检测新增/删除 worktree）
+      watchPaths.push(paths.worktreesDir);
+
+      // 4. 监听所有 worktree 目录下的 .env.local 文件（端口变化）
+      watchPaths.push(path.join(paths.mainDir, '.env.local'));
+      for (const wt of projectInfo.worktrees) {
+        watchPaths.push(path.join(wt.path, '.env.local'));
+      }
+
+      // 创建文件监听器
+      const watcher = chokidar.watch(watchPaths, {
+        persistent: true,
+        ignoreInitial: true,
+        // 忽略 .git 目录中的一些临时文件
+        ignored: /(\.git\/index\.lock$|\.git\/.*\.tmp$)/,
+        // 监听深度：.git 目录需要递归监听
+        depth: 5,
+        // 稳定延迟：文件修改后等待一段时间再触发（避免重复事件）
+        awaitWriteFinish: {
+          stabilityThreshold: 100,
+          pollInterval: 50
+        }
+      });
+
+      // 监听文件变化
+      watcher.on('all', (_event, _changedPath) => {
+        // 调试日志（可选）
+        // console.error(`File ${_event}: ${_changedPath}`);
+        debouncedRender();
+      });
+
+      // 监听器错误处理
+      watcher.on('error', (err: unknown) => {
+        output('');
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        output(chalk.red(t('commands.list.watchError', { error: errorMessage })));
+      });
 
       // 处理 Ctrl+C 优雅退出
-      process.on('SIGINT', () => {
-        clearInterval(timer);
+      process.on('SIGINT', async () => {
+        await watcher.close();
         output('');
         output(t('commands.list.refreshStopped'));
         process.exit(0);
@@ -531,7 +584,7 @@ export function register(program: Command): void {
     .option('--json', t('commands.list.jsonOption'))
     .option('-p, --paths', t('commands.list.pathsOption'))
     .option('--no-main', t('commands.list.noMainOption'))
-    .option('-r, --refresh [interval]', t('commands.list.refreshOption'))
+    .option('-r, --refresh', t('commands.list.refreshOption'))
     .action(async (options) => {
       await listCommand(options);
     });
