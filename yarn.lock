@@ -542,6 +542,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/chokidar@npm:^2.1.7":
+  version: 2.1.7
+  resolution: "@types/chokidar@npm:2.1.7"
+  dependencies:
+    chokidar: "npm:*"
+  checksum: 10c0/e296861b45a90da59a871cc09020e1a8b1111b4a954a2f104ea0a0be31f5b565a35710e9d54670288ca9bdf0c7e71d7d070aaf212db03ee14c1bda93db2f1086
+  languageName: node
+  linkType: hard
+
 "@types/estree@npm:1.0.8, @types/estree@npm:^1.0.0":
   version: 1.0.8
   resolution: "@types/estree@npm:1.0.8"
@@ -993,6 +1002,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"chokidar@npm:*, chokidar@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "chokidar@npm:5.0.0"
+  dependencies:
+    readdirp: "npm:^5.0.0"
+  checksum: 10c0/42fc907cb2a7ff5c9e220f84dae75380a77997f851c2a5e7865a2cf9ae45dd407a23557208cdcdbf3ac8c93341135a1748e4c48c31855f3bfa095e5159b6bdec
+  languageName: node
+  linkType: hard
+
 "chownr@npm:^3.0.0":
   version: 3.0.0
   resolution: "chownr@npm:3.0.0"
@@ -1049,11 +1067,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "colyn@workspace:."
   dependencies:
+    "@types/chokidar": "npm:^2.1.7"
     "@types/node": "npm:^20.11.0"
     "@typescript-eslint/eslint-plugin": "npm:^6.19.0"
     "@typescript-eslint/parser": "npm:^6.19.0"
     "@vitest/ui": "npm:^1.2.0"
     chalk: "npm:^5.3.0"
+    chokidar: "npm:^5.0.0"
     cli-table3: "npm:^0.6.3"
     commander: "npm:^12.0.0"
     dotenv: "npm:^16.4.0"
@@ -2512,6 +2532,13 @@ __metadata:
   version: 18.3.1
   resolution: "react-is@npm:18.3.1"
   checksum: 10c0/f2f1e60010c683479e74c63f96b09fb41603527cd131a9959e2aee1e5a8b0caf270b365e5ca77d4a6b18aae659b60a86150bb3979073528877029b35aecd2072
+  languageName: node
+  linkType: hard
+
+"readdirp@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "readdirp@npm:5.0.0"
+  checksum: 10c0/faf1ec57cff2020f473128da3f8d2a57813cc3a08a36c38cae1c9af32c1579906cc50ba75578043b35bade77e945c098233665797cf9730ba3613a62d6e79219
   languageName: node
   linkType: hard
 

@@ -697,62 +697,85 @@ graph LR
 
 ### 13.1 功能概述
 
-**更新时间**：2026-02-09
+**更新时间**：2026-02-11
 
 自动刷新功能允许用户实时监控所有 worktree 的状态变化，无需手动重复执行命令。
 
 **核心特性**：
-- 定时轮询刷新（默认 2 秒）
-- 可自定义刷新间隔
+- 基于 file watch 的智能刷新（仅在文件变化时刷新）
+- 自动监听 Git 状态、.env.local 配置、worktree 添加/删除
+- 防抖机制避免频繁刷新
 - 清屏后重新渲染，保持界面整洁
 - 按 `Ctrl+C` 优雅退出
 
 ### 13.2 使用方式
 
 ```bash
-# 使用默认间隔（2 秒）
+# 开启文件监听模式
 colyn list -r
 colyn list --refresh
 
-# 自定义刷新间隔
-colyn list -r 5      # 5 秒刷新
-colyn list -r 1      # 1 秒快速刷新
-colyn list -r 10     # 10 秒低频刷新
+# 自动监听以下变化：
+# - Git 状态变化（commit、checkout、merge 等）
+# - .env.local 端口配置变化
+# - Worktree 添加/删除
 ```
 
 ### 13.3 技术实现
 
-**方案选择**：定时轮询
+**方案选择**：File Watch（chokidar）
 
-| 特性 | 定时轮询 | File Watch |
-|------|---------|------------|
-| 实现复杂度 | ⭐ 简单 | ⭐⭐⭐ 复杂 |
-| 可靠性 | ⭐⭐⭐ 高 | ⭐⭐ 中等 |
-| 跨平台兼容性 | ⭐⭐⭐ 完美 | ⭐⭐ 一般 |
-| 外部依赖 | 无 | 需要 chokidar |
+**从定时轮询改为 File Watch 的原因**（2026-02-11 更新）：
+1. ❌ 定时轮询太频繁，即使没有变化也会刷新
+2. ❌ 默认 2 秒间隔对用户来说太快，干扰视觉
+3. ✅ File watch 只在真正有变化时刷新，更加高效
+4. ✅ 监听具体文件，响应更精准
 
-**选择理由**：
-1. ✅ 实现简单，代码量少
-2. ✅ 零依赖，不需要新的 npm 包
-3. ✅ 跨平台兼容性好
-4. ✅ 2-3 秒延迟对用户完全可接受
-5. ✅ 参考业界标准（watch、k9s、htop 都使用轮询）
+| 特性 | File Watch | 定时轮询 |
+|------|-----------|---------|
+| 刷新频率 | 按需刷新 | 固定间隔 |
+| 资源消耗 | ⭐⭐⭐ 低 | ⭐⭐ 中等 |
+| 响应速度 | ⭐⭐⭐ 即时 | ⭐ 延迟 1-2s |
+| 实现复杂度 | ⭐⭐ 中等 | ⭐ 简单 |
+| 依赖 | chokidar | 无 |
+
+**监听路径**：
+1. 主分支 `.git` 目录（Git 状态变化）
+2. 所有 worktree 的 `.git` 文件（Worktree Git 状态）
+3. `worktrees/` 目录（检测 worktree 添加/删除）
+4. 所有 `.env.local` 文件（端口配置变化）
 
 **核心逻辑**：
 ```typescript
-// 清屏
-process.stdout.write('\x1b[2J\x1b[0;0H');
+// 监听路径
+const watchPaths = [
+  path.join(mainDir, '.git'),              // 主分支 Git
+  path.join(worktreesDir),                 // Worktrees 目录
+  path.join(mainDir, '.env.local'),        // 主分支配置
+  ...worktrees.map(wt => path.join(wt.path, '.git')),      // Worktree Git
+  ...worktrees.map(wt => path.join(wt.path, '.env.local')) // Worktree 配置
+];
 
-// 定时刷新
-setInterval(async () => {
-  clearScreen();
-  await renderList(options);
-}, interval);
+// 创建监听器
+const watcher = chokidar.watch(watchPaths, {
+  persistent: true,
+  ignoreInitial: true,
+  ignored: /(\.git\/index\.lock$|\.git\/.*\.tmp$)/,
+  awaitWriteFinish: {
+    stabilityThreshold: 100,
+    pollInterval: 50
+  }
+});
 
-// 优雅退出
-process.on('SIGINT', () => {
-  clearInterval(timer);
-  process.exit(0);
+// 防抖：避免短时间内多次刷新
+let debounceTimer: NodeJS.Timeout | null = null;
+const DEBOUNCE_DELAY = 300; // 300ms
+
+watcher.on('all', () => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    render();
+  }, DEBOUNCE_DELAY);
 });
 ```
 
@@ -767,18 +790,17 @@ process.on('SIGINT', () => {
 
 ### 13.5 错误处理
 
-**无效的刷新间隔**：
-```bash
-$ colyn list -r abc
-✗ 无效的刷新间隔
-  刷新间隔必须是大于 0 的整数（秒）
-```
-
 **与其他格式选项冲突**：
 ```bash
 $ colyn list -r --json
 ✗ 选项冲突：--refresh 不能与 --json 或 --paths 同时使用
   刷新模式只支持表格输出
+```
+
+**文件监听错误**：
+```bash
+# 监听器错误时显示错误信息但继续运行
+文件监听错误：xxx
 ```
 
 ### 13.6 用户体验
@@ -793,7 +815,14 @@ $ colyn list -r --json
 │   2      │ feature/tmux   │ 3002 │        │ ✓    │ worktrees/2    │
 └──────────┴────────────────┴──────┴────────┴──────┴────────────────┘
 
-每 2 秒自动刷新 (按 Ctrl+C 退出)
+监听文件变化中 (按 Ctrl+C 退出)
+```
+
+**刷新过程**：
+```
+⠋ 正在刷新数据...
+
+# 数据获取完成后，清屏并显示新表格
 ```
 
 **退出提示**：
@@ -819,14 +848,23 @@ $ colyn list -r --json
 ### 13.8 性能考虑
 
 **资源消耗**：
-- 每次刷新会执行 `git status` 和 `git diff` 命令
-- 建议刷新间隔不要低于 1 秒
-- 对于大型仓库，可以适当增加刷新间隔（如 5-10 秒）
+- 只在文件变化时刷新，资源消耗远低于定时轮询
+- 防抖延迟 300ms，避免短时间内多次刷新
+- 文件监听器在后台运行，CPU 占用极低
 
-**优化建议**：
-- 当前实现采用定时轮询，即使数据没有变化也会刷新
-- 未来可以考虑缓存上次状态，只在数据变化时刷新
-- 但这会增加实现复杂度，当前暂不实现
+**优化措施**：
+- ✅ 使用 `chokidar` 的 `awaitWriteFinish` 确保文件写入完成
+- ✅ 忽略临时文件（`.git/index.lock`, `.git/*.tmp`）
+- ✅ 防抖机制避免频繁刷新
+- ✅ 先获取数据再清屏，减少屏幕闪烁
+
+**对比定时轮询**：
+| 指标 | File Watch | 定时轮询（2s） |
+|------|-----------|--------------|
+| 平均刷新频率 | 按需（~1-2 次/分钟） | 30 次/分钟 |
+| CPU 占用 | 极低 | 低-中 |
+| 响应延迟 | 300ms | 0-2s |
+| 用户体验 | ⭐⭐⭐ 优秀 | ⭐⭐ 一般（太频繁） |
 
 ---
 
@@ -840,4 +878,4 @@ $ colyn list -r --json
 4. **脚本友好**：`--json` 和 `--paths` 便于自动化处理
 5. **从任意位置运行**：自动定位项目根目录
 6. **清晰的空状态处理**：给出明确提示
-7. **实时监控**：`-r` 自动刷新功能，实时查看状态变化（2026-02-09 新增）
+7. **智能刷新**：`-r` 基于 file watch 的自动刷新，按需更新（2026-02-11 更新）
