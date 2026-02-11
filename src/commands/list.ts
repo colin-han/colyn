@@ -406,7 +406,7 @@ async function listCommand(options: ListOptions): Promise<void> {
 
       // 防抖：避免短时间内多次刷新
       let debounceTimer: NodeJS.Timeout | null = null;
-      const DEBOUNCE_DELAY = 300; // 300ms 防抖延迟
+      const DEBOUNCE_DELAY = 1000; // 1秒防抖延迟
 
       // 渲染函数：先获取数据，再清屏并立即显示（减少闪烁）
       const render = async () => {

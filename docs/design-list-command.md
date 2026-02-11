@@ -769,7 +769,7 @@ const watcher = chokidar.watch(watchPaths, {
 
 // 防抖：避免短时间内多次刷新
 let debounceTimer: NodeJS.Timeout | null = null;
-const DEBOUNCE_DELAY = 300; // 300ms
+const DEBOUNCE_DELAY = 1000; // 1秒
 
 watcher.on('all', () => {
   if (debounceTimer) clearTimeout(debounceTimer);
@@ -849,7 +849,7 @@ $ colyn list -r --json
 
 **资源消耗**：
 - 只在文件变化时刷新，资源消耗远低于定时轮询
-- 防抖延迟 300ms，避免短时间内多次刷新
+- 防抖延迟 1 秒，避免短时间内多次刷新
 - 文件监听器在后台运行，CPU 占用极低
 
 **优化措施**：
@@ -863,7 +863,7 @@ $ colyn list -r --json
 |------|-----------|--------------|
 | 平均刷新频率 | 按需（~1-2 次/分钟） | 30 次/分钟 |
 | CPU 占用 | 极低 | 低-中 |
-| 响应延迟 | 300ms | 0-2s |
+| 响应延迟 | 1s | 0-2s |
 | 用户体验 | ⭐⭐⭐ 优秀 | ⭐⭐ 一般（太频繁） |
 
 ---
