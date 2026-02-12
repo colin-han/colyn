@@ -220,6 +220,8 @@ Hints:
       pushOption: 'Auto push to remote after merge',
       noPushOption: 'Do not push after merge (skip prompt)',
       noRebaseOption: 'Use merge instead of rebase to update worktree',
+      noUpdateOption: 'Do not auto-update after merge',
+      updateAllOption: 'Update all worktrees after merge',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>
@@ -301,6 +303,9 @@ Main branch directory: {{path}}`,
       pushFailedTitle: 'Failed to push to remote repository',
       pushFailedError: 'Error: {{error}}',
       pushFailedHint: 'Local merge complete, you can push later manually:',
+      updatingCurrentWorktree: 'Updating current worktree...',
+      updatingAllWorktrees: 'Updating all worktrees...',
+      updatePartialSuccess: '⚠ Some worktrees failed to update, see details above',
     },
 
     // update command

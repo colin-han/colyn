@@ -6,7 +6,7 @@ import {
   validateProjectInitialized,
   executeInDirectory
 } from '../core/paths.js';
-import { getMainBranch } from '../core/discovery.js';
+import { getMainBranch, discoverWorktrees } from '../core/discovery.js';
 import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { formatError, output, outputResult, outputSuccess } from '../utils/logger.js';
@@ -23,6 +23,11 @@ import {
   displayMergeConflict,
   displayPushFailed
 } from './merge.helpers.js';
+import {
+  pullMainBranch,
+  updateAllWorktrees,
+  displayBatchUpdateResult
+} from './update.helpers.js';
 import { t } from '../i18n/index.js';
 
 /**
@@ -31,6 +36,8 @@ import { t } from '../i18n/index.js';
 interface MergeOptions {
   push?: boolean;
   noRebase?: boolean;
+  noUpdate?: boolean;  // 合并后不自动更新
+  updateAll?: boolean;  // 合并后更新所有 worktrees
 }
 
 /**
@@ -207,7 +214,66 @@ async function mergeCommand(
       pushed
     );
 
-    // 步骤10: 输出 JSON 结果到 stdout（不设置 targetDir，保持在原目录）
+    // 步骤10: 自动更新 worktrees
+    if (!options.noUpdate) {
+      output('');
+
+      // 拉取主分支最新代码（如果已经 push，则主分支已经是最新的）
+      if (!pushed) {
+        try {
+          await pullMainBranch(paths.mainDir);
+        } catch (error) {
+          // 拉取失败不影响更新流程，因为本地已经有最新代码
+        }
+      }
+
+      if (options.updateAll) {
+        // --update-all: 更新所有 worktrees（包括当前的）
+        output(t('commands.merge.updatingAllWorktrees'));
+
+        const allWorktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir);
+
+        if (allWorktrees.length > 0) {
+          const updateResult = await updateAllWorktrees(
+            allWorktrees,
+            mainBranch,
+            true  // 默认使用 rebase
+          );
+
+          displayBatchUpdateResult(updateResult);
+
+          if (updateResult.failed > 0) {
+            output('');
+            output(t('commands.merge.updatePartialSuccess'));
+          }
+        }
+      } else {
+        // 默认：仅更新当前 worktree
+        output(t('commands.merge.updatingCurrentWorktree'));
+
+        const updateSpinner = ora({
+          text: t('commands.update.updating', { strategy: 'rebase' }),
+          stream: process.stderr
+        }).start();
+
+        const updateResult = await executeInDirectory(worktree.path, async () => {
+          return await updateAllWorktrees([worktree], mainBranch, true);
+        });
+
+        if (updateResult.succeeded > 0) {
+          updateSpinner.succeed(t('commands.update.updateSuccess'));
+        } else if (updateResult.skipped > 0) {
+          updateSpinner.warn(t('commands.update.dirtySkipped'));
+        } else {
+          updateSpinner.fail(t('commands.update.updateFailed'));
+          if (updateResult.results[0]?.error) {
+            output(t('common.hint') + ': ' + updateResult.results[0].error);
+          }
+        }
+      }
+    }
+
+    // 步骤11: 输出 JSON 结果到 stdout（不设置 targetDir，保持在原目录）
     const result: CommandResult = {
       success: true
     };
@@ -230,6 +296,8 @@ export function register(program: Command): void {
     .option('--no-rebase', t('commands.merge.noRebaseOption'))
     .option('--push', t('commands.merge.pushOption'))
     .option('--no-push', t('commands.merge.noPushOption'))
+    .option('--no-update', t('commands.merge.noUpdateOption'))
+    .option('--update-all', t('commands.merge.updateAllOption'))
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });
