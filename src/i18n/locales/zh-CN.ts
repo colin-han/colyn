@@ -220,6 +220,8 @@ export const zhCN = {
       pushOption: '合并后自动推送到远程',
       noPushOption: '合并后不推送（跳过询问）',
       noRebaseOption: '使用 merge 而非 rebase 更新 worktree',
+      noUpdateOption: '合并后不自动更新',
+      updateAllOption: '合并后更新所有 worktrees',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -301,6 +303,9 @@ export const zhCN = {
       pushFailedTitle: '推送到远程仓库失败',
       pushFailedError: '错误信息: {{error}}',
       pushFailedHint: '本地合并已完成，可稍后手动推送：',
+      updatingCurrentWorktree: '正在更新当前 worktree...',
+      updatingAllWorktrees: '正在更新所有 worktrees...',
+      updatePartialSuccess: '⚠ 部分 worktrees 更新失败，请检查上方详情',
     },
 
     // update command
