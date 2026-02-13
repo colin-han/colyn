@@ -32,6 +32,8 @@ export const zhCN = {
     helpDescription: '显示命令帮助',
     helpCommand: 'help [命令]',
     helpCommandDescription: '显示命令帮助',
+    showHelpHint: '(使用 --help 查看用法信息)',
+    missingArgument: '缺少必要参数: {{arg}}',
   },
 
   // Logger
@@ -143,6 +145,11 @@ export const zhCN = {
       tableStatus: 'Status',
       tableDiff: 'Diff',
       tablePath: 'Path',
+      tmuxSwitchHint: '使用 Ctrl-b 0-9 切换到对应 Window',
+      statusColumnHelp: `Status 列缩写说明:
+  M - Modified (已修改未提交的更改)
+  S - Staged (已暂存到索引的更改)
+  ? - Untracked (未被 git 跟踪的新文件)`,
     },
 
     // release command
@@ -244,6 +251,7 @@ export const zhCN = {
       noRebaseOption: '使用 merge 而非 rebase 更新 worktree',
       noUpdateOption: '合并后不自动更新',
       updateAllOption: '合并后更新所有 worktrees',
+      verboseOption: '显示详细的步骤信息',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -521,12 +529,35 @@ export const zhCN = {
       invalidFieldHint: '有效字段: {{fields}}',
       notInWorktree: '当前目录不在 worktree 或主分支中',
       notInWorktreeHint: '请切换到主分支目录或某个 worktree 目录',
+      notColynProject: '当前目录不在 colyn 项目中',
+      notColynProjectHint: '--format 和 --field 选项需要在 colyn 项目中使用',
       labelProject: 'Project:',
       labelProjectPath: 'Project Path:',
       labelWorktreeId: 'Worktree ID:',
       labelWorktreeDir: 'Worktree Dir:',
       labelBranch: 'Branch:',
+      labelRepository: 'Repository:',
+      labelRepositoryPath: 'Repo Path:',
+      labelDirectory: 'Directory:',
+      labelDirectoryPath: 'Path:',
       mainIndicator: '0 (main)',
+    },
+
+    // status command
+    status: {
+      description: '显示当前 worktree 的状态',
+      location: '位置',
+      branch: '分支',
+      port: '端口',
+      changes: '变更',
+      staged: '已暂存 {{count}} 个文件',
+      modified: '已修改 {{count}} 个文件',
+      untracked: '未跟踪 {{count}} 个文件',
+      clean: '✓ 工作目录干净',
+      diff: '与 {{branch}} 的差异',
+      ahead: '领先',
+      behind: '落后',
+      synced: '✓ 已与 {{branch}} 同步',
     },
 
     // repair command
@@ -612,6 +643,12 @@ export const zhCN = {
       unsupportedShellHint: '支持的 shell: {{shells}}',
       cannotReadScript: '无法读取 {{shell}} 补全脚本',
       cannotReadScriptHint: '请确保项目完整安装，脚本路径: shell/completion.{{shell}}',
+      // Field descriptions for zsh completion
+      fieldProject: '项目名称',
+      fieldProjectPath: '项目路径',
+      fieldWorktreeId: 'Worktree ID',
+      fieldWorktreeDir: 'Worktree 目录名',
+      fieldBranch: '分支名',
       installTitle: '📝 手动安装说明:',
       installStep1: '1. 将以下内容添加到 {{config}}:',
       installStep2: '2. 重新加载配置:',

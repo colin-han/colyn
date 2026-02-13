@@ -424,7 +424,7 @@ function displayRepairSummary(
     } else if (result.success && result.fixed) {
       output(`  ${result.item}:`);
       for (const detail of result.details || []) {
-        output(`    ✗ ${detail}`);
+        output(`    ✓ ${detail}`);
       }
     } else {
       output(`  ${result.item}:`);

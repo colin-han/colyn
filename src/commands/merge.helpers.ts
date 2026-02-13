@@ -315,36 +315,42 @@ export function displayMergeSuccess(
   mainDir: string,
   worktreePath: string,
   worktreeId: number,
-  pushed: boolean
+  pushed: boolean,
+  verbose: boolean = false
 ): void {
   outputLine();
   outputSuccess(t('commands.merge.mergeSuccess'));
-  outputLine();
-
-  outputBold(t('commands.merge.mergeInfo'));
-  output(`  ${t('commands.merge.mainBranchLabel', { branch: mainBranch })}`);
-  output(`  ${t('commands.merge.mergeBranchLabel', { branch })}`);
-  output(`  ${t('commands.merge.commitLabel', { hash: commitHash, branch })}`);
-  outputLine();
 
   if (pushed) {
-    outputSuccess(t('commands.merge.mergeAndPushed'));
-  } else {
-    outputSuccess(t('commands.merge.mergeCompleteNoPush'));
-    output(chalk.gray(t('commands.merge.pushLaterHint')));
-    output(chalk.gray(`  cd "${mainDir}" && git push`));
+    output(chalk.gray(t('commands.merge.mergeAndPushed')));
   }
 
-  outputLine();
-  outputBold(t('commands.merge.nextSteps'));
-  outputStep(`  ${t('commands.merge.step1ViewCode')}`);
-  output(`     cd "${mainDir}"`);
-  outputLine();
-  outputStep(`  ${t('commands.merge.step2ContinueWorktree')}`);
-  output(`     cd "${worktreePath}"`);
-  outputLine();
-  outputStep(`  ${t('commands.merge.step3RemoveWorktree')}`);
-  output(`     colyn remove ${worktreeId}`);
+  if (verbose) {
+    outputLine();
+
+    outputBold(t('commands.merge.mergeInfo'));
+    output(`  ${t('commands.merge.mainBranchLabel', { branch: mainBranch })}`);
+    output(`  ${t('commands.merge.mergeBranchLabel', { branch })}`);
+    output(`  ${t('commands.merge.commitLabel', { hash: commitHash, branch })}`);
+    outputLine();
+
+    if (!pushed) {
+      output(chalk.gray(t('commands.merge.pushLaterHint')));
+      output(chalk.gray(`  cd "${mainDir}" && git push`));
+      outputLine();
+    }
+
+    outputBold(t('commands.merge.nextSteps'));
+    outputStep(`  ${t('commands.merge.step1ViewCode')}`);
+    output(`     cd "${mainDir}"`);
+    outputLine();
+    outputStep(`  ${t('commands.merge.step2ContinueWorktree')}`);
+    output(`     cd "${worktreePath}"`);
+    outputLine();
+    outputStep(`  ${t('commands.merge.step3RemoveWorktree')}`);
+    output(`     colyn remove ${worktreeId}`);
+  }
+
   outputLine();
 }
 

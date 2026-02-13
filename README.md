@@ -29,7 +29,7 @@ npm install -g colyn
 volta install colyn
 
 # 配置 shell 集成（支持自动目录切换）
-colyn system-integration
+colyn setup
 ```
 
 配置完成后，重新打开终端或运行 `source ~/.zshrc`（或 `~/.bashrc`）即可使用完整功能。
@@ -378,12 +378,12 @@ $ colyn repair
 ✓ 修复完成！
 ```
 
-### `colyn system-integration`
+### `colyn setup`
 
 配置 shell 集成（支持自动目录切换和命令补全）。
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 **功能**：
@@ -499,7 +499,8 @@ colyn/
 - [x] `info` - 显示当前目录信息
 - [x] `completion` - 自动补全功能
 - [x] `repair` - 检查并修复项目配置
-- [x] `system-integration` - 配置 shell 集成
+- [x] `setup` - 配置 shell 集成
+- [x] `status` (`st`) - 显示当前 worktree 状态
 
 ---
 

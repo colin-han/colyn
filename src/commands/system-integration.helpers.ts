@@ -6,6 +6,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
+import { generateZshCompletionScript } from './completion.js';
 
 /**
  * Shell 配置信息
@@ -218,4 +219,36 @@ export async function checkCompletionScriptExists(completionPath: string): Promi
   } catch {
     return false;
   }
+}
+
+/**
+ * 获取补全脚本的缓存路径
+ */
+export function getCachedCompletionPath(shellType: string): string {
+  const homeDir = os.homedir();
+  const ext = shellType === 'zsh' ? 'zsh' : 'bash';
+  return path.join(homeDir, '.config', 'colyn', `completion.${ext}`);
+}
+
+/**
+ * 为 zsh 生成动态补全脚本并缓存到 ~/.config/colyn/completion.zsh
+ * 为 bash 返回静态脚本路径
+ *
+ * @returns 缓存文件路径（供 shell config source）
+ */
+export async function generateAndCacheCompletionScript(shellType: string): Promise<string> {
+  const cachedPath = getCachedCompletionPath(shellType);
+
+  if (shellType === 'zsh') {
+    // zsh: 动态生成带 i18n 的补全脚本并缓存
+    const script = generateZshCompletionScript();
+    const cacheDir = path.dirname(cachedPath);
+    await fs.mkdir(cacheDir, { recursive: true });
+    await fs.writeFile(cachedPath, script, 'utf-8');
+    return cachedPath;
+  }
+
+  // bash: 使用静态文件
+  const staticPath = getCompletionScriptPath(shellType);
+  return staticPath;
 }

@@ -23,7 +23,7 @@ function validateShell(shell: string): shell is ShellType {
 }
 
 /**
- * 获取补全脚本路径
+ * 获取补全脚本路径（仅用于 bash 静态脚本）
  */
 function getCompletionScriptPath(shell: ShellType): string {
   // 从 dist/commands 向上两级到项目根目录，然后进入 shell 目录
@@ -32,18 +32,206 @@ function getCompletionScriptPath(shell: ShellType): string {
 }
 
 /**
- * 读取补全脚本内容
+ * 读取 bash 补全脚本内容（bash 不显示描述，无需 i18n）
  */
-function readCompletionScript(shell: ShellType): string {
+function readBashCompletionScript(): string {
   try {
-    const scriptPath = getCompletionScriptPath(shell);
+    const scriptPath = getCompletionScriptPath('bash');
     return readFileSync(scriptPath, 'utf-8');
   } catch {
     throw new ColynError(
-      t('commands.completion.cannotReadScript', { shell }),
-      t('commands.completion.cannotReadScriptHint', { shell })
+      t('commands.completion.cannotReadScript', { shell: 'bash' }),
+      t('commands.completion.cannotReadScriptHint', { shell: 'bash' })
     );
   }
+}
+
+/**
+ * 转义 shell 单引号中的特殊字符
+ */
+function escapeShellSingleQuote(str: string): string {
+  return str.replace(/'/g, "'\\''");
+}
+
+/**
+ * 动态生成 zsh 补全脚本（使用 i18n 翻译）
+ */
+export function generateZshCompletionScript(): string {
+  const e = escapeShellSingleQuote;
+
+  return `#compdef colyn
+# Zsh completion script for colyn
+# Auto-generated with i18n support
+
+_colyn() {
+    local -a commands
+    commands=(
+        'init:${e(t('commands.init.description'))}'
+        'add:${e(t('commands.add.description'))}'
+        'list:${e(t('commands.list.description'))}'
+        'merge:${e(t('commands.merge.description'))}'
+        'update:${e(t('commands.update.description'))}'
+        'remove:${e(t('commands.remove.description'))}'
+        'checkout:${e(t('commands.checkout.description'))}'
+        'co:${e(t('commands.checkout.coDescription'))}'
+        'info:${e(t('commands.info.description'))}'
+        'status:${e(t('commands.status.description'))}'
+        'st:${e(t('commands.status.description'))}'
+        'repair:${e(t('commands.repair.description'))}'
+        'config:${e(t('commands.config.description'))}'
+        'setup:${e(t('commands.systemIntegration.description'))}'
+        'tmux:${e(t('commands.tmux.description'))}'
+        'release:${e(t('commands.release.description'))}'
+        'completion:${e(t('commands.completion.description'))}'
+    )
+
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \\
+        '1: :->command' \\
+        '*::arg:->args'
+
+    case $state in
+        command)
+            _describe 'colyn commands' commands
+            ;;
+        args)
+            case $line[1] in
+                init)
+                    # init: no positional args
+                    ;;
+                add)
+                    # add <branch>
+                    _colyn_branches
+                    ;;
+                list)
+                    _arguments \\
+                        '--json[${e(t('commands.list.jsonOption'))}]' \\
+                        '(-p --paths)'{-p,--paths}'[${e(t('commands.list.pathsOption'))}]' \\
+                        '--no-main[${e(t('commands.list.noMainOption'))}]'
+                    ;;
+                merge)
+                    _arguments \\
+                        '1: :_colyn_worktrees' \\
+                        '--push[${e(t('commands.merge.pushOption'))}]' \\
+                        '--no-push[${e(t('commands.merge.noPushOption'))}]'
+                    ;;
+                update)
+                    _arguments \\
+                        '1: :_colyn_worktrees' \\
+                        '--all[${e(t('commands.update.allOption'))}]' \\
+                        '--no-rebase[${e(t('commands.update.noRebaseOption'))}]'
+                    ;;
+                remove)
+                    _arguments \\
+                        '1: :_colyn_worktrees' \\
+                        '(-y --yes)'{-y,--yes}'[${e(t('commands.remove.yesOption'))}]' \\
+                        '(-f --force)'{-f,--force}'[${e(t('commands.remove.forceOption'))}]'
+                    ;;
+                checkout|co)
+                    _arguments \\
+                        '1: :_colyn_worktree_ids' \\
+                        '2: :_colyn_branches'
+                    ;;
+                info)
+                    _arguments \\
+                        '(-f --field)'{-f,--field}'[${e(t('commands.info.fieldOption'))}]:field:_colyn_info_fields' \\
+                        '--format[${e(t('commands.info.formatOption'))}]:template:' \\
+                        '(-s --separator)'{-s,--separator}'[${e(t('commands.info.separatorOption'))}]:separator:'
+                    ;;
+                repair)
+                    # repair: no args
+                    ;;
+                config)
+                    _arguments \\
+                        '--json[${e(t('commands.config.jsonOption'))}]'
+                    ;;
+                setup)
+                    # setup: no args
+                    ;;
+                tmux)
+                    _arguments \\
+                        '1: :(start stop)' \\
+                        '(-f --force)'{-f,--force}'[${e(t('commands.tmux.forceOption'))}]'
+                    ;;
+                release)
+                    _arguments \\
+                        '1: :('\\''patch'\\'' '\\''minor'\\'' '\\''major'\\'')'
+                    ;;
+                completion)
+                    _arguments \\
+                        '1: :(bash zsh)' \\
+                        '--install[${e(t('commands.completion.installOption'))}]'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Git branch completion
+_colyn_branches() {
+    local -a branches
+    branches=(\${(f)"$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's/remotes\\/origin\\///' | sort -u)"})
+    _describe 'branches' branches
+}
+
+# Worktree ID and branch completion
+_colyn_worktrees() {
+    local -a worktrees
+    local worktrees_json=$(colyn list --json --no-main 2>/dev/null)
+
+    if [[ $? -eq 0 && -n "$worktrees_json" ]]; then
+        local -a ids branches
+        ids=(\${(f)"$(echo "$worktrees_json" | grep -o '"id":[0-9]*' | cut -d: -f2)"})
+        branches=(\${(f)"$(echo "$worktrees_json" | grep -o '"branch":"[^"]*"' | cut -d'"' -f4)"})
+
+        local i
+        for i in {1..\${#ids[@]}}; do
+            worktrees+=("\${ids[$i]}:\${branches[$i]}")
+        done
+
+        _describe 'worktrees' worktrees
+    fi
+}
+
+# Worktree ID completion (numbers only)
+_colyn_worktree_ids() {
+    local -a ids
+    local worktrees_json=$(colyn list --json --no-main 2>/dev/null)
+
+    if [[ $? -eq 0 && -n "$worktrees_json" ]]; then
+        ids=(\${(f)"$(echo "$worktrees_json" | grep -o '"id":[0-9]*' | cut -d: -f2)"})
+        _describe 'worktree IDs' ids
+    fi
+}
+
+# Info command field name completion
+_colyn_info_fields() {
+    local -a fields
+    fields=(
+        'project:${e(t('commands.completion.fieldProject'))}'
+        'project-path:${e(t('commands.completion.fieldProjectPath'))}'
+        'worktree-id:${e(t('commands.completion.fieldWorktreeId'))}'
+        'worktree-dir:${e(t('commands.completion.fieldWorktreeDir'))}'
+        'branch:${e(t('commands.completion.fieldBranch'))}'
+    )
+    _describe 'fields' fields
+}
+
+# Register completion function
+compdef _colyn colyn
+`;
+}
+
+/**
+ * 获取补全脚本内容
+ */
+function getCompletionScript(shell: ShellType): string {
+  if (shell === 'zsh') {
+    return generateZshCompletionScript();
+  }
+  return readBashCompletionScript();
 }
 
 /**
@@ -114,8 +302,8 @@ async function completionCommand(shell: string | undefined, options: CompletionO
       return;
     }
 
-    // 读取并输出补全脚本
-    const script = readCompletionScript(shell);
+    // 生成并输出补全脚本
+    const script = getCompletionScript(shell);
     process.stdout.write(script);
   } catch (error) {
     if (error instanceof ColynError) {

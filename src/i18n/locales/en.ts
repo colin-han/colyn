@@ -32,6 +32,8 @@ export const en = {
     helpDescription: 'display help for command',
     helpCommand: 'help [command]',
     helpCommandDescription: 'display help for command',
+    showHelpHint: '(Run with --help for usage information)',
+    missingArgument: 'Missing required argument: {{arg}}',
   },
 
   // Logger
@@ -143,6 +145,11 @@ Hints:
       tableStatus: 'Status',
       tableDiff: 'Diff',
       tablePath: 'Path',
+      tmuxSwitchHint: 'Use Ctrl-b 0-9 to switch to the corresponding Window',
+      statusColumnHelp: `Status column abbreviations:
+  M - Modified (uncommitted changes)
+  S - Staged (changes added to index)
+  ? - Untracked (new files not in git)`,
     },
 
     // release command
@@ -244,6 +251,7 @@ Hints:
       noRebaseOption: 'Use merge instead of rebase to update worktree',
       noUpdateOption: 'Do not auto-update after merge',
       updateAllOption: 'Update all worktrees after merge',
+      verboseOption: 'Show detailed step information',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>
@@ -521,12 +529,35 @@ Or force delete:
       invalidFieldHint: 'Valid fields: {{fields}}',
       notInWorktree: 'Current directory is not in worktree or main branch',
       notInWorktreeHint: 'Please switch to main branch directory or a worktree directory',
+      notColynProject: 'Current directory is not in a colyn project',
+      notColynProjectHint: '--format and --field options require a colyn project',
       labelProject: 'Project:',
       labelProjectPath: 'Project Path:',
       labelWorktreeId: 'Worktree ID:',
       labelWorktreeDir: 'Worktree Dir:',
       labelBranch: 'Branch:',
+      labelRepository: 'Repository:',
+      labelRepositoryPath: 'Repo Path:',
+      labelDirectory: 'Directory:',
+      labelDirectoryPath: 'Path:',
       mainIndicator: '0 (main)',
+    },
+
+    // status command
+    status: {
+      description: 'Show current worktree status',
+      location: 'Location',
+      branch: 'Branch',
+      port: 'Port',
+      changes: 'Changes',
+      staged: '{{count}} staged',
+      modified: '{{count}} modified',
+      untracked: '{{count}} untracked',
+      clean: '✓ Working directory clean',
+      diff: 'Diff from {{branch}}',
+      ahead: 'ahead',
+      behind: 'behind',
+      synced: '✓ Synced with {{branch}}',
     },
 
     // repair command
@@ -612,6 +643,12 @@ Or force delete:
       unsupportedShellHint: 'Supported shells: {{shells}}',
       cannotReadScript: 'Cannot read {{shell}} completion script',
       cannotReadScriptHint: 'Please ensure the project is fully installed, script path: shell/completion.{{shell}}',
+      // Field descriptions for zsh completion
+      fieldProject: 'Project name',
+      fieldProjectPath: 'Project path',
+      fieldWorktreeId: 'Worktree ID',
+      fieldWorktreeDir: 'Worktree directory name',
+      fieldBranch: 'Branch name',
       installTitle: '📝 Manual installation instructions:',
       installStep1: '1. Add the following to {{config}}:',
       installStep2: '2. Reload configuration:',

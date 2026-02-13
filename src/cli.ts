@@ -89,13 +89,37 @@ program.configureHelp({
   }
 });
 
+// 配置 Commander 输出（本地化错误消息）
+program.configureOutput({
+  writeErr: (str) => {
+    // 本地化 Commander.js 错误消息
+    let localizedStr = str;
+
+    // 替换 "error:" 为本地化版本
+    localizedStr = localizedStr.replace(/^error:/i, chalk.red(`${t('common.error')}:`));
+
+    // 替换 "missing required argument" 消息
+    const missingArgMatch = localizedStr.match(/missing required argument '(.+?)'/);
+    if (missingArgMatch) {
+      const argName = missingArgMatch[1];
+      localizedStr = localizedStr.replace(
+        /missing required argument '.+?'/,
+        t('cli.missingArgument', { arg: argName })
+      );
+    }
+
+    process.stderr.write(localizedStr);
+  }
+});
+
 program
   .name('colyn')
   .description(t('cli.description'))
   .version(version, '-V, --version', t('cli.versionDescription'))
   .helpOption('-h, --help', t('cli.helpDescription'))
   .addHelpCommand(t('cli.helpCommand'), t('cli.helpCommandDescription'))
-  .option('-C, --no-color', t('cli.noColorOption'));
+  .option('-C, --no-color', t('cli.noColorOption'))
+  .showHelpAfterError(t('cli.showHelpHint'));
 
 // 注册所有命令
 registerAllCommands(program);

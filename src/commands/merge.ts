@@ -38,6 +38,7 @@ interface MergeOptions {
   noRebase?: boolean;
   noUpdate?: boolean;  // 合并后不自动更新
   updateAll?: boolean;  // 合并后更新所有 worktrees
+  verbose?: boolean;  // 显示详细的步骤信息
 }
 
 /**
@@ -72,7 +73,9 @@ async function mergeCommand(
     );
 
     // 显示 worktree 信息
-    displayWorktreeInfo(worktree);
+    if (options.verbose) {
+      displayWorktreeInfo(worktree);
+    }
 
     // 步骤4: 前置检查
     const checkSpinner = ora({ text: t('commands.merge.preCheck'), stream: process.stderr }).start();
@@ -85,7 +88,9 @@ async function mergeCommand(
       await checkGitWorkingDirectory(worktree.path, 'Worktree');
 
       checkSpinner.succeed(t('commands.merge.preCheckPassed'));
-      displayCheckPassed();
+      if (options.verbose) {
+        displayCheckPassed();
+      }
     } catch (error) {
       checkSpinner.fail(t('commands.merge.preCheckFailed'));
       throw error;
@@ -98,12 +103,14 @@ async function mergeCommand(
     const useRebase = !options.noRebase;
 
     // 步骤6: 在 worktree 中更新主分支代码（确保 worktree 包含主分支的所有更改）
-    output(t('commands.merge.step1Title'));
-    output(t('commands.merge.step1Dir', { path: worktree.path }));
-    if (useRebase) {
-      output(t('commands.merge.step1CmdRebase', { branch: mainBranch }));
-    } else {
-      output(t('commands.merge.step1Cmd', { branch: mainBranch }));
+    if (options.verbose) {
+      output(t('commands.merge.step1Title'));
+      output(t('commands.merge.step1Dir', { path: worktree.path }));
+      if (useRebase) {
+        output(t('commands.merge.step1CmdRebase', { branch: mainBranch }));
+      } else {
+        output(t('commands.merge.step1Cmd', { branch: mainBranch }));
+      }
     }
 
     const step1Spinner = ora({ text: useRebase ? t('commands.merge.rebasingMain') : t('commands.merge.mergingMain'), stream: process.stderr }).start();
@@ -137,9 +144,11 @@ async function mergeCommand(
     step1Spinner.succeed(useRebase ? t('commands.merge.mainRebased') : t('commands.merge.mainMerged'));
 
     // 步骤7: 在主分支中合并 worktree 分支
-    output(t('commands.merge.step2Title'));
-    output(t('commands.merge.step2Dir', { path: paths.mainDir }));
-    output(t('commands.merge.step2Cmd', { branch: worktree.branch }));
+    if (options.verbose) {
+      output(t('commands.merge.step2Title'));
+      output(t('commands.merge.step2Dir', { path: paths.mainDir }));
+      output(t('commands.merge.step2Cmd', { branch: worktree.branch }));
+    }
 
     const step2Spinner = ora({ text: t('commands.merge.mergingWorktree'), stream: process.stderr }).start();
 
@@ -211,7 +220,8 @@ async function mergeCommand(
       paths.mainDir,
       worktree.path,
       worktree.id,
-      pushed
+      pushed,
+      options.verbose
     );
 
     // 步骤10: 自动更新 worktrees
@@ -298,6 +308,7 @@ export function register(program: Command): void {
     .option('--no-push', t('commands.merge.noPushOption'))
     .option('--no-update', t('commands.merge.noUpdateOption'))
     .option('--update-all', t('commands.merge.updateAllOption'))
+    .option('-v, --verbose', t('commands.merge.verboseOption'))
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });
