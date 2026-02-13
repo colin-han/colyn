@@ -120,19 +120,25 @@ async function removeCommand(
 
     removeSpinner.succeed(t('commands.remove.deleted'));
 
-    // 步骤7: 询问是否删除分支
+    // 步骤7: 询问是否删除分支（--yes 时跳过）
     let branchDeleted = false;
+    let shouldDeleteBranch = false;
 
-    // 如果分支已合并，询问是否删除
-    const enquirer = new Enquirer({ stdout: process.stderr });
-    const branchResponse = await enquirer.prompt({
-      type: 'confirm',
-      name: 'deleteBranch',
-      message: t('commands.remove.deleteBranch', { branch: worktree.branch }),
-      initial: isMerged  // 如果已合并，默认删除
-    }) as { deleteBranch: boolean };
+    if (options.yes) {
+      output(t('commands.remove.skipDeleteBranchPrompt'));
+    } else {
+      // 如果分支已合并，询问是否删除
+      const enquirer = new Enquirer({ stdout: process.stderr });
+      const branchResponse = await enquirer.prompt({
+        type: 'confirm',
+        name: 'deleteBranch',
+        message: t('commands.remove.deleteBranch', { branch: worktree.branch }),
+        initial: isMerged  // 如果已合并，默认删除
+      }) as { deleteBranch: boolean };
+      shouldDeleteBranch = branchResponse.deleteBranch;
+    }
 
-    if (branchResponse.deleteBranch) {
+    if (shouldDeleteBranch) {
       const branchSpinner = ora({ text: t('commands.remove.deletingBranch'), stream: process.stderr }).start();
 
       const branchResult = await deleteLocalBranch(

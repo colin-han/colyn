@@ -138,21 +138,21 @@ function displayTmuxSetupInfo(result: TmuxSetupResult): void {
   }
 
   if (result.inTmux) {
-    outputSuccess('检测到在 tmux session 中');
-    outputSuccess(`将使用当前 session: ${result.sessionName}`);
-    outputSuccess('已设置 Window 0: main');
-    output('  ├─ Claude Code  (左侧 60%)');
-    output('  ├─ Dev Server   (右上 12%)');
-    output('  └─ Bash         (右下 28%)');
+    outputSuccess(t('commands.init.tmuxDetectedInSession'));
+    outputSuccess(t('commands.init.tmuxUseCurrentSession', { session: result.sessionName ?? '' }));
+    outputSuccess(t('commands.init.tmuxWindow0Set'));
+    output(t('commands.init.tmuxPaneClaude'));
+    output(t('commands.init.tmuxPaneDevServer'));
+    output(t('commands.init.tmuxPaneBash'));
   } else {
-    outputSuccess('检测到你不在 tmux 中');
-    outputSuccess(`已创建 tmux session: ${result.sessionName}`);
-    outputSuccess('已设置 Window 0: main');
-    output('  ├─ Claude Code  (左侧 60%)');
-    output('  ├─ Dev Server   (右上 12%)');
-    output('  └─ Bash         (右下 28%)');
+    outputSuccess(t('commands.init.tmuxDetectedNotInSession'));
+    outputSuccess(t('commands.init.tmuxSessionCreated', { session: result.sessionName ?? '' }));
+    outputSuccess(t('commands.init.tmuxWindow0Set'));
+    output(t('commands.init.tmuxPaneClaude'));
+    output(t('commands.init.tmuxPaneDevServer'));
+    output(t('commands.init.tmuxPaneBash'));
     output('');
-    output(chalk.cyan(`💡 提示: 运行 'tmux attach -t ${result.sessionName}' 进入工作环境`));
+    output(chalk.cyan(t('commands.init.tmuxAttachHint', { session: result.sessionName ?? '' })));
   }
 }
 

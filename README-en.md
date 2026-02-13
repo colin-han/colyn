@@ -236,7 +236,7 @@ Arguments:
 
 Options:
   -f, --force  Force delete (ignore uncommitted changes)
-  -y, --yes    Skip confirmation prompt
+  -y, --yes    Skip all confirmation prompts (keep local branch by default)
 ```
 
 **Features**:

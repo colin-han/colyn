@@ -95,7 +95,7 @@ async function repairSingleWindow(
       } else {
         result.failedWindows.push({
           id: windowIndex,
-          error: `重命名失败: ${currentName} → ${expectedName}`
+          error: t('commands.tmux.renameWindowFailed', { currentName, expectedName })
         });
       }
     } else {
@@ -126,7 +126,7 @@ async function repairSingleWindow(
     } else {
       result.failedWindows.push({
         id: windowIndex,
-        error: '创建 window 失败'
+        error: t('commands.tmux.createWindowFailed')
       });
     }
   } catch (error) {
@@ -226,17 +226,17 @@ async function repairTmuxWindows(
  */
 function displayRepairSummary(tmuxResult: TmuxRepairResult): void {
   outputLine();
-  outputSuccess('Tmux 修复完成\n');
+  outputSuccess(`${t('commands.tmux.repairComplete')}\n`);
 
-  outputBold('修复摘要');
+  outputBold(t('commands.tmux.repairSummary'));
 
   if (!tmuxResult.available) {
-    output('  - tmux 未安装');
+    output(`  - ${t('commands.tmux.notInstalled')}`);
     return;
   }
 
   if (!tmuxResult.sessionName) {
-    output('  - tmux session 创建失败');
+    output(`  - ${t('commands.tmux.sessionCreateFailed')}`);
     return;
   }
 
@@ -247,50 +247,50 @@ function displayRepairSummary(tmuxResult: TmuxRepairResult): void {
   const totalFailed = tmuxResult.failedWindows.length;
 
   if (tmuxResult.createdSession) {
-    output(`  ✓ 创建了 tmux session: ${tmuxResult.sessionName}`);
+    output(t('commands.tmux.repairCreatedSession', { sessionName: tmuxResult.sessionName }));
   }
 
   if (totalCreated > 0) {
-    output(`  ✓ 创建了 ${totalCreated} 个 tmux window`);
+    output(t('commands.tmux.repairCreatedWindows', { count: totalCreated }));
   }
 
   if (totalRenamed > 0) {
-    output(`  ✓ 重命名了 ${totalRenamed} 个 tmux window`);
+    output(t('commands.tmux.repairRenamedWindows', { count: totalRenamed }));
   }
 
   if (totalExisting > 0) {
-    output(`  ✓ ${totalExisting} 个 tmux window 已存在（保持原布局）`);
+    output(t('commands.tmux.repairExistingWindows', { count: totalExisting }));
   }
 
   if (totalFailed > 0) {
-    outputWarning(`  ⚠ ${totalFailed} 个 tmux window 修复失败`);
+    outputWarning(t('commands.tmux.repairFailedWindows', { count: totalFailed }));
   }
 
   // 详细信息
   if (totalCreated > 0 || totalRenamed > 0 || totalFailed > 0) {
     outputLine();
-    outputBold('详细信息');
+    outputBold(t('commands.tmux.repairDetails'));
 
     if (totalCreated > 0) {
-      output('已创建的 tmux window：');
+      output(t('commands.tmux.createdWindowsTitle'));
       for (const win of tmuxResult.createdWindows) {
-        output(`  ✓ Window ${win.id}: ${win.name}`);
+        output(t('commands.tmux.createdWindowItem', { id: win.id, name: win.name }));
       }
       outputLine();
     }
 
     if (totalRenamed > 0) {
-      output('已重命名的 tmux window：');
+      output(t('commands.tmux.renamedWindowsTitle'));
       for (const win of tmuxResult.renamedWindows) {
-        output(`  ✓ Window ${win.id}: ${win.oldName} → ${win.newName}`);
+        output(t('commands.tmux.renamedWindowItem', { id: win.id, oldName: win.oldName, newName: win.newName }));
       }
       outputLine();
     }
 
     if (totalFailed > 0) {
-      outputWarning('创建失败的 tmux window：');
+      outputWarning(t('commands.tmux.failedWindowsTitle'));
       for (const win of tmuxResult.failedWindows) {
-        output(`  ✗ Window ${win.id}: ${win.error}`);
+        output(t('commands.tmux.failedWindowItem', { id: win.id, error: win.error }));
       }
       outputLine();
     }
@@ -305,8 +305,8 @@ async function tmuxStartCommand(): Promise<void> {
     // 检查 tmux 是否可用
     if (!isTmuxAvailable()) {
       throw new ColynError(
-        'tmux 未安装',
-        '请先安装 tmux: brew install tmux'
+        t('commands.tmux.notInstalled'),
+        t('commands.tmux.installHint')
       );
     }
 
@@ -327,7 +327,7 @@ async function tmuxStartCommand(): Promise<void> {
 
     // 4. 修复 tmux windows
     const spinner = ora({
-      text: '检查并修复 tmux session 和 windows...',
+      text: t('commands.tmux.repairing'),
       stream: process.stderr
     }).start();
 
@@ -340,23 +340,33 @@ async function tmuxStartCommand(): Promise<void> {
     );
 
     if (!tmuxResult.sessionName) {
-      spinner.fail('tmux session 创建失败');
+      spinner.fail(t('commands.tmux.sessionCreateFailed'));
+      outputWarning(t('commands.tmux.sessionCreateFailedHint', { sessionName: paths.mainDirName }));
+      if (tmuxResult.failedWindows.length > 0) {
+        outputWarning(t('commands.tmux.failedWindowsTitle'));
+        for (const win of tmuxResult.failedWindows) {
+          output(t('commands.tmux.failedWindowItemCompact', { id: win.id, error: win.error }));
+        }
+      }
       outputResult({ success: false });
       process.exit(1);
     }
 
     if (tmuxResult.createdSession) {
       if (tmuxResult.createdWindows.length > 0) {
-        spinner.succeed(`创建了 session "${tmuxResult.sessionName}" 和 ${tmuxResult.createdWindows.length} 个 window`);
+        spinner.succeed(t('commands.tmux.createdSessionAndWindows', {
+          sessionName: tmuxResult.sessionName,
+          count: tmuxResult.createdWindows.length
+        }));
       } else {
-        spinner.succeed(`创建了 session "${tmuxResult.sessionName}"`);
+        spinner.succeed(t('commands.tmux.createdSession', { sessionName: tmuxResult.sessionName }));
       }
     } else if (tmuxResult.createdWindows.length > 0) {
-      spinner.succeed(`创建了 ${tmuxResult.createdWindows.length} 个 tmux window`);
+      spinner.succeed(t('commands.tmux.createdWindows', { count: tmuxResult.createdWindows.length }));
     } else if (tmuxResult.failedWindows.length > 0) {
-      spinner.warn(`${tmuxResult.failedWindows.length} 个 tmux window 创建失败`);
+      spinner.warn(t('commands.tmux.windowsCreateFailed', { count: tmuxResult.failedWindows.length }));
     } else {
-      spinner.succeed('所有 tmux window 已存在');
+      spinner.succeed(t('commands.tmux.allWindowsExist'));
     }
 
     // 5. 显示修复摘要
@@ -372,18 +382,18 @@ async function tmuxStartCommand(): Promise<void> {
         if (currentSession && currentSession !== tmuxResult.sessionName) {
           // 在不同的 session 中，切换到目标 session
           outputLine();
-          output(`正在切换到 session "${tmuxResult.sessionName}"...`);
+          output(t('commands.tmux.switchingSession', { sessionName: tmuxResult.sessionName }));
           const switched = switchClient(tmuxResult.sessionName);
           if (switched) {
-            outputSuccess(`已切换到 session "${tmuxResult.sessionName}"`);
+            outputSuccess(t('commands.tmux.switchedSession', { sessionName: tmuxResult.sessionName }));
           } else {
-            outputWarning('切换 session 失败');
+            outputWarning(t('commands.tmux.switchSessionFailed'));
           }
         }
       } else {
         // 不在 tmux 中，attach 到 session
         outputLine();
-        output(`正在连接到 session "${tmuxResult.sessionName}"...`);
+        output(t('commands.tmux.attachingSession', { sessionName: tmuxResult.sessionName }));
         // attach 会阻塞当前进程，所以这里只输出提示信息
         // 实际的 attach 由 bash 脚本处理
         outputResult({
@@ -415,8 +425,8 @@ async function tmuxStopCommand(options: { force?: boolean }): Promise<void> {
     // 检查 tmux 是否可用
     if (!isTmuxAvailable()) {
       throw new ColynError(
-        'tmux 未安装',
-        '请先安装 tmux: brew install tmux'
+        t('commands.tmux.notInstalled'),
+        t('commands.tmux.installHint')
       );
     }
 

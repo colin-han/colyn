@@ -236,7 +236,7 @@ colyn remove [target] [options]
 
 选项：
   -f, --force  强制删除（忽略未提交的更改）
-  -y, --yes    跳过确认提示
+  -y, --yes    跳过所有确认提示（默认保留本地分支）
 ```
 
 **功能**：

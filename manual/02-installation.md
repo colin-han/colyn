@@ -42,7 +42,7 @@ volta install colyn
 
 ```bash
 colyn --version
-# 输出: 2.4.0
+# 输出: 2.5.5
 ```
 
 ---
