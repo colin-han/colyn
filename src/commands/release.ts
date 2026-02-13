@@ -3,6 +3,7 @@ import { spawnSync } from 'child_process';
 import simpleGit from 'simple-git';
 import { getProjectPaths, validateProjectInitialized, executeInDirectory } from '../core/paths.js';
 import { getMainBranch } from '../core/discovery.js';
+import { getRelevantStatusFiles } from '../core/git.js';
 import { ColynError } from '../types/index.js';
 import { formatError, output } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
@@ -46,16 +47,9 @@ function runReleaseScript(mainDir: string, versionType: string): void {
 async function checkCurrentDirClean(currentDir: string): Promise<void> {
   const git = simpleGit(currentDir);
   const status = await git.status();
+  const changedFiles = getRelevantStatusFiles(status);
 
-  if (!status.isClean()) {
-    const changedFiles = [
-      ...status.modified,
-      ...status.created,
-      ...status.deleted,
-      ...status.renamed.map(r => r.to),
-      ...status.not_added
-    ];
-
+  if (changedFiles.length > 0) {
     const filesStr = changedFiles.slice(0, 5).map(f => `  - ${f}`).join('\n') +
       (changedFiles.length > 5 ? `\n  ... ${t('commands.remove.moreFiles', { count: changedFiles.length - 5 })}` : '');
 
@@ -129,12 +123,18 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
 
     // 步骤2: 获取当前工作目录
     const currentDir = process.cwd();
+    const effectiveCurrentDir = currentDir === paths.rootDir ? paths.mainDir : currentDir;
 
     // 步骤3: 检查当前目录是否有未提交的更改
-    await checkCurrentDirClean(currentDir);
+    await checkCurrentDirClean(effectiveCurrentDir);
 
     // 步骤4: 检查当前分支是否已合并（仅在 worktree 中执行时）
-    await checkCurrentBranchMerged(currentDir, paths.mainDir, paths.worktreesDir);
+    await checkCurrentBranchMerged(effectiveCurrentDir, paths.mainDir, paths.worktreesDir);
+
+    // 步骤4.5: 检查主分支目录是否干净
+    if (effectiveCurrentDir !== paths.mainDir) {
+      await checkCurrentDirClean(paths.mainDir);
+    }
 
     // 步骤5: 在主分支目录中检查 git 仓库
     await executeInDirectory(paths.mainDir, async () => {

@@ -144,16 +144,20 @@ function displayTmuxInfo(
 
   output('');
   if (result.inTmux) {
-    outputSuccess(`已创建 Window ${windowIndex}: ${windowName}`);
-    output('  ├─ Claude Code  (左侧 60%)');
-    output('  ├─ Dev Server   (右上 12%)');
-    output('  └─ Bash         (右下 28%)');
-    outputSuccess(`已自动切换到 Window ${windowIndex}`);
+    outputSuccess(t('commands.add.tmuxWindowCreated', { windowIndex, windowName }));
+    output(t('commands.add.tmuxPaneClaude'));
+    output(t('commands.add.tmuxPaneDevServer'));
+    output(t('commands.add.tmuxPaneBash'));
+    outputSuccess(t('commands.add.tmuxWindowSwitched', { windowIndex }));
   } else {
-    outputSuccess(`已在后台 session "${result.sessionName}" 中创建 Window ${windowIndex}: ${windowName}`);
-    output('  ├─ Claude Code  (左侧 60%)');
-    output('  ├─ Dev Server   (右上 12%)');
-    output('  └─ Bash         (右下 28%)');
+    outputSuccess(t('commands.add.tmuxWindowCreatedInSession', {
+      sessionName: result.sessionName ?? '',
+      windowIndex,
+      windowName
+    }));
+    output(t('commands.add.tmuxPaneClaude'));
+    output(t('commands.add.tmuxPaneDevServer'));
+    output(t('commands.add.tmuxPaneBash'));
   }
 }
 
@@ -162,8 +166,8 @@ function displayTmuxInfo(
  */
 function displayFirstTimeTmuxHint(projectName: string): void {
   output('');
-  output(chalk.cyan('💡 提示: Colyn 支持 tmux 集成，获得更好的多 worktree 体验'));
-  output(chalk.cyan(`   运行 'tmux attach -t ${projectName}' 进入 tmux 环境`));
+  output(chalk.cyan(t('commands.add.tmuxHintTitle')));
+  output(chalk.cyan(t('commands.add.tmuxHintAttach', { session: projectName })));
 }
 
 /**

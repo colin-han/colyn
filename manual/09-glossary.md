@@ -71,7 +71,7 @@ main                   # 主分支
 **定义**：Colyn 为每个 worktree 分配的唯一数字标识符。
 
 **在 Colyn 中的用法**：
-- 主分支固定为 ID `0`（显示为 `0-main`）
+- 主分支固定显示为 ID `0-main`
 - 其他 worktree 从 `1` 开始递增
 - ID 用于目录命名（`task-1`、`task-2` 等）
 - ID 用于端口分配（base port + ID）
@@ -521,4 +521,3 @@ if (process.env.WORKTREE === 'main') {
 - **Git Worktree**：[官方文档](https://git-scm.com/docs/git-worktree)
 - **tmux**：[官方文档](https://github.com/tmux/tmux/wiki)
 - **Colyn GitHub**：[仓库地址](https://github.com/anthropics/colyn)
-

@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
-import type { DirectoryInfo } from '../types/index.js';
+import { ColynError, type DirectoryInfo } from '../types/index.js';
 import { detectMainBranch, checkWorkingDirectoryClean } from '../core/git.js';
 import {
   createDirectoryStructure,
@@ -138,21 +138,21 @@ function displayTmuxSetupInfo(result: TmuxSetupResult): void {
   }
 
   if (result.inTmux) {
-    outputSuccess('检测到在 tmux session 中');
-    outputSuccess(`将使用当前 session: ${result.sessionName}`);
-    outputSuccess('已设置 Window 0: main');
-    output('  ├─ Claude Code  (左侧 60%)');
-    output('  ├─ Dev Server   (右上 12%)');
-    output('  └─ Bash         (右下 28%)');
+    outputSuccess(t('commands.init.tmuxDetectedInSession'));
+    outputSuccess(t('commands.init.tmuxUseCurrentSession', { session: result.sessionName ?? '' }));
+    outputSuccess(t('commands.init.tmuxWindow0Set'));
+    output(t('commands.init.tmuxPaneClaude'));
+    output(t('commands.init.tmuxPaneDevServer'));
+    output(t('commands.init.tmuxPaneBash'));
   } else {
-    outputSuccess('检测到你不在 tmux 中');
-    outputSuccess(`已创建 tmux session: ${result.sessionName}`);
-    outputSuccess('已设置 Window 0: main');
-    output('  ├─ Claude Code  (左侧 60%)');
-    output('  ├─ Dev Server   (右上 12%)');
-    output('  └─ Bash         (右下 28%)');
+    outputSuccess(t('commands.init.tmuxDetectedNotInSession'));
+    outputSuccess(t('commands.init.tmuxSessionCreated', { session: result.sessionName ?? '' }));
+    outputSuccess(t('commands.init.tmuxWindow0Set'));
+    output(t('commands.init.tmuxPaneClaude'));
+    output(t('commands.init.tmuxPaneDevServer'));
+    output(t('commands.init.tmuxPaneBash'));
     output('');
-    output(chalk.cyan(`💡 提示: 运行 'tmux attach -t ${result.sessionName}' 进入工作环境`));
+    output(chalk.cyan(t('commands.init.tmuxAttachHint', { session: result.sessionName ?? '' })));
   }
 }
 
@@ -308,7 +308,8 @@ export async function handleInitializedDirectory(
  */
 export async function handleExistingProject(
   dirInfo: DirectoryInfo,
-  port: number
+  port: number,
+  skipConfirm: boolean = false
 ): Promise<InitHandlerResult | null> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
@@ -334,13 +335,24 @@ export async function handleExistingProject(
   output('');
 
   // 步骤2: 询问用户确认（输出到 stderr，避免被 shell 脚本捕获）
-  const { confirmed } = await prompt<{ confirmed: boolean }>({
-    type: 'confirm',
-    name: 'confirmed',
-    message: t('commands.init.confirmContinue'),
-    initial: false, // 默认为否，需要用户主动确认
-    stdout: process.stderr
-  });
+  let confirmed = skipConfirm;
+  if (!skipConfirm) {
+    if (!process.stdin.isTTY) {
+      throw new ColynError(
+        t('commands.init.nonInteractiveConfirm'),
+        t('commands.init.nonInteractiveConfirmHint')
+      );
+    }
+
+    const response = await prompt<{ confirmed: boolean }>({
+      type: 'confirm',
+      name: 'confirmed',
+      message: t('commands.init.confirmContinue'),
+      initial: false, // 默认为否，需要用户主动确认
+      stdout: process.stderr
+    });
+    confirmed = response.confirmed;
+  }
 
   // 步骤3: 如果取消，退出
   if (!confirmed) {

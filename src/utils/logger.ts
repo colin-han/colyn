@@ -62,6 +62,11 @@ export function outputStep(message: string): void {
  * 输出命令结果到 stdout（JSON 格式，给 bash 解析）
  */
 export function outputResult(result: CommandResult): void {
+  // 默认不输出机器结果，避免污染人类可读的终端输出。
+  // 仅 shell 包装器在需要时设置 COLYN_OUTPUT_JSON=1。
+  if (process.env.COLYN_OUTPUT_JSON !== '1') {
+    return;
+  }
   console.log(JSON.stringify(result));
 }
 

@@ -136,6 +136,7 @@ colyn init [options]
 
 Options:
   -p, --port <port>  Main branch dev server port
+  -y, --yes          Skip confirmation when initializing an existing project
 ```
 
 **Features**:
@@ -235,7 +236,7 @@ Arguments:
 
 Options:
   -f, --force  Force delete (ignore uncommitted changes)
-  -y, --yes    Skip confirmation prompt
+  -y, --yes    Skip all confirmation prompts (keep local branch by default)
 ```
 
 **Features**:
@@ -415,11 +416,11 @@ Colyn uses a Bash + Node.js dual-layer architecture:
 shell/colyn.sh (Shell function)
     │
     └──► bin/colyn (Bash entry)
-            │
+                │
             └──► dist/index.js (Node.js core)
                         │
                  stderr → Colored output
-                 stdout → JSON result
+                 stdout → JSON result (JSON mode only)
                         │
     ◄───────────────────┘
     │
@@ -429,7 +430,7 @@ shell/colyn.sh (Shell function)
 **Why dual-layer architecture?**
 
 Child processes cannot modify the parent process's working directory. Through shell function wrapper, we can:
-1. Capture JSON result from Node.js output
+1. Call Node.js in JSON mode and capture JSON result
 2. Parse target directory
 3. Execute `cd` command in current shell
 
