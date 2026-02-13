@@ -491,6 +491,7 @@ export function register(program: Command): void {
   // 主命令 - 使用 variadic 参数处理
   program
     .command('checkout <args...>')
+    .usage('<branch> | <worktree-id> <branch>')
     .description(t('commands.checkout.description'))
     .option('--no-fetch', t('commands.checkout.noFetchOption'))
     .action(async (args: string[], options: CheckoutOptions) => {
@@ -517,6 +518,7 @@ export function register(program: Command): void {
   // 别名 co
   program
     .command('co <args...>')
+    .usage('<branch> | <worktree-id> <branch>')
     .description(t('commands.checkout.coDescription'))
     .option('--no-fetch', t('commands.checkout.noFetchOption'))
     .action(async (args: string[], options: CheckoutOptions) => {

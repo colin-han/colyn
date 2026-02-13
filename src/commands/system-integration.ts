@@ -6,10 +6,9 @@ import { formatError, output, outputResult, outputSuccess } from '../utils/logge
 import {
   detectShellConfig,
   getColynShellPath,
-  getCompletionScriptPath,
   updateShellConfig,
   checkColynShellExists,
-  checkCompletionScriptExists
+  generateAndCacheCompletionScript
 } from './system-integration.helpers.js';
 import { t } from '../i18n/index.js';
 
@@ -42,7 +41,6 @@ async function systemIntegrationCommand(): Promise<void> {
 
     const shellConfig = await detectShellConfig();
     const colynShellPath = getColynShellPath();
-    const completionPath = getCompletionScriptPath(shellConfig.shellType);
 
     output(chalk.green(t('commands.systemIntegration.shellType', { type: shellConfig.shellType })));
     output(chalk.green(t('commands.systemIntegration.configFile', { path: shellConfig.configPath })));
@@ -57,10 +55,12 @@ async function systemIntegrationCommand(): Promise<void> {
       );
     }
 
-    // 步骤 3: 检查补全脚本是否存在
-    const completionExists = await checkCompletionScriptExists(completionPath);
-    if (!completionExists) {
-      output(chalk.yellow(t('commands.systemIntegration.completionNotFound', { path: completionPath })));
+    // 步骤 3: 生成补全脚本（动态生成并缓存，支持 i18n）
+    let completionPath: string | undefined;
+    try {
+      completionPath = await generateAndCacheCompletionScript(shellConfig.shellType);
+    } catch {
+      output(chalk.yellow(t('commands.systemIntegration.completionNotFound', { path: '' })));
       output(chalk.yellow(`  ${t('commands.systemIntegration.completionNotFoundHint')}`));
     }
 
@@ -71,7 +71,7 @@ async function systemIntegrationCommand(): Promise<void> {
     const result = await updateShellConfig(
       shellConfig.configPath,
       colynShellPath,
-      completionExists ? completionPath : undefined
+      completionPath
     );
 
     const configFileName = shellConfig.configPath.replace(process.env.HOME || '', '~');
@@ -81,12 +81,12 @@ async function systemIntegrationCommand(): Promise<void> {
         output(chalk.green(t('commands.systemIntegration.configCreated', { file: configFileName })));
       }
       output(chalk.green(t('commands.systemIntegration.configAdded', { file: configFileName })));
-      if (completionExists) {
+      if (completionPath) {
         output(chalk.green(t('commands.systemIntegration.completionAdded', { file: configFileName })));
       }
     } else {
       output(chalk.green(t('commands.systemIntegration.configUpdated', { file: configFileName })));
-      if (completionExists) {
+      if (completionPath) {
         output(chalk.green(t('commands.systemIntegration.completionUpdated')));
       }
     }
@@ -111,7 +111,7 @@ async function systemIntegrationCommand(): Promise<void> {
     if (result === 'added') {
       output(chalk.cyan(t('commands.systemIntegration.features')));
       output(`  ${t('commands.systemIntegration.featureAutoSwitch')}`);
-      if (completionExists) {
+      if (completionPath) {
         output(`  ${t('commands.systemIntegration.featureCompletion')}`);
       }
       output('');
@@ -131,11 +131,11 @@ async function systemIntegrationCommand(): Promise<void> {
 }
 
 /**
- * 注册 system-integration 命令
+ * 注册 setup 命令
  */
 export function register(program: Command): void {
   program
-    .command('system-integration')
+    .command('setup')
     .description(t('commands.systemIntegration.description'))
     .action(async () => {
       await systemIntegrationCommand();

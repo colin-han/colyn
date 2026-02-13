@@ -11,7 +11,7 @@ _colyn_completion() {
     _init_completion || return
 
     # 所有可用命令
-    local commands="init add list merge update remove checkout info repair config system-integration tmux release completion"
+    local commands="init add list merge update remove checkout info status repair config setup tmux release completion"
 
     # 当前命令（第一个参数）
     local command="${words[1]}"
@@ -109,6 +109,11 @@ _colyn_completion() {
             return 0
             ;;
 
+        status|st)
+            # status 命令无参数
+            return 0
+            ;;
+
         repair)
             # repair 命令无参数
             return 0
@@ -122,8 +127,8 @@ _colyn_completion() {
             return 0
             ;;
 
-        system-integration)
-            # system-integration 命令无参数
+        setup)
+            # setup 命令无参数
             return 0
             ;;
 

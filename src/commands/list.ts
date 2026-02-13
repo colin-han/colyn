@@ -292,7 +292,7 @@ function outputTable(items: ListItem[]): void {
     const hasWorktrees = items.some(item => !item.isMain);
     if (hasWorktrees) {
       output('');
-      output(chalk.cyan('💡 使用 Ctrl-b 0-9 切换到对应 Window'));
+      output(chalk.cyan(`💡 ${t('commands.list.tmuxSwitchHint')}`));
     }
   }
 
@@ -585,6 +585,7 @@ export function register(program: Command): void {
     .option('-p, --paths', t('commands.list.pathsOption'))
     .option('--no-main', t('commands.list.noMainOption'))
     .option('-r, --refresh', t('commands.list.refreshOption'))
+    .addHelpText('after', `\n${t('commands.list.statusColumnHelp')}`)
     .action(async (options) => {
       await listCommand(options);
     });

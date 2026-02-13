@@ -11,6 +11,7 @@ import { register as registerList } from './list.js';
 import { register as registerMerge } from './merge.js';
 import { register as registerUpdate } from './update.js';
 import { register as registerInfo } from './info.js';
+import { register as registerStatus } from './status.js';
 import { register as registerCheckout } from './checkout.js';
 import { register as registerRemove } from './remove.js';
 import { register as registerSystemIntegration } from './system-integration.js';
@@ -30,6 +31,7 @@ export function registerAllCommands(program: Command): void {
   registerMerge(program);
   registerUpdate(program);
   registerInfo(program);
+  registerStatus(program);
   registerCheckout(program);
   registerRemove(program);
   registerSystemIntegration(program);

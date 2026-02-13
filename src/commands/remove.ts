@@ -194,6 +194,7 @@ async function removeCommand(
 export function register(program: Command): void {
   program
     .command('remove [target]')
+    .alias('rm')
     .description(t('commands.remove.description'))
     .option('-f, --force', t('commands.remove.forceOption'))
     .option('-y, --yes', t('commands.remove.yesOption'))

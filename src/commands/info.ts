@@ -95,6 +95,71 @@ function printFullInfo(info: LocationInfo): void {
 }
 
 /**
+ * 输出降级后的基本信息（用于非 colyn 项目）
+ */
+async function printFallbackInfo(): Promise<void> {
+  const labelWidth = 14;
+
+  try {
+    // 尝试获取 git 信息
+    const gitRoot = await getGitRoot();
+    if (gitRoot) {
+      const git = simpleGit();
+      const branch = await git.branchLocal();
+      const repoName = path.basename(gitRoot);
+
+      const lines = [
+        {
+          icon: '📁',
+          label: t('commands.info.labelRepository'),
+          value: chalk.cyan(repoName)
+        },
+        {
+          icon: '📂',
+          label: t('commands.info.labelRepositoryPath'),
+          value: chalk.gray(gitRoot)
+        },
+        {
+          icon: '🌿',
+          label: t('commands.info.labelBranch'),
+          value: chalk.magenta(branch.current ?? 'unknown')
+        }
+      ];
+
+      for (const line of lines) {
+        const paddedLabel = line.label.padEnd(labelWidth);
+        output(`${line.icon} ${paddedLabel}${line.value}`);
+      }
+      return;
+    }
+  } catch {
+    // 忽略 git 错误，继续降级到目录信息
+  }
+
+  // 非 git 目录，显示当前目录信息
+  const cwd = process.cwd();
+  const dirName = path.basename(cwd);
+
+  const lines = [
+    {
+      icon: '📁',
+      label: t('commands.info.labelDirectory'),
+      value: chalk.cyan(dirName)
+    },
+    {
+      icon: '📂',
+      label: t('commands.info.labelDirectoryPath'),
+      value: chalk.gray(cwd)
+    }
+  ];
+
+  for (const line of lines) {
+    const paddedLabel = line.label.padEnd(labelWidth);
+    output(`${line.icon} ${paddedLabel}${line.value}`);
+  }
+}
+
+/**
  * 获取 git 仓库根目录
  */
 async function getGitRoot(): Promise<string | null> {
@@ -176,44 +241,64 @@ async function infoCommand(options: InfoOptions): Promise<void> {
       return;
     }
 
-    // 获取当前位置信息
-    const info = await getLocationInfo();
-
-    // 处理 --format 参数
-    if (options.format) {
-      const output = renderTemplate(options.format, info);
-      // 直接输出到 stdout，用于脚本使用
-      process.stdout.write(output + '\n');
-      return;
+    // 尝试获取当前位置信息
+    let info: LocationInfo | null = null;
+    try {
+      info = await getLocationInfo();
+    } catch {
+      // 如果获取失败，检查是否有需要 colyn 信息的选项
+      if (options.format || options.field) {
+        // --format 和 --field 需要 colyn 项目信息
+        throw new ColynError(
+          t('commands.info.notColynProject'),
+          t('commands.info.notColynProjectHint')
+        );
+      }
+      // 无参数时使用降级显示
+      info = null;
     }
 
-    // 处理 --field 参数
-    if (options.field && options.field.length > 0) {
-      // 验证所有字段
-      for (const field of options.field) {
-        if (!validateField(field)) {
-          throw new ColynError(
-            t('commands.info.invalidField', { field }),
-            t('commands.info.invalidFieldHint', { fields: VALID_FIELDS.join(', ') })
-          );
-        }
+    // 如果是 colyn 项目，继续处理其他选项
+    if (info) {
+      // 处理 --format 参数
+      if (options.format) {
+        const output = renderTemplate(options.format, info);
+        // 直接输出到 stdout，用于脚本使用
+        process.stdout.write(output + '\n');
+        return;
       }
 
-      // 获取字段值
-      const values = options.field.map((field) => getFieldValue(info, field as FieldName));
+      // 处理 --field 参数
+      if (options.field && options.field.length > 0) {
+        // 验证所有字段
+        for (const field of options.field) {
+          if (!validateField(field)) {
+            throw new ColynError(
+              t('commands.info.invalidField', { field }),
+              t('commands.info.invalidFieldHint', { fields: VALID_FIELDS.join(', ') })
+            );
+          }
+        }
 
-      // 使用分隔符连接输出
-      const separator = options.separator ?? '\t';
-      process.stdout.write(values.join(separator) + '\n');
-      return;
+        // 获取字段值
+        const values = options.field.map((field) => getFieldValue(info, field as FieldName));
+
+        // 使用分隔符连接输出
+        const separator = options.separator ?? '\t';
+        process.stdout.write(values.join(separator) + '\n');
+        return;
+      }
+
+      // 无参数，显示完整信息
+      printFullInfo(info);
+    } else {
+      // 非 colyn 项目，显示降级信息
+      await printFallbackInfo();
     }
-
-    // 无参数，显示完整信息
-    printFullInfo(info);
   } catch (error) {
     if (error instanceof ColynError) {
       formatError(error);
-      process.exit(error.message.includes('未找到项目根目录') ? 1 : 2);
+      process.exit(1);
     }
     throw error;
   }
@@ -247,13 +332,24 @@ export function register(program: Command): void {
   branch          当前分支名
 
 使用示例：
-  # 显示完整信息（默认）
+  # 在 colyn 项目中显示完整信息（默认）
   $ colyn info
   📁 Project:       my-project
   📂 Project Path:  /path/to/my-project
   🔢 Worktree ID:   1
   📁 Worktree Dir:  task-1
   🌿 Branch:        feature/login
+
+  # 在非 colyn 项目的 git 仓库中优雅降级
+  $ colyn info
+  📁 Repository:    my-repo
+  📂 Repo Path:     /path/to/my-repo
+  🌿 Branch:        main
+
+  # 在非 git 目录中降级显示目录信息
+  $ colyn info
+  📁 Directory:     my-folder
+  📂 Path:          /path/to/my-folder
 
   # 输出简短标识符（带分支信息）
   $ colyn info --short
@@ -263,12 +359,11 @@ export function register(program: Command): void {
   $ colyn info -S
   my-project/task-1 (⎇ feature/login)
 
-  # 在非 colyn 项目的 git 仓库中
-  $ colyn info --short
+  # --short 也支持降级
+  $ colyn info --short  # 在 git 仓库中
   my-repo (⎇ main)
 
-  # 在非 git 目录中
-  $ colyn info --short
+  $ colyn info --short  # 在非 git 目录中
   my-folder
 
   # 输出单个字段
