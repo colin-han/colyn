@@ -317,12 +317,12 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
     log('步骤 7: 配置 shell 集成', 'yellow');
 
     try {
-      // 调用 colyn system-integration 命令
+      // 调用 colyn setup 命令
       const colynCore = path.join(colynDir, 'dist', 'index.js');
-      info('运行: colyn system-integration');
+      info('运行: colyn setup');
 
       // 捕获 stderr（用户可见输出）并显示给用户
-      const result = execSync(`node "${colynCore}" system-integration`, {
+      const result = execSync(`node "${colynCore}" setup`, {
         cwd: colynDir,
         env: process.env,
         stdio: ['inherit', 'pipe', 'inherit'], // stdin: inherit, stdout: pipe, stderr: inherit
@@ -336,7 +336,7 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
       info('你可以稍后手动运行以下命令配置：');
 
       const shellConfigPath = await detectShellConfig();
-      info(`  node "${path.join(colynDir, 'dist', 'index.js')}" system-integration`);
+      info(`  node "${path.join(colynDir, 'dist', 'index.js')}" setup`);
       info('');
       info('或手动添加以下内容到 shell 配置文件：');
       info(`  source "${path.join(colynDir, 'shell', 'colyn.sh')}"`);

@@ -29,7 +29,7 @@ npm install -g colyn
 volta install colyn
 
 # Configure shell integration (supports auto directory switching)
-colyn system-integration
+colyn setup
 ```
 
 After configuration, reopen the terminal or run `source ~/.zshrc` (or `~/.bashrc`) to use full functionality.
@@ -376,12 +376,12 @@ $ colyn repair
 ✓ Repair complete!
 ```
 
-### `colyn system-integration`
+### `colyn setup`
 
 Configure shell integration (supports auto directory switching and command completion).
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 **Features**:
@@ -497,7 +497,8 @@ colyn/
 - [x] `info` - Show current directory info
 - [x] `completion` - Auto-completion feature
 - [x] `repair` - Check and repair project configuration
-- [x] `system-integration` - Configure shell integration
+- [x] `setup` - Configure shell integration
+- [x] `status` (`st`) - Show current worktree status
 
 ---
 
