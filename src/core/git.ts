@@ -1,6 +1,29 @@
 import simpleGit from 'simple-git';
+import * as path from 'path';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
+
+interface GitStatusLike {
+  modified: string[];
+  created: string[];
+  deleted: string[];
+  renamed: Array<{ to: string }>;
+  not_added: string[];
+}
+
+const IGNORED_STATUS_BASENAMES = new Set(['.env.local']);
+
+export function getRelevantStatusFiles(status: GitStatusLike): string[] {
+  const changedFiles = [
+    ...status.modified,
+    ...status.created,
+    ...status.deleted,
+    ...status.renamed.map(r => r.to),
+    ...status.not_added
+  ];
+
+  return changedFiles.filter((file) => !IGNORED_STATUS_BASENAMES.has(path.basename(file)));
+}
 
 /**
  * 检查是否为 git 仓库
@@ -18,7 +41,7 @@ export async function checkWorkingDirectoryClean(): Promise<void> {
   const git = simpleGit();
   const status = await git.status();
 
-  if (!status.isClean()) {
+  if (getRelevantStatusFiles(status).length > 0) {
     throw new ColynError(
       t('errors.workingDirNotClean'),
       t('errors.workingDirNotCleanHint')

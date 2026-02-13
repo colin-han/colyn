@@ -158,10 +158,13 @@ Hints:
     init: {
       description: 'Initialize worktree management structure',
       portOption: 'Main branch dev server port',
+      yesOption: 'Skip confirmation prompt when initializing existing project',
       alreadyInProject: 'Current directory is already in a colyn project',
       alreadyInProjectHint: 'Project root: {{root}}\nPlease do not run init in a project subdirectory',
       invalidPort: 'Invalid port number',
       invalidPortHint: 'Port must be between 1-65535',
+      nonInteractivePort: 'Cannot prompt for port in non-interactive mode',
+      nonInteractivePortHint: 'Please provide port with --port <port>',
       enterPort: 'Enter main branch dev server port',
       portValidation: 'Port must be between 1-65535',
       directoryConflict: 'Main branch directory name "{{name}}" conflicts with existing file',
@@ -211,6 +214,8 @@ Hints:
       currentFileList: 'Current directory file list:',
       moreFiles: '... and {{count}} more files',
       confirmContinue: 'Confirm to continue initialization?',
+      nonInteractiveConfirm: 'Cannot prompt for confirmation in non-interactive mode',
+      nonInteractiveConfirmHint: 'Use --yes to continue initialization without prompt',
       initCanceled: 'Initialization canceled',
     },
 
@@ -238,6 +243,8 @@ View all worktrees:
       branchNotFoundHint: `View all worktrees:
   colyn list`,
       detectedWorktree: 'Detected worktree:',
+      detectedBranchLabel: 'Branch',
+      detectedPathLabel: 'Path',
       preCheck: 'Running pre-checks...',
       preCheckPassed: 'Pre-checks passed',
       preCheckFailed: 'Pre-checks failed',

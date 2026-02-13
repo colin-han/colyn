@@ -16,7 +16,7 @@ import {
 /**
  * Init 命令入口
  */
-async function initCommand(options: { port?: string }): Promise<void> {
+async function initCommand(options: { port?: string; yes?: boolean }): Promise<void> {
   try {
     // 步骤1: 检测目录状态
     const dirInfo = await detectDirectoryStatus();
@@ -37,7 +37,7 @@ async function initCommand(options: { port?: string }): Promise<void> {
         break;
 
       case DirectoryStatus.ExistingProject:
-        handlerResult = await handleExistingProject(dirInfo, port);
+        handlerResult = await handleExistingProject(dirInfo, port, options.yes || false);
         break;
     }
 
@@ -52,6 +52,7 @@ async function initCommand(options: { port?: string }): Promise<void> {
     } else {
       // 用户取消操作
       outputResult({ success: false });
+      process.exit(1);
     }
 
   } catch (error) {
@@ -70,6 +71,7 @@ export function register(program: Command): void {
     .command('init')
     .description(t('commands.init.description'))
     .option('-p, --port <port>', t('commands.init.portOption'))
+    .option('-y, --yes', t('commands.init.yesOption'))
     .action(async (options) => {
       await initCommand(options);
     });

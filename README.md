@@ -136,6 +136,7 @@ colyn init [options]
 
 选项：
   -p, --port <port>  主分支开发服务器端口
+  -y, --yes          初始化已有项目时跳过确认提示
 ```
 
 **功能**：
@@ -417,11 +418,11 @@ Colyn 采用 Bash + Node.js 双层架构：
 shell/colyn.sh (Shell 函数)
     │
     └──► bin/colyn (Bash 入口)
-            │
-            └──► dist/index.js (Node.js 核心)
+                 │
+                 └──► dist/index.js (Node.js 核心)
                         │
                  stderr → 彩色输出
-                 stdout → JSON 结果
+                 stdout → JSON 结果（仅在 JSON 模式）
                         │
     ◄───────────────────┘
     │
@@ -431,7 +432,7 @@ shell/colyn.sh (Shell 函数)
 **为什么需要双层架构？**
 
 子进程无法修改父进程的工作目录。通过 shell 函数包装，可以：
-1. 捕获 Node.js 输出的 JSON 结果
+1. 以 JSON 模式调用 Node.js 并捕获 JSON 结果
 2. 解析目标目录
 3. 在当前 shell 中执行 `cd` 命令
 

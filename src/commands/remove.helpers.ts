@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import simpleGit from 'simple-git';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
+import { getRelevantStatusFiles } from '../core/git.js';
 import {
   output,
   outputLine,
@@ -96,18 +97,11 @@ export async function checkUncommittedChanges(
 ): Promise<{ hasChanges: boolean; changedFiles: string[] }> {
   const git = simpleGit(worktreePath);
   const status = await git.status();
+  const changedFiles = getRelevantStatusFiles(status);
 
-  if (status.isClean()) {
+  if (changedFiles.length === 0) {
     return { hasChanges: false, changedFiles: [] };
   }
-
-  const changedFiles = [
-    ...status.modified,
-    ...status.created,
-    ...status.deleted,
-    ...status.renamed.map(r => r.to),
-    ...status.not_added
-  ];
 
   return { hasChanges: true, changedFiles };
 }

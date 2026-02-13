@@ -25,15 +25,17 @@ colyn() {
 
   # 调用 bin/colyn，捕获 stdout（JSON），stderr 直接显示
   local result
-  result=$("$COLYN_BIN" "$@")
+  result=$(COLYN_OUTPUT_JSON=1 "$COLYN_BIN" "$@")
   local exit_code=$?
 
   # 处理输出
   if [[ -n "$result" ]]; then
     # 尝试解析 JSON
-    local target_dir display_path attach_session
+    local target_dir display_path attach_session is_json_result
     target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.targetDir)console.log(r.targetDir)}catch(e){process.exit(1)}" "$result" 2>/dev/null)
     attach_session=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.attachSession)console.log(r.attachSession)}catch(e){}" "$result" 2>/dev/null)
+    node -e "try{JSON.parse(process.argv[1]);process.exit(0)}catch(e){process.exit(1)}" "$result" 2>/dev/null
+    is_json_result=$?
 
     if [[ $? -eq 0 && -n "$attach_session" ]]; then
       # 需要连接到 tmux session
@@ -43,7 +45,7 @@ colyn() {
       display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log(r.displayPath||r.targetDir)}catch(e){}" "$result" 2>/dev/null)
       cd "$target_dir" || return
       echo "📂 已切换到: $display_path"
-    else
+    elif [[ $is_json_result -ne 0 ]]; then
       # 不是 JSON，原样输出（如 --help）
       echo "$result"
     fi

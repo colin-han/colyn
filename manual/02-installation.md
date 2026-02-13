@@ -160,7 +160,9 @@ colyn system-integration
 ```bash
 # Colyn shell integration
 if command -v colyn &> /dev/null; then
-  eval "$(colyn system-integration --print-only)"
+  # 路径按实际安装位置调整
+  source /path/to/colyn.d/shell/colyn.sh
+  source /path/to/colyn.d/shell/completion.zsh
 fi
 ```
 
@@ -169,7 +171,9 @@ fi
 ```bash
 # Colyn shell integration
 if command -v colyn &> /dev/null; then
-  eval "$(colyn system-integration --print-only)"
+  # 路径按实际安装位置调整
+  source /path/to/colyn.d/shell/colyn.sh
+  source /path/to/colyn.d/shell/completion.bash
 fi
 ```
 
@@ -455,4 +459,3 @@ volta install colyn
 安装完成后，继续阅读：
 - [快速开始](01-quick-start.md) - 5 分钟快速上手
 - [核心概念](03-core-concepts.md) - 理解 Colyn 的工作原理
-

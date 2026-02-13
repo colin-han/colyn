@@ -78,7 +78,11 @@ echo $SHELL
 # 对于 Bash，编辑 ~/.bashrc
 
 # 添加以下内容（替换为实际路径）
-eval "$(colyn system-integration --print-only)"
+source /path/to/colyn.d/shell/colyn.sh
+# Zsh:
+source /path/to/colyn.d/shell/completion.zsh
+# Bash:
+source /path/to/colyn.d/shell/completion.bash
 
 # 4. 重新加载配置
 source ~/.zshrc
@@ -223,6 +227,8 @@ vim .env.local
 ✗ 错误: 工作目录有未提交的更改
 ```
 
+> 说明：`.env.local` 的本地变更不会单独触发此错误。
+
 **解决方案**：
 
 ```bash
@@ -308,6 +314,8 @@ git stash
 cd ../..
 colyn remove 1
 ```
+
+> 说明：`.env.local` 的本地变更不会单独触发此错误。
 
 ### Q: 删除后 Git 仍显示 worktree
 
@@ -768,4 +776,3 @@ tree -L 2 .
 - 查找术语？参考 [术语表](09-glossary.md)
 - 学习最佳实践？查看 [最佳实践](07-best-practices.md)
 - 深入了解？阅读 [核心概念](03-core-concepts.md)
-

@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
-import type { DirectoryInfo } from '../types/index.js';
+import { ColynError, type DirectoryInfo } from '../types/index.js';
 import { detectMainBranch, checkWorkingDirectoryClean } from '../core/git.js';
 import {
   createDirectoryStructure,
@@ -308,7 +308,8 @@ export async function handleInitializedDirectory(
  */
 export async function handleExistingProject(
   dirInfo: DirectoryInfo,
-  port: number
+  port: number,
+  skipConfirm: boolean = false
 ): Promise<InitHandlerResult | null> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
@@ -334,13 +335,24 @@ export async function handleExistingProject(
   output('');
 
   // 步骤2: 询问用户确认（输出到 stderr，避免被 shell 脚本捕获）
-  const { confirmed } = await prompt<{ confirmed: boolean }>({
-    type: 'confirm',
-    name: 'confirmed',
-    message: t('commands.init.confirmContinue'),
-    initial: false, // 默认为否，需要用户主动确认
-    stdout: process.stderr
-  });
+  let confirmed = skipConfirm;
+  if (!skipConfirm) {
+    if (!process.stdin.isTTY) {
+      throw new ColynError(
+        t('commands.init.nonInteractiveConfirm'),
+        t('commands.init.nonInteractiveConfirmHint')
+      );
+    }
+
+    const response = await prompt<{ confirmed: boolean }>({
+      type: 'confirm',
+      name: 'confirmed',
+      message: t('commands.init.confirmContinue'),
+      initial: false, // 默认为否，需要用户主动确认
+      stdout: process.stderr
+    });
+    confirmed = response.confirmed;
+  }
 
   // 步骤3: 如果取消，退出
   if (!confirmed) {

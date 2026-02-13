@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import simpleGit from 'simple-git';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
+import { getRelevantStatusFiles } from '../core/git.js';
 import {
   output,
   outputLine,
@@ -105,16 +106,9 @@ export async function checkGitWorkingDirectory(
 ): Promise<void> {
   const git = simpleGit(dirPath);
   const status = await git.status();
+  const changedFiles = getRelevantStatusFiles(status);
 
-  if (!status.isClean()) {
-    const changedFiles = [
-      ...status.modified,
-      ...status.created,
-      ...status.deleted,
-      ...status.renamed.map(r => r.to),
-      ...status.not_added
-    ];
-
+  if (changedFiles.length > 0) {
     const filesStr = changedFiles.slice(0, 5).map(f => `  - ${f}`).join('\n') +
       (changedFiles.length > 5 ? `\n  ... ${t('commands.remove.moreFiles', { count: changedFiles.length - 5 })}` : '');
 

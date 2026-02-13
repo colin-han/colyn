@@ -158,10 +158,13 @@ export const zhCN = {
     init: {
       description: '初始化 worktree 管理结构',
       portOption: '主分支开发服务器端口',
+      yesOption: '初始化已有项目时跳过确认提示',
       alreadyInProject: '当前目录已在 colyn 项目中',
       alreadyInProjectHint: '项目根目录: {{root}}\n请不要在项目子目录中运行 init 命令',
       invalidPort: '无效的端口号',
       invalidPortHint: '端口必须在 1-65535 之间',
+      nonInteractivePort: '非交互模式下无法询问端口',
+      nonInteractivePortHint: '请使用 --port <port> 指定端口',
       enterPort: '请输入主分支开发服务器端口',
       portValidation: '端口必须在 1-65535 之间',
       directoryConflict: '主分支目录名 "{{name}}" 与现有文件冲突',
@@ -211,6 +214,8 @@ export const zhCN = {
       currentFileList: '当前目录文件列表：',
       moreFiles: '... 还有 {{count}} 个文件',
       confirmContinue: '确认继续初始化？',
+      nonInteractiveConfirm: '非交互模式下无法询问确认',
+      nonInteractiveConfirmHint: '请使用 --yes 跳过确认继续初始化',
       initCanceled: '已取消初始化',
     },
 
@@ -238,6 +243,8 @@ export const zhCN = {
       branchNotFoundHint: `查看所有 worktree：
   colyn list`,
       detectedWorktree: '检测到 worktree:',
+      detectedBranchLabel: '分支',
+      detectedPathLabel: '路径',
       preCheck: '执行前置检查...',
       preCheckPassed: '前置检查通过',
       preCheckFailed: '前置检查失败',

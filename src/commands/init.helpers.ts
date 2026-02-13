@@ -103,6 +103,13 @@ export async function getPortConfig(options: { port?: string }): Promise<number>
   }
 
   // 交互式询问（输出到 stderr，避免被 shell 脚本捕获）
+  if (!process.stdin.isTTY) {
+    throw new ColynError(
+      t('commands.init.nonInteractivePort'),
+      t('commands.init.nonInteractivePortHint')
+    );
+  }
+
   const { port } = await prompt<{ port: string }>({
     type: 'input',
     name: 'port',
