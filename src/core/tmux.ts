@@ -32,9 +32,15 @@ function execTmux(
   options: { silent?: boolean; ignoreError?: boolean } = {}
 ): string {
   try {
+    // 创建一个不包含 COLYN_USER_CWD 的环境变量对象
+    // 防止这个内部环境变量泄漏到 tmux session 中
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.COLYN_USER_CWD;
+
     const output = execSync(`tmux ${command}`, {
       encoding: 'utf-8',
       stdio: options.silent ? 'pipe' : ['pipe', 'pipe', 'pipe'],
+      env: cleanEnv,
     });
     return output.trim();
   } catch (error) {
