@@ -22,27 +22,34 @@
 ```bash
 # 基本用法：显示所有 worktree（包含主分支）
 colyn list
+colyn ls    # 使用别名
 
 # 不显示主分支
 colyn list --no-main
+colyn ls --no-main
 
 # JSON 格式输出（便于脚本处理）
 colyn list --json
+colyn ls --json
 
 # 只输出路径（便于管道操作）
 colyn list --paths
+colyn ls -p
 
-# 自动刷新列表（默认 2 秒）
+# 自动刷新列表
 colyn list -r
 colyn list --refresh
-
-# 自定义刷新间隔（5 秒）
-colyn list -r 5
+colyn ls -r
 
 # 组合使用
 colyn list --paths --no-main
-colyn list --json --no-main
+colyn ls --json --no-main
 ```
+
+**别名说明**：
+- `colyn ls` 是 `colyn list` 的别名
+- 所有选项和功能完全相同
+- 更符合 Unix/Linux 用户习惯
 
 ### 1.3 执行结果
 

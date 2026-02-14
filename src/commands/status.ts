@@ -83,7 +83,7 @@ async function statusCommand(): Promise<void> {
     const info = await getLocationInfo();
 
     // 获取主分支名称
-    const mainBranch = await getMainBranch(info.projectPath);
+    const mainBranch = await getMainBranch(info.mainBranchPath);
 
     // 获取 git 状态
     const gitStatus = await getGitStatus(info.worktreePath, mainBranch);

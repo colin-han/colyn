@@ -23,8 +23,8 @@ colyn info [选项]
 
 | 字段名 | 说明 | 示例值 |
 |--------|------|--------|
-| `project` | 主目录名称 | `myapp` |
-| `project-path` | 主目录完整路径 | `/Users/me/work/myapp/myapp` |
+| `project` | 项目名称 | `myapp` |
+| `project-path` | 项目根目录路径 | `/Users/me/work/myapp` |
 | `worktree-id` | worktree ID（主分支为 0） | `1` |
 | `worktree-dir` | worktree 目录名 | `task-1` |
 | `branch` | 当前分支名称 | `feature/login` |
@@ -66,7 +66,7 @@ my-folder
 ```bash
 $ colyn info
 📁 Project:      myapp
-📂 Project Path: /Users/me/work/myapp/myapp
+📂 Project Path: /Users/me/work/myapp
 🔢 Worktree ID:  1
 📁 Worktree Dir: task-1
 🌿 Branch:       feature/login
@@ -81,19 +81,7 @@ $ colyn info -f branch
 feature/login
 
 $ colyn info --field=project-path
-/Users/me/work/myapp/myapp
-```
-
-### 3. 获取单个字段
-
-输出纯文本，适合在脚本中使用。
-
-```bash
-$ colyn info -f branch
-feature/login
-
-$ colyn info --field=project-path
-/Users/me/work/myapp/myapp
+/Users/me/work/myapp
 ```
 
 ### 4. 获取多个字段

@@ -22,20 +22,34 @@ Users want to quickly view information about all worktrees in the current projec
 ```bash
 # Basic usage: Show all worktrees (including main branch)
 colyn list
+colyn ls    # Using alias
 
 # Don't show main branch
 colyn list --no-main
+colyn ls --no-main
 
 # JSON format output (for script processing)
 colyn list --json
+colyn ls --json
 
 # Output paths only (for pipe operations)
 colyn list --paths
+colyn ls -p
+
+# Auto-refresh list
+colyn list -r
+colyn list --refresh
+colyn ls -r
 
 # Combined usage
 colyn list --paths --no-main
-colyn list --json --no-main
+colyn ls --json --no-main
 ```
+
+**Alias Note**:
+- `colyn ls` is an alias for `colyn list`
+- All options and features are identical
+- More familiar to Unix/Linux users
 
 ### 1.3 Execution Result
 
