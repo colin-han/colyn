@@ -126,6 +126,104 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
 
 ---
 
+## 配置文件修改规范
+
+### 兼容性检查（必须遵守）
+
+**每次修改配置文件结构时，必须检查是否需要创建 Migration**。
+
+#### 需要创建 Migration 的情况
+
+以下任何一种情况都**必须**创建 Migration：
+
+- [ ] 添加了新的**必填**字段
+- [ ] 删除了字段
+- [ ] 重命名了字段
+- [ ] 改变了字段类型（例如：`string` → `number`）
+- [ ] 改变了字段的语义（例如：size 从百分比变为像素值）
+- [ ] 改变了嵌套结构（例如：扁平结构变为嵌套对象）
+
+#### 不需要 Migration 的情况
+
+以下情况可以直接修改，无需 Migration：
+
+- ✅ 添加新的**可选**字段（有默认值）
+- ✅ 修改字段的默认值
+- ✅ 添加新的配置选项（向后兼容）
+
+#### 创建 Migration 的步骤
+
+如果需要 Migration，请严格按照以下步骤执行：
+
+1. **递增版本号**
+   ```typescript
+   // src/core/tmux-config.ts
+   export const CURRENT_CONFIG_VERSION = 2;  // 从 1 改为 2
+   ```
+
+2. **添加迁移函数**
+   ```typescript
+   const MIGRATIONS: MigrationFunction[] = [
+     // 现有的迁移...
+
+     // 新增的迁移 (version → version+1)
+     (settings: Settings): Settings => {
+       // 迁移逻辑
+       return { ...settings, version: 2 };
+     },
+   ];
+   ```
+
+3. **处理所有配置层级**
+   - [ ] 用户级全局配置 (`settings.tmux`)
+   - [ ] 项目级全局配置 (`settings.tmux`)
+   - [ ] 用户级分支覆盖 (`settings.branchOverrides[*].tmux`)
+   - [ ] 项目级分支覆盖 (`settings.branchOverrides[*].tmux`)
+
+4. **测试 Migration**
+   - [ ] 准备旧版本的配置文件
+   - [ ] 加载配置，验证迁移成功
+   - [ ] 检查迁移后的配置文件内容
+   - [ ] 验证迁移后的配置可正常使用
+
+5. **更新文档**
+   - [ ] 在 `docs/design-config-migration.md` 中添加迁移示例
+   - [ ] 更新 CHANGELOG（如果有）
+   - [ ] 如有必要，更新用户手册
+
+#### Migration 编写原则
+
+1. ✅ **保持幂等性**：多次执行结果相同
+2. ✅ **保留用户数据**：不删除用户自定义配置
+3. ✅ **提供默认值**：为新字段提供合理默认值
+4. ✅ **处理边缘情况**：考虑字段不存在、类型错误等情况
+5. ✅ **递归处理**：不要忘记 `branchOverrides` 中的嵌套配置
+
+#### 示例
+
+```typescript
+// ❌ 错误：可能删除用户配置
+(settings: Settings): Settings => {
+  return { version: 2, tmux: { layout: 'three-pane' } };
+}
+
+// ✅ 正确：保留所有用户配置
+(settings: Settings): Settings => {
+  return {
+    ...settings,
+    tmux: {
+      ...settings.tmux,
+      layout: settings.tmux?.layout ?? 'three-pane',
+    },
+    version: 2,
+  };
+}
+```
+
+**参考文档**：`docs/design-config-migration.md`
+
+---
+
 ## TypeScript 规范
 
 * 不要使用 `any` 类型
@@ -395,6 +493,16 @@ C. [折中方案]
   - `docs-en/` - 英文设计文档和需求文档
   - `manual/` - 用户手册（中文）
   - 确保所有语言版本的文档内容一致
+
+  **文档创建和删除规则**：
+  - ✅ **创建新设计文档**时，必须同时创建对应的英文版本
+    - 中文：`docs/design-xxx.md`
+    - 英文：`docs-en/design-xxx.md`
+  - ✅ **删除设计文档**时，必须同时删除对应的英文版本
+    - 删除 `docs/design-xxx.md` 时，也删除 `docs-en/design-xxx.md`
+  - ✅ **合并文档**时，同步处理两种语言的文档
+    - 中文文档合并后，英文文档也要进行相同的合并操作
+  - ⚠️ **实施日志**（`.claude/logs/*.md`）仅中文，无需创建英文版
 
 #### 提供更新清单 ✅
 

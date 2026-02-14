@@ -32,7 +32,12 @@ import {
   switchWindow,
   getWindowName
 } from '../core/tmux.js';
-import { loadTmuxConfig, resolvePaneCommands, resolvePaneLayout } from '../core/tmux-config.js';
+import {
+  loadTmuxConfigForBranch,
+  resolvePaneCommands,
+  resolvePaneLayout,
+  validateTmuxConfig
+} from '../core/tmux-config.js';
 import { getRunCommand } from '../core/config.js';
 import chalk from 'chalk';
 
@@ -81,8 +86,17 @@ async function setupTmuxWindow(
 
   const windowName = getWindowName(branchName);
 
-  // 加载 tmux 配置并解析 pane 命令和布局
-  const tmuxConfig = await loadTmuxConfig(projectRoot);
+  // 加载 tmux 配置并解析 pane 命令和布局（支持分支特定配置）
+  const tmuxConfig = await loadTmuxConfigForBranch(projectRoot, branchName);
+
+  // 验证配置（仅显示警告，不阻止执行）
+  const validation = validateTmuxConfig(tmuxConfig);
+  if (validation.warnings.length > 0) {
+    validation.warnings.forEach(warning => {
+      output(chalk.yellow(`⚠️  ${warning}`));
+    });
+  }
+
   const paneCommands = await resolvePaneCommands(tmuxConfig, worktreePath);
   const paneLayout = resolvePaneLayout(tmuxConfig);
 

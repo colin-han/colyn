@@ -488,11 +488,11 @@ Pane 命令可以通过配置文件自定义（完全可选）。
       "command": "auto continues claude session",
       "size": "60%"
     },
-    "rightTopPane": {
+    "topRightPane": {
       "command": "auto start dev server",
       "size": "30%"
     },
-    "rightBottomPane": {
+    "bottomRightPane": {
       "command": null,
       "size": "70%"
     }
@@ -507,10 +507,10 @@ Pane 命令可以通过配置文件自定义（完全可选）。
 | `autoRun` | boolean | `true` | 是否自动运行命令 |
 | `leftPane.command` | string \| null | `"auto continues claude session"` | 左侧 Pane 命令 |
 | `leftPane.size` | string | `"60%"` | 左侧 Pane 宽度 |
-| `rightTopPane.command` | string \| null | `"auto start dev server"` | 右上 Pane 命令 |
-| `rightTopPane.size` | string | `"30%"` | 右上占右侧高度比例 |
-| `rightBottomPane.command` | string \| null | `null` | 右下 Pane 命令 |
-| `rightBottomPane.size` | string | `"70%"` | 右下占右侧高度比例 |
+| `topRightPane.command` | string \| null | `"auto start dev server"` | 右上 Pane 命令 |
+| `topRightPane.size` | string | `"30%"` | 右上占右侧高度比例 |
+| `bottomRightPane.command` | string \| null | `null` | 右下 Pane 命令 |
+| `bottomRightPane.size` | string | `"70%"` | 右下占右侧高度比例 |
 
 ### 内置命令
 
@@ -549,7 +549,7 @@ Pane 命令可以通过配置文件自定义（完全可选）。
 ```json
 {
   "tmux": {
-    "rightBottomPane": {
+    "bottomRightPane": {
       "command": "htop"
     }
   }
@@ -564,10 +564,10 @@ Pane 命令可以通过配置文件自定义（完全可选）。
     "leftPane": {
       "size": "50%"
     },
-    "rightTopPane": {
+    "topRightPane": {
       "size": "40%"
     },
-    "rightBottomPane": {
+    "bottomRightPane": {
       "size": "60%"
     }
   }
@@ -702,7 +702,7 @@ Ctrl-b Ctrl-↑/↓/←/→
 **检查清单**：
 1. `package.json` 中是否有 `dev` 脚本？
 2. 配置中是否禁用了 `autoRun`？
-3. 配置中 `rightTopPane.command` 是否为 `null`？
+3. 配置中 `topRightPane.command` 是否为 `null`？
 
 ```bash
 # 手动启动

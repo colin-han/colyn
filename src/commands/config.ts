@@ -14,7 +14,7 @@ import {
   type ColynConfig,
 } from '../core/config.js';
 import {
-  loadTmuxConfig,
+  loadTmuxConfigForBranch,
   loadSettingsFromFile,
   getUserConfigPath,
   getProjectConfigPath,
@@ -23,6 +23,7 @@ import {
   type PaneConfig,
   type Settings,
 } from '../core/tmux-config.js';
+import { getCurrentBranch } from '../core/git.js';
 import { output, outputBold, outputSuccess, formatError } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
@@ -33,15 +34,16 @@ import * as fs from 'fs/promises';
  */
 const DEFAULT_CONFIG = {
   autoRun: true,
+  layout: 'three-pane' as const,
   leftPane: {
     command: BUILTIN_COMMANDS.AUTO_CLAUDE,
     size: '60%',
   },
-  rightTopPane: {
+  topRightPane: {
     command: BUILTIN_COMMANDS.AUTO_DEV_SERVER,
     size: '30%',
   },
-  rightBottomPane: {
+  bottomRightPane: {
     command: null as string | null,
     size: '70%',
   },
@@ -172,32 +174,32 @@ function printEffectiveConfig(config: TmuxConfig): void {
   );
   output(`    size:    ${formatSizeValue(leftPane.size, leftPane.sizeIsDefault)}`);
 
-  // rightTopPane
-  const rightTopPane = getEffectivePaneConfig(
-    config.rightTopPane,
-    DEFAULT_CONFIG.rightTopPane
+  // topRightPane
+  const topRightPane = getEffectivePaneConfig(
+    config.topRightPane,
+    DEFAULT_CONFIG.topRightPane
   );
   output('');
-  output(`  rightTopPane:`);
+  output(`  topRightPane:`);
   output(
-    `    command: ${formatCommandValue(rightTopPane.command, rightTopPane.commandIsDefault)}`
+    `    command: ${formatCommandValue(topRightPane.command, topRightPane.commandIsDefault)}`
   );
   output(
-    `    size:    ${formatSizeValue(rightTopPane.size, rightTopPane.sizeIsDefault)}`
+    `    size:    ${formatSizeValue(topRightPane.size, topRightPane.sizeIsDefault)}`
   );
 
-  // rightBottomPane
-  const rightBottomPane = getEffectivePaneConfig(
-    config.rightBottomPane,
-    DEFAULT_CONFIG.rightBottomPane
+  // bottomRightPane
+  const bottomRightPane = getEffectivePaneConfig(
+    config.bottomRightPane,
+    DEFAULT_CONFIG.bottomRightPane
   );
   output('');
-  output(`  rightBottomPane:`);
+  output(`  bottomRightPane:`);
   output(
-    `    command: ${formatCommandValue(rightBottomPane.command, rightBottomPane.commandIsDefault)}`
+    `    command: ${formatCommandValue(bottomRightPane.command, bottomRightPane.commandIsDefault)}`
   );
   output(
-    `    size:    ${formatSizeValue(rightBottomPane.size, rightBottomPane.sizeIsDefault)}`
+    `    size:    ${formatSizeValue(bottomRightPane.size, bottomRightPane.sizeIsDefault)}`
   );
 }
 
@@ -231,21 +233,21 @@ function buildEffectiveConfig(config: TmuxConfig): TmuxConfig {
         ? config.leftPane.size
         : DEFAULT_CONFIG.leftPane.size,
     },
-    rightTopPane: {
-      command: config.rightTopPane?.command !== undefined
-        ? config.rightTopPane.command
-        : DEFAULT_CONFIG.rightTopPane.command,
-      size: config.rightTopPane?.size !== undefined
-        ? config.rightTopPane.size
-        : DEFAULT_CONFIG.rightTopPane.size,
+    topRightPane: {
+      command: config.topRightPane?.command !== undefined
+        ? config.topRightPane.command
+        : DEFAULT_CONFIG.topRightPane.command,
+      size: config.topRightPane?.size !== undefined
+        ? config.topRightPane.size
+        : DEFAULT_CONFIG.topRightPane.size,
     },
-    rightBottomPane: {
-      command: config.rightBottomPane?.command !== undefined
-        ? config.rightBottomPane.command
-        : DEFAULT_CONFIG.rightBottomPane.command,
-      size: config.rightBottomPane?.size !== undefined
-        ? config.rightBottomPane.size
-        : DEFAULT_CONFIG.rightBottomPane.size,
+    bottomRightPane: {
+      command: config.bottomRightPane?.command !== undefined
+        ? config.bottomRightPane.command
+        : DEFAULT_CONFIG.bottomRightPane.command,
+      size: config.bottomRightPane?.size !== undefined
+        ? config.bottomRightPane.size
+        : DEFAULT_CONFIG.bottomRightPane.size,
     },
   };
 }
@@ -280,8 +282,9 @@ async function configCommand(options: ConfigOptions): Promise<void> {
       projectExists ? loadSettingsFromFile(projectConfigPath) : Promise.resolve(null),
     ]);
 
-    // 加载合并后的配置
-    const mergedConfig = await loadTmuxConfig(paths.rootDir);
+    // 获取当前分支并加载对应的配置
+    const currentBranch = await getCurrentBranch(paths.rootDir);
+    const mergedConfig = await loadTmuxConfigForBranch(paths.rootDir, currentBranch);
 
     // JSON 输出模式
     if (options.json) {
