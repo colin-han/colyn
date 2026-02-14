@@ -580,6 +580,7 @@ async function listCommand(options: ListOptions): Promise<void> {
 export function register(program: Command): void {
   program
     .command('list')
+    .alias('ls')
     .description(t('commands.list.description'))
     .option('--json', t('commands.list.jsonOption'))
     .option('-p, --paths', t('commands.list.pathsOption'))
