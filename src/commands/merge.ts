@@ -39,6 +39,7 @@ interface MergeOptions {
   noUpdate?: boolean;  // 合并后不自动更新
   updateAll?: boolean;  // 合并后更新所有 worktrees
   verbose?: boolean;  // 显示详细的步骤信息
+  fetch?: boolean;     // 是否 fetch,默认 true
 }
 
 /**
@@ -231,7 +232,7 @@ async function mergeCommand(
       // 拉取主分支最新代码（如果已经 push，则主分支已经是最新的）
       if (!pushed) {
         try {
-          await pullMainBranch(paths.mainDir);
+          await pullMainBranch(paths.mainDir, options.fetch === false);
         } catch (error) {
           // 拉取失败不影响更新流程，因为本地已经有最新代码
         }
@@ -309,6 +310,7 @@ export function register(program: Command): void {
     .option('--no-update', t('commands.merge.noUpdateOption'))
     .option('--update-all', t('commands.merge.updateAllOption'))
     .option('-v, --verbose', t('commands.merge.verboseOption'))
+    .option('--no-fetch', t('commands.merge.noFetchOption'))
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });

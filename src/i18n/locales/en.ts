@@ -252,6 +252,7 @@ Hints:
       noUpdateOption: 'Do not auto-update after merge',
       updateAllOption: 'Update all worktrees after merge',
       verboseOption: 'Show detailed step information',
+      noFetchOption: 'Skip fetching latest code from remote',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>
@@ -345,6 +346,7 @@ Main branch directory: {{path}}`,
       description: 'Update worktree with main branch code',
       noRebaseOption: 'Use merge instead of rebase',
       allOption: 'Update all worktrees',
+      noFetchOption: 'Skip fetching latest code from remote',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn update <id>

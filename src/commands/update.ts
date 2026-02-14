@@ -31,6 +31,7 @@ import { t } from '../i18n/index.js';
 export interface UpdateOptions {
   noRebase?: boolean;
   all?: boolean;
+  fetch?: boolean;  // 是否 fetch，默认 true
 }
 
 /**
@@ -61,13 +62,16 @@ async function updateCommand(
     // 确定是否使用 rebase（默认 true）
     const useRebase = !options.noRebase;
 
+    // 确定是否跳过 fetch/pull（默认 false，即执行 fetch/pull）
+    const skipFetch = options.fetch === false;
+
     // 步骤3: 处理批量更新或单个更新
     if (options.all) {
       // 批量更新所有 worktree
-      await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
+      await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch);
     } else {
       // 单个更新
-      await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
+      await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch);
     }
 
     // 输出 JSON 结果
@@ -89,7 +93,8 @@ async function handleSingleUpdate(
   mainDir: string,
   worktreesDir: string,
   mainBranch: string,
-  useRebase: boolean
+  useRebase: boolean,
+  skipPull: boolean
 ): Promise<void> {
   // 查找目标 worktree
   const worktree = await findWorktreeTarget(target, mainDir, worktreesDir);
@@ -118,7 +123,7 @@ async function handleSingleUpdate(
   }).start();
 
   try {
-    await pullMainBranch(mainDir);
+    await pullMainBranch(mainDir, skipPull);
     pullSpinner.succeed(t('commands.update.pullSuccess'));
   } catch (error) {
     pullSpinner.fail(t('commands.update.pullFailed'));
@@ -168,7 +173,8 @@ async function handleBatchUpdate(
   mainDir: string,
   worktreesDir: string,
   mainBranch: string,
-  useRebase: boolean
+  useRebase: boolean,
+  skipPull: boolean
 ): Promise<void> {
   // 发现所有 worktree
   const worktrees = await discoverWorktrees(mainDir, worktreesDir);
@@ -190,7 +196,7 @@ async function handleBatchUpdate(
   }).start();
 
   try {
-    await pullMainBranch(mainDir);
+    await pullMainBranch(mainDir, skipPull);
     pullSpinner.succeed(t('commands.update.pullSuccess'));
   } catch (error) {
     pullSpinner.fail(t('commands.update.pullFailed'));
@@ -238,10 +244,10 @@ export async function executeUpdate(
   // 步骤3: 处理批量更新或单个更新
   if (options.all) {
     // 批量更新所有 worktree
-    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
+    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false);
   } else {
     // 单个更新
-    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase);
+    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false);
   }
 }
 
@@ -254,6 +260,7 @@ export function register(program: Command): void {
     .description(t('commands.update.description'))
     .option('--no-rebase', t('commands.update.noRebaseOption'))
     .option('--all', t('commands.update.allOption'))
+    .option('--no-fetch', t('commands.update.noFetchOption'))
     .action(async (target: string | undefined, options: UpdateOptions) => {
       await updateCommand(target, options);
     });

@@ -193,15 +193,19 @@ async function archiveLogs(
 
   return { archived: true, count };
 }
-
 /**
  * 更新主分支
  * 在 fetch 后检查主分支是否落后于远程，如果是则更新
  */
 async function updateMainBranch(
   mainDir: string,
-  mainBranch: string
+  mainBranch: string,
+  skipPull = false
 ): Promise<{ updated: boolean; message?: string }> {
+  if (skipPull) {
+    return { updated: false };
+  }
+
   const git = simpleGit(mainDir);
 
   try {
@@ -217,6 +221,14 @@ async function updateMainBranch(
     if (currentBranch !== mainBranch) {
       // 不在主分支上，不更新
       return { updated: false };
+
+    // 检查是否有上游分支
+    try {
+      await git.raw(['rev-parse', '--abbrev-ref', mainBranch + '@{upstream}']);
+    } catch {
+      // 没有上游分支，跳过 pull
+      return { updated: false };
+    }
     }
 
     // 检查是否落后于远程
@@ -241,7 +253,6 @@ async function updateMainBranch(
     return { updated: false };
   }
 }
-
 /**
  * Checkout 命令选项
  */
@@ -379,7 +390,7 @@ async function checkoutCommand(
 
     // 步骤7.5: 如果执行了 fetch，尝试更新主分支
     if (branchInfo.fetched) {
-      const updateResult = await updateMainBranch(paths.mainDir, mainBranch);
+      const updateResult = await updateMainBranch(paths.mainDir, mainBranch, skipFetch);
       if (updateResult.updated && updateResult.message) {
         outputLine();
         output(chalk.green(t('commands.checkout.mainBranchUpdated', { message: updateResult.message })));
