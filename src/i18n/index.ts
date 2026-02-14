@@ -4,6 +4,7 @@
 import i18next from 'i18next';
 import { en, type TranslationKeys } from './locales/en.js';
 import { zhCN } from './locales/zh-CN.js';
+import { getLang } from '../core/config.js';
 
 // Debug flag
 const DEBUG = process.env.DEBUG?.includes('colyn:i18n');
@@ -46,13 +47,15 @@ function normalizeLanguage(lang: string): string {
 }
 
 /**
- * Detect language from environment
+ * Detect language from all sources
  * Priority:
  * 1. COLYN_LANG environment variable
- * 2. System language (LANG/LC_ALL)
- * 3. Default to English
+ * 2. Project config file (.colyn/config.json)
+ * 3. User config file (~/.colyn/config.json)
+ * 4. System language (LANG/LC_ALL)
+ * 5. Default to English
  */
-function detectLanguage(): SupportedLanguage {
+async function detectLanguage(configDir?: string): Promise<SupportedLanguage> {
   // 1. Check COLYN_LANG environment variable
   const colynLang = process.env.COLYN_LANG;
   if (colynLang) {
@@ -68,7 +71,29 @@ function detectLanguage(): SupportedLanguage {
     }
   }
 
-  // 2. Check system language
+  // 2-3. Check config files (project + user)
+  try {
+    const configLang = await getLang(configDir);
+    if (configLang && configLang !== 'en') { // Skip if it's the default value
+      const normalized = normalizeLanguage(configLang);
+      if (isSupported(normalized)) {
+        if (DEBUG) {
+          console.error(`[i18n] Using config language: ${configLang} -> ${normalized}`);
+        }
+        return normalized;
+      }
+      if (DEBUG) {
+        console.error(`[i18n] Config language "${configLang}" not supported, falling back`);
+      }
+    }
+  } catch (error) {
+    // Config file read error, continue to next source
+    if (DEBUG) {
+      console.error(`[i18n] Error reading config: ${error}`);
+    }
+  }
+
+  // 4. Check system language
   const systemLang = process.env.LC_ALL || process.env.LANG || '';
   if (systemLang) {
     const normalized = normalizeLanguage(systemLang);
@@ -83,19 +108,16 @@ function detectLanguage(): SupportedLanguage {
     }
   }
 
-  // 3. Default to English
+  // 5. Default to English
   if (DEBUG) {
     console.error('[i18n] Using default language: en');
   }
   return 'en';
 }
 
-// Detect language
-const detectedLanguage = detectLanguage();
-
-// Initialize i18next synchronously
+// Initialize i18next with default language (will be updated by initI18n)
 i18next.init({
-  lng: detectedLanguage,
+  lng: 'en',
   fallbackLng: 'en',
   debug: DEBUG,
   resources: {
@@ -108,6 +130,22 @@ i18next.init({
   returnNull: false,
   returnEmptyString: false,
 });
+
+/**
+ * Initialize i18n with language detection from all sources
+ * This should be called as early as possible in the CLI entry point
+ * @param configDir .colyn directory path (optional)
+ */
+export async function initI18n(configDir?: string): Promise<void> {
+  const detectedLanguage = await detectLanguage(configDir);
+
+  if (detectedLanguage !== i18next.language) {
+    await i18next.changeLanguage(detectedLanguage);
+    if (DEBUG) {
+      console.error(`[i18n] Language changed to: ${detectedLanguage}`);
+    }
+  }
+}
 
 /**
  * Get nested value from object using dot notation

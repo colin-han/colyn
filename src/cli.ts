@@ -4,7 +4,8 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { registerAllCommands } from './commands/index.js';
-import { t } from './i18n/index.js';
+import { t, initI18n } from './i18n/index.js';
+import { getProjectPaths } from './core/paths.js';
 
 // 获取 package.json 中的版本号
 const __filename = fileURLToPath(import.meta.url);
@@ -124,6 +125,15 @@ program
 // 注册所有命令
 registerAllCommands(program);
 
-export function run(): void {
+export async function run(): Promise<void> {
+  // 初始化 i18n（尝试读取项目配置）
+  try {
+    const paths = await getProjectPaths();
+    await initI18n(paths.configDir);
+  } catch {
+    // 不在项目目录中，只使用环境变量和用户配置
+    await initI18n();
+  }
+
   program.parse();
 }

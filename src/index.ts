@@ -1,3 +1,4 @@
 import { run } from './cli.js';
 
-run();
+// Run as async
+await run();

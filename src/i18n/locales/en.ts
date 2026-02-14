@@ -608,7 +608,10 @@ Or force delete:
 
     // config command
     config: {
-      description: 'Show tmux configuration info',
+      description: 'Manage configuration',
+      getDescription: 'Get a configuration value',
+      setDescription: 'Set a configuration value',
+      userOption: 'Operate on user-level config',
       jsonOption: 'Output in JSON format',
       title: 'Tmux Configuration Info',
       userConfig: 'User Config',
@@ -626,6 +629,11 @@ Or force delete:
       autoClaudeDesc: 'Auto continue Claude session (detect existing session)',
       autoClaudeDangerouslyDesc: 'Same as above, but add --dangerously-skip-permissions flag',
       autoDevServerDesc: 'Auto start dev server (detect package.json)',
+      invalidKey: 'Invalid config key "{{key}}", valid keys are: {{validKeys}}',
+      invalidLang: 'Invalid language value "{{value}}", valid values are: {{validLangs}}',
+      setSuccess: 'Config set: {{key}} = {{value}} ({{scope}})',
+      userScope: 'user',
+      projectScope: 'project',
     },
 
     // completion command

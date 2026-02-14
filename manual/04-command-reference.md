@@ -15,6 +15,7 @@
 - [colyn checkout](#colyn-checkout)
 - [colyn info](#colyn-info)
 - [colyn repair](#colyn-repair)
+- [colyn config](#colyn-config)
 - [colyn completion](#colyn-completion)
 - [colyn system-integration](#colyn-system-integration)
 - [colyn release](#colyn-release)
@@ -1089,6 +1090,145 @@ $ colyn repair
 - 采用"尽力而为"策略，单个错误不会中断流程
 - 只修复明确的配置错误，不删除文件
 - 可以在项目的任意位置运行
+
+---
+
+## colyn config
+
+管理 Colyn 配置。
+
+### 语法
+
+```bash
+# 显示 tmux 配置信息（默认行为）
+colyn config [选项]
+
+# 获取配置值
+colyn config get <key> [选项]
+
+# 设置配置值
+colyn config set <key> <value> [选项]
+```
+
+### 子命令
+
+#### `colyn config get <key>`
+
+获取配置项的值。
+
+**参数：**
+- `key` - 配置键名（`npm` 或 `lang`）
+
+**选项：**
+- `--user` - 从用户级配置读取（`~/.config/colyn/settings.json`），而不是项目配置
+
+**输出：**
+配置值输出到 stdout，可供脚本解析。
+
+**示例：**
+```bash
+# 获取当前项目的语言设置
+$ colyn config get lang
+zh-CN
+
+# 获取用户级语言设置
+$ colyn config get lang --user
+en
+
+# 在脚本中使用
+LANG=$(colyn config get lang)
+```
+
+#### `colyn config set <key> <value>`
+
+设置配置项的值。
+
+**参数：**
+- `key` - 配置键名（`npm` 或 `lang`）
+- `value` - 配置值
+
+**选项：**
+- `--user` - 设置用户级配置（`~/.config/colyn/settings.json`），而不是项目配置
+
+**支持的配置项：**
+
+| 配置键 | 说明 | 有效值 |
+|-------|------|--------|
+| `npm` | 包管理器命令 | `npm`, `yarn`, `pnpm` 等 |
+| `lang` | 界面语言 | `en`, `zh-CN` |
+
+**示例：**
+```bash
+# 设置项目级语言为中文
+$ colyn config set lang zh-CN
+✓ 配置已设置：lang = zh-CN (项目)
+
+# 设置用户级语言为英文
+$ colyn config set lang en --user
+✓ 配置已设置：lang = en (用户)
+
+# 设置包管理器为 yarn
+$ colyn config set npm yarn --user
+✓ 配置已设置：npm = yarn (用户)
+```
+
+#### `colyn config`（默认）
+
+显示 tmux 配置信息（保持向后兼容）。
+
+**选项：**
+- `--json` - 以 JSON 格式输出
+
+### 配置文件优先级
+
+配置值按以下优先级决定（从高到低）：
+
+1. **环境变量**：`COLYN_NPM`、`COLYN_LANG`
+2. **项目配置**：`.colyn/settings.json`
+3. **用户配置**：`~/.config/colyn/settings.json`
+4. **默认值**：`npm='npm'`、`lang='en'`
+
+### 配置文件位置
+
+- **用户级配置**：`~/.config/colyn/settings.json`
+  - 影响所有项目
+  - 使用 `--user` 选项操作
+
+- **项目级配置**：`.colyn/settings.json`（项目根目录）
+  - 仅影响当前项目
+  - 优先级高于用户配置
+
+### 语言设置
+
+设置界面语言可以通过三种方式：
+
+**方式 1：使用配置命令（推荐）**
+```bash
+# 设置用户级默认语言
+colyn config set lang zh-CN --user
+
+# 为当前项目设置特定语言
+colyn config set lang en
+```
+
+**方式 2：使用环境变量（临时）**
+```bash
+# 临时使用中文界面
+COLYN_LANG=zh-CN colyn --help
+```
+
+**方式 3：编辑配置文件**
+```json
+{
+  "lang": "zh-CN"
+}
+```
+
+### 注意事项
+
+- 设置无效的配置值会报错（如不支持的语言）
+- 配置更改立即生效，无需重启
+- 项目配置会覆盖用户配置
 
 ---
 

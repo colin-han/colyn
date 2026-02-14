@@ -3,12 +3,14 @@
  *
  * 配置优先级（从高到低）：
  * 1. 环境变量
- * 2. 配置文件 (.colyn/config.json)
- * 3. 默认值
+ * 2. 项目配置文件 (.colyn/config.json)
+ * 3. 用户配置文件 (~/.colyn/config.json)
+ * 4. 默认值
  */
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
 
 /**
  * Colyn 配置接口
@@ -16,6 +18,8 @@ import * as path from 'path';
 export interface ColynConfig {
   /** 包管理器命令，默认为 'npm' */
   npm: string;
+  /** 界面语言，默认为 'en' */
+  lang: string;
 }
 
 /**
@@ -23,13 +27,15 @@ export interface ColynConfig {
  */
 interface ConfigFile {
   npm?: string;
+  lang?: string;
 }
 
 /**
  * 默认配置
  */
 const DEFAULT_CONFIG: ColynConfig = {
-  npm: 'npm'
+  npm: 'npm',
+  lang: 'en'
 };
 
 /**
@@ -43,7 +49,7 @@ let cachedConfigDir: string | null = null;
  * @param configDir .colyn 目录路径
  */
 async function readConfigFile(configDir: string): Promise<ConfigFile> {
-  const configPath = path.join(configDir, 'config.json');
+  const configPath = path.join(configDir, 'settings.json');
 
   try {
     const content = await fs.readFile(configPath, 'utf-8');
@@ -55,8 +61,30 @@ async function readConfigFile(configDir: string): Promise<ConfigFile> {
 }
 
 /**
+ * 获取用户配置目录路径
+ */
+function getUserConfigDir(): string {
+  return path.join(os.homedir(), '.config', 'colyn');
+}
+
+/**
+ * 导出用户配置目录路径（供其他模块使用）
+ */
+export function getGlobalConfigDir(): string {
+  return getUserConfigDir();
+}
+
+/**
+ * 读取用户配置文件
+ */
+async function readUserConfigFile(): Promise<ConfigFile> {
+  const userConfigDir = getUserConfigDir();
+  return readConfigFile(userConfigDir);
+}
+
+/**
  * 获取配置（带缓存）
- * @param configDir .colyn 目录路径（可选，如果不提供则只使用环境变量和默认值）
+ * @param configDir .colyn 目录路径（可选，如果不提供则只使用环境变量、用户配置和默认值）
  */
 export async function getConfig(configDir?: string): Promise<ColynConfig> {
   // 如果缓存有效，直接返回
@@ -64,12 +92,16 @@ export async function getConfig(configDir?: string): Promise<ColynConfig> {
     return cachedConfig;
   }
 
-  // 读取配置文件
-  const fileConfig = configDir ? await readConfigFile(configDir) : {};
+  // 读取项目配置文件
+  const projectConfig = configDir ? await readConfigFile(configDir) : {};
 
-  // 合并配置（环境变量 > 配置文件 > 默认值）
+  // 读取用户配置文件
+  const userConfig = await readUserConfigFile();
+
+  // 合并配置（环境变量 > 项目配置 > 用户配置 > 默认值）
   const config: ColynConfig = {
-    npm: process.env.COLYN_NPM || fileConfig.npm || DEFAULT_CONFIG.npm
+    npm: process.env.COLYN_NPM || projectConfig.npm || userConfig.npm || DEFAULT_CONFIG.npm,
+    lang: process.env.COLYN_LANG || projectConfig.lang || userConfig.lang || DEFAULT_CONFIG.lang
   };
 
   // 缓存配置
@@ -86,6 +118,15 @@ export async function getConfig(configDir?: string): Promise<ColynConfig> {
 export async function getNpmCommand(configDir?: string): Promise<string> {
   const config = await getConfig(configDir);
   return config.npm;
+}
+
+/**
+ * 获取语言配置
+ * @param configDir .colyn 目录路径（可选）
+ */
+export async function getLang(configDir?: string): Promise<string> {
+  const config = await getConfig(configDir);
+  return config.lang;
 }
 
 /**
@@ -122,7 +163,7 @@ export async function saveConfig(
   configDir: string,
   updates: Partial<ColynConfig>
 ): Promise<void> {
-  const configPath = path.join(configDir, 'config.json');
+  const configPath = path.join(configDir, 'settings.json');
 
   // 读取现有配置
   const existingConfig = await readConfigFile(configDir);

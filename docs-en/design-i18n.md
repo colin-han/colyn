@@ -20,8 +20,41 @@ This document describes the multi-language (i18n) support implementation for the
 ### Language Detection Priority
 
 1. `COLYN_LANG` environment variable (user explicit setting)
-2. System language (`LANG`/`LC_ALL` environment variables)
-3. Default to English (`en`)
+2. Project config file (`lang` field in `.colyn/settings.json`)
+3. User config file (`lang` field in `~/.config/colyn/settings.json`)
+4. System language (`LANG`/`LC_ALL` environment variables)
+5. Default to English (`en`)
+
+### Configuration File Support
+
+Besides environment variables, users can also set language preferences through configuration files:
+
+**User-level config** (`~/.config/colyn/settings.json`):
+```json
+{
+  "lang": "zh-CN"
+}
+```
+
+**Project-level config** (`.colyn/settings.json`):
+```json
+{
+  "lang": "en"
+}
+```
+
+Use the `colyn config` command to manage language settings:
+
+```bash
+# Set user-level language (affects all projects)
+colyn config set lang zh-CN --user
+
+# Set project-level language (affects current project only)
+colyn config set lang en
+
+# Get current language setting
+colyn config get lang
+```
 
 ### File Structure
 
@@ -93,14 +126,31 @@ const message = t('commands.add.branchExists', { branch: 'feature/x' });
 
 ### Setting Language
 
+**Method 1: Using Config Files (Recommended)**
+
 ```bash
-# Set language using environment variable
+# Set user-level language
+colyn config set lang zh-CN --user
+
+# Set project-level language
+colyn config set lang en
+
+# Get current language
+colyn config get lang
+```
+
+**Method 2: Using Environment Variables**
+
+```bash
+# Set language using environment variable (temporary)
+COLYN_LANG=zh-CN colyn --help
+
+# Or set permanently in shell config
 export COLYN_LANG=zh-CN
 colyn --help
-
-# Or set temporarily
-COLYN_LANG=zh-CN colyn --help
 ```
+
+**Priority Note**: Environment variable > Project config > User config > System language
 
 ### Debug Mode
 

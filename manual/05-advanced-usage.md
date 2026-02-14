@@ -4,6 +4,76 @@
 
 ---
 
+## 配置管理
+
+### 配置文件层级
+
+Colyn 支持两级配置文件：
+
+1. **用户级配置**：`~/.config/colyn/settings.json`
+   - 影响所有项目
+   - 适合设置个人偏好
+
+2. **项目级配置**：`.colyn/settings.json`（项目根目录）
+   - 仅影响当前项目
+   - 优先级高于用户配置
+
+### 配置优先级
+
+配置值按以下优先级决定（从高到低）：
+
+1. 环境变量（`COLYN_NPM`、`COLYN_LANG`）
+2. 项目配置文件
+3. 用户配置文件
+4. 默认值
+
+### 语言设置
+
+**设置用户级默认语言**：
+
+```bash
+# 所有项目默认使用中文界面
+colyn config set lang zh-CN --user
+```
+
+**为特定项目设置语言**：
+
+```bash
+# 当前项目使用英文界面
+colyn config set lang en
+```
+
+**临时切换语言**：
+
+```bash
+# 不修改配置，临时使用中文
+COLYN_LANG=zh-CN colyn --help
+```
+
+### 包管理器配置
+
+如果你的项目使用 yarn 或 pnpm：
+
+```bash
+# 设置用户级默认包管理器
+colyn config set npm yarn --user
+
+# 为特定项目设置
+colyn config set npm pnpm
+```
+
+### 查看配置值
+
+```bash
+# 查看当前项目的语言设置
+colyn config get lang
+
+# 查看用户级包管理器设置
+colyn config get npm --user
+```
+
+---
+
 ## 多 Worktree 并行开发
 
 ### 并行 Vibe Coding 方法论
