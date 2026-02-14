@@ -50,17 +50,25 @@ export async function checkWorkingDirectoryClean(): Promise<void> {
 }
 
 /**
- * 检测主分支名称
+ * 获取当前分支名称
+ * @param dir 工作目录，默认为当前目录
+ * @returns 当前分支名称
  */
-export async function detectMainBranch(): Promise<string> {
-  const git = simpleGit();
+export async function getCurrentBranch(dir?: string): Promise<string> {
+  const git = simpleGit(dir);
 
   try {
-    // 尝试获取当前分支名
     const branchSummary = await git.branch();
     return branchSummary.current;
   } catch (error) {
-    // 如果获取失败或不是 git 仓库，默认使用 'main'
+    // 如果获取失败，默认返回 'main'
     return 'main';
   }
+}
+
+/**
+ * 检测主分支名称
+ */
+export async function detectMainBranch(): Promise<string> {
+  return await getCurrentBranch();
 }

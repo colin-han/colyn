@@ -20,8 +20,41 @@
 ### 语言检测优先级
 
 1. `COLYN_LANG` 环境变量（用户显式设置）
-2. 系统语言（`LANG`/`LC_ALL` 环境变量）
-3. 默认英文（`en`）
+2. 项目配置文件（`.colyn/settings.json` 中的 `lang` 字段）
+3. 用户配置文件（`~/.config/colyn/settings.json` 中的 `lang` 字段）
+4. 系统语言（`LANG`/`LC_ALL` 环境变量）
+5. 默认英文（`en`）
+
+### 配置文件支持
+
+除了环境变量，用户还可以通过配置文件设置语言偏好：
+
+**用户级配置** (`~/.config/colyn/settings.json`)：
+```json
+{
+  "lang": "zh-CN"
+}
+```
+
+**项目级配置** (`.colyn/settings.json`)：
+```json
+{
+  "lang": "en"
+}
+```
+
+使用 `colyn config` 命令管理语言设置：
+
+```bash
+# 设置用户级语言（影响所有项目）
+colyn config set lang zh-CN --user
+
+# 设置项目级语言（仅影响当前项目）
+colyn config set lang en
+
+# 查看当前语言设置
+colyn config get lang
+```
 
 ### 文件结构
 
@@ -99,14 +132,31 @@ const message = t('commands.add.branchExists', { branch: 'feature/x' });
 
 ### 设置语言
 
+**方式 1：使用配置文件（推荐）**
+
 ```bash
-# 使用环境变量设置语言
+# 设置用户级语言
+colyn config set lang zh-CN --user
+
+# 设置项目级语言
+colyn config set lang en
+
+# 查看当前语言
+colyn config get lang
+```
+
+**方式 2：使用环境变量**
+
+```bash
+# 使用环境变量设置语言（临时）
+COLYN_LANG=zh-CN colyn --help
+
+# 或在 shell 配置中永久设置
 export COLYN_LANG=zh-CN
 colyn --help
-
-# 或者临时设置
-COLYN_LANG=zh-CN colyn --help
 ```
+
+**优先级说明**：环境变量 > 项目配置 > 用户配置 > 系统语言
 
 ### 调试模式
 

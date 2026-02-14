@@ -26,7 +26,7 @@ import {
   detachClient
 } from '../core/tmux.js';
 import {
-  loadTmuxConfig,
+  loadTmuxConfigForBranch,
   resolvePaneCommands,
   resolvePaneLayout,
   type TmuxConfig
@@ -191,29 +191,28 @@ async function repairTmuxWindows(
   }
   result.sessionName = sessionName;
 
-  // 加载 tmux 配置
-  const tmuxConfig = await loadTmuxConfig(projectRoot);
-
-  // 修复 Window 0 (main)
+  // 修复 Window 0 (main) - 使用 main 分支的配置
+  const mainTmuxConfig = await loadTmuxConfigForBranch(projectRoot, mainBranch);
   await repairSingleWindow(
     result,
     sessionName,
     0,
     mainBranch,
     mainDir,
-    tmuxConfig,
+    mainTmuxConfig,
     projectRoot
   );
 
-  // 修复所有 worktree windows
+  // 修复所有 worktree windows - 每个使用对应分支的配置
   for (const wt of worktrees) {
+    const wtTmuxConfig = await loadTmuxConfigForBranch(projectRoot, wt.branch);
     await repairSingleWindow(
       result,
       sessionName,
       wt.id,
       wt.branch,
       wt.path,
-      tmuxConfig,
+      wtTmuxConfig,
       projectRoot
     );
   }

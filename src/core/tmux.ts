@@ -243,39 +243,285 @@ export function setupPaneLayout(
 ): boolean {
   const target = `${sessionName}:${windowIndex}`;
 
-  // 使用配置的大小或默认值
-  const leftSize = layout?.leftSize ?? 60;
-  const rightTopSize = layout?.rightTopSize ?? 30;
-
-  // 计算右侧大小（100 - 左侧大小）
-  const rightSize = 100 - leftSize;
-  // 计算右下大小（100 - 右上大小）
-  const rightBottomSize = 100 - rightTopSize;
+  // 如果没有布局配置，默认使用三窗格
+  const layoutType = layout?.layout ?? 'three-pane';
 
   try {
-    // 1. 垂直分割：左侧 leftSize%，右侧 rightSize%
-    execTmux(
-      `split-window -t "${target}" -h -p ${rightSize} -c "${workingDir}"`,
-      {
-        silent: true,
-      }
-    );
+    switch (layoutType) {
+      case 'single-pane':
+        // 单窗格：不需要分割
+        return true;
 
-    // 2. 分割右侧为上下：上 rightTopSize%，下 rightBottomSize%
-    execTmux(
-      `split-window -t "${target}" -v -p ${rightBottomSize} -c "${workingDir}"`,
-      {
-        silent: true,
-      }
-    );
+      case 'two-pane-horizontal':
+        return setupTwoPaneHorizontal(target, workingDir, layout);
 
-    // 3. 选择左侧 pane (pane 0)
-    execTmux(`select-pane -t "${target}.0"`, { silent: true });
+      case 'two-pane-vertical':
+        return setupTwoPaneVertical(target, workingDir, layout);
 
-    return true;
+      case 'three-pane':
+        return setupThreePane(target, workingDir, layout);
+
+      case 'four-pane':
+        return setupFourPane(target, workingDir, layout);
+
+      default:
+        // 未知布局类型，默认使用三窗格
+        return setupThreePane(target, workingDir, layout);
+    }
   } catch {
     return false;
   }
+}
+
+/**
+ * 设置两窗格水平布局
+ */
+function setupTwoPaneHorizontal(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const leftSize = layout?.leftSize ?? 50;
+  const rightSize = 100 - leftSize;
+
+  // 垂直分割：左右
+  execTmux(
+    `split-window -t "${target}" -h -p ${rightSize} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 选择左侧 pane
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
+}
+
+/**
+ * 设置两窗格垂直布局
+ */
+function setupTwoPaneVertical(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const topSize = layout?.topSize ?? 50;
+  const bottomSize = 100 - topSize;
+
+  // 水平分割：上下
+  execTmux(
+    `split-window -t "${target}" -v -p ${bottomSize} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 选择上方 pane
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
+}
+
+/**
+ * 设置三窗格布局
+ */
+function setupThreePane(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const leftSize = layout?.leftSize ?? 60;
+  const rightTopSize = layout?.rightTopSize ?? 30;
+
+  const rightSize = 100 - leftSize;
+  const rightBottomSize = 100 - rightTopSize;
+
+  // 1. 垂直分割：左侧 leftSize%，右侧 rightSize%
+  execTmux(
+    `split-window -t "${target}" -h -p ${rightSize} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 2. 分割右侧为上下：上 rightTopSize%，下 rightBottomSize%
+  execTmux(
+    `split-window -t "${target}" -v -p ${rightBottomSize} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 3. 选择左侧 pane (pane 0)
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
+}
+
+/**
+ * 设置四窗格布局
+ */
+function setupFourPane(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const hasHorizontalSplit = layout?.horizontalSplit !== undefined;
+  const hasVerticalSplit = layout?.verticalSplit !== undefined;
+
+  if (hasHorizontalSplit && hasVerticalSplit) {
+    // 同时配置两个 split：使用固定分割
+    return setupFourPaneBothSplits(target, workingDir, layout);
+  } else if (hasHorizontalSplit) {
+    // 仅水平分割
+    return setupFourPaneHorizontalSplit(target, workingDir, layout);
+  } else if (hasVerticalSplit) {
+    // 仅垂直分割
+    return setupFourPaneVerticalSplit(target, workingDir, layout);
+  } else {
+    // 默认：50/50 分割
+    return setupFourPaneDefault(target, workingDir);
+  }
+}
+
+/**
+ * 四窗格：同时配置 horizontalSplit 和 verticalSplit
+ */
+function setupFourPaneBothSplits(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const verticalSplit = layout?.verticalSplit ?? 50;
+  const horizontalSplit = layout?.horizontalSplit ?? 50;
+
+  const rightWidth = 100 - verticalSplit;
+  const bottomHeight = 100 - horizontalSplit;
+
+  // 1. 垂直分割：左右
+  execTmux(
+    `split-window -t "${target}" -h -p ${rightWidth} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 2. 分割左侧：上下
+  execTmux(
+    `split-window -t "${target}.0" -v -p ${bottomHeight} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 3. 分割右侧：上下
+  execTmux(
+    `split-window -t "${target}.1" -v -p ${bottomHeight} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 4. 选择左上 pane
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
+}
+
+/**
+ * 四窗格：仅 horizontalSplit（先上下分割）
+ */
+function setupFourPaneHorizontalSplit(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const horizontalSplit = layout?.horizontalSplit ?? 50;
+  const topLeftSize = layout?.topLeftSize ?? 50;
+  const bottomLeftSize = layout?.bottomLeftSize ?? 50;
+
+  const bottomHeight = 100 - horizontalSplit;
+  const topRightWidth = 100 - topLeftSize;
+  const bottomRightWidth = 100 - bottomLeftSize;
+
+  // 1. 水平分割：上下
+  execTmux(
+    `split-window -t "${target}" -v -p ${bottomHeight} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 2. 分割上方：左右
+  execTmux(
+    `split-window -t "${target}.0" -h -p ${topRightWidth} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 3. 分割下方：左右
+  execTmux(
+    `split-window -t "${target}.1" -h -p ${bottomRightWidth} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 4. 选择左上 pane
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
+}
+
+/**
+ * 四窗格：仅 verticalSplit（先左右分割）
+ */
+function setupFourPaneVerticalSplit(
+  target: string,
+  workingDir: string,
+  layout?: ResolvedPaneLayout
+): boolean {
+  const verticalSplit = layout?.verticalSplit ?? 50;
+  const topLeftSize = layout?.topLeftSize ?? 50;
+  const topRightSize = layout?.topRightSize ?? 50;
+
+  const rightWidth = 100 - verticalSplit;
+  const bottomLeftHeight = 100 - topLeftSize;
+  const bottomRightHeight = 100 - topRightSize;
+
+  // 1. 垂直分割：左右
+  execTmux(
+    `split-window -t "${target}" -h -p ${rightWidth} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 2. 分割左侧：上下
+  execTmux(
+    `split-window -t "${target}.0" -v -p ${bottomLeftHeight} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 3. 分割右侧：上下
+  execTmux(
+    `split-window -t "${target}.1" -v -p ${bottomRightHeight} -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 4. 选择左上 pane
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
+}
+
+/**
+ * 四窗格：默认 50/50 分割
+ */
+function setupFourPaneDefault(target: string, workingDir: string): boolean {
+  // 默认：50/50 分割
+  // 1. 垂直分割：左右
+  execTmux(
+    `split-window -t "${target}" -h -p 50 -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 2. 分割左侧：上下
+  execTmux(
+    `split-window -t "${target}.0" -v -p 50 -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 3. 分割右侧：上下
+  execTmux(
+    `split-window -t "${target}.1" -v -p 50 -c "${workingDir}"`,
+    { silent: true }
+  );
+
+  // 4. 选择左上 pane
+  execTmux(`select-pane -t "${target}.0"`, { silent: true });
+
+  return true;
 }
 
 /**
@@ -462,6 +708,9 @@ export function setupWindow(options: SetupWindowOptions): boolean {
       }
       if (paneCommands.pane2) {
         sendKeys(sessionName, windowIndex, 2, paneCommands.pane2);
+      }
+      if (paneCommands.pane3) {
+        sendKeys(sessionName, windowIndex, 3, paneCommands.pane3);
       }
     } else if (devCommand) {
       // 向后兼容：如果只提供 devCommand，在 pane 1 执行

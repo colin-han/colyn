@@ -1,14 +1,20 @@
 /**
  * config 命令
  *
- * 显示 tmux 配置的合并结果，帮助用户调试配置文件
+ * 管理 Colyn 配置（tmux 配置和全局配置）
  */
 
 import type { Command } from 'commander';
 import chalk from 'chalk';
 import { getProjectPaths } from '../core/paths.js';
 import {
-  loadTmuxConfig,
+  getConfig,
+  saveConfig,
+  getGlobalConfigDir,
+  type ColynConfig,
+} from '../core/config.js';
+import {
+  loadTmuxConfigForBranch,
   loadSettingsFromFile,
   getUserConfigPath,
   getProjectConfigPath,
@@ -17,7 +23,8 @@ import {
   type PaneConfig,
   type Settings,
 } from '../core/tmux-config.js';
-import { output, outputBold, formatError } from '../utils/logger.js';
+import { getCurrentBranch } from '../core/git.js';
+import { output, outputBold, outputSuccess, formatError } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import * as fs from 'fs/promises';
@@ -27,15 +34,16 @@ import * as fs from 'fs/promises';
  */
 const DEFAULT_CONFIG = {
   autoRun: true,
+  layout: 'three-pane' as const,
   leftPane: {
     command: BUILTIN_COMMANDS.AUTO_CLAUDE,
     size: '60%',
   },
-  rightTopPane: {
+  topRightPane: {
     command: BUILTIN_COMMANDS.AUTO_DEV_SERVER,
     size: '30%',
   },
-  rightBottomPane: {
+  bottomRightPane: {
     command: null as string | null,
     size: '70%',
   },
@@ -166,32 +174,32 @@ function printEffectiveConfig(config: TmuxConfig): void {
   );
   output(`    size:    ${formatSizeValue(leftPane.size, leftPane.sizeIsDefault)}`);
 
-  // rightTopPane
-  const rightTopPane = getEffectivePaneConfig(
-    config.rightTopPane,
-    DEFAULT_CONFIG.rightTopPane
+  // topRightPane
+  const topRightPane = getEffectivePaneConfig(
+    config.topRightPane,
+    DEFAULT_CONFIG.topRightPane
   );
   output('');
-  output(`  rightTopPane:`);
+  output(`  topRightPane:`);
   output(
-    `    command: ${formatCommandValue(rightTopPane.command, rightTopPane.commandIsDefault)}`
+    `    command: ${formatCommandValue(topRightPane.command, topRightPane.commandIsDefault)}`
   );
   output(
-    `    size:    ${formatSizeValue(rightTopPane.size, rightTopPane.sizeIsDefault)}`
+    `    size:    ${formatSizeValue(topRightPane.size, topRightPane.sizeIsDefault)}`
   );
 
-  // rightBottomPane
-  const rightBottomPane = getEffectivePaneConfig(
-    config.rightBottomPane,
-    DEFAULT_CONFIG.rightBottomPane
+  // bottomRightPane
+  const bottomRightPane = getEffectivePaneConfig(
+    config.bottomRightPane,
+    DEFAULT_CONFIG.bottomRightPane
   );
   output('');
-  output(`  rightBottomPane:`);
+  output(`  bottomRightPane:`);
   output(
-    `    command: ${formatCommandValue(rightBottomPane.command, rightBottomPane.commandIsDefault)}`
+    `    command: ${formatCommandValue(bottomRightPane.command, bottomRightPane.commandIsDefault)}`
   );
   output(
-    `    size:    ${formatSizeValue(rightBottomPane.size, rightBottomPane.sizeIsDefault)}`
+    `    size:    ${formatSizeValue(bottomRightPane.size, bottomRightPane.sizeIsDefault)}`
   );
 }
 
@@ -225,21 +233,21 @@ function buildEffectiveConfig(config: TmuxConfig): TmuxConfig {
         ? config.leftPane.size
         : DEFAULT_CONFIG.leftPane.size,
     },
-    rightTopPane: {
-      command: config.rightTopPane?.command !== undefined
-        ? config.rightTopPane.command
-        : DEFAULT_CONFIG.rightTopPane.command,
-      size: config.rightTopPane?.size !== undefined
-        ? config.rightTopPane.size
-        : DEFAULT_CONFIG.rightTopPane.size,
+    topRightPane: {
+      command: config.topRightPane?.command !== undefined
+        ? config.topRightPane.command
+        : DEFAULT_CONFIG.topRightPane.command,
+      size: config.topRightPane?.size !== undefined
+        ? config.topRightPane.size
+        : DEFAULT_CONFIG.topRightPane.size,
     },
-    rightBottomPane: {
-      command: config.rightBottomPane?.command !== undefined
-        ? config.rightBottomPane.command
-        : DEFAULT_CONFIG.rightBottomPane.command,
-      size: config.rightBottomPane?.size !== undefined
-        ? config.rightBottomPane.size
-        : DEFAULT_CONFIG.rightBottomPane.size,
+    bottomRightPane: {
+      command: config.bottomRightPane?.command !== undefined
+        ? config.bottomRightPane.command
+        : DEFAULT_CONFIG.bottomRightPane.command,
+      size: config.bottomRightPane?.size !== undefined
+        ? config.bottomRightPane.size
+        : DEFAULT_CONFIG.bottomRightPane.size,
     },
   };
 }
@@ -274,8 +282,9 @@ async function configCommand(options: ConfigOptions): Promise<void> {
       projectExists ? loadSettingsFromFile(projectConfigPath) : Promise.resolve(null),
     ]);
 
-    // 加载合并后的配置
-    const mergedConfig = await loadTmuxConfig(paths.rootDir);
+    // 获取当前分支并加载对应的配置
+    const currentBranch = await getCurrentBranch(paths.rootDir);
+    const mergedConfig = await loadTmuxConfigForBranch(paths.rootDir, currentBranch);
 
     // JSON 输出模式
     if (options.json) {
@@ -323,14 +332,124 @@ async function configCommand(options: ConfigOptions): Promise<void> {
 }
 
 /**
+ * 获取配置目录
+ */
+async function getConfigDirectory(isUser: boolean): Promise<string> {
+  if (isUser) {
+    const userDir = getGlobalConfigDir();
+    // 确保用户配置目录存在
+    await fs.mkdir(userDir, { recursive: true });
+    return userDir;
+  } else {
+    const paths = await getProjectPaths();
+    return paths.configDir;
+  }
+}
+
+/**
+ * 获取配置值
+ */
+async function getConfigValue(key: string, options: { user?: boolean }): Promise<void> {
+  try {
+    const validKeys: Array<keyof ColynConfig> = ['npm', 'lang'];
+
+    if (!validKeys.includes(key as keyof ColynConfig)) {
+      throw new ColynError(
+        t('commands.config.invalidKey', { key, validKeys: validKeys.join(', ') })
+      );
+    }
+
+    const configDir = options.user ? undefined : (await getProjectPaths()).configDir;
+    const config = await getConfig(configDir);
+    const value = config[key as keyof ColynConfig];
+
+    // 输出到 stdout 供脚本解析
+    process.stdout.write(value + '\n');
+  } catch (error) {
+    if (error instanceof ColynError) {
+      formatError(error);
+      process.exit(1);
+    }
+    throw error;
+  }
+}
+
+/**
+ * 设置配置值
+ */
+async function setConfigValue(
+  key: string,
+  value: string,
+  options: { user?: boolean }
+): Promise<void> {
+  try {
+    const validKeys: Array<keyof ColynConfig> = ['npm', 'lang'];
+
+    if (!validKeys.includes(key as keyof ColynConfig)) {
+      throw new ColynError(
+        t('commands.config.invalidKey', { key, validKeys: validKeys.join(', ') })
+      );
+    }
+
+    // 验证 lang 值
+    if (key === 'lang') {
+      const validLangs = ['en', 'zh-CN'];
+      if (!validLangs.includes(value)) {
+        throw new ColynError(
+          t('commands.config.invalidLang', { value, validLangs: validLangs.join(', ') })
+        );
+      }
+    }
+
+    const configDir = await getConfigDirectory(!!options.user);
+    const updates: Partial<ColynConfig> = { [key]: value };
+
+    await saveConfig(configDir, updates);
+
+    const scope = options.user
+      ? t('commands.config.userScope')
+      : t('commands.config.projectScope');
+
+    outputSuccess(t('commands.config.setSuccess', { key, value, scope }));
+  } catch (error) {
+    if (error instanceof ColynError) {
+      formatError(error);
+      process.exit(1);
+    }
+    throw error;
+  }
+}
+
+/**
  * 注册 config 命令
  */
 export function register(program: Command): void {
-  program
+  const configCmd = program
     .command('config')
-    .description(t('commands.config.description'))
+    .description(t('commands.config.description'));
+
+  // get 子命令：获取配置值
+  configCmd
+    .command('get <key>')
+    .description(t('commands.config.getDescription'))
+    .option('--user', t('commands.config.userOption'))
+    .action(async (key: string, options: { user?: boolean }) => {
+      await getConfigValue(key, options);
+    });
+
+  // set 子命令：设置配置值
+  configCmd
+    .command('set <key> <value>')
+    .description(t('commands.config.setDescription'))
+    .option('--user', t('commands.config.userOption'))
+    .action(async (key: string, value: string, options: { user?: boolean }) => {
+      await setConfigValue(key, value, options);
+    });
+
+  // 默认命令：显示 tmux 配置（保持向后兼容）
+  configCmd
     .option('--json', t('commands.config.jsonOption'))
-    .action(async (options) => {
+    .action(async (options: ConfigOptions) => {
       await configCommand(options);
     });
 }

@@ -608,7 +608,10 @@ export const zhCN = {
 
     // config command
     config: {
-      description: '显示 tmux 配置信息',
+      description: '管理配置',
+      getDescription: '获取配置值',
+      setDescription: '设置配置值',
+      userOption: '操作用户级配置',
       jsonOption: '以 JSON 格式输出',
       title: 'Tmux 配置信息',
       userConfig: '用户级配置',
@@ -626,6 +629,11 @@ export const zhCN = {
       autoClaudeDesc: '自动继续 Claude 会话（检测已有会话）',
       autoClaudeDangerouslyDesc: '同上，但添加 --dangerously-skip-permissions 参数',
       autoDevServerDesc: '自动启动 dev server（检测 package.json）',
+      invalidKey: '无效的配置键 "{{key}}"，有效的键为：{{validKeys}}',
+      invalidLang: '无效的语言值 "{{value}}"，有效的值为：{{validLangs}}',
+      setSuccess: '配置已设置：{{key}} = {{value}} ({{scope}})',
+      userScope: '用户',
+      projectScope: '项目',
     },
 
     // completion command
