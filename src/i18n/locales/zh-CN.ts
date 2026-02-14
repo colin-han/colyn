@@ -252,6 +252,7 @@ export const zhCN = {
       noUpdateOption: '合并后不自动更新',
       updateAllOption: '合并后更新所有 worktrees',
       verboseOption: '显示详细的步骤信息',
+      noFetchOption: '跳过从远程拉取主分支最新代码',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -345,6 +346,7 @@ export const zhCN = {
       description: '将主分支代码更新到 worktree',
       noRebaseOption: '使用 merge 而非 rebase',
       allOption: '更新所有 worktree',
+      noFetchOption: '跳过从远程拉取主分支最新代码',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn update <id>

@@ -152,11 +152,24 @@ export interface BatchUpdateResult {
 /**
  * 拉取主分支最新代码
  */
-export async function pullMainBranch(mainDir: string): Promise<void> {
+export async function pullMainBranch(mainDir: string, skipPull = false): Promise<void> {
+  // 如果指定跳过 pull，直接返回
+  if (skipPull) {
+    return;
+  }
+
   const git = simpleGit(mainDir);
 
   try {
-    await git.pull();
+    // 检查当前分支是否有上游分支
+    try {
+      await git.raw(['rev-parse', '--abbrev-ref', '@{upstream}']);
+      // 如果命令成功，说明有上游分支，执行 pull
+      await git.pull();
+    } catch {
+      // 没有上游分支，跳过 pull
+      return;
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new ColynError(
@@ -165,6 +178,7 @@ export async function pullMainBranch(mainDir: string): Promise<void> {
     );
   }
 }
+
 
 /**
  * 使用 rebase 更新 worktree
