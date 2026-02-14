@@ -189,8 +189,10 @@ export async function getCurrentWorktreeInfo(
 export interface LocationInfo {
   /** 项目名（主目录名） */
   project: string;
-  /** 主目录完整路径 */
+  /** 项目根目录完整路径 */
   projectPath: string;
+  /** 主分支目录完整路径 */
+  mainBranchPath: string;
   /** worktree ID（主分支为 0） */
   worktreeId: number;
   /** worktree 目录名 */
@@ -227,7 +229,8 @@ export async function getLocationInfo(
 
     return {
       project: mainDirName,
-      projectPath: mainDir,
+      projectPath: rootDir,
+      mainBranchPath: mainDir,
       worktreeId: 0,
       worktreeDir: mainDirName,
       worktreePath: mainDir,
@@ -255,7 +258,8 @@ export async function getLocationInfo(
 
       return {
         project: mainDirName,
-        projectPath: mainDir,
+        projectPath: rootDir,
+        mainBranchPath: mainDir,
         worktreeId,
         worktreeDir: worktreeDirName,
         worktreePath,

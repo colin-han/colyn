@@ -23,8 +23,8 @@ colyn info [options]
 
 | Field Name | Description | Example Value |
 |------------|-------------|---------------|
-| `project` | Main directory name | `myapp` |
-| `project-path` | Main directory full path | `/Users/me/work/myapp/myapp` |
+| `project` | Project name | `myapp` |
+| `project-path` | Project root directory path | `/Users/me/work/myapp` |
 | `worktree-id` | Worktree ID (0 for main branch) | `1` |
 | `worktree-dir` | Worktree directory name | `task-1` |
 | `branch` | Current branch name | `feature/login` |
@@ -66,7 +66,7 @@ Display all information with colors and labels for easy reading.
 ```bash
 $ colyn info
 📁 Project:      myapp
-📂 Project Path: /Users/me/work/myapp/myapp
+📂 Project Path: /Users/me/work/myapp
 🔢 Worktree ID:  1
 📁 Worktree Dir: task-1
 🌿 Branch:       feature/login
@@ -81,7 +81,7 @@ $ colyn info -f branch
 feature/login
 
 $ colyn info --field=project-path
-/Users/me/work/myapp/myapp
+/Users/me/work/myapp
 ```
 
 ### 4. Get Multiple Fields

@@ -326,7 +326,7 @@ export function register(program: Command): void {
 
 可用字段：
   project         项目名称
-  project-path    项目路径（主分支目录）
+  project-path    项目根目录路径
   worktree-id     Worktree ID（主分支为 0）
   worktree-dir    Worktree 目录名
   branch          当前分支名
