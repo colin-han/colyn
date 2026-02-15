@@ -792,3 +792,47 @@ export function detachClient(): boolean {
     return false;
   }
 }
+
+/**
+ * 获取所有 tmux session 列表
+ * @returns session 名称数组
+ */
+export function listSessions(): string[] {
+  try {
+    const output = execTmux('list-sessions -F "#{session_name}"', {
+      silent: true,
+    });
+
+    if (!output) {
+      return [];
+    }
+
+    return output.split('\n').filter((name) => name.trim() !== '');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 获取指定 pane 的当前工作目录
+ * @param sessionName session 名称
+ * @param windowIndex window 索引
+ * @param paneIndex pane 索引
+ * @returns 当前工作目录路径，如果获取失败返回 null
+ */
+export function getPaneCurrentPath(
+  sessionName: string,
+  windowIndex: number,
+  paneIndex: number
+): string | null {
+  try {
+    const target = `${sessionName}:${windowIndex}.${paneIndex}`;
+    const output = execTmux(
+      `display-message -t "${target}" -p "#{pane_current_path}"`,
+      { silent: true }
+    );
+    return output || null;
+  } catch {
+    return null;
+  }
+}

@@ -8,6 +8,7 @@ import type { Command } from 'commander';
 import { register as registerInit } from './init.js';
 import { register as registerAdd } from './add.js';
 import { register as registerList } from './list.js';
+import { register as registerListProject } from './list-project.js';
 import { register as registerMerge } from './merge.js';
 import { register as registerUpdate } from './update.js';
 import { register as registerInfo } from './info.js';
@@ -28,6 +29,7 @@ export function registerAllCommands(program: Command): void {
   registerInit(program);
   registerAdd(program);
   registerList(program);
+  registerListProject(program);
   registerMerge(program);
   registerUpdate(program);
   registerInfo(program);
