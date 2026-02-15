@@ -518,6 +518,7 @@ export const zhCN = {
       statusPath: '路径: {{path}}',
       argError: '参数错误',
       argErrorHint: '用法: colyn checkout [worktree-id] <branch>',
+      tmuxWindowRenamed: 'tmux window 名称已更新为: {{windowName}}',
     },
 
     // info command

@@ -426,7 +426,7 @@ async function checkoutCommand(
       if (currentSession) {
         const newWindowName = getWindowName(branch);
         renameWindow(currentSession, worktree.id, newWindowName);
-        output(chalk.gray(`tmux window 名称已更新为: ${newWindowName}`));
+        output(chalk.gray(t('commands.checkout.tmuxWindowRenamed', { windowName: newWindowName })));
       }
     }
 
