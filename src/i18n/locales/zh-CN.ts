@@ -762,6 +762,8 @@ export const zhCN = {
       tableSession: 'Session',
       tableProject: 'Project',
       tablePath: 'Path',
+      tableWorktrees: 'Worktrees',
+      projectWorktrees: '{{project}} 的 Worktrees',
     },
   },
 

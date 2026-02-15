@@ -762,6 +762,8 @@ Solution:
       tableSession: 'Session',
       tableProject: 'Project',
       tablePath: 'Path',
+      tableWorktrees: 'Worktrees',
+      projectWorktrees: 'Worktrees for {{project}}',
     },
   },
 
