@@ -518,6 +518,7 @@ Or force delete:
       statusPath: 'Path: {{path}}',
       argError: 'Argument error',
       argErrorHint: 'Usage: colyn checkout [worktree-id] <branch>',
+      tmuxWindowRenamed: 'tmux window name updated to: {{windowName}}',
     },
 
     // info command
