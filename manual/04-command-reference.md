@@ -10,6 +10,7 @@
 - [colyn init](#colyn-init)
 - [colyn add](#colyn-add)
 - [colyn list](#colyn-list)
+- [colyn list-project](#colyn-list-project)
 - [colyn merge](#colyn-merge)
 - [colyn remove](#colyn-remove)
 - [colyn checkout](#colyn-checkout)
@@ -376,6 +377,193 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 - 路径输出为相对于项目根目录的相对路径
 - 主分支的 ID 显示为 `0-main`
 - 终端窄时表格会自动隐藏不重要的列
+
+---
+
+## colyn list-project
+
+列出所有 tmux session 中的项目和 Worktree。
+
+**别名：** `lsp`
+
+### 语法
+
+```bash
+colyn list-project [选项]
+colyn lsp [选项]        # 使用别名
+```
+
+### 选项
+
+| 选项 | 短选项 | 说明 | 默认值 |
+|------|--------|------|--------|
+| `--json` | - | 以 JSON 格式输出 | 否 |
+| `--paths` | `-p` | 只输出路径（每行一个） | 否 |
+
+### 功能说明
+
+`colyn list-project` 通过 tmux API 获取所有正在运行的项目，并显示每个项目的 worktree 信息。
+
+**核心特性：**
+- 跨项目查看：一次性查看所有 tmux session 中的 colyn 项目
+- 完全复用 `list` 命令的数据结构和输出格式
+- 支持三种输出模式：表格、JSON、路径
+
+**与 `list` 命令的区别：**
+- `list` - 查看**当前项目**的所有 worktree
+- `list-project` - 查看**所有 tmux session 中项目**的所有 worktree
+
+**要求：**
+- 必须安装 tmux
+- 至少有一个 tmux session 在运行
+- Session 的 window 0 pane 0 必须在项目目录下
+
+### 示例
+
+**表格格式（默认）：**
+
+```bash
+$ colyn list-project
+
+┌─────────┬─────────┬──────────────────┬───────────┐
+│ Session │ Project │ Path             │ Worktrees │
+├─────────┼─────────┼──────────────────┼───────────┤
+│ backend │ backend │ /path/to/backend │ 2         │
+│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
+└─────────┴─────────┴──────────────────┴───────────┘
+
+backend 的 Worktrees:
+┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
+│ ID       │ Branch       │ Port │ Status │ Diff │ Path             │
+├──────────┼──────────────┼──────┼────────┼──────┼──────────────────┤
+│   0-main │ develop      │ 3010 │        │ -    │ backend          │
+│   1      │ feature/auth │ 3011 │        │ ✓    │ worktrees/task-1 │
+└──────────┴──────────────┴──────┴────────┴──────┴──────────────────┘
+
+colyn 的 Worktrees:
+┌──────────┬────────────────┬───────┬─────────┬──────┬──────────────────┐
+│ ID       │ Branch         │ Port  │ Status  │ Diff │ Path             │
+├──────────┼────────────────┼───────┼─────────┼──────┼──────────────────┤
+│   0-main │ main           │ 10000 │         │ -    │ colyn            │
+│   1      │ feature/login  │ 10001 │         │ ✓    │ worktrees/task-1 │
+│ → 2      │ feature/ui     │ 10002 │ M:2 S:1 │ ✓    │ worktrees/task-2 │
+│   3      │ feature/api    │ 10003 │         │ ↑1   │ worktrees/task-3 │
+└──────────┴────────────────┴───────┴─────────┴──────┴──────────────────┘
+```
+
+**说明：**
+- 主表格显示项目概览和 worktree 数量
+- 详细表格显示每个项目的所有 worktree（格式与 `list` 完全相同）
+- `→` 箭头标识当前所在的 worktree
+- `Status` 和 `Diff` 列的含义与 `list` 命令相同
+
+**JSON 格式：**
+
+```bash
+$ colyn list-project --json
+```
+
+```json
+[
+  {
+    "sessionName": "colyn",
+    "projectPath": "/path/to/colyn",
+    "projectName": "colyn",
+    "mainBranchPath": "/path/to/colyn/colyn",
+    "worktrees": [
+      {
+        "id": null,
+        "branch": "main",
+        "port": 10000,
+        "path": "colyn",
+        "isMain": true,
+        "isCurrent": false,
+        "status": {
+          "modified": 0,
+          "staged": 0,
+          "untracked": 0
+        },
+        "diff": {
+          "ahead": 0,
+          "behind": 0
+        }
+      },
+      {
+        "id": 1,
+        "branch": "feature/login",
+        "port": 10001,
+        "path": "worktrees/task-1",
+        "isMain": false,
+        "isCurrent": false,
+        "status": {
+          "modified": 0,
+          "staged": 0,
+          "untracked": 0
+        },
+        "diff": {
+          "ahead": 0,
+          "behind": 0
+        }
+      }
+    ]
+  }
+]
+```
+
+**说明：**
+- `worktrees` 数组中每个元素的结构与 `list --json` 完全相同
+- 包含完整的 git 状态（status）和差异（diff）信息
+
+**路径格式：**
+
+```bash
+$ colyn list-project --paths
+/path/to/backend/backend
+/path/to/backend/worktrees/task-1
+/path/to/colyn/colyn
+/path/to/colyn/worktrees/task-1
+/path/to/colyn/worktrees/task-2
+/path/to/colyn/worktrees/task-3
+```
+
+**说明：**
+- 输出所有 worktree 的绝对路径（包括主分支）
+- 便于管道操作和脚本处理
+
+### 脚本使用示例
+
+```bash
+# 在所有项目的所有 worktree 中运行 git status
+$ colyn list-project --paths | xargs -I {} sh -c 'echo "=== {} ===" && cd {} && git status'
+
+# 在所有 worktree 中更新依赖
+$ colyn list-project --paths | xargs -I {} sh -c 'cd {} && npm install'
+
+# 统计总的 worktree 数量
+$ colyn list-project --paths | wc -l
+
+# 查看特定项目的 worktree
+$ colyn list-project --json | jq '.[] | select(.projectName == "colyn")'
+
+# 查看所有项目的概览信息
+$ colyn list-project --json | jq '.[] | {session: .sessionName, project: .projectName, count: (.worktrees | length)}'
+```
+
+### 常见错误
+
+| 错误场景 | 错误信息 | 解决方法 |
+|---------|---------|---------|
+| tmux 未安装 | `✗ tmux 未安装` | 安装 tmux：`brew install tmux` (macOS) 或 `apt install tmux` (Linux) |
+| 无 tmux session | `暂无项目` | 创建 tmux session：`colyn tmux` |
+| 选项冲突 | `✗ --json 和 --paths 不能同时使用` | 选择其中一种输出格式 |
+
+### 提示
+
+- 只显示 colyn 项目（包含 `.colyn` 目录的项目）
+- 使用别名 `lsp` 可以更快速输入
+- JSON 输出的 worktrees 数组与 `list --json` 结构完全一致
+- 路径输出包含主分支和所有 worktree 的绝对路径
+- 可以配合 grep、jq 等工具进行过滤和处理
 
 ---
 
