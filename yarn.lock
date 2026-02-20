@@ -551,10 +551,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/deepmerge@npm:^2.2.3":
+  version: 2.2.3
+  resolution: "@types/deepmerge@npm:2.2.3"
+  dependencies:
+    deepmerge: "npm:*"
+  checksum: 10c0/903f45ad4650f63dc388c9c8e2ed2ef620e68b0619008824ef68462daef6c7fb0dd6f7e19c1932cea3a018f402c5006f3cbd622d4786dd5110c184928be5433e
+  languageName: node
+  linkType: hard
+
 "@types/estree@npm:1.0.8, @types/estree@npm:^1.0.0":
   version: 1.0.8
   resolution: "@types/estree@npm:1.0.8"
   checksum: 10c0/39d34d1afaa338ab9763f37ad6066e3f349444f9052b9676a7cc0252ef9485a41c6d81c9c4e0d26e9077993354edf25efc853f3224dd4b447175ef62bdcc86a5
+  languageName: node
+  linkType: hard
+
+"@types/js-yaml@npm:^4":
+  version: 4.0.9
+  resolution: "@types/js-yaml@npm:4.0.9"
+  checksum: 10c0/24de857aa8d61526bbfbbaa383aa538283ad17363fcd5bb5148e2c7f604547db36646440e739d78241ed008702a8920665d1add5618687b6743858fae00da211
   languageName: node
   linkType: hard
 
@@ -1068,6 +1084,8 @@ __metadata:
   resolution: "colyn@workspace:."
   dependencies:
     "@types/chokidar": "npm:^2.1.7"
+    "@types/deepmerge": "npm:^2.2.3"
+    "@types/js-yaml": "npm:^4"
     "@types/node": "npm:^20.11.0"
     "@typescript-eslint/eslint-plugin": "npm:^6.19.0"
     "@typescript-eslint/parser": "npm:^6.19.0"
@@ -1076,15 +1094,19 @@ __metadata:
     chokidar: "npm:^5.0.0"
     cli-table3: "npm:^0.6.3"
     commander: "npm:^12.0.0"
+    deepmerge: "npm:^4.3.1"
     dotenv: "npm:^16.4.0"
     enquirer: "npm:^2.4.1"
     eslint: "npm:^8.56.0"
     i18next: "npm:^25.8.0"
+    js-yaml: "npm:^4.1.1"
+    json5: "npm:^2.2.3"
     ora: "npm:^8.0.1"
     prettier: "npm:^3.2.4"
     simple-git: "npm:^3.22.0"
     typescript: "npm:^5.3.3"
     vitest: "npm:^1.2.0"
+    zod: "npm:^4.3.6"
   bin:
     colyn: ./bin/colyn
   languageName: unknown
@@ -1147,6 +1169,13 @@ __metadata:
   version: 0.1.4
   resolution: "deep-is@npm:0.1.4"
   checksum: 10c0/7f0ee496e0dff14a573dc6127f14c95061b448b87b995fc96c017ce0a1e66af1675e73f1d6064407975bc4ea6ab679497a29fff7b5b9c4e99cb10797c1ad0b4c
+  languageName: node
+  linkType: hard
+
+"deepmerge@npm:*, deepmerge@npm:^4.3.1":
+  version: 4.3.1
+  resolution: "deepmerge@npm:4.3.1"
+  checksum: 10c0/e53481aaf1aa2c4082b5342be6b6d8ad9dfe387bc92ce197a66dea08bd4265904a087e75e464f14d1347cf2ac8afe1e4c16b266e0561cc5df29382d3c5f80044
   languageName: node
   linkType: hard
 
@@ -1899,7 +1928,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-yaml@npm:^4.1.0":
+"js-yaml@npm:^4.1.0, js-yaml@npm:^4.1.1":
   version: 4.1.1
   resolution: "js-yaml@npm:4.1.1"
   dependencies:
@@ -1928,6 +1957,15 @@ __metadata:
   version: 1.0.1
   resolution: "json-stable-stringify-without-jsonify@npm:1.0.1"
   checksum: 10c0/cb168b61fd4de83e58d09aaa6425ef71001bae30d260e2c57e7d09a5fd82223e2f22a042dedaab8db23b7d9ae46854b08bb1f91675a8be11c5cffebef5fb66a5
+  languageName: node
+  linkType: hard
+
+"json5@npm:^2.2.3":
+  version: 2.2.3
+  resolution: "json5@npm:2.2.3"
+  bin:
+    json5: lib/cli.js
+  checksum: 10c0/5a04eed94810fa55c5ea138b2f7a5c12b97c3750bc63d11e511dcecbfef758003861522a070c2272764ee0f4e3e323862f386945aeb5b85b87ee43f084ba586c
   languageName: node
   linkType: hard
 
@@ -3236,5 +3274,12 @@ __metadata:
   version: 1.2.2
   resolution: "yocto-queue@npm:1.2.2"
   checksum: 10c0/36d4793e9cf7060f9da543baf67c55e354f4862c8d3d34de1a1b1d7c382d44171315cc54abf84d8900b8113d742b830108a1434f4898fb244f9b7e8426d4b8f5
+  languageName: node
+  linkType: hard
+
+"zod@npm:^4.3.6":
+  version: 4.3.6
+  resolution: "zod@npm:4.3.6"
+  checksum: 10c0/860d25a81ab41d33aa25f8d0d07b091a04acb426e605f396227a796e9e800c44723ed96d0f53a512b57be3d1520f45bf69c0cb3b378a232a00787a2609625307
   languageName: node
   linkType: hard
