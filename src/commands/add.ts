@@ -92,7 +92,7 @@ async function setupTmuxWindow(
   // 验证配置（仅显示警告，不阻止执行）
   const validation = validateTmuxConfig(tmuxConfig);
   if (validation.warnings.length > 0) {
-    validation.warnings.forEach(warning => {
+    validation.warnings.forEach((warning: string) => {
       output(chalk.yellow(`⚠️  ${warning}`));
     });
   }

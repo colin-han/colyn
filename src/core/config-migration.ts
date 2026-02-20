@@ -58,8 +58,10 @@ const V1SettingsSchemaBase = z.object({
 });
 
 const V1SettingsSchema: z.ZodType<V1Settings> = V1SettingsSchemaBase.extend({
-  branchOverrides: z.record(z.lazy(() => V1SettingsSchema.partial())).optional(),
-});
+  branchOverrides: z
+    .record(z.string(), z.lazy(() => V1SettingsSchema))
+    .optional(),
+}) as z.ZodType<V1Settings>;
 
 // ============================================================================
 // V2 Settings 类型和 Schema
@@ -85,8 +87,10 @@ const V2SettingsSchemaBase = z.object({
 });
 
 const V2SettingsSchema: z.ZodType<V2Settings> = V2SettingsSchemaBase.extend({
-  branchOverrides: z.record(z.lazy(() => V2SettingsSchema.partial())).optional(),
-}) as unknown as z.ZodType<V2Settings>;
+  branchOverrides: z
+    .record(z.string(), z.lazy(() => V2SettingsSchema))
+    .optional(),
+}) as z.ZodType<V2Settings>;
 
 // ============================================================================
 // V0 Settings Schema（无版本号）
@@ -101,8 +105,10 @@ const V0SettingsSchemaBase = z.object({
 });
 
 const V0SettingsSchema: z.ZodType<V1Settings> = V0SettingsSchemaBase.extend({
-  branchOverrides: z.record(z.lazy(() => V0SettingsSchema.partial())).optional(),
-});
+  branchOverrides: z
+    .record(z.string(), z.lazy(() => V0SettingsSchema))
+    .optional(),
+}) as z.ZodType<V1Settings>;
 
 // ============================================================================
 // 迁移辅助函数
