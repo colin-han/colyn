@@ -239,7 +239,64 @@ async function loadSettingsFromFile(
 }
 ```
 
-### 4.2 Example 2: Field Type Change (Future Extension)
+### 4.2 Example 2: Config Structure Migration and Deprecated Command Handling (1 → 2) ✅ Implemented
+
+**Implementation Date**: 2026-02-20
+
+This is an actually implemented migration that handles config structure refactoring and deprecated built-in commands.
+
+**Old config** (version 1):
+```json
+{
+  "version": 1,
+  "npm": "yarn",
+  "claudeCommand": "claude --env prod",
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions"
+    }
+  },
+  "branchOverrides": {
+    "feature/*": {
+      "npm": "pnpm"
+    }
+  }
+}
+```
+
+**After migration** (version 2):
+```json
+{
+  "version": 2,
+  "systemCommands": {
+    "npm": "yarn",
+    "claude": "claude --env prod --dangerously-skip-permissions"
+  },
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session"
+    }
+  },
+  "branchOverrides": {
+    "feature/*": {
+      "systemCommands": {
+        "npm": "pnpm"
+      }
+    }
+  }
+}
+```
+
+**Migration content**:
+1. `npm` → `systemCommands.npm`
+2. `claudeCommand` → `systemCommands.claude`
+3. Deprecated built-in command `auto continues claude session with dangerously skip permissions` → `auto continues claude session`
+4. Automatically add `--dangerously-skip-permissions` to `systemCommands.claude`
+5. Recursively process `branchOverrides`
+
+**Reference**: See complete implementation log at `.claude/logs/create-migration-v1-to-v2-20260220.md`
+
+### 4.3 Example 3: Field Type Change (Future Extension)
 
 Suppose in the future we need to change `leftPane.size` from string to number:
 
@@ -286,17 +343,16 @@ const MIGRATIONS: MigrationFunction[] = [
 export const CURRENT_CONFIG_VERSION = 2;
 ```
 
-### 4.3 Example 3: Field Renaming (Future Extension)
+### 4.4 Example 4: Field Renaming (Future Extension)
 
-Suppose in the future we need to rename `npm` to `packageManager`:
+Suppose in the future we need to rename a field:
 
 ```typescript
-// Migration 2 → 3: Rename npm to packageManager
+// Migration 2 → 3: Field renaming example
 (settings: Settings): Settings => {
-  const { npm, ...rest } = settings;
+  // Migration logic
   return {
-    ...rest,
-    packageManager: npm ?? 'yarn',
+    ...settings,
     version: 3,
   };
 }
