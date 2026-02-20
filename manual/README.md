@@ -44,6 +44,7 @@ Colyn 特别适合以下使用场景：
 7. **[最佳实践](07-best-practices.md)** - 推荐的工作流程和技巧
 8. **[故障排除](08-troubleshooting.md)** - 常见问题和解决方案
 9. **[术语表](09-glossary.md)** - 术语和概念速查
+10. **[配置系统](10-configuration.md)** - 完整的配置文件指南
 
 ---
 
@@ -62,6 +63,7 @@ Colyn 特别适合以下使用场景：
 如果你已经在使用 Colyn：
 
 - 需要特定命令说明 → [命令参考](04-command-reference.md)
+- 配置文件设置 → [配置系统](10-configuration.md)
 - 遇到问题 → [故障排除](08-troubleshooting.md)
 - 查找术语 → [术语表](09-glossary.md)
 - 学习高级技巧 → [高级用法](05-advanced-usage.md)
