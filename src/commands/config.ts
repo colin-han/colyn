@@ -81,9 +81,6 @@ function formatCommandValue(
   if (command === BUILTIN_COMMANDS.AUTO_CLAUDE) {
     return chalk.cyan(`"${command}"`) + chalk.dim(` ${t('commands.config.builtin')}`) + suffix;
   }
-  if (command === BUILTIN_COMMANDS.AUTO_CLAUDE_DANGEROUSLY) {
-    return chalk.yellow(`"${command}"`) + chalk.dim(` ${t('commands.config.builtin')}`) + suffix;
-  }
   if (command === BUILTIN_COMMANDS.AUTO_DEV_SERVER) {
     return chalk.cyan(`"${command}"`) + chalk.dim(` ${t('commands.config.builtin')}`) + suffix;
   }
@@ -211,9 +208,6 @@ function printBuiltinCommands(): void {
   outputBold(`${t('commands.config.availableBuiltinCommands')}:`);
   output(`  ${chalk.cyan(BUILTIN_COMMANDS.AUTO_CLAUDE)}`);
   output(`    ${t('commands.config.autoClaudeDesc')}`);
-  output('');
-  output(`  ${chalk.yellow(BUILTIN_COMMANDS.AUTO_CLAUDE_DANGEROUSLY)}`);
-  output(`    ${t('commands.config.autoClaudeDangerouslyDesc')}`);
   output('');
   output(`  ${chalk.cyan(BUILTIN_COMMANDS.AUTO_DEV_SERVER)}`);
   output(`    ${t('commands.config.autoDevServerDesc')}`);
