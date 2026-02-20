@@ -18,10 +18,10 @@ import { getDevServerCommand } from './dev-server.js';
  * 内置命令常量
  */
 export const BUILTIN_COMMANDS = {
-  /** 自动启动 dev server */
-  AUTO_DEV_SERVER: 'auto start dev server',
-  /** 自动继续 Claude 会话 */
-  AUTO_CLAUDE: 'auto continues claude session',
+  /** 启动 dev server */
+  AUTO_DEV_SERVER: 'start dev server',
+  /** 继续 Claude 会话 */
+  AUTO_CLAUDE: 'continue claude session',
 } as const;
 
 /**
@@ -164,7 +164,7 @@ export interface Settings {
 /**
  * 当前配置文件版本号
  */
-export const CURRENT_CONFIG_VERSION = 2;
+export const CURRENT_CONFIG_VERSION = 3;
 
 /**
  * 配置文件路径
@@ -259,6 +259,8 @@ type MigrationFunction = (settings: Settings) => Settings;
  */
 const DEPRECATED_BUILTIN_COMMANDS = {
   AUTO_CLAUDE_DANGEROUSLY: 'auto continues claude session with dangerously skip permissions',
+  AUTO_CLAUDE_OLD: 'auto continues claude session',
+  AUTO_DEV_SERVER_OLD: 'auto start dev server',
 } as const;
 
 const MIGRATIONS: MigrationFunction[] = [
@@ -358,6 +360,65 @@ const MIGRATIONS: MigrationFunction[] = [
     return {
       ...migrateSettings(settings),
       version: 2,
+    };
+  },
+
+  // Migration 2 -> 3: 重命名内置命令（去掉 "auto" 前缀）
+  (settings: Settings): Settings => {
+    const migrateSettings = (s: Settings): Settings => {
+      const result: Settings = { ...s };
+
+      // 迁移内置命令名称
+      if (result.tmux) {
+        const migrateCommand = (command: PaneCommand | undefined): PaneCommand | undefined => {
+          if (command === DEPRECATED_BUILTIN_COMMANDS.AUTO_CLAUDE_OLD) {
+            return BUILTIN_COMMANDS.AUTO_CLAUDE;
+          }
+          if (command === DEPRECATED_BUILTIN_COMMANDS.AUTO_DEV_SERVER_OLD) {
+            return BUILTIN_COMMANDS.AUTO_DEV_SERVER;
+          }
+          return command;
+        };
+
+        const migratePaneConfig = (paneConfig: PaneConfig | undefined): PaneConfig | undefined => {
+          if (!paneConfig || !paneConfig.command) {
+            return paneConfig;
+          }
+          return {
+            ...paneConfig,
+            command: migrateCommand(paneConfig.command),
+          };
+        };
+
+        // 迁移所有 pane 配置
+        const migratedTmux: TmuxConfig = { ...result.tmux };
+        migratedTmux.leftPane = migratePaneConfig(migratedTmux.leftPane);
+        migratedTmux.rightPane = migratePaneConfig(migratedTmux.rightPane);
+        migratedTmux.topPane = migratePaneConfig(migratedTmux.topPane);
+        migratedTmux.bottomPane = migratePaneConfig(migratedTmux.bottomPane);
+        migratedTmux.topRightPane = migratePaneConfig(migratedTmux.topRightPane);
+        migratedTmux.bottomRightPane = migratePaneConfig(migratedTmux.bottomRightPane);
+        migratedTmux.topLeftPane = migratePaneConfig(migratedTmux.topLeftPane);
+        migratedTmux.bottomLeftPane = migratePaneConfig(migratedTmux.bottomLeftPane);
+
+        result.tmux = migratedTmux;
+      }
+
+      // 递归处理 branchOverrides
+      if (result.branchOverrides) {
+        const migratedOverrides: Record<string, Settings> = {};
+        for (const [branch, branchSettings] of Object.entries(result.branchOverrides)) {
+          migratedOverrides[branch] = migrateSettings(branchSettings);
+        }
+        result.branchOverrides = migratedOverrides;
+      }
+
+      return result;
+    };
+
+    return {
+      ...migrateSettings(settings),
+      version: 3,
     };
   },
 ];
