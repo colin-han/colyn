@@ -187,7 +187,10 @@ const BUILTIN_BRANCH_DEFAULTS: Record<string, TmuxConfig> = {
 {
   "version": 1,
   "lang": "en",
-  "npm": "yarn",
+  "systemCommands": {
+    "npm": "yarn",
+    "claude": "claude --env your-env"
+  },
 
   "tmux": {
     "layout": "three-pane",
@@ -297,8 +300,16 @@ const MIGRATIONS: MigrationFunction[] = [
 | Command | Detection Logic |
 |---------|----------------|
 | `auto continues claude session` | Check if `~/.claude/projects/{encodedPath}` has session file |
-| `auto continues claude session with dangerously skip permissions` | Same as above, but add `--dangerously-skip-permissions` |
 | `auto start dev server` | Detect `dev` script in `package.json` |
+
+**Note**: To add Claude command arguments (such as `--dangerously-skip-permissions`), configure the `systemCommands.claude` field:
+```json
+{
+  "systemCommands": {
+    "claude": "claude --dangerously-skip-permissions"
+  }
+}
+```
 
 ### 5.2 Default Pane Commands
 
@@ -339,10 +350,15 @@ export interface TmuxConfig {
   verticalSplit?: string;
 }
 
+export interface SystemCommands {
+  npm?: string;
+  claude?: string;
+}
+
 export interface Settings {
   version?: number;
   lang?: string;
-  npm?: string;
+  systemCommands?: SystemCommands;
   tmux?: TmuxConfig;
   branchOverrides?: Record<string, Settings>;
 }

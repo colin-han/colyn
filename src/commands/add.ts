@@ -97,7 +97,7 @@ async function setupTmuxWindow(
     });
   }
 
-  const paneCommands = await resolvePaneCommands(tmuxConfig, worktreePath);
+  const paneCommands = await resolvePaneCommands(tmuxConfig, worktreePath, projectRoot, branchName);
   const paneLayout = resolvePaneLayout(tmuxConfig);
 
   const inTmux = isInTmux();
