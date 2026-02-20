@@ -74,7 +74,8 @@ async function repairSingleWindow(
   branch: string,
   workingDir: string,
   tmuxConfig: TmuxConfig,
-  projectRoot: string
+  projectRoot: string,
+  projectName: string
 ): Promise<void> {
   const expectedName = getWindowName(branch);
 
@@ -118,7 +119,9 @@ async function repairSingleWindow(
       workingDir,
       paneCommands,
       paneLayout,
-      skipWindowCreation: windowIndex === 0 // Window 0 需要特殊处理
+      skipWindowCreation: windowIndex === 0, // Window 0 需要特殊处理
+      projectName,
+      branchName: branch
     });
 
     if (success) {
@@ -200,7 +203,8 @@ async function repairTmuxWindows(
     mainBranch,
     mainDir,
     mainTmuxConfig,
-    projectRoot
+    projectRoot,
+    projectName
   );
 
   // 修复所有 worktree windows - 每个使用对应分支的配置
@@ -213,7 +217,8 @@ async function repairTmuxWindows(
       wt.branch,
       wt.path,
       wtTmuxConfig,
-      projectRoot
+      projectRoot,
+      projectName
     );
   }
 

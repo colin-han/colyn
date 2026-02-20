@@ -114,11 +114,13 @@ async function setupTmuxWindow(
         workingDir: worktreePath,
         paneCommands,
         paneLayout,
+        projectName,
+        branchName,
       });
 
       if (success) {
         // 切换到新创建的 window
-        switchWindow(currentSession, windowIndex);
+        switchWindow(currentSession, windowIndex, projectName, branchName);
       }
 
       return { success, inTmux: true, sessionName: currentSession };
@@ -135,6 +137,8 @@ async function setupTmuxWindow(
         workingDir: worktreePath,
         paneCommands,
         paneLayout,
+        projectName,
+        branchName,
       });
       return { success, inTmux: false, sessionName: projectName };
     }

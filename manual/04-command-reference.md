@@ -161,6 +161,12 @@ colyn add <branch>
 - 复制主分支环境变量并更新 PORT 和 WORKTREE
 - 执行后自动切换到 Worktree 目录
 
+**tmux 集成**（如果在 tmux 中）：
+- 自动创建新的 tmux window
+- 设置 3-pane 布局（Claude Code + Dev Server + Bash）
+- 自动切换到新 window
+- 如果使用 iTerm2，自动设置 tab title
+
 ### 示例
 
 ```bash
@@ -926,6 +932,10 @@ colyn co [worktree-id] <branch> [选项]
 
 **旧分支清理：**
 - 如果旧分支已合并到主分支，提示用户是否删除
+
+**tmux 集成：**
+- 在 tmux 中，自动更新 window 名称为新分支名
+- 如果使用 iTerm2，自动更新 tab title
 
 **执行后：**
 - 自动切换到目标 worktree 目录

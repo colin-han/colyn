@@ -552,15 +552,25 @@ export function sendKeys(
  * 切换到指定 window
  * @param sessionName session 名称
  * @param windowIndex window 索引
+ * @param projectName 项目名（用于设置 iTerm2 title）
+ * @param branchName 分支名（用于设置 iTerm2 title）
  */
 export function switchWindow(
   sessionName: string,
-  windowIndex: number
+  windowIndex: number,
+  projectName?: string,
+  branchName?: string
 ): boolean {
   try {
     execTmux(`select-window -t "${sessionName}:${windowIndex}"`, {
       silent: true,
     });
+
+    // 切换后更新 iTerm2 title
+    if (projectName && branchName) {
+      setIterm2Title(sessionName, windowIndex, projectName, branchName);
+    }
+
     return true;
   } catch {
     return false;
@@ -662,6 +672,10 @@ export interface SetupWindowOptions {
   paneLayout?: ResolvedPaneLayout;
   /** 是否跳过 window 创建（用于 window 0） */
   skipWindowCreation?: boolean;
+  /** 项目名（用于设置 iTerm2 title） */
+  projectName?: string;
+  /** 分支名（用于设置 iTerm2 title） */
+  branchName?: string;
 }
 
 /**
@@ -679,6 +693,8 @@ export function setupWindow(options: SetupWindowOptions): boolean {
     paneCommands,
     paneLayout,
     skipWindowCreation = false,
+    projectName,
+    branchName,
   } = options;
 
   try {
@@ -715,6 +731,11 @@ export function setupWindow(options: SetupWindowOptions): boolean {
     } else if (devCommand) {
       // 向后兼容：如果只提供 devCommand，在 pane 1 执行
       sendKeys(sessionName, windowIndex, 1, devCommand);
+    }
+
+    // 4. 设置 iTerm2 title
+    if (projectName && branchName) {
+      setIterm2Title(sessionName, windowIndex, projectName, branchName);
     }
 
     return true;
@@ -834,5 +855,66 @@ export function getPaneCurrentPath(
     return output || null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * 检测是否在 iTerm2 中运行
+ */
+function isInIterm2(): boolean {
+  return (
+    process.env.TERM_PROGRAM === 'iTerm.app' ||
+    process.env.LC_TERMINAL === 'iTerm2'
+  );
+}
+
+/**
+ * 设置 iTerm2 tab title
+ * @param sessionName session 名称
+ * @param windowIndex window 索引（即 worktree ID）
+ * @param projectName 项目名
+ * @param branchName 分支名
+ */
+export function setIterm2Title(
+  sessionName: string,
+  windowIndex: number,
+  projectName: string,
+  branchName: string
+): boolean {
+  // 检测是否在 iTerm2 中运行
+  if (!isInIterm2()) {
+    return false;
+  }
+
+  let tabTitle: string;
+
+  if (isInTmux()) {
+    // tmux 环境：tab title 统一显示项目名 + #tmux
+    tabTitle = `🐶 ${projectName} #tmux`;
+  } else {
+    // 非 tmux 环境：显示完整信息
+    const windowName = getWindowName(branchName);
+    tabTitle = `🐶 ${projectName} #${windowIndex} - ${windowName}`;
+  }
+
+  try {
+    // 只设置 tab title (icon name)
+    // \033]1;title\007 设置 tab title
+    const escapeSeq = `printf '\\033]1;${tabTitle}\\007'`;
+
+    if (isInTmux()) {
+      // 在 tmux 中，通过 send-keys 发送
+      execTmux(
+        `send-keys -t "${sessionName}:${windowIndex}.0" "${escapeSeq}" Enter`,
+        { silent: true, ignoreError: true }
+      );
+    } else {
+      // 非 tmux 环境，直接输出到 stderr
+      process.stderr.write(`\x1b]1;${tabTitle}\x07`);
+    }
+
+    return true;
+  } catch {
+    return false;
   }
 }
