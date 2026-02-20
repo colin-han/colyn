@@ -1,7 +1,10 @@
 import type { Command } from 'commander';
-import { spawnSync } from 'child_process';
 import simpleGit from 'simple-git';
-import { getProjectPaths, validateProjectInitialized, executeInDirectory } from '../core/paths.js';
+import {
+  getProjectPaths,
+  validateProjectInitialized,
+  executeInDirectory
+} from '../core/paths.js';
 import { getMainBranch } from '../core/discovery.js';
 import { getRelevantStatusFiles } from '../core/git.js';
 import { ColynError } from '../types/index.js';
@@ -10,35 +13,18 @@ import { t } from '../i18n/index.js';
 import { checkIsGitRepo } from './add.helpers.js';
 import { executeUpdate } from './update.js';
 import { checkBranchMerged } from './remove.helpers.js';
+import {
+  checkDependenciesInstalled,
+  executeRelease,
+  displayReleaseSuccess,
+  displayRollbackCommands
+} from './release.helpers.js';
 
 /**
- * 运行发布脚本
+ * Release 命令选项
  */
-function runReleaseScript(mainDir: string, versionType: string): void {
-  const result = spawnSync(
-    'node',
-    ['scripts/release.js', versionType],
-    {
-      cwd: mainDir,
-      stdio: 'inherit',  // 直接继承 stdio，实时显示输出
-      env: process.env
-    }
-  );
-
-  if (result.error) {
-    throw new ColynError(
-      t('commands.release.execFailed'),
-      result.error.message
-    );
-  }
-
-  if (typeof result.status === 'number' && result.status !== 0) {
-    process.exit(result.status);
-  }
-
-  if (result.status === null) {
-    process.exit(1);
-  }
+interface ReleaseOptions {
+  noUpdate?: boolean;
 }
 
 /**
@@ -103,14 +89,7 @@ async function checkCurrentBranchMerged(
 }
 
 /**
- * Release 命令选项
- */
-interface ReleaseOptions {
-  noUpdate?: boolean;
-}
-
-/**
- * Release 命令：在 Main Branch 目录执行发布脚本
+ * Release 命令：在 Main Branch 目录执行发布流程
  */
 async function releaseCommand(versionType: string | undefined, options: ReleaseOptions): Promise<void> {
   try {
@@ -131,20 +110,33 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
     // 步骤4: 检查当前分支是否已合并（仅在 worktree 中执行时）
     await checkCurrentBranchMerged(effectiveCurrentDir, paths.mainDir, paths.worktreesDir);
 
-    // 步骤4.5: 检查主分支目录是否干净
+    // 步骤5: 检查主分支目录是否干净
     if (effectiveCurrentDir !== paths.mainDir) {
       await checkCurrentDirClean(paths.mainDir);
     }
 
-    // 步骤5: 在主分支目录中检查 git 仓库
+    // 步骤6: 在主分支目录中检查 git 仓库
     await executeInDirectory(paths.mainDir, async () => {
       await checkIsGitRepo();
     });
 
-    // 步骤6: 在主分支目录执行发布脚本
-    runReleaseScript(paths.mainDir, version);
+    // 步骤7: 检查主分支目录的依赖是否已安装
+    await checkDependenciesInstalled(paths.mainDir);
 
-    // 步骤7: 发布成功后，自动更新所有 worktree（除非指定 --no-update）
+    // 步骤8: 在主分支目录执行发布流程
+    let newVersion: string;
+    try {
+      newVersion = await executeRelease(paths.mainDir, version);
+    } catch (error) {
+      // 如果发布失败，尝试回滚
+      if (error instanceof ColynError) {
+        // 显示回滚提示
+        displayRollbackCommands(version);
+      }
+      throw error;
+    }
+
+    // 步骤9: 发布成功后，自动更新所有 worktree（除非指定 --no-update）
     if (!options.noUpdate) {
       output(''); // 空行分隔
       output(t('commands.release.updatingWorktrees'));
@@ -156,6 +148,11 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
         // 错误已经在 executeUpdate 中输出，这里不再重复输出
       }
     }
+
+    // 显示发布成功信息
+    const currentBranch = await getMainBranch(paths.mainDir);
+    displayReleaseSuccess(newVersion, currentBranch);
+
   } catch (error) {
     formatError(error);
     process.exit(1);
