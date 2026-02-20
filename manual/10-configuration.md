@@ -20,11 +20,25 @@
 
 ## 配置文件位置
 
-Colyn 使用 JSON 格式的配置文件 `settings.json`,支持两个层级:
+Colyn 支持多种配置文件格式，并按优先级加载：
+
+**支持的格式**：
+- **JSON5** (推荐) - `settings.json` - 支持注释和尾部逗号
+- **YAML** - `settings.yaml` 或 `settings.yml` - 更简洁的语法
+
+**格式优先级**：当多个格式的配置文件同时存在时：
+```
+settings.json > settings.yaml > settings.yml
+```
+
+配置文件支持两个层级：
 
 ### 1. 用户级配置（全局配置）
 
-**路径**: `~/.config/colyn/settings.json`
+**路径**:
+- `~/.config/colyn/settings.json` (JSON5 格式，推荐)
+- `~/.config/colyn/settings.yaml` (YAML 格式)
+- `~/.config/colyn/settings.yml` (YAML 格式)
 
 **作用范围**: 影响所有项目
 
@@ -35,13 +49,17 @@ Colyn 使用 JSON 格式的配置文件 `settings.json`,支持两个层级:
 
 **示例路径**:
 ```
-/Users/username/.config/colyn/settings.json  # macOS/Linux
+/Users/username/.config/colyn/settings.json  # macOS/Linux (JSON5)
+/Users/username/.config/colyn/settings.yaml  # macOS/Linux (YAML)
 C:\Users\username\.config\colyn\settings.json  # Windows
 ```
 
 ### 2. 项目级配置
 
-**路径**: `{项目根目录}/.colyn/settings.json`
+**路径**:
+- `{项目根目录}/.colyn/settings.json` (JSON5 格式，推荐)
+- `{项目根目录}/.colyn/settings.yaml` (YAML 格式)
+- `{项目根目录}/.colyn/settings.yml` (YAML 格式)
 
 **作用范围**: 仅影响当前项目
 
@@ -52,7 +70,8 @@ C:\Users\username\.config\colyn\settings.json  # Windows
 
 **示例路径**:
 ```
-/Users/username/projects/my-app/.colyn/settings.json
+/Users/username/projects/my-app/.colyn/settings.json (JSON5)
+/Users/username/projects/my-app/.colyn/settings.yaml (YAML)
 ```
 
 ### 配置文件创建
@@ -63,10 +82,10 @@ C:\Users\username\.config\colyn\settings.json  # Windows
 # 创建用户级配置目录
 mkdir -p ~/.config/colyn
 
-# 创建用户级配置文件
+# 创建用户级配置文件 (JSON5 格式)
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 2,
+  "version": 3,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -74,11 +93,19 @@ cat > ~/.config/colyn/settings.json << 'EOF'
 }
 EOF
 
+# 或使用 YAML 格式
+cat > ~/.config/colyn/settings.yaml << 'EOF'
+version: 3
+lang: zh-CN
+systemCommands:
+  npm: yarn
+EOF
+
 # 创建项目级配置文件(在项目根目录执行)
 mkdir -p .colyn
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 2,
+  "version": 3,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -162,7 +189,7 @@ COLYN_LANG=en colyn list
   "tmux": {
     "autoRun": true,
     "leftPane": {
-      "command": "auto continues claude session",
+      "command": "continue claude session",
       "size": "60%"
     }
   }
@@ -180,7 +207,7 @@ COLYN_LANG=en colyn list
   "tmux": {
     "autoRun": false,  // ← 来自项目级配置
     "leftPane": {      // ← 来自用户级配置（保留）
-      "command": "auto continues claude session",
+      "command": "continue claude session",
       "size": "60%"
     }
   }
@@ -196,7 +223,7 @@ COLYN_LANG=en colyn list
 ```typescript
 {
   // 配置文件版本号（用于自动迁移）
-  "version": 2,
+  "version": 3,
 
   // 界面语言
   "lang": "zh-CN" | "en",
@@ -251,7 +278,7 @@ COLYN_LANG=en colyn list
 ### version
 
 **类型**: `number`
-**默认值**: `2`（当前版本）
+**默认值**: `3`（当前版本）
 **说明**: 配置文件版本号,用于自动迁移
 
 **⚠️ 重要**: 不要手动修改此字段,系统会自动管理
@@ -343,7 +370,7 @@ colyn config set npm pnpm
 **用途**:
 - 指定 Claude CLI 的自定义路径
 - 添加全局参数(如 `--dangerously-skip-permissions`)
-- 配合内置命令 `auto continues claude session` 使用
+- 配合内置命令 `continue claude session` 使用
 
 ---
 
@@ -498,7 +525,7 @@ colyn config set npm pnpm
 
 ##### 内置命令
 
-**`"auto continues claude session"`**
+**`"continue claude session"`**
 
 自动检测并继续 Claude 会话:
 - 如果 worktree 存在 Claude session → 执行 `claude -c`(继续会话)
@@ -509,14 +536,14 @@ colyn config set npm pnpm
 ```json
 {
   "leftPane": {
-    "command": "auto continues claude session"
+    "command": "continue claude session"
   }
 }
 ```
 
 ---
 
-**`"auto start dev server"`**
+**`"start dev server"`**
 
 自动检测并启动开发服务器:
 - 检测 `package.json` 中的 `dev` 或 `start` 脚本
@@ -532,7 +559,7 @@ colyn config set npm pnpm
 ```json
 {
   "topRightPane": {
-    "command": "auto start dev server"
+    "command": "start dev server"
   }
 }
 ```
@@ -740,7 +767,7 @@ Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -755,10 +782,10 @@ Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
     "feature/*": {
       "tmux": {
         "leftPane": {
-          "command": "auto continues claude session"
+          "command": "continue claude session"
         },
         "topRightPane": {
-          "command": "auto start dev server"
+          "command": "start dev server"
         }
       }
     }
@@ -770,7 +797,7 @@ Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "lang": "en",
   "systemCommands": {
     "npm": "npm"
@@ -822,7 +849,7 @@ User-level Config:
   Status: Exists
   Content:
     {
-      "version": 2,
+      "version": 3,
       "lang": "zh-CN"
     }
 
@@ -831,7 +858,7 @@ Project-level Config:
   Status: Exists
   Content:
     {
-      "version": 2,
+      "version": 3,
       "tmux": {
         "layout": "three-pane"
       }
@@ -842,7 +869,7 @@ Effective Config:
   autoRun: true (default)
 
   leftPane:
-    command: "auto continues claude session" (default)
+    command: "continue claude session" (default)
     size:    "60%" (default)
   ...
 ```
@@ -906,7 +933,7 @@ colyn config set npm pnpm --user
 
 ```json
 {
-  "version": 2
+  "version": 3
 }
 ```
 
@@ -921,7 +948,7 @@ colyn config set npm pnpm --user
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -933,16 +960,16 @@ colyn config set npm pnpm --user
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true,
     "leftPane": {
-      "command": "auto continues claude session",
+      "command": "continue claude session",
       "size": "70%"
     },
     "topRightPane": {
-      "command": "auto start dev server",
+      "command": "start dev server",
       "size": "40%"
     },
     "bottomRightPane": {
@@ -957,7 +984,7 @@ colyn config set npm pnpm --user
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -987,7 +1014,7 @@ colyn config set npm pnpm --user
       "tmux": {
         "layout": "two-pane-horizontal",
         "leftPane": {
-          "command": "auto continues claude session"
+          "command": "continue claude session"
         },
         "rightPane": {
           "command": null
@@ -1004,7 +1031,7 @@ colyn config set npm pnpm --user
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "tmux": {
     "autoRun": false,
     "layout": "three-pane"
@@ -1018,7 +1045,7 @@ colyn config set npm pnpm --user
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "systemCommands": {
     "npm": "pnpm",
     "claude": "claude --dangerously-skip-permissions"
@@ -1027,11 +1054,11 @@ colyn config set npm pnpm --user
     "layout": "three-pane",
     "autoRun": true,
     "leftPane": {
-      "command": "auto continues claude session",
+      "command": "continue claude session",
       "size": "60%"
     },
     "topRightPane": {
-      "command": "auto start dev server",
+      "command": "start dev server",
       "size": "30%"
     },
     "bottomRightPane": {
@@ -1065,7 +1092,21 @@ git commit -m "Add team tmux configuration"
 
 Colyn 使用版本号来管理配置文件的演进,当配置结构发生变化时,系统会**自动迁移**你的配置。
 
-**当前版本**: `2`
+**当前版本**: `3`
+
+### 配置文件格式
+
+Colyn 支持多种配置文件格式：
+
+**JSON5 格式** (推荐，文件名：`settings.json`)
+- 支持注释（`//` 和 `/* */`）
+- 支持尾部逗号
+- 完全兼容标准 JSON
+
+**YAML 格式** (文件名：`settings.yaml` 或 `settings.yml`)
+- 更简洁的语法
+- 支持注释（`#`）
+- 适合多行配置
 
 ### 自动迁移机制
 
@@ -1084,7 +1125,16 @@ Colyn 使用版本号来管理配置文件的演进,当配置结构发生变化�
 
 ### 版本历史
 
-#### Version 1 → Version 2 (当前版本)
+#### Version 0 → Version 1
+
+**变更时间**: 2026-02-14
+
+**变更内容**:
+- 添加 `version` 字段用于版本管理
+
+#### Version 1 → Version 2
+
+**变更时间**: 2026-02-20
 
 **变更内容**:
 
@@ -1092,9 +1142,8 @@ Colyn 使用版本号来管理配置文件的演进,当配置结构发生变化�
    - `npm` → `systemCommands.npm`
    - `claudeCommand` → `systemCommands.claude`
 
-2. **废弃的内置命令**
-   - `"auto continues claude session with dangerously skip permissions"`
-   - → `"auto continues claude session"`
+2. **废弃的内置命令处理**
+   - `"auto continues claude session with dangerously skip permissions"` → `"auto continues claude session"`
    - 自动添加 `--dangerously-skip-permissions` 到 `systemCommands.claude`
 
 **迁移示例**:
@@ -1124,6 +1173,59 @@ Colyn 使用版本号来管理配置文件的演进,当配置结构发生变化�
   "tmux": {
     "leftPane": {
       "command": "auto continues claude session"
+    }
+  }
+}
+```
+
+#### Version 2 → Version 3 (当前版本)
+
+**变更时间**: 2026-02-20
+
+**变更内容**:
+
+1. **重命名内置命令**（去掉 "auto" 前缀）
+   - `"auto continues claude session"` → `"continue claude session"`
+   - `"auto start dev server"` → `"start dev server"`
+
+2. **配置文件格式支持**
+   - 新增 YAML 格式支持（`settings.yaml`, `settings.yml`）
+   - 原 JSON 文件现在使用 JSON5 解析（支持注释和尾部逗号）
+   - 格式优先级：`settings.json` > `settings.yaml` > `settings.yml`
+
+**迁移示例**:
+
+**旧配置** (Version 2):
+```json
+{
+  "version": 2,
+  "systemCommands": {
+    "npm": "yarn"
+  },
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session"
+    },
+    "topRightPane": {
+      "command": "auto start dev server"
+    }
+  }
+}
+```
+
+**自动迁移后** (Version 3):
+```json
+{
+  "version": 3,
+  "systemCommands": {
+    "npm": "yarn"
+  },
+  "tmux": {
+    "leftPane": {
+      "command": "continue claude session"
+    },
+    "topRightPane": {
+      "command": "start dev server"
     }
   }
 }
@@ -1161,7 +1263,7 @@ mv ~/.config/colyn/settings.json ~/.config/colyn/settings.json.bak
 # 创建新的配置
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 2,
+  "version": 3,
   "lang": "zh-CN"
 }
 EOF
@@ -1195,7 +1297,7 @@ rm ~/.config/colyn/settings.json  # 用户级
 rm .colyn/settings.json           # 项目级
 
 # 或者设置为空配置
-echo '{"version": 2}' > ~/.config/colyn/settings.json
+echo '{"version": 3}' > ~/.config/colyn/settings.json
 ```
 
 ### 3. 分支覆盖配置不生效?
@@ -1230,7 +1332,7 @@ echo '{"version": 2}' > ~/.config/colyn/settings.json
 cd project-a
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 2,
+  "version": 3,
   "systemCommands": { "npm": "yarn" }
 }
 EOF
@@ -1238,7 +1340,7 @@ EOF
 cd project-b
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 2,
+  "version": 3,
   "systemCommands": { "npm": "pnpm" }
 }
 EOF
@@ -1248,7 +1350,7 @@ EOF
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "tmux": {
     "autoRun": false
   }
@@ -1259,7 +1361,7 @@ EOF
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "branchOverrides": {
     "main": {
       "tmux": {
