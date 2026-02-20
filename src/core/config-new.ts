@@ -78,7 +78,7 @@ export async function loadEffectiveConfig(
   // 如果没有任何配置，返回最小配置
   if (configs.length === 0) {
     return {
-      version: 2,
+      version: 3,
     };
   }
 

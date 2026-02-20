@@ -13,10 +13,10 @@ import { z } from 'zod';
  * 内置命令常量
  */
 export const BUILTIN_COMMANDS = {
-  /** 自动启动 dev server */
-  AUTO_DEV_SERVER: 'auto start dev server',
-  /** 自动继续 Claude 会话 */
-  AUTO_CLAUDE: 'auto continues claude session',
+  /** 启动 dev server */
+  AUTO_DEV_SERVER: 'start dev server',
+  /** 继续 Claude 会话 */
+  AUTO_CLAUDE: 'continue claude session',
 } as const;
 
 /**
@@ -130,7 +130,7 @@ export type Settings = z.infer<typeof SettingsSchemaBase> & {
 /**
  * 当前配置文件版本号
  */
-export const CURRENT_CONFIG_VERSION = 2;
+export const CURRENT_CONFIG_VERSION = 3;
 
 /**
  * 验证配置对象
