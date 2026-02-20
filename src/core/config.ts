@@ -2,7 +2,7 @@
  * Colyn 全局配置管理模块
  *
  * 配置优先级（从高到低）：
- * 1. 环境变量
+ * 1. 环境变量（仅 COLYN_LANG）
  * 2. 项目配置文件 (.colyn/config.json)
  * 3. 用户配置文件 (~/.colyn/config.json)
  * 4. 默认值
@@ -107,11 +107,10 @@ export async function getConfig(configDir?: string): Promise<ColynConfig> {
   // 读取用户配置文件
   const userConfig = await readUserConfigFile();
 
-  // 合并配置（环境变量 > 项目配置 > 用户配置 > 默认值）
+  // 合并配置（项目配置 > 用户配置 > 默认值）
   // 支持新的 systemCommands 结构，同时向后兼容旧的扁平结构
   const config: ColynConfig = {
-    npm: process.env.COLYN_NPM ||
-         projectConfig.systemCommands?.npm ||
+    npm: projectConfig.systemCommands?.npm ||
          projectConfig.npm ||
          userConfig.systemCommands?.npm ||
          userConfig.npm ||

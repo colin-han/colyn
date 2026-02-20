@@ -1386,7 +1386,7 @@ $ colyn config set npm yarn --user
 
 配置值按以下优先级决定（从高到低）：
 
-1. **环境变量**：`COLYN_NPM`、`COLYN_LANG`
+1. **环境变量**：仅 `COLYN_LANG`
 2. **项目配置**：`.colyn/settings.json`
 3. **用户配置**：`~/.config/colyn/settings.json`
 4. **默认值**：`npm='npm'`、`lang='en'`
