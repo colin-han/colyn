@@ -1,5 +1,7 @@
 import type { Command } from 'commander';
 import { spawnSync } from 'child_process';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import simpleGit from 'simple-git';
 import { getProjectPaths, validateProjectInitialized, executeInDirectory } from '../core/paths.js';
 import { getMainBranch } from '../core/discovery.js';
@@ -10,6 +12,40 @@ import { t } from '../i18n/index.js';
 import { checkIsGitRepo } from './add.helpers.js';
 import { executeUpdate } from './update.js';
 import { checkBranchMerged } from './remove.helpers.js';
+
+/**
+ * 检查依赖是否已安装（检查 .pnp.cjs 或 node_modules 是否存在）
+ */
+async function checkDependenciesInstalled(mainDir: string): Promise<void> {
+  const pnpFile = path.join(mainDir, '.pnp.cjs');
+  const pnpMjsFile = path.join(mainDir, '.pnp.mjs');
+  const nodeModulesDir = path.join(mainDir, 'node_modules');
+
+  try {
+    const pnpExists = await fs.access(pnpFile).then(() => true).catch(() => false);
+    const pnpMjsExists = await fs.access(pnpMjsFile).then(() => true).catch(() => false);
+    const nodeModulesExists = await fs.access(nodeModulesDir).then(() => true).catch(() => false);
+
+    // 对于 Yarn PnP 项目，检查 .pnp.cjs 或 .pnp.mjs
+    // 对于 npm 项目，检查 node_modules
+    if (!pnpExists && !pnpMjsExists && !nodeModulesExists) {
+      throw new ColynError(
+        t('commands.release.depsNotInstalled'),
+        t('commands.release.depsNotInstalledHint', { path: mainDir })
+      );
+    }
+  } catch (error) {
+    // 如果是 ColynError，直接抛出
+    if (error instanceof ColynError) {
+      throw error;
+    }
+    // 其他错误（如权限问题），也视为依赖未安装
+    throw new ColynError(
+      t('commands.release.depsNotInstalled'),
+      t('commands.release.depsNotInstalledHint', { path: mainDir })
+    );
+  }
+}
 
 /**
  * 运行发布脚本
@@ -140,6 +176,9 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
     await executeInDirectory(paths.mainDir, async () => {
       await checkIsGitRepo();
     });
+
+    // 步骤5.5: 检查主分支目录的依赖是否已安装
+    await checkDependenciesInstalled(paths.mainDir);
 
     // 步骤6: 在主分支目录执行发布脚本
     runReleaseScript(paths.mainDir, version);

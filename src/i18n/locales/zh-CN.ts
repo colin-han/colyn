@@ -167,6 +167,8 @@ export const zhCN = {
       currentDirNotCleanHint: '请先提交或暂存更改后再发布：\ncd "{{path}}"\ngit add .\ngit commit -m "..."\n\n检测到 {{count}} 个更改的文件：\n{{files}}',
       branchNotMerged: '分支 "{{branch}}" 尚未合并到 "{{main}}"',
       branchNotMergedHint: '请先将分支合并到主分支后再发布：\ncolyn merge {{branch}}\n\n或者在主分支目录中执行发布',
+      depsNotInstalled: '主分支目录的依赖未安装',
+      depsNotInstalledHint: '请先在主分支目录安装依赖：\ncd "{{path}}"\nyarn install',
     },
 
     // init command

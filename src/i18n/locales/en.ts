@@ -167,6 +167,8 @@ Hints:
       currentDirNotCleanHint: 'Please commit or stash changes before releasing:\ncd "{{path}}"\ngit add .\ngit commit -m "..."\n\nDetected {{count}} changed file(s):\n{{files}}',
       branchNotMerged: 'Branch "{{branch}}" has not been merged to "{{main}}"',
       branchNotMergedHint: 'Please merge the branch to main branch before releasing:\ncolyn merge {{branch}}\n\nOr run release from main branch directory',
+      depsNotInstalled: 'Dependencies not installed in main branch directory',
+      depsNotInstalledHint: 'Please install dependencies in main branch directory:\ncd "{{path}}"\nyarn install',
     },
 
     // init command
