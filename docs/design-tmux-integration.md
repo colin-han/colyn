@@ -187,7 +187,10 @@ const BUILTIN_BRANCH_DEFAULTS: Record<string, TmuxConfig> = {
 {
   "version": 1,
   "lang": "zh-CN",
-  "npm": "yarn",
+  "systemCommands": {
+    "npm": "yarn",
+    "claude": "claude --env your-env"
+  },
 
   "tmux": {
     "layout": "three-pane",
@@ -297,8 +300,16 @@ const MIGRATIONS: MigrationFunction[] = [
 | 命令 | 检测逻辑 |
 |------|---------|
 | `auto continues claude session` | 检查 `~/.claude/projects/{encodedPath}` 是否存在会话文件 |
-| `auto continues claude session with dangerously skip permissions` | 同上，但添加 `--dangerously-skip-permissions` |
 | `auto start dev server` | 检测 `package.json` 的 `dev` 脚本 |
+
+**注意**：如需添加 Claude 命令参数（如 `--dangerously-skip-permissions`），可通过配置 `systemCommands.claude` 字段实现：
+```json
+{
+  "systemCommands": {
+    "claude": "claude --dangerously-skip-permissions"
+  }
+}
+```
 
 ### 5.2 默认 Pane 命令
 
@@ -339,10 +350,15 @@ export interface TmuxConfig {
   verticalSplit?: string;
 }
 
+export interface SystemCommands {
+  npm?: string;
+  claude?: string;
+}
+
 export interface Settings {
   version?: number;
   lang?: string;
-  npm?: string;
+  systemCommands?: SystemCommands;
   tmux?: TmuxConfig;
   branchOverrides?: Record<string, Settings>;
 }

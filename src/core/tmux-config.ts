@@ -22,8 +22,6 @@ export const BUILTIN_COMMANDS = {
   AUTO_DEV_SERVER: 'auto start dev server',
   /** 自动继续 Claude 会话 */
   AUTO_CLAUDE: 'auto continues claude session',
-  /** 自动继续 Claude 会话并开启绕过权限 */
-  AUTO_CLAUDE_DANGEROUSLY: 'auto continues claude session with dangerously skip permissions',
 } as const;
 
 /**
@@ -57,7 +55,6 @@ export const LAYOUT_PANES: Record<LayoutType, string[]> = {
 export type PaneCommand =
   | typeof BUILTIN_COMMANDS.AUTO_DEV_SERVER
   | typeof BUILTIN_COMMANDS.AUTO_CLAUDE
-  | typeof BUILTIN_COMMANDS.AUTO_CLAUDE_DANGEROUSLY
   | string
   | null;
 
@@ -139,6 +136,16 @@ export interface ResolvedPaneLayout {
 }
 
 /**
+ * 系统命令配置
+ */
+export interface SystemCommands {
+  /** 包管理器命令（默认为 'npm'） */
+  npm?: string;
+  /** Claude 命令（默认为 'claude'） */
+  claude?: string;
+}
+
+/**
  * 统一设置文件结构
  */
 export interface Settings {
@@ -146,8 +153,8 @@ export interface Settings {
   version?: number;
   /** 界面语言 */
   lang?: string;
-  /** 包管理器 */
-  npm?: string;
+  /** 系统命令配置 */
+  systemCommands?: SystemCommands;
   /** tmux 相关配置 */
   tmux?: TmuxConfig;
   /** 分支特定配置覆盖 */
@@ -473,17 +480,14 @@ function encodeClaudeProjectPath(worktreePath: string): string {
  * - 如果存在 .claude 目录，运行 `claude -c` 继续会话
  * - 否则运行 `claude` 启动新会话
  * @param worktreePath worktree 路径
- * @param dangerouslySkipPermissions 是否跳过权限检查
+ * @param claudeCommand 自定义 Claude 命令（默认为 'claude'）
  */
 async function resolveClaudeCommand(
   worktreePath: string,
-  dangerouslySkipPermissions: boolean = false
+  claudeCommand: string = 'claude'
 ): Promise<string> {
   const hasSession = await hasClaudeSession(worktreePath);
-  const baseCommand = hasSession ? 'claude -c' : 'claude';
-  return dangerouslySkipPermissions
-    ? `${baseCommand} --dangerously-skip-permissions`
-    : baseCommand;
+  return hasSession ? `${claudeCommand} -c` : claudeCommand;
 }
 
 /**
@@ -501,10 +505,12 @@ async function resolveDevServerCommand(
  * 解析单个 pane 命令
  * @param command 命令配置值
  * @param worktreePath worktree 路径
+ * @param claudeCommand 自定义 Claude 命令
  */
 async function resolvePaneCommand(
   command: PaneCommand | undefined,
-  worktreePath: string
+  worktreePath: string,
+  claudeCommand: string
 ): Promise<string | undefined> {
   // 如果是 null 或 undefined，不执行命令
   if (command === null || command === undefined) {
@@ -514,10 +520,7 @@ async function resolvePaneCommand(
   // 处理内置命令
   switch (command) {
     case BUILTIN_COMMANDS.AUTO_CLAUDE:
-      return await resolveClaudeCommand(worktreePath, false);
-
-    case BUILTIN_COMMANDS.AUTO_CLAUDE_DANGEROUSLY:
-      return await resolveClaudeCommand(worktreePath, true);
+      return await resolveClaudeCommand(worktreePath, claudeCommand);
 
     case BUILTIN_COMMANDS.AUTO_DEV_SERVER:
       return await resolveDevServerCommand(worktreePath);
@@ -551,15 +554,26 @@ function parsePercentage(
  * 解析所有 pane 命令
  * @param config tmux 配置
  * @param worktreePath worktree 路径
+ * @param projectRoot 项目根目录（可选，用于读取 claudeCommand 配置）
+ * @param branchName 分支名称（可选，用于读取分支特定的 claudeCommand 配置）
  */
 export async function resolvePaneCommands(
   config: TmuxConfig,
-  worktreePath: string
+  worktreePath: string,
+  projectRoot?: string,
+  branchName?: string
 ): Promise<ResolvedPaneCommands> {
   // 如果禁用自动运行，返回空对象
   const autoRun = config.autoRun !== undefined ? config.autoRun : DEFAULT_CONFIG.autoRun;
   if (!autoRun) {
     return {};
+  }
+
+  // 读取 claude 命令配置
+  let claudeCommand = 'claude';
+  if (projectRoot && branchName) {
+    const settings = await loadSettingsForBranch(projectRoot, branchName);
+    claudeCommand = settings.systemCommands?.claude ?? 'claude';
   }
 
   // 检测布局类型
@@ -572,20 +586,20 @@ export async function resolvePaneCommands(
       return {};
 
     case 'two-pane-horizontal':
-      return await resolveTwoPaneHorizontalCommands(config, worktreePath);
+      return await resolveTwoPaneHorizontalCommands(config, worktreePath, claudeCommand);
 
     case 'two-pane-vertical':
-      return await resolveTwoPaneVerticalCommands(config, worktreePath);
+      return await resolveTwoPaneVerticalCommands(config, worktreePath, claudeCommand);
 
     case 'three-pane':
-      return await resolveThreePaneCommands(config, worktreePath);
+      return await resolveThreePaneCommands(config, worktreePath, claudeCommand);
 
     case 'four-pane':
-      return await resolveFourPaneCommands(config, worktreePath);
+      return await resolveFourPaneCommands(config, worktreePath, claudeCommand);
 
     default:
       // 默认使用三窗格
-      return await resolveThreePaneCommands(config, worktreePath);
+      return await resolveThreePaneCommands(config, worktreePath, claudeCommand);
   }
 }
 
@@ -594,14 +608,15 @@ export async function resolvePaneCommands(
  */
 async function resolveTwoPaneHorizontalCommands(
   config: TmuxConfig,
-  worktreePath: string
+  worktreePath: string,
+  claudeCommand: string
 ): Promise<ResolvedPaneCommands> {
   const leftCommand = config.leftPane?.command;
   const rightCommand = config.rightPane?.command;
 
   const [pane0, pane1] = await Promise.all([
-    resolvePaneCommand(leftCommand, worktreePath),
-    resolvePaneCommand(rightCommand, worktreePath),
+    resolvePaneCommand(leftCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(rightCommand, worktreePath, claudeCommand),
   ]);
 
   return { pane0, pane1 };
@@ -612,14 +627,15 @@ async function resolveTwoPaneHorizontalCommands(
  */
 async function resolveTwoPaneVerticalCommands(
   config: TmuxConfig,
-  worktreePath: string
+  worktreePath: string,
+  claudeCommand: string
 ): Promise<ResolvedPaneCommands> {
   const topCommand = config.topPane?.command;
   const bottomCommand = config.bottomPane?.command;
 
   const [pane0, pane1] = await Promise.all([
-    resolvePaneCommand(topCommand, worktreePath),
-    resolvePaneCommand(bottomCommand, worktreePath),
+    resolvePaneCommand(topCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(bottomCommand, worktreePath, claudeCommand),
   ]);
 
   return { pane0, pane1 };
@@ -630,7 +646,8 @@ async function resolveTwoPaneVerticalCommands(
  */
 async function resolveThreePaneCommands(
   config: TmuxConfig,
-  worktreePath: string
+  worktreePath: string,
+  claudeCommand: string
 ): Promise<ResolvedPaneCommands> {
   // 使用默认值（向后兼容）
   const leftCommand = config.leftPane?.command !== undefined
@@ -644,9 +661,9 @@ async function resolveThreePaneCommands(
     : DEFAULT_CONFIG.bottomRightPane.command;
 
   const [pane0, pane1, pane2] = await Promise.all([
-    resolvePaneCommand(leftCommand, worktreePath),
-    resolvePaneCommand(topRightCommand, worktreePath),
-    resolvePaneCommand(bottomRightCommand, worktreePath),
+    resolvePaneCommand(leftCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(topRightCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(bottomRightCommand, worktreePath, claudeCommand),
   ]);
 
   return { pane0, pane1, pane2 };
@@ -657,7 +674,8 @@ async function resolveThreePaneCommands(
  */
 async function resolveFourPaneCommands(
   config: TmuxConfig,
-  worktreePath: string
+  worktreePath: string,
+  claudeCommand: string
 ): Promise<ResolvedPaneCommands> {
   const topLeftCommand = config.topLeftPane?.command;
   const topRightCommand = config.topRightPane?.command;
@@ -665,10 +683,10 @@ async function resolveFourPaneCommands(
   const bottomRightCommand = config.bottomRightPane?.command;
 
   const [pane0, pane1, pane2, pane3] = await Promise.all([
-    resolvePaneCommand(topLeftCommand, worktreePath),
-    resolvePaneCommand(topRightCommand, worktreePath),
-    resolvePaneCommand(bottomLeftCommand, worktreePath),
-    resolvePaneCommand(bottomRightCommand, worktreePath),
+    resolvePaneCommand(topLeftCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(topRightCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(bottomLeftCommand, worktreePath, claudeCommand),
+    resolvePaneCommand(bottomRightCommand, worktreePath, claudeCommand),
   ]);
 
   return { pane0, pane1, pane2, pane3 };
@@ -918,8 +936,13 @@ function mergeSettings(base: Settings, override: Settings): Settings {
   if (override.lang !== undefined) {
     result.lang = override.lang;
   }
-  if (override.npm !== undefined) {
-    result.npm = override.npm;
+
+  // 深度合并 systemCommands 配置
+  if (override.systemCommands !== undefined) {
+    result.systemCommands = {
+      ...base.systemCommands,
+      ...override.systemCommands,
+    };
   }
 
   // 深度合并 tmux 配置
@@ -959,6 +982,61 @@ function findBranchOverride(
 
   // 3. 无匹配
   return null;
+}
+
+/**
+ * 加载特定分支的完整设置
+ *
+ * 配置优先级（从低到高）：
+ * 1. User default（用户级全局配置）
+ * 2. Project default（项目级全局配置）
+ * 3. User override（用户级分支覆盖）
+ * 4. Project override（项目级分支覆盖）
+ *
+ * @param projectRoot 项目根目录
+ * @param branchName 分支名称
+ * @returns 合并后的完整设置
+ */
+export async function loadSettingsForBranch(
+  projectRoot: string,
+  branchName: string
+): Promise<Settings> {
+  // 并行加载用户级和项目级配置
+  const [userSettings, projectSettings] = await Promise.all([
+    loadSettingsFromFile(getUserConfigPath()),
+    loadSettingsFromFile(getProjectConfigPath(projectRoot)),
+  ]);
+
+  // 从空设置开始
+  let settings: Settings = {};
+
+  // 1. User default - 用户级全局配置
+  if (userSettings) {
+    settings = mergeSettings(settings, userSettings);
+  }
+
+  // 2. Project default - 项目级全局配置
+  if (projectSettings) {
+    settings = mergeSettings(settings, projectSettings);
+  }
+
+  // 3. User override - 用户级分支覆盖
+  if (userSettings?.branchOverrides) {
+    const userBranchConfig = findBranchOverride(userSettings.branchOverrides, branchName);
+    if (userBranchConfig) {
+      settings = mergeSettings(settings, userBranchConfig);
+    }
+  }
+
+  // 4. Project override - 项目级分支覆盖
+  if (projectSettings?.branchOverrides) {
+    const projectBranchConfig = findBranchOverride(projectSettings.branchOverrides, branchName);
+    if (projectBranchConfig) {
+      settings = mergeSettings(settings, projectBranchConfig);
+    }
+  }
+
+  return settings;
 }
 
 /**

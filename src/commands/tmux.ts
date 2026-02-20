@@ -74,7 +74,7 @@ async function repairSingleWindow(
   branch: string,
   workingDir: string,
   tmuxConfig: TmuxConfig,
-  _projectRoot: string
+  projectRoot: string
 ): Promise<void> {
   const expectedName = getWindowName(branch);
 
@@ -108,7 +108,7 @@ async function repairSingleWindow(
   // Window 不存在，创建并设置布局
   try {
     // 解析 pane 命令和布局
-    const paneCommands = await resolvePaneCommands(tmuxConfig, workingDir);
+    const paneCommands = await resolvePaneCommands(tmuxConfig, workingDir, projectRoot, branch);
     const paneLayout = resolvePaneLayout(tmuxConfig);
 
     const success = setupWindow({

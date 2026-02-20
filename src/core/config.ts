@@ -23,11 +23,20 @@ export interface ColynConfig {
 }
 
 /**
+ * 系统命令配置
+ */
+interface SystemCommands {
+  npm?: string;
+  claude?: string;
+}
+
+/**
  * 配置文件结构
  */
 interface ConfigFile {
   npm?: string;
   lang?: string;
+  systemCommands?: SystemCommands;
 }
 
 /**
@@ -99,8 +108,14 @@ export async function getConfig(configDir?: string): Promise<ColynConfig> {
   const userConfig = await readUserConfigFile();
 
   // 合并配置（环境变量 > 项目配置 > 用户配置 > 默认值）
+  // 支持新的 systemCommands 结构，同时向后兼容旧的扁平结构
   const config: ColynConfig = {
-    npm: process.env.COLYN_NPM || projectConfig.npm || userConfig.npm || DEFAULT_CONFIG.npm,
+    npm: process.env.COLYN_NPM ||
+         projectConfig.systemCommands?.npm ||
+         projectConfig.npm ||
+         userConfig.systemCommands?.npm ||
+         userConfig.npm ||
+         DEFAULT_CONFIG.npm,
     lang: process.env.COLYN_LANG || projectConfig.lang || userConfig.lang || DEFAULT_CONFIG.lang
   };
 
