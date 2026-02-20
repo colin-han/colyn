@@ -65,7 +65,7 @@ async function loadConfigFile(filepath: string): Promise<{
       migratedConfig = loadAndMigrateConfig(rawConfig);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const messages = error.errors
+        const messages = error.issues
           .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
           .join('\n');
 

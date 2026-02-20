@@ -361,15 +361,6 @@ function parsePercentage(
 }
 
 /**
- * 检测布局类型
- * @param config tmux 配置
- * @returns 布局类型
- */
-function detectLayoutType(config: TmuxConfig): LayoutType {
-  return config.layout ?? DEFAULT_CONFIG.layout!;
-}
-
-/**
  * 解析所有 pane 命令
  * @param config tmux 配置
  * @param worktreePath worktree 路径
@@ -670,4 +661,124 @@ export async function loadTmuxConfigForBranch(
   }
 
   return mergeTmuxConfigs(...configs);
+}
+
+// ============================================================================
+// 配置验证
+// ============================================================================
+
+/**
+ * 配置验证结果
+ */
+export interface ValidationResult {
+  /** 是否有错误 */
+  hasError: boolean;
+  /** 错误消息列表 */
+  errors: string[];
+  /** 警告消息列表 */
+  warnings: string[];
+}
+
+/**
+ * 检测布局类型
+ * 根据配置的窗格自动检测布局类型（向后兼容）
+ * @param config tmux 配置
+ * @returns 检测到的布局类型
+ */
+export function detectLayoutType(config: TmuxConfig): LayoutType {
+  // 如果明确指定了 layout，直接返回
+  if (config.layout) {
+    return config.layout;
+  }
+
+  // 检查是否配置了任何窗格
+  const hasLeftPane = config.leftPane !== undefined;
+  const hasTopRightPane = config.topRightPane !== undefined;
+  const hasBottomRightPane = config.bottomRightPane !== undefined;
+  const hasRightPane = config.rightPane !== undefined;
+  const hasTopPane = config.topPane !== undefined;
+  const hasBottomPane = config.bottomPane !== undefined;
+  const hasTopLeftPane = config.topLeftPane !== undefined;
+  const hasBottomLeftPane = config.bottomLeftPane !== undefined;
+
+  // 四窗格：配置了任何一个四窗格特有的窗格
+  if (hasTopLeftPane || hasBottomLeftPane) {
+    return 'four-pane';
+  }
+
+  // 两窗格水平：配置了 rightPane
+  if (hasRightPane) {
+    return 'two-pane-horizontal';
+  }
+
+  // 两窗格垂直：配置了 topPane 或 bottomPane
+  if (hasTopPane || hasBottomPane) {
+    return 'two-pane-vertical';
+  }
+
+  // 三窗格：配置了 leftPane, topRightPane 或 bottomRightPane
+  if (hasLeftPane || hasTopRightPane || hasBottomRightPane) {
+    return 'three-pane';
+  }
+
+  // 默认：三窗格布局
+  return 'three-pane';
+}
+
+/**
+ * 验证 tmux 配置
+ * @param config tmux 配置
+ * @returns 验证结果
+ */
+export function validateTmuxConfig(config: TmuxConfig): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 检测布局类型
+  const layout = detectLayoutType(config);
+  const supportedPanes = LAYOUT_PANES[layout];
+
+  // 检查所有可能的窗格配置
+  const allPaneNames = [
+    'leftPane',
+    'rightPane',
+    'topPane',
+    'bottomPane',
+    'topRightPane',
+    'bottomRightPane',
+    'topLeftPane',
+    'bottomLeftPane',
+  ] as const;
+
+  for (const paneName of allPaneNames) {
+    const paneConfig = config[paneName];
+    if (paneConfig === undefined) {
+      continue;
+    }
+
+    // 检查当前布局是否支持此窗格
+    if (!supportedPanes.includes(paneName)) {
+      warnings.push(
+        `Layout "${layout}" does not support pane "${paneName}", it will be ignored. ` +
+          `Supported panes: ${supportedPanes.join(', ')}`
+      );
+    }
+
+    // 验证 size 配置
+    if (paneConfig.size) {
+      const size = parsePercentage(paneConfig.size, -1);
+      if (size < 0 || size > 100) {
+        warnings.push(
+          `Pane "${paneName}" size "${paneConfig.size}" is out of reasonable range (0%-100%), ` +
+            `using default value`
+        );
+      }
+    }
+  }
+
+  return {
+    hasError: errors.length > 0,
+    errors,
+    warnings,
+  };
 }

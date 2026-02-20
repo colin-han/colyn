@@ -113,19 +113,21 @@ const SettingsSchemaBase = z.object({
 });
 
 /**
- * Settings Schema（支持递归的 branchOverrides）
- */
-export const SettingsSchema: z.ZodType<Settings> = SettingsSchemaBase.extend({
-  /** 分支特定配置覆盖 */
-  branchOverrides: z.record(z.lazy(() => SettingsSchema.partial())).optional(),
-});
-
-/**
  * Settings 类型（自动从 Schema 推断）
  */
 export type Settings = z.infer<typeof SettingsSchemaBase> & {
   branchOverrides?: Record<string, Partial<Settings>>;
 };
+
+/**
+ * Settings Schema（支持递归的 branchOverrides）
+ */
+export const SettingsSchema: z.ZodType<Settings> = SettingsSchemaBase.extend({
+  /** 分支特定配置覆盖 */
+  branchOverrides: z
+    .record(z.string(), z.lazy(() => SettingsSchema))
+    .optional(),
+}) as z.ZodType<Settings>;
 
 /**
  * 当前配置文件版本号
@@ -157,7 +159,7 @@ export function validateSettingsWithFriendlyError(
     return SettingsSchema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const messages = error.errors
+      const messages = error.issues
         .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
         .join('\n');
 
