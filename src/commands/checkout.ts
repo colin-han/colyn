@@ -35,7 +35,8 @@ import {
   isInTmux,
   getCurrentSession,
   renameWindow,
-  getWindowName
+  getWindowName,
+  setIterm2Title
 } from '../core/tmux.js';
 
 /**
@@ -429,6 +430,15 @@ async function checkoutCommand(
         output(chalk.gray(t('commands.checkout.tmuxWindowRenamed', { windowName: newWindowName })));
       }
     }
+
+    // 步骤9.6: 更新 iTerm2 tab title（无论是否在 tmux 中）
+    const currentSession = getCurrentSession();
+    setIterm2Title(
+      currentSession || '', // 非 tmux 环境不使用此参数
+      worktree.id,
+      paths.mainDirName,
+      branch
+    );
 
     // 步骤10: 如果旧分支已合并，提示删除
     let oldBranchDeleted = false;
