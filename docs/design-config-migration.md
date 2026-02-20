@@ -239,7 +239,64 @@ async function loadSettingsFromFile(
 }
 ```
 
-### 4.2 示例 2：字段类型变更（未来扩展）
+### 4.2 示例 2：配置结构迁移和废弃命令处理（1 → 2）✅ 已实施
+
+**实施日期**：2026-02-20
+
+这是实际实施的 migration，处理配置结构重构和废弃的内置命令。
+
+**旧配置**（版本 1）：
+```json
+{
+  "version": 1,
+  "npm": "yarn",
+  "claudeCommand": "claude --env prod",
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session with dangerously skip permissions"
+    }
+  },
+  "branchOverrides": {
+    "feature/*": {
+      "npm": "pnpm"
+    }
+  }
+}
+```
+
+**迁移后**（版本 2）：
+```json
+{
+  "version": 2,
+  "systemCommands": {
+    "npm": "yarn",
+    "claude": "claude --env prod --dangerously-skip-permissions"
+  },
+  "tmux": {
+    "leftPane": {
+      "command": "auto continues claude session"
+    }
+  },
+  "branchOverrides": {
+    "feature/*": {
+      "systemCommands": {
+        "npm": "pnpm"
+      }
+    }
+  }
+}
+```
+
+**迁移内容**：
+1. `npm` → `systemCommands.npm`
+2. `claudeCommand` → `systemCommands.claude`
+3. 废弃的内置命令 `auto continues claude session with dangerously skip permissions` → `auto continues claude session`
+4. 自动添加 `--dangerously-skip-permissions` 到 `systemCommands.claude`
+5. 递归处理 `branchOverrides`
+
+**参考**：完整实施日志见 `.claude/logs/create-migration-v1-to-v2-20260220.md`
+
+### 4.3 示例 3：字段类型变更（未来扩展）
 
 假设未来需要将 `leftPane.size` 从字符串改为数字：
 
@@ -286,17 +343,16 @@ const MIGRATIONS: MigrationFunction[] = [
 export const CURRENT_CONFIG_VERSION = 2;
 ```
 
-### 4.3 示例 3：字段重命名（未来扩展）
+### 4.4 示例 4：字段重命名（未来扩展）
 
-假设未来需要将 `npm` 重命名为 `packageManager`：
+假设未来需要将某个字段重命名：
 
 ```typescript
-// 迁移 2 → 3: 重命名 npm 为 packageManager
+// 迁移 2 → 3: 重命名字段示例
 (settings: Settings): Settings => {
-  const { npm, ...rest } = settings;
+  // 迁移逻辑
   return {
-    ...rest,
-    packageManager: npm ?? 'yarn',
+    ...settings,
     version: 3,
   };
 }

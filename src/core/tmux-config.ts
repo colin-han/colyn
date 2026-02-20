@@ -164,7 +164,7 @@ export interface Settings {
 /**
  * 当前配置文件版本号
  */
-export const CURRENT_CONFIG_VERSION = 1;
+export const CURRENT_CONFIG_VERSION = 2;
 
 /**
  * 配置文件路径
@@ -254,6 +254,13 @@ type MigrationFunction = (settings: Settings) => Settings;
  * Migration 函数列表
  * 索引 i 的函数负责从 version i 迁移到 version i+1
  */
+/**
+ * 废弃的内置命令常量
+ */
+const DEPRECATED_BUILTIN_COMMANDS = {
+  AUTO_CLAUDE_DANGEROUSLY: 'auto continues claude session with dangerously skip permissions',
+} as const;
+
 const MIGRATIONS: MigrationFunction[] = [
   // Migration 0 -> 1: 添加版本号
   (settings: Settings): Settings => {
@@ -265,12 +272,94 @@ const MIGRATIONS: MigrationFunction[] = [
     };
   },
 
-  // 未来的 migration 在这里添加
-  // 例如：Migration 1 -> 2
-  // (settings: Settings): Settings => {
-  //   // 执行从版本 1 到版本 2 的迁移逻辑
-  //   return { ...settings, version: 2 };
-  // },
+  // Migration 1 -> 2: 迁移配置结构和废弃的内置命令
+  (settings: Settings): Settings => {
+    const migrateSettings = (s: Settings): Settings => {
+      const result: Settings = { ...s };
+
+      // 1. 迁移 npm 和 claudeCommand 到 systemCommands
+      const hasOldNpm = 'npm' in s && s.npm !== undefined;
+      const hasOldClaudeCommand = 'claudeCommand' in s && (s as Settings & { npm?: string; claudeCommand?: string }).claudeCommand !== undefined;
+
+      if (hasOldNpm || hasOldClaudeCommand) {
+        result.systemCommands = {
+          ...result.systemCommands,
+        };
+
+        if (hasOldNpm) {
+          result.systemCommands.npm = (s as Settings & { npm?: string }).npm;
+          delete (result as Settings & { npm?: string }).npm;
+        }
+
+        if (hasOldClaudeCommand) {
+          result.systemCommands.claude = (s as Settings & { claudeCommand?: string }).claudeCommand;
+          delete (result as Settings & { claudeCommand?: string }).claudeCommand;
+        }
+      }
+
+      // 2. 迁移废弃的内置命令：auto continues claude session with dangerously skip permissions
+      if (result.tmux) {
+        let needsDangerouslySkipPermissions = false;
+
+        // 检查所有 pane 配置
+        const checkAndMigratePane = (paneConfig: PaneConfig | undefined): PaneConfig | undefined => {
+          if (!paneConfig || !paneConfig.command) {
+            return paneConfig;
+          }
+
+          if (paneConfig.command === DEPRECATED_BUILTIN_COMMANDS.AUTO_CLAUDE_DANGEROUSLY) {
+            needsDangerouslySkipPermissions = true;
+            return {
+              ...paneConfig,
+              command: BUILTIN_COMMANDS.AUTO_CLAUDE,
+            };
+          }
+
+          return paneConfig;
+        };
+
+        // 迁移所有 pane 配置
+        const migratedTmux: TmuxConfig = { ...result.tmux };
+        migratedTmux.leftPane = checkAndMigratePane(migratedTmux.leftPane);
+        migratedTmux.rightPane = checkAndMigratePane(migratedTmux.rightPane);
+        migratedTmux.topPane = checkAndMigratePane(migratedTmux.topPane);
+        migratedTmux.bottomPane = checkAndMigratePane(migratedTmux.bottomPane);
+        migratedTmux.topRightPane = checkAndMigratePane(migratedTmux.topRightPane);
+        migratedTmux.bottomRightPane = checkAndMigratePane(migratedTmux.bottomRightPane);
+        migratedTmux.topLeftPane = checkAndMigratePane(migratedTmux.topLeftPane);
+        migratedTmux.bottomLeftPane = checkAndMigratePane(migratedTmux.bottomLeftPane);
+
+        result.tmux = migratedTmux;
+
+        // 如果检测到废弃的命令，添加 --dangerously-skip-permissions 到 systemCommands.claude
+        if (needsDangerouslySkipPermissions) {
+          result.systemCommands = result.systemCommands || {};
+          const currentClaudeCommand = result.systemCommands.claude || 'claude';
+
+          // 如果还没有 --dangerously-skip-permissions 参数，添加它
+          if (!currentClaudeCommand.includes('--dangerously-skip-permissions')) {
+            result.systemCommands.claude = `${currentClaudeCommand} --dangerously-skip-permissions`;
+          }
+        }
+      }
+
+      // 3. 递归处理 branchOverrides
+      if (result.branchOverrides) {
+        const migratedOverrides: Record<string, Settings> = {};
+        for (const [branch, branchSettings] of Object.entries(result.branchOverrides)) {
+          migratedOverrides[branch] = migrateSettings(branchSettings);
+        }
+        result.branchOverrides = migratedOverrides;
+      }
+
+      return result;
+    };
+
+    return {
+      ...migrateSettings(settings),
+      version: 2,
+    };
+  },
 ];
 
 /**
