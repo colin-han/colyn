@@ -1,9 +1,9 @@
 # Repair Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-17
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-02-21
 **Command**: `colyn repair`
-**Status**: 🚧 In Design
+**Status**: ✅ Implemented
 
 ---
 
@@ -26,7 +26,8 @@ After execution, the system will:
 1. Check and fix the main branch directory's `.env.local` file
 2. Check and fix all worktree `.env.local` files
 3. Run `git worktree repair` to fix git connections
-4. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
+4. Run plugin initialization (non-fatal — only shows a warning on failure)
+5. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
 
 ---
 
@@ -53,6 +54,7 @@ $ colyn repair
 ✔ Check worktree task-1 .env.local
 ✔ Check worktree task-2 .env.local
 ✔ Repair git worktree connections
+✔ Plugin initialization complete
 ✔ Check orphan worktree directories
 
 ✓ Repair complete!
@@ -169,8 +171,13 @@ graph TD
     GitOK -->|Yes| GitPass[✔ Git connections repaired]
     GitOK -->|No| GitFail[⚠ Git repair failed, log error]
 
-    GitPass --> CheckOrphan[Check orphan worktree directories]
-    GitFail --> CheckOrphan
+    GitPass --> RunPlugins[Run plugin initialization]
+    GitFail --> RunPlugins
+    RunPlugins --> PluginOK{Success?}
+    PluginOK -->|Yes| PluginPass[✔ Plugin initialization complete]
+    PluginOK -->|No| PluginFail[⚠ Plugin init failed, log warning]
+    PluginPass --> CheckOrphan[Check orphan worktree directories]
+    PluginFail --> CheckOrphan
 
     CheckOrphan --> HasOrphan{Found orphan directories?}
     HasOrphan -->|Yes| WarnOrphan[⚠ Alert orphan directories]
@@ -292,6 +299,7 @@ graph TD
   - PORT: 10005 → 10002
   - WORKTREE: 3 → 2
 ✔ Repair git worktree connections
+✔ Plugin initialization complete
 ✔ Check orphan worktree directories
 ```
 
@@ -327,6 +335,7 @@ Details:
 | **Project not initialized** | Error and exit | ✗ Project not initialized<br/>Hint: Please run colyn init first |
 | **Not a git repository** | Error and exit | ✗ Main branch directory is not a git repository<br/>Hint: Please run in a git project |
 | **git worktree repair failed** | Log error, continue other checks | ⚠ Git worktree repair failed<br/>Error: [git error]<br/>Suggestion: Manually run git worktree repair |
+| **Plugin initialization failed** | Log warning, continue other checks | ⚠ Plugin initialization failed (non-fatal)<br/>Error: [error message] |
 | **Cannot read .env.local** | Try to create new file | ⚠ Cannot read .env.local, created new file |
 | **Cannot write .env.local** | Log error, continue other checks | ⚠ Cannot fix worktree task-1 .env.local<br/>Error: Permission denied |
 

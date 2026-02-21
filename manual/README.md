@@ -45,6 +45,7 @@ Colyn 特别适合以下使用场景：
 8. **[故障排除](08-troubleshooting.md)** - 常见问题和解决方案
 9. **[术语表](09-glossary.md)** - 术语和概念速查
 10. **[配置系统](10-configuration.md)** - 完整的配置文件指南
+11. **[插件系统](11-plugin-system.md)** - 多语言工具链支持（npm / Maven / Gradle / pip）
 
 ---
 

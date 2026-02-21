@@ -1,7 +1,7 @@
 # Init Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-14
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-02-21
 **Command Name**: `colyn init`
 **Status**: ✅ Implemented
 
@@ -36,7 +36,7 @@ project-root/
 │   └── ...           # All original project files
 ├── worktrees/        # Future worktree directory
 └── .colyn/           # Colyn config directory
-    └── (empty)       # config.json no longer required
+    └── settings.json # Project config (plugins, language, etc.)
 ```
 
 ---
@@ -121,6 +121,8 @@ Current directory file list:
 ✔ Move project files
 ✔ Environment variables configured
 ✔ .gitignore configured
+✔ Detected toolchain: npm
+✔ Plugin initialization complete
 ✔ Config file saved
 
 ✓ Initialization successful!
@@ -209,7 +211,9 @@ graph TD
 
     CreateDirs --> MoveFiles[Move all files]
     MoveFiles --> ConfigEnv[Configure environment variables]
-    ConfigEnv --> ProjectSuccess[✓ Show success message]
+    ConfigEnv --> DetectPlugins[Detect toolchain plugins<br/>npm / Maven / Gradle / pip]
+    DetectPlugins --> RunPluginInit[Run plugin initialization<br/>e.g. add .env.local to .gitignore]
+    RunPluginInit --> ProjectSuccess[✓ Show success message]
     ProjectSuccess --> End
 
     %% Already initialized flow
@@ -301,6 +305,8 @@ sequenceDiagram
 - ✔ Move project files
 - ✔ Environment variables configured
 - ✔ .gitignore configured
+- ✔ Detected toolchain: npm (or maven / gradle / pip)
+- ✔ Plugin initialization complete
 - ✔ Config file saved
 
 **Success information**:
@@ -393,12 +399,13 @@ my-project/                 # Project root directory
 │   ├── .gitignore         # Contains .env.local ignore rule
 │   └── ...                # Other project files
 ├── worktrees/             # Worktree directory (initially empty)
-└── .colyn/                # Colyn config directory (only as project marker)
+└── .colyn/                # Colyn config directory
+    └── settings.json      # Project config: plugins, language, etc.
 ```
 
 ### 7.2 Data Sources
 
-Project info is dynamically obtained from filesystem, no config file needed:
+Project info is preferentially inferred from the filesystem; only necessary config is persisted to `settings.json`:
 
 | Data | Source |
 |------|--------|
@@ -406,6 +413,7 @@ Project info is dynamically obtained from filesystem, no config file needed:
 | Main port | `PORT` in main branch directory's `.env.local` |
 | Next Worktree ID | Scan `worktrees/task-*` directories, take max ID + 1 |
 | Worktree list | `git worktree list` + each directory's `.env.local` |
+| Toolchain plugins | `plugins` field in `.colyn/settings.json` (persisted) |
 
 **`my-project/.env.local`**:
 ```env
@@ -565,6 +573,7 @@ A: No. Completion mode only adds missing parts, won't overwrite existing configu
 
 1. **Smart identification**: Auto-identify three directory states, take different strategies
 2. **Safety first**: User confirmation required before destructive operations
-3. **Clear feedback**: Each operation has clear progress and result prompts
-4. **Error tolerance**: Detailed error messages and resolution suggestions
-5. **User friendly**: Provide next steps suggestions and FAQ
+3. **Toolchain auto-configuration**: Auto-detect npm / Maven / Gradle / pip and write `settings.json`
+4. **Clear feedback**: Each operation has clear progress and result prompts
+5. **Error tolerance**: Detailed error messages and resolution suggestions
+6. **User friendly**: Provide next steps suggestions and FAQ

@@ -9,7 +9,7 @@
 1. [配置文件位置](#配置文件位置)
 2. [配置加载顺序](#配置加载顺序)
 3. [配置文件结构](#配置文件结构)
-4. [全局配置项](#全局配置项)
+4. [全局配置项](#全局配置项)（含 [plugins](#plugins)、[lang](#lang)、[systemCommands](#systemcommands)）
 5. [Tmux 配置项](#tmux-配置项)
 6. [分支特定配置](#分支特定配置)
 7. [配置管理命令](#配置管理命令)
@@ -228,6 +228,11 @@ COLYN_LANG=en colyn list
   // 界面语言
   "lang": "zh-CN" | "en",
 
+  // 工具链插件（由 colyn init 自动检测并写入，也可手动编辑）
+  // 可选值: "npm" | "maven" | "gradle" | "pip"
+  // 详细说明参考: manual/11-plugin-system.md
+  "plugins": ["npm"],
+
   // 系统命令配置
   "systemCommands": {
     "npm": "npm" | "yarn" | "pnpm",  // 包管理器命令
@@ -313,6 +318,47 @@ colyn config set lang en
 # 临时切换语言(不修改配置)
 COLYN_LANG=zh-CN colyn --help
 ```
+
+### plugins
+
+**类型**: `string[]`
+**默认值**: 由 `colyn init` 自动检测
+**说明**: 启用的工具链插件列表
+
+**可选值**:
+- `"npm"` - Node.js / npm 项目
+- `"maven"` - Java Maven 项目
+- `"gradle"` - Java / Kotlin Gradle 项目
+- `"pip"` - Python / pip 项目
+
+**自动检测规则**:
+- 存在 `package.json` → 启用 `npm`
+- 存在 `pom.xml` → 启用 `maven`
+- 存在 `build.gradle` 或 `build.gradle.kts` → 启用 `gradle`
+- 存在 `requirements.txt` 或 `pyproject.toml` → 启用 `pip`
+
+**示例**:
+
+```json
+{
+  "plugins": ["npm"]
+}
+```
+
+**修改方式**:
+
+```bash
+# 查看当前配置
+cat .colyn/settings.json
+
+# 手动编辑配置文件修改插件列表
+# 例如，Java + Node.js 混合项目可以启用多个插件：
+# "plugins": ["npm", "maven"]
+```
+
+> **说明**: 通常无需手动修改。`colyn init` 会自动检测并写入正确的值。旧项目首次运行任意命令时也会自动检测并迁移。
+
+---
 
 ### systemCommands
 

@@ -36,7 +36,7 @@ project-root/
 │   └── ...           # 原有的所有项目文件
 ├── worktrees/        # 未来的 worktree 目录
 └── .colyn/           # Colyn 配置目录
-    └── (空目录)       # 不再需要 config.json
+    └── settings.json # 项目配置（含自动检测的工具链插件）
 ```
 
 ---
@@ -122,12 +122,15 @@ project-root/
 ✔ 环境变量配置完成
 ✔ .gitignore 配置完成
 ✔ 配置文件保存完成
+✔ 检测到工具链: npm          ← 自动检测并写入 settings.json
+✔ 插件初始化完成              ← 写入工具链运行配置、安装依赖等
 
 ✓ 初始化成功！
 
 配置信息：
   主分支: main
   端口: 10000
+  工具链插件: npm
 
 后续操作：
   1. 创建 worktree:
@@ -209,7 +212,9 @@ graph TD
 
     CreateDirs --> MoveFiles[移动所有文件]
     MoveFiles --> ConfigEnv[配置环境变量]
-    ConfigEnv --> ProjectSuccess[✓ 显示成功信息]
+    ConfigEnv --> DetectPlugins[自动检测工具链插件<br/>写入 settings.json]
+    DetectPlugins --> RunPluginInit[运行插件初始化<br/>写入工具链配置、安装依赖]
+    RunPluginInit --> ProjectSuccess[✓ 显示成功信息]
     ProjectSuccess --> End
 
     %% 已初始化流程
@@ -302,10 +307,12 @@ sequenceDiagram
 - ✔ 环境变量配置完成
 - ✔ .gitignore 配置完成
 - ✔ 配置文件保存完成
+- ✔ 检测到工具链: {plugin-name}（或：未检测到匹配的工具链）
+- ✔ 插件初始化完成（若有插件被激活）
 
 **成功信息**：
 - 目录结构说明
-- 配置信息（主分支、端口）
+- 配置信息（主分支、端口、工具链插件）
 - 后续操作建议
 
 **错误信息**（见第 5 节）
@@ -393,12 +400,13 @@ my-project/                 # 项目根目录
 │   ├── .gitignore         # 包含 .env.local 忽略规则
 │   └── ...                # 其他项目文件
 ├── worktrees/             # Worktree 目录（初始为空）
-└── .colyn/                # Colyn 配置目录（仅作为项目标识）
+└── .colyn/                # Colyn 配置目录
+    └── settings.json      # 项目配置（含自动检测的工具链插件）
 ```
 
 ### 7.2 数据来源
 
-项目信息从文件系统动态获取，无需配置文件：
+项目大多数信息从文件系统动态获取，只有无法推断的用户选择才写入配置文件：
 
 | 数据 | 来源 |
 |------|------|
@@ -406,6 +414,7 @@ my-project/                 # 项目根目录
 | 主端口 | 主分支目录的 `.env.local` 中的 `PORT` |
 | 下一个 Worktree ID | 扫描 `worktrees/task-*` 目录，取最大 ID + 1 |
 | Worktree 列表 | `git worktree list` + 各目录的 `.env.local` |
+| 工具链插件 | 自动检测后**写入** `.colyn/settings.json`（持久化） |
 
 **`my-project/.env.local`**:
 ```env
@@ -565,6 +574,7 @@ A: 不会。补全模式只会添加缺失的部分，不会覆盖已有的配�
 
 1. **智能识别**：自动识别三种目录状态，采取不同策略
 2. **安全第一**：破坏性操作前必须用户确认
-3. **清晰反馈**：每步操作都有明确的进度和结果提示
-4. **容错处理**：详细的错误信息和解决建议
-5. **用户友好**：提供后续操作建议和常见问题解答
+3. **工具链自动配置**：自动检测 npm/Maven/Gradle/pip 并写入 `settings.json`，运行插件初始化
+4. **清晰反馈**：每步操作都有明确的进度和结果提示
+5. **容错处理**：详细的错误信息和解决建议
+6. **用户友好**：提供后续操作建议和常见问题解答

@@ -1,9 +1,9 @@
 # Repair 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-17
-**最后更新**：2026-01-17
+**最后更新**：2026-02-21
 **命令名称**：`colyn repair`
-**状态**：🚧 设计中
+**状态**：✅ 已实现
 
 ---
 
@@ -26,7 +26,8 @@ colyn repair
 1. 检查并修复主分支目录的 `.env.local` 文件
 2. 检查并修复所有 worktree 的 `.env.local` 文件
 3. 运行 `git worktree repair` 修复 git 连接
-4. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
+4. 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件初始化（非致命）
+5. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
 
 ---
 
@@ -53,6 +54,7 @@ $ colyn repair
 ✔ 检查 worktree task-1 .env.local
 ✔ 检查 worktree task-2 .env.local
 ✔ 修复 git worktree 连接
+✔ 插件初始化完成
 ✔ 检查孤儿 worktree 目录
 
 ✓ 修复完成！
@@ -169,8 +171,15 @@ graph TD
     GitOK -->|是| GitPass[✔ Git 连接已修复]
     GitOK -->|否| GitFail[⚠ Git 修复失败，记录错误]
 
-    GitPass --> CheckOrphan[检查孤儿 worktree 目录]
-    GitFail --> CheckOrphan
+    GitPass --> RunPlugins[运行插件初始化]
+    GitFail --> RunPlugins
+
+    RunPlugins --> PluginOK{成功?}
+    PluginOK -->|是| PluginPass[✔ 插件初始化完成]
+    PluginOK -->|否| PluginFail[⚠ 插件初始化失败，记录警告]
+
+    PluginPass --> CheckOrphan[检查孤儿 worktree 目录]
+    PluginFail --> CheckOrphan
 
     CheckOrphan --> HasOrphan{发现孤儿目录?}
     HasOrphan -->|是| WarnOrphan[⚠ 提示孤儿目录]
@@ -185,10 +194,12 @@ graph TD
     style MainPass fill:#90EE90
     style WTPass fill:#90EE90
     style GitPass fill:#90EE90
+    style PluginPass fill:#90EE90
     style NoOrphan fill:#90EE90
     style FixMain fill:#FFD700
     style FixWT fill:#FFD700
     style GitFail fill:#FFA500
+    style PluginFail fill:#FFA500
     style WarnOrphan fill:#FFA500
     style ErrorNotInit fill:#FF6B6B
 ```
@@ -292,6 +303,7 @@ graph TD
   - PORT: 10005 → 10002
   - WORKTREE: 3 → 2
 ✔ 修复 git worktree 连接
+✔ 插件初始化完成          ← 重新运行已配置插件的 init（如修复 .gitignore 条目）
 ✔ 检查孤儿 worktree 目录
 ```
 
@@ -327,6 +339,7 @@ graph TD
 | **项目未初始化** | 报错退出 | ✗ 项目未初始化<br/>提示：请先运行 colyn init |
 | **不是 git 仓库** | 报错退出 | ✗ 主分支目录不是 git 仓库<br/>提示：请确保在 git 项目中运行 |
 | **git worktree repair 失败** | 记录错误，继续其他检查 | ⚠ Git worktree 修复失败<br/>错误信息：[git 错误]<br/>建议：手动运行 git worktree repair |
+| **插件初始化失败** | 显示警告，继续其他检查 | ⚠ 插件初始化失败（非致命）<br/>不影响整体修复流程 |
 | **无法读取 .env.local** | 尝试创建新文件 | ⚠ 无法读取 .env.local，已创建新文件 |
 | **无法写入 .env.local** | 记录错误，继续其他检查 | ⚠ 无法修复 worktree task-1 .env.local<br/>错误：权限不足 |
 
