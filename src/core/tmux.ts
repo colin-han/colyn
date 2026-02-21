@@ -900,14 +900,11 @@ export function setIterm2Title(
   try {
     // 只设置 tab title (icon name)
     // \033]1;title\007 设置 tab title
-    const escapeSeq = `printf '\\033]1;${tabTitle}\\007'`;
-
     if (isInTmux()) {
-      // 在 tmux 中，通过 send-keys 发送
-      execTmux(
-        `send-keys -t "${sessionName}:${windowIndex}.0" "${escapeSeq}" Enter`,
-        { silent: true, ignoreError: true }
-      );
+      // 在 tmux 中，使用 DCS 直通（passthrough）转义序列将 OSC 序列传递给终端
+      // 格式：\033Ptmux;\033\033]1;title\007\033\
+      // 注意：DCS 内部的 ESC 需要双写（\033\033）
+      process.stderr.write(`\x1bPtmux;\x1b\x1b]1;${tabTitle}\x07\x1b\\`);
     } else {
       // 非 tmux 环境，直接输出到 stderr
       process.stderr.write(`\x1b]1;${tabTitle}\x07`);
