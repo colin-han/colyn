@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import simpleGit from 'simple-git';
+import { execSync } from 'child_process';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { getRelevantStatusFiles } from '../core/git.js';
@@ -14,6 +15,7 @@ import {
 } from '../utils/logger.js';
 import { discoverWorktrees, getCurrentWorktreeId } from '../core/discovery.js';
 import { t } from '../i18n/index.js';
+import { getRunCommand } from '../core/config.js';
 
 /**
  * 识别目标类型
@@ -400,6 +402,38 @@ export function displayMergeConflict(
   outputStep(`  ${t('commands.merge.resolveStep5')}`);
   output(`     colyn merge ${worktreeBranch}`);
   outputLine();
+}
+
+/**
+ * 运行 lint 检查
+ */
+export async function runLintCheck(dir: string): Promise<void> {
+  try {
+    const runCommand = await getRunCommand(dir);
+    execSync(`${runCommand} lint`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new ColynError(
+      t('commands.merge.lintFailed'),
+      t('commands.merge.lintFailedHint', { error: errorMessage })
+    );
+  }
+}
+
+/**
+ * 运行 build 检查
+ */
+export async function runBuildCheck(dir: string): Promise<void> {
+  try {
+    const runCommand = await getRunCommand(dir);
+    execSync(`${runCommand} build`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new ColynError(
+      t('commands.merge.buildFailed'),
+      t('commands.merge.buildFailedHint', { error: errorMessage })
+    );
+  }
 }
 
 /**

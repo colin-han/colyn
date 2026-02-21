@@ -21,7 +21,9 @@ import {
   displayCheckPassed,
   displayMergeSuccess,
   displayMergeConflict,
-  displayPushFailed
+  displayPushFailed,
+  runLintCheck,
+  runBuildCheck
 } from './merge.helpers.js';
 import {
   pullMainBranch,
@@ -94,6 +96,26 @@ async function mergeCommand(
       }
     } catch (error) {
       checkSpinner.fail(t('commands.merge.preCheckFailed'));
+      throw error;
+    }
+
+    // 步骤4.5: Lint 检查
+    const lintSpinner = ora({ text: t('commands.merge.runningLint'), stream: process.stderr }).start();
+    try {
+      await runLintCheck(worktree.path);
+      lintSpinner.succeed(t('commands.merge.lintPassed'));
+    } catch (error) {
+      lintSpinner.fail(t('commands.merge.lintFailed'));
+      throw error;
+    }
+
+    // 步骤4.6: Build 检查
+    const buildSpinner = ora({ text: t('commands.merge.runningBuild'), stream: process.stderr }).start();
+    try {
+      await runBuildCheck(worktree.path);
+      buildSpinner.succeed(t('commands.merge.buildPassed'));
+    } catch (error) {
+      buildSpinner.fail(t('commands.merge.buildFailed'));
       throw error;
     }
 
