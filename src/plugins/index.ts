@@ -10,6 +10,7 @@ import { npmPlugin } from './builtin/npm.js';
 import { mavenPlugin } from './builtin/maven.js';
 import { gradlePlugin } from './builtin/gradle.js';
 import { pipPlugin } from './builtin/pip.js';
+import { xcodePlugin } from './builtin/xcode.js';
 import {
   loadProjectConfig,
   saveConfigFile,
@@ -28,6 +29,7 @@ pluginManager.register(npmPlugin);
 pluginManager.register(mavenPlugin);
 pluginManager.register(gradlePlugin);
 pluginManager.register(pipPlugin);
+pluginManager.register(xcodePlugin);
 
 /**
  * 确保插件配置存在（旧项目自动迁移）

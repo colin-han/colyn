@@ -851,6 +851,14 @@ export const zhCN = {
     autoMigrated: 'ℹ 已自动配置工具链插件：{{plugins}}',
     autoMigratedNone: 'ℹ 已配置工具链（未检测到匹配插件）',
     autoMigratedHint: '如需修改，编辑 .colyn/settings.json 的 plugins 字段',
+    xcode: {
+      autoSelectedScheme: '自动选择 scheme：{{scheme}}',
+      noSharedSchemes: '未找到 shared scheme，请手动输入',
+      selectScheme: '请选择 Xcode scheme',
+      inputScheme: '请输入 scheme 名称（在 Xcode → Product → Scheme 中查看）',
+      inferredDestination: '推断目标平台：{{destination}}',
+      selectDestination: '请选择目标平台',
+    },
   },
 
   // Errors
