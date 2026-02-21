@@ -434,6 +434,7 @@ Worktree is **not deleted** after successful merge:
 | ID or branch name | No | Specify worktree to merge<br/>Auto-detect if no parameter | - Numbers treated as ID<br/>- Contains `/` treated as branch name |
 | `--push` | No | Auto push after merge | Mutually exclusive with `--no-push` |
 | `--no-push` | No | Don't push after merge (skip prompt) | Mutually exclusive with `--push` |
+| `--skip-build` | No | Skip lint and build checks | Use for urgent merges or when code is already verified |
 
 ### 4.2 System Output
 

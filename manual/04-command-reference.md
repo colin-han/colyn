@@ -599,6 +599,7 @@ colyn merge [target] [选项]
 | `--no-update` | 合并后不自动更新当前 worktree |
 | `--update-all` | 合并后更新所有 worktrees |
 | `--no-fetch` | 跳过从远程拉取主分支最新代码 |
+| `--skip-build` | 跳过 lint 和 build 检查 |
 
 ### 功能说明
 
