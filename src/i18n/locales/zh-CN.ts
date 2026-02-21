@@ -675,6 +675,9 @@ export const zhCN = {
       updateWorktree: 'WORKTREE: {{old}} → {{new}}',
       updatePort: 'PORT: {{old}} → {{new}}',
       gitRepairDetail: 'Git worktree 连接已修复',
+      initializingPlugins: '运行插件初始化...',
+      pluginsInitialized: '插件初始化完成',
+      pluginsInitFailed: '插件初始化失败（非致命）',
     },
 
     // config command
@@ -840,6 +843,13 @@ export const zhCN = {
       tableWorktrees: 'Worktrees',
       projectWorktrees: '{{project}} 的 Worktrees',
     },
+  },
+
+  // Plugin system
+  plugins: {
+    autoMigrated: 'ℹ 已自动配置工具链插件：{{plugins}}',
+    autoMigratedNone: 'ℹ 已配置工具链（未检测到匹配插件）',
+    autoMigratedHint: '如需修改，编辑 .colyn/settings.json 的 plugins 字段',
   },
 
   // Errors
