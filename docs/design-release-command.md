@@ -123,6 +123,7 @@ $ colyn release major
 
 ### 5.3 与现有发布脚本一致
 
+- 安装依赖（使用配置的包管理器命令）
 - 运行 lint / build
 - 更新 `package.json` 版本
 - 创建提交与 tag
