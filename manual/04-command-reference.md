@@ -1060,6 +1060,7 @@ colyn info [选项]
 | `project-path` | 主目录完整路径 | `/Users/me/work/myapp/myapp` |
 | `worktree-id` | Worktree ID（主分支为 0） | `1` |
 | `worktree-dir` | Worktree 目录名 | `task-1` |
+| `worktree-path` | Worktree 目录完整路径 | `/Users/me/work/myapp/worktrees/task-1` |
 | `branch` | 当前分支名称 | `feature/login` |
 
 ### 功能说明
@@ -1089,11 +1090,12 @@ colyn info [选项]
 
 ```bash
 $ colyn info
-📁 Project:      myapp
-📂 Project Path: /Users/me/work/myapp/myapp
-🔢 Worktree ID:  1
-📁 Worktree Dir: task-1
-🌿 Branch:       feature/login
+📁 Project:       myapp
+📂 Project Path:  /Users/me/work/myapp/myapp
+🔢 Worktree ID:   1
+📁 Worktree Dir:  task-1
+📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1
+🌿 Branch:        feature/login
 ```
 
 **输出简短标识符（推荐用于 shell 提示符）：**
@@ -1130,6 +1132,9 @@ feature/login
 
 $ colyn info --field=project-path
 /Users/me/work/myapp/myapp
+
+$ colyn info -f worktree-path
+/Users/me/work/myapp/worktrees/task-1
 ```
 
 **获取多个字段：**

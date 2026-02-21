@@ -10,7 +10,7 @@ import { t } from '../i18n/index.js';
 /**
  * 可用的字段名
  */
-const VALID_FIELDS = ['project', 'project-path', 'worktree-id', 'worktree-dir', 'branch'] as const;
+const VALID_FIELDS = ['project', 'project-path', 'worktree-id', 'worktree-dir', 'worktree-path', 'branch'] as const;
 type FieldName = (typeof VALID_FIELDS)[number];
 
 /**
@@ -26,6 +26,8 @@ function getFieldValue(info: LocationInfo, field: FieldName): string {
       return String(info.worktreeId);
     case 'worktree-dir':
       return info.worktreeDir;
+    case 'worktree-path':
+      return info.worktreePath;
     case 'branch':
       return info.branch;
   }
@@ -80,6 +82,11 @@ function printFullInfo(info: LocationInfo): void {
       icon: '📁',
       label: t('commands.info.labelWorktreeDir'),
       value: chalk.cyan(info.worktreeDir)
+    },
+    {
+      icon: '📂',
+      label: t('commands.info.labelWorktreePath'),
+      value: chalk.gray(info.worktreePath)
     },
     {
       icon: '🌿',
@@ -329,6 +336,7 @@ export function register(program: Command): void {
   project-path    项目根目录路径
   worktree-id     Worktree ID（主分支为 0）
   worktree-dir    Worktree 目录名
+  worktree-path   Worktree 目录完整路径
   branch          当前分支名
 
 使用示例：

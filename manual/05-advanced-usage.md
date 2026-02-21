@@ -252,11 +252,12 @@ colyn checkout new-branch  # 在当前 worktree 中切换分支
 colyn info
 
 # 输出:
-# 📁 Project:      my-project
-# 📂 Project Path: /path/to/my-project
-# 🔢 Worktree ID:  1
-# 📁 Worktree Dir: task-1
-# 🌿 Branch:       feature/login
+# 📁 Project:       my-project
+# 📂 Project Path:  /path/to/my-project
+# 🔢 Worktree ID:   1
+# 📁 Worktree Dir:  task-1
+# 📂 Worktree Path: /path/to/my-project/worktrees/task-1
+# 🌿 Branch:        feature/login
 ```
 
 **简短标识符**：
