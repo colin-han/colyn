@@ -568,6 +568,13 @@ export async function repairProject(): Promise<void> {
       // 插件初始化失败不阻断 repair 流程
       pluginSpinner.warn(t('commands.repair.pluginsInitFailed'));
     }
+
+    // 运行插件配置修复（可能有交互提问，不使用 spinner）
+    try {
+      await pluginManager.runRepairSettings(paths.rootDir, paths.mainDir, activePlugins);
+    } catch {
+      // 非致命，不阻断 repair 流程
+    }
   }
 
   // 8. 检测并修复孤儿 worktree 目录

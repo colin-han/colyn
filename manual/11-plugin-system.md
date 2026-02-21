@@ -77,11 +77,19 @@ Colyn 自动检查并确保各插件的运行时配置文件被加入 `.gitignor
 
 此操作是幂等的——如果文件名已在 `.gitignore` 中，不会重复添加。
 
-#### 3. 询问端口号（条件执行）
+#### 3. 检查插件专属配置（条件执行）
+
+部分插件需要无法自动推断的配置（例如 Xcode 插件需要 scheme 和构建目标）。Colyn 会自动尝试检测这些配置，如果无法确定，会通过交互式提问让用户填写。
+
+填写的配置保存到 `.colyn/settings.json` 的 `pluginSettings` 字段，后续命令（如 `build`）可直接读取，不会重复询问。
+
+> **对于当前内置插件（npm/maven/gradle/pip），此步骤会自动跳过**——它们不需要额外的专属配置。此功能主要为 Xcode 等需要用户决策的工具链准备。
+
+#### 4. 询问端口号（条件执行）
 
 只有当插件声明了端口配置时，Colyn 才询问端口号。对于不需要端口的项目（如纯库项目），此步骤自动跳过。
 
-#### 4. 写入运行时配置
+#### 5. 写入运行时配置
 
 根据各插件的配置格式写入端口信息：
 
@@ -92,7 +100,7 @@ Colyn 自动检查并确保各插件的运行时配置文件被加入 `.gitignor
 | gradle | `src/main/resources/application-local.properties` | `server.port=8080` |
 | pip | `.env.local` | `PORT=8000` |
 
-#### 5. 保存插件配置
+#### 6. 保存插件配置
 
 将激活的插件名称列表写入 `.colyn/settings.json`：
 
@@ -256,16 +264,27 @@ colyn release -v
 
 ### colyn repair
 
-**修复时**，Colyn 重新检查并确保运行时配置文件被 `.gitignore` 正确忽略：
+**修复时**，Colyn 重新执行以下插件相关操作：
+
+#### 1. 确保运行时配置文件被 .gitignore 忽略
 
 ```
 ⠿ 检查运行时配置文件的 .gitignore 忽略规则...
 ✔ .gitignore 检查完成
 ```
 
-**作用**：确保 `.gitignore` 中的忽略规则存在且完整，避免运行时配置文件（如 `.env.local`）被意外提交。此操作幂等——已存在的规则不会重复添加。
+同 `colyn init` 的步骤 2——幂等地确保各插件的运行时配置文件名在 `.gitignore` 中。
 
-如果检查失败，`colyn repair` 只显示警告，不中断修复流程（非致命）。
+#### 2. 重新检查插件专属配置（条件执行）
+
+如果激活的插件实现了 `repairSettings`（如 Xcode 插件），`colyn repair` 会重新执行配置检查。这意味着：
+
+- 已保存的配置在项目结构未变时会直接复用，不再询问
+- 如果项目结构有变化（如新增了 scheme），会重新检测并更新
+
+**用途**：当你对项目做了重大变更（如切换 Xcode scheme），可以通过 `colyn repair` 更新保存的配置。
+
+如果以上操作失败，`colyn repair` 只显示警告，不中断修复流程（非致命）。
 
 ---
 
@@ -283,6 +302,24 @@ colyn release -v
 ```
 
 直接查看该文件即可了解当前激活的插件。
+
+如果插件有专属配置（如 Xcode 的 scheme），会保存在同一文件的 `pluginSettings` 字段：
+
+```json
+{
+  "version": 3,
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "workspace": "MyApp.xcworkspace",
+      "scheme": "MyApp",
+      "destination": "generic/platform=iOS Simulator"
+    }
+  }
+}
+```
+
+如需修改插件专属配置，可以直接编辑此字段，或运行 `colyn repair` 重新触发交互式配置流程。
 
 ### 修改激活的插件
 

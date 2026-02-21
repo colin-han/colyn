@@ -66,6 +66,7 @@ async function detectAndInitPlugins(
   if (detectedPlugins.length > 0) {
     await savePluginsToSettings(projectRoot, configDirPath, detectedPlugins);
     await pluginManager.ensureRuntimeConfigIgnored(mainDirPath, detectedPlugins);
+    await pluginManager.runRepairSettings(projectRoot, mainDirPath, detectedPlugins);
   }
   return detectedPlugins;
 }

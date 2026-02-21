@@ -112,6 +112,8 @@ const SettingsSchemaBase = z.object({
   tmux: TmuxConfigSchema.optional(),
   /** 已激活的工具链插件列表，如 ['npm']、['maven'] */
   plugins: z.array(z.string()).optional(),
+  /** 插件专属配置（由各插件的 repairSettings 写入，如 xcode 的 scheme/destination） */
+  pluginSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
 });
 
 /**

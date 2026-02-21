@@ -71,6 +71,22 @@ export class PluginCommandError extends Error {
 }
 
 /**
+ * repairSettings 的上下文对象
+ *
+ * 在 colyn init / colyn repair 时传入各插件的 repairSettings 方法。
+ */
+export interface RepairSettingsContext {
+  /** 项目根目录（.colyn 的父目录） */
+  projectRoot: string;
+  /** 主分支目录路径（包含项目代码文件） */
+  worktreePath: string;
+  /** 当前已保存的本插件专属配置（来自 settings.json 的 pluginSettings[name]） */
+  currentSettings: Record<string, unknown>;
+  /** 是否处于非交互式模式（如 CI 环境，不能弹出交互提问） */
+  nonInteractive: boolean;
+}
+
+/**
  * 工具链插件接口
  *
  * 所有方法均为可选，插件只需实现其关心的扩展点。
@@ -149,6 +165,22 @@ export interface ToolchainPlugin {
    * @returns 文件名（如 '.env.local'、'application-local.properties'），或 null
    */
   getRuntimeConfigFileName?(): string | null;
+
+  /**
+   * 检查并修复插件专属项目配置
+   *
+   * 在 `colyn init` 和 `colyn repair` 时调用。
+   * 插件应扫描项目结构，识别必要的配置项（如 Xcode 的 scheme / destination）。
+   * 如果无法自动确定，可通过交互式提问让用户填写。
+   * 结果由 colyn 保存到 `.colyn/settings.json` 的 `pluginSettings[name]` 字段。
+   *
+   * **典型用途**：Xcode 插件通过此方法询问用户 scheme 和 destination，
+   * 供后续 `build` 命令使用。
+   *
+   * @param context 包含 projectRoot、worktreePath、当前已保存配置、非交互模式标志
+   * @returns 插件专属配置键值对（将完整覆盖 pluginSettings[name]）
+   */
+  repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 
   // ════════════════════════════════════════════
   // 工具链信息（供其他插件查询，如 terminal session 插件）
@@ -250,6 +282,7 @@ export interface ToolchainPlugin {
 8. **工具链信息分离**：`devServerCommand` 只返回命令数组，不执行——执行职责留给 terminal session 插件
 9. **结构化失败信息**：lint / build 失败时抛出 `PluginCommandError`，`output` 字段携带命令的完整输出；所有 colyn 命令支持 `-v` / `--verbose` 选项，开启后在失败时展示详情
 10. **gitignore 由调用方统一管理**：插件通过 `getRuntimeConfigFileName()` 声明运行时配置文件名，由 `PluginManager.ensureRuntimeConfigIgnored()` 统一负责将其加入 `.gitignore`，插件无需自行操作文件系统
+11. **插件专属配置持久化**：部分插件（如 Xcode）需要构建参数等无法自动推断的配置。插件通过 `repairSettings(context)` 方法识别并交互式获取这些配置，由 `PluginManager.runRepairSettings()` 统一保存到 `settings.json` 的 `pluginSettings[name]` 字段；后续命令（如 `build`）从 `currentSettings` 读取，无需重复询问
 
 ---
 
@@ -360,6 +393,18 @@ class PluginManager {
   async ensureRuntimeConfigIgnored(worktreePath: string, activePlugins: ToolchainPlugin[]): Promise<void>;
 
   /**
+   * 运行所有激活插件的 repairSettings，将结果保存到 settings.json
+   * 各插件可自动检测或交互式询问必要配置，结果保存到 pluginSettings[name]
+   * 在 colyn init 和 colyn repair 时调用
+   */
+  async runRepairSettings(
+    projectRoot: string,
+    worktreePath: string,
+    activePluginNames: string[],
+    nonInteractive?: boolean
+  ): Promise<void>;
+
+  /**
    * 调用所有激活插件的 readRuntimeConfig（顺序尝试，取第一个非 null 的结果）
    * 传入 worktreePath，由各插件自行决定读取哪个文件
    */
@@ -466,6 +511,10 @@ const SettingsSchemaBase = z.object({
   // 新增：工具链插件配置
   plugins: z.array(z.string()).optional(),
   //        ↑ 插件名列表，如 ['npm']、['maven', 'pip']
+
+  // 新增：插件专属配置（由 repairSettings 写入）
+  pluginSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+  //               ↑ { pluginName: { key: value, ... } }
 });
 ```
 
@@ -475,13 +524,20 @@ const SettingsSchemaBase = z.object({
 {
   "version": 3,
   "lang": "zh-CN",
-  "plugins": ["npm"]
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "workspace": "MyApp.xcworkspace",
+      "scheme": "MyApp",
+      "destination": "generic/platform=iOS Simulator"
+    }
+  }
 }
 ```
 
 **关于 Migration**：
 
-因为 `plugins` 是**可选字段**，旧配置中不存在该字段时视为 `undefined`，不需要创建 Migration。旧项目的迁移逻辑通过运行时检测处理（见第 7 节）。
+`plugins` 和 `pluginSettings` 都是**可选字段**，旧配置中不存在时视为 `undefined`，不需要创建 Migration。旧项目的迁移逻辑通过运行时检测处理（见第 7 节）。
 
 ---
 
@@ -507,7 +563,12 @@ const SettingsSchemaBase = z.object({
   调用 pluginManager.ensureRuntimeConfigIgnored(worktreePath, activePlugins)
   各插件通过 getRuntimeConfigFileName() 返回文件名，colyn 统一负责将其加入 .gitignore
 
-步骤 N+3：写入配置文件
+步骤 N+3：修复插件专属项目配置
+  调用 pluginManager.runRepairSettings(projectRoot, worktreePath, activePlugins)
+  各插件通过 repairSettings() 自动检测或交互式询问必要配置项（如 Xcode 的 scheme/destination）
+  结果保存到 settings.json 的 pluginSettings[pluginName] 字段
+
+步骤 N+4：写入配置文件
   调用 pluginManager.writeRuntimeConfig() 让各插件写入各自格式的配置文件
 ```
 
@@ -727,6 +788,7 @@ src/
 | maven/gradle 本地配置文件 | `application-local.properties`（本地 profile） | 不提交 git；Spring Boot profile 机制覆盖主配置 |
 | maven/gradle 配置格式 | 优先 `.properties`，同时支持 `.yaml` | properties 更简单，yaml 更强大，两种格式均流行 |
 | .gitignore 更新 | 插件通过 `getRuntimeConfigFileName()` 声明文件名，`PluginManager.ensureRuntimeConfigIgnored()` 统一处理 | 关注点分离——插件只声明文件名，colyn 负责 gitignore 操作，幂等且可重复执行 |
+| 插件专属配置 | 通过 `repairSettings(context)` + `pluginSettings` 字段机制，在 init/repair 时交互获取并持久化 | 解决 xcodebuild 等需要用户决策的参数问题，避免每次 build 都重新询问 |
 | lint/build 脚本缺失 | 插件内部静默跳过 | 不是所有项目都配置 lint/build，不应视为错误 |
 | bumpVersion 未实现 | PluginManager 报错终止 release | 版本号更新是 release 必要步骤，不允许无声跳过 |
 | install 读取 npm 命令 | 插件自行读 `.colyn/settings.json` | 避免接口复杂化，插件内部自主获取配置 |

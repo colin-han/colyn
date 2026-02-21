@@ -3,6 +3,22 @@
  */
 
 /**
+ * repairSettings 的上下文对象
+ *
+ * 在 colyn init / colyn repair 时传入各插件的 repairSettings 方法。
+ */
+export interface RepairSettingsContext {
+  /** 项目根目录（.colyn 的父目录） */
+  projectRoot: string;
+  /** 主分支目录路径（包含项目代码文件） */
+  worktreePath: string;
+  /** 当前已保存的本插件专属配置（来自 settings.json 的 pluginSettings[name]） */
+  currentSettings: Record<string, unknown>;
+  /** 是否处于非交互式模式（如 CI 环境，不能弹出交互提问） */
+  nonInteractive: boolean;
+}
+
+/**
  * 插件命令执行失败时抛出的异常
  *
  * lint / build / install / init 失败时插件必须抛出此类型，
@@ -120,6 +136,22 @@ export interface ToolchainPlugin {
    * @returns 文件名（如 '.env.local'、'application-local.properties'），或 null
    */
   getRuntimeConfigFileName?(): string | null;
+
+  /**
+   * 检查并修复插件专属项目配置
+   *
+   * 在 `colyn init` 和 `colyn repair` 时调用。
+   * 插件应扫描项目结构，识别必要的配置项（如 Xcode 的 scheme / destination）。
+   * 如果无法自动确定，可通过交互式提问让用户填写。
+   * 结果由 colyn 保存到 `.colyn/settings.json` 的 `pluginSettings[name]` 字段。
+   *
+   * **典型用途**：Xcode 插件通过此方法询问用户 scheme 和 destination，
+   * 供后续 `build` 命令使用。
+   *
+   * @param context 包含 projectRoot、worktreePath、当前已保存配置、非交互模式标志
+   * @returns 插件专属配置键值对（将完整覆盖 pluginSettings[name]）
+   */
+  repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 
   // ════════════════════════════════════════════
   // 生命周期操作（插件直接执行，失败则抛出 PluginCommandError）
