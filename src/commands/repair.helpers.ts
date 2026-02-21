@@ -16,6 +16,8 @@ import {
 } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
+import { pluginManager } from '../plugins/index.js';
+import { loadProjectConfig } from '../core/config-loader.js';
 
 /**
  * 修复结果接口
@@ -550,7 +552,25 @@ export async function repairProject(): Promise<void> {
     gitSpinner.fail(t('commands.repair.gitRepairFailed'));
   }
 
-  // 7. 检测并修复孤儿 worktree 目录
+  // 7. 运行插件初始化（重新应用插件的 init，如修复 .gitignore 条目）
+  const pluginSettings = await loadProjectConfig(paths.rootDir);
+  const activePlugins = pluginSettings?.plugins ?? [];
+  if (activePlugins.length > 0) {
+    const pluginSpinner = ora({
+      text: t('commands.repair.initializingPlugins'),
+      stream: process.stderr
+    }).start();
+
+    try {
+      await pluginManager.runInit(paths.mainDir, activePlugins);
+      pluginSpinner.succeed(t('commands.repair.pluginsInitialized'));
+    } catch {
+      // 插件初始化失败不阻断 repair 流程
+      pluginSpinner.warn(t('commands.repair.pluginsInitFailed'));
+    }
+  }
+
+  // 8. 检测并修复孤儿 worktree 目录
   const orphanSpinner = ora({
     text: t('commands.repair.detectingOrphans'),
     stream: process.stderr
@@ -570,6 +590,6 @@ export async function repairProject(): Promise<void> {
     orphanSpinner.warn(t('commands.repair.orphansFound', { count: totalOrphans }));
   }
 
-  // 8. 显示修复摘要
+  // 9. 显示修复摘要
   displayRepairSummary(results, orphanResult);
 }

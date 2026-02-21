@@ -675,6 +675,9 @@ Or force delete:
       updateWorktree: 'WORKTREE: {{old}} → {{new}}',
       updatePort: 'PORT: {{old}} → {{new}}',
       gitRepairDetail: 'Git worktree connections repaired',
+      initializingPlugins: 'Running plugin initialization...',
+      pluginsInitialized: 'Plugin initialization complete',
+      pluginsInitFailed: 'Plugin initialization failed (non-fatal)',
     },
 
     // config command
@@ -840,6 +843,13 @@ Solution:
       tableWorktrees: 'Worktrees',
       projectWorktrees: 'Worktrees for {{project}}',
     },
+  },
+
+  // Plugin system
+  plugins: {
+    autoMigrated: 'ℹ Auto-configured toolchain plugins: {{plugins}}',
+    autoMigratedNone: 'ℹ Toolchain configured (no matching plugins detected)',
+    autoMigratedHint: 'To change, edit the plugins field in .colyn/settings.json',
   },
 
   // Errors
