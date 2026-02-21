@@ -812,6 +812,14 @@ export const zhCN = {
       switchedSession: '已切换到 session "{{sessionName}}"',
       switchSessionFailed: '切换 session 失败',
       attachingSession: '正在连接到 session "{{sessionName}}"...',
+      passthroughNotEnabled: '检测到 tmux allow-passthrough 未启用',
+      passthroughDescription: '启用后，colyn 可在 iTerm2 中自动更新 tab 标题（即使 pane 0 正在运行 Claude 等交互式程序）',
+      passthroughConfirm: '是否在 tmux 配置中启用 allow-passthrough？',
+      passthroughSkipped: '已跳过，继续运行（pane 0 被占用时 iTerm2 tab 标题可能无法更新）',
+      passthroughUnsupported: '当前 tmux 版本不支持 allow-passthrough（需要 tmux 3.3+），pane 0 被占用时 iTerm2 tab 标题可能无法更新',
+      passthroughAdded: '已将 allow-passthrough 配置添加至 {{configPath}}',
+      passthroughReloadHint: '请执行以下命令重新加载 tmux 配置：\n  tmux source-file {{configPath}}',
+      passthroughRerunHint: '重新加载完成后，再次运行 colyn tmux start',
     },
 
     // list-project command

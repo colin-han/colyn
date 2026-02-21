@@ -869,6 +869,57 @@ function isInIterm2(): boolean {
 }
 
 /**
+ * 检查 tmux 是否已开启 allow-passthrough（需要 tmux 3.3+）
+ * @returns 'on' 已开启 | 'off' 已关闭 | 'unsupported' 版本不支持
+ */
+export function checkAllowPassthrough(): 'on' | 'off' | 'unsupported' {
+  try {
+    const result = execTmux('show-option -gv allow-passthrough', {
+      silent: true,
+      ignoreError: true
+    });
+    const val = result.trim();
+    if (val === 'on' || val === 'all') return 'on';
+    if (val === 'off') return 'off';
+    // 空结果通常意味着版本不支持此选项
+    return 'unsupported';
+  } catch {
+    return 'unsupported';
+  }
+}
+
+/** 常见 shell 进程名 */
+const SHELL_COMMANDS = new Set(['bash', 'zsh', 'sh', 'fish', 'tcsh', 'csh', 'dash']);
+
+/**
+ * 在指定 window 中查找正在运行 shell 的 pane 索引
+ * 跳过正在运行交互式程序（如 claude、vim）的 pane
+ */
+function findShellPane(sessionName: string, windowIndex: number): number | null {
+  try {
+    const output = execTmux(
+      `list-panes -t "${sessionName}:${windowIndex}" -F "#{pane_index} #{pane_current_command}"`,
+      { silent: true, ignoreError: true }
+    );
+
+    for (const line of output.split('\n').filter(l => l.trim())) {
+      const spaceIdx = line.indexOf(' ');
+      if (spaceIdx !== -1) {
+        const paneIndex = parseInt(line.substring(0, spaceIdx), 10);
+        const command = line.substring(spaceIdx + 1).trim();
+        if (SHELL_COMMANDS.has(command)) {
+          return paneIndex;
+        }
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 设置 iTerm2 tab title
  * @param sessionName session 名称
  * @param windowIndex window 索引（即 worktree ID）
@@ -901,10 +952,24 @@ export function setIterm2Title(
     // 只设置 tab title (icon name)
     // \033]1;title\007 设置 tab title
     if (isInTmux()) {
-      // 在 tmux 中，使用 DCS 直通（passthrough）转义序列将 OSC 序列传递给终端
-      // 格式：\033Ptmux;\033\033]1;title\007\033\
-      // 注意：DCS 内部的 ESC 需要双写（\033\033）
-      process.stderr.write(`\x1bPtmux;\x1b\x1b]1;${tabTitle}\x07\x1b\\`);
+      const passthroughStatus = checkAllowPassthrough();
+      if (passthroughStatus === 'on') {
+        // allow-passthrough 已开启：使用 DCS 直通模式
+        // 格式：\033Ptmux;\033\033]1;title\007\033\
+        // DCS 内部的 ESC 需要双写（\033\033）
+        process.stderr.write(`\x1bPtmux;\x1b\x1b]1;${tabTitle}\x07\x1b\\`);
+      } else {
+        // 回退方案：在 window 中找一个空闲的 shell pane 执行 printf
+        // 这样可以避免向正在运行 Claude 等交互式程序的 pane 发送键盘输入
+        const shellPane = findShellPane(sessionName, windowIndex);
+        if (shellPane !== null) {
+          const escapeSeq = `printf '\\033]1;${tabTitle}\\007'`;
+          execTmux(
+            `send-keys -t "${sessionName}:${windowIndex}.${shellPane}" "${escapeSeq}" Enter`,
+            { silent: true, ignoreError: true }
+          );
+        }
+      }
     } else {
       // 非 tmux 环境，直接输出到 stderr
       process.stderr.write(`\x1b]1;${tabTitle}\x07`);
