@@ -91,8 +91,13 @@ export async function detectDirectoryStatus(): Promise<DirectoryInfo> {
 
 /**
  * 获取端口配置
+ * @param options 命令选项
+ * @param defaultPort 默认端口号（由插件 portConfig.defaultPort 提供）
  */
-export async function getPortConfig(options: { port?: string }): Promise<number> {
+export async function getPortConfig(
+  options: { port?: string },
+  defaultPort: number = 10000
+): Promise<number> {
   // 如果提供了 --port 参数
   if (options.port) {
     const port = parseInt(options.port);
@@ -114,7 +119,7 @@ export async function getPortConfig(options: { port?: string }): Promise<number>
     type: 'input',
     name: 'port',
     message: t('commands.init.enterPort'),
-    initial: '10000',
+    initial: String(defaultPort),
     stdout: process.stderr,
     validate: (value) => {
       const num = parseInt(value);
@@ -292,7 +297,7 @@ export async function configureGitignore(mainDirPath: string): Promise<void> {
  */
 export function displaySuccessInfo(
   mainDirName: string,
-  port: number,
+  port: number | undefined,
   mainBranch: string
 ): void {
   outputLine();
@@ -307,7 +312,9 @@ export function displaySuccessInfo(
 
   outputBold(t('commands.init.configInfo'));
   output(`  ${t('commands.init.mainBranch', { branch: mainBranch })}`);
-  output(`  ${t('commands.init.port', { port: String(port) })}`);
+  if (port !== undefined) {
+    output(`  ${t('commands.init.port', { port: String(port) })}`);
+  }
   outputLine();
 
   outputBold(t('commands.init.nextSteps'));

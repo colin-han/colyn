@@ -120,6 +120,9 @@ export const zhCN = {
       tmuxPaneBash: '  └─ Bash         (右下 28%)',
       tmuxHintTitle: '提示: Colyn 支持 tmux 集成，获得更好的多 worktree 体验',
       tmuxHintAttach: `  运行 'tmux attach -t {{session}}' 进入 tmux 环境`,
+      installingDeps: '安装项目依赖...',
+      depsInstalled: '依赖安装完成',
+      depsInstallFailed: '依赖安装失败（可手动运行安装命令）',
     },
 
     // list command
@@ -161,6 +164,7 @@ export const zhCN = {
       execFailed: '执行发布脚本失败',
       runInMain: '将在主分支目录执行发布脚本：{{path}}',
       noUpdateOption: '跳过自动更新所有 worktree',
+      verboseOption: '输出失败命令的详细日志',
       updatingWorktrees: '正在更新所有 worktree...',
       updateFailed: '⚠ 更新 worktree 失败，但发布已成功完成',
       currentDirNotClean: '当前目录有未提交的更改',

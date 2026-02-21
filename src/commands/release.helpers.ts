@@ -12,6 +12,7 @@ import {
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import { getRunCommand, getNpmCommand } from '../core/config.js';
+import { pluginManager } from '../plugins/index.js';
 
 /**
  * 解析后的版本号
@@ -239,10 +240,16 @@ export async function pushToRemote(
 
 /**
  * 执行发布流程
+ * @param dir 主分支目录路径
+ * @param versionType 版本类型或版本号
+ * @param activePlugins 激活的插件名称列表
+ * @param verbose 是否输出详细信息
  */
 export async function executeRelease(
   dir: string,
-  versionType: VersionType | string
+  versionType: VersionType | string,
+  activePlugins: string[] = [],
+  verbose: boolean = false
 ): Promise<string> {
   // 步骤 1: 检查 git 状态
   outputLine();
@@ -269,35 +276,57 @@ export async function executeRelease(
     new: newVersion
   }));
 
-  // 步骤 3: 安装依赖
+  // 步骤 3: 安装依赖（通过插件）
   outputLine();
   outputBold(t('commands.release.step3'));
   outputInfo(t('commands.release.runningInstall'));
-  await runInstall(dir);
+  if (activePlugins.length > 0) {
+    await pluginManager.runInstall(dir, activePlugins, verbose);
+  } else {
+    await runInstall(dir);
+  }
   outputSuccess(t('commands.release.installSucceeded'));
 
-  // 步骤 4: 运行 lint
+  // 步骤 4: 运行 lint（通过插件）
   outputLine();
   outputBold(t('commands.release.step4'));
   outputInfo(t('commands.release.runningLint'));
-  await runLint(dir);
+  if (activePlugins.length > 0) {
+    await pluginManager.runLint(dir, activePlugins, verbose);
+  } else {
+    await runLint(dir);
+  }
   outputSuccess(t('commands.release.lintPassed'));
 
-  // 步骤 5: 运行 build
+  // 步骤 5: 运行 build（通过插件）
   outputLine();
   outputBold(t('commands.release.step5'));
   outputInfo(t('commands.release.runningBuild'));
-  await runBuild(dir);
+  if (activePlugins.length > 0) {
+    await pluginManager.runBuild(dir, activePlugins, verbose);
+  } else {
+    await runBuild(dir);
+  }
   outputSuccess(t('commands.release.buildSucceeded'));
 
-  // 步骤 6: 更新 package.json
+  // 步骤 6: 更新版本号（通过插件）
   outputLine();
   outputBold(t('commands.release.step6'));
-  const versionInfo = await updatePackageVersion(dir, newVersion);
-  outputSuccess(t('commands.release.versionUpdated', {
-    old: versionInfo.oldVersion,
-    new: versionInfo.newVersion
-  }));
+  if (activePlugins.length > 0) {
+    // 读取当前版本用于显示
+    const oldVersion = await readPackageVersion(dir);
+    await pluginManager.runBumpVersion(dir, newVersion, activePlugins);
+    outputSuccess(t('commands.release.versionUpdated', {
+      old: oldVersion,
+      new: newVersion
+    }));
+  } else {
+    const versionInfo = await updatePackageVersion(dir, newVersion);
+    outputSuccess(t('commands.release.versionUpdated', {
+      old: versionInfo.oldVersion,
+      new: versionInfo.newVersion
+    }));
+  }
 
   // 步骤 7: 创建 commit
   outputLine();
