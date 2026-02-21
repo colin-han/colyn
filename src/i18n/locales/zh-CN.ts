@@ -168,7 +168,7 @@ export const zhCN = {
       branchNotMerged: '分支 "{{branch}}" 尚未合并到 "{{main}}"',
       branchNotMergedHint: '请先将分支合并到主分支后再发布：\ncolyn merge {{branch}}\n\n或者在主分支目录中执行发布',
       depsNotInstalled: '主分支目录的依赖未安装',
-      depsNotInstalledHint: '请先在主分支目录安装依赖：\ncd "{{path}}"\nyarn install',
+      depsNotInstalledHint: '请先在主分支目录安装依赖：\ncd "{{path}}"\n{{npmCommand}} install',
       invalidVersion: '无效的版本号格式：{{version}}',
       invalidVersionHint: '版本号格式应为：1.2.3',
       step1: '步骤 1: 检查 git 状态',
