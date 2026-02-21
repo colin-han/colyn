@@ -27,6 +27,7 @@ colyn info [options]
 | `project-path` | Project root directory path | `/Users/me/work/myapp` |
 | `worktree-id` | Worktree ID (0 for main branch) | `1` |
 | `worktree-dir` | Worktree directory name | `task-1` |
+| `worktree-path` | Worktree directory full path | `/Users/me/work/myapp/worktrees/task-1` |
 | `branch` | Current branch name | `feature/login` |
 
 ## Use Cases
@@ -65,11 +66,12 @@ Display all information with colors and labels for easy reading.
 
 ```bash
 $ colyn info
-📁 Project:      myapp
-📂 Project Path: /Users/me/work/myapp
-🔢 Worktree ID:  1
-📁 Worktree Dir: task-1
-🌿 Branch:       feature/login
+📁 Project:       myapp
+📂 Project Path:  /Users/me/work/myapp
+🔢 Worktree ID:   1
+📁 Worktree Dir:  task-1
+📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1
+🌿 Branch:        feature/login
 ```
 
 ### 3. Get Single Field
@@ -82,6 +84,9 @@ feature/login
 
 $ colyn info --field=project-path
 /Users/me/work/myapp
+
+$ colyn info -f worktree-path
+/Users/me/work/myapp/worktrees/task-1
 ```
 
 ### 4. Get Multiple Fields

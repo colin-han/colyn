@@ -27,6 +27,7 @@ colyn info [选项]
 | `project-path` | 项目根目录路径 | `/Users/me/work/myapp` |
 | `worktree-id` | worktree ID（主分支为 0） | `1` |
 | `worktree-dir` | worktree 目录名 | `task-1` |
+| `worktree-path` | worktree 目录完整路径 | `/Users/me/work/myapp/worktrees/task-1` |
 | `branch` | 当前分支名称 | `feature/login` |
 
 ## 使用场景
@@ -65,11 +66,12 @@ my-folder
 
 ```bash
 $ colyn info
-📁 Project:      myapp
-📂 Project Path: /Users/me/work/myapp
-🔢 Worktree ID:  1
-📁 Worktree Dir: task-1
-🌿 Branch:       feature/login
+📁 Project:       myapp
+📂 Project Path:  /Users/me/work/myapp
+🔢 Worktree ID:   1
+📁 Worktree Dir:  task-1
+📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1
+🌿 Branch:        feature/login
 ```
 
 ### 3. 获取单个字段
@@ -82,6 +84,9 @@ feature/login
 
 $ colyn info --field=project-path
 /Users/me/work/myapp
+
+$ colyn info -f worktree-path
+/Users/me/work/myapp/worktrees/task-1
 ```
 
 ### 4. 获取多个字段

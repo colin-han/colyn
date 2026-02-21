@@ -606,6 +606,7 @@ Or force delete:
       labelProjectPath: 'Project Path:',
       labelWorktreeId: 'Worktree ID:',
       labelWorktreeDir: 'Worktree Dir:',
+      labelWorktreePath: 'Worktree Path:',
       labelBranch: 'Branch:',
       labelRepository: 'Repository:',
       labelRepositoryPath: 'Repo Path:',
