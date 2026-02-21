@@ -812,6 +812,14 @@ Solution:
       switchedSession: 'Switched to session "{{sessionName}}"',
       switchSessionFailed: 'Failed to switch session',
       attachingSession: 'Attaching to session "{{sessionName}}"...',
+      passthroughNotEnabled: 'tmux allow-passthrough is not enabled',
+      passthroughDescription: 'When enabled, colyn can automatically update iTerm2 tab titles even when pane 0 is running Claude or other interactive programs',
+      passthroughConfirm: 'Would you like to enable allow-passthrough in your tmux config?',
+      passthroughSkipped: 'Skipped. Continuing (iTerm2 tab titles may not update when pane 0 is busy)',
+      passthroughUnsupported: 'Your tmux version does not support allow-passthrough (requires tmux 3.3+). iTerm2 tab titles may not update when pane 0 is busy',
+      passthroughAdded: 'Added allow-passthrough setting to {{configPath}}',
+      passthroughReloadHint: 'Please reload your tmux config:\n  tmux source-file {{configPath}}',
+      passthroughRerunHint: 'After reloading, run colyn tmux start again',
     },
 
     // list-project command

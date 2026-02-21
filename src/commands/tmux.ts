@@ -7,6 +7,9 @@
 import { Command } from 'commander';
 import enquirer from 'enquirer';
 import ora from 'ora';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 import { t } from '../i18n/index.js';
 import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
@@ -23,7 +26,8 @@ import {
   renameWindow,
   switchClient,
   killSession,
-  detachClient
+  detachClient,
+  checkAllowPassthrough
 } from '../core/tmux.js';
 import {
   loadTmuxConfigForBranch,
@@ -302,6 +306,107 @@ function displayRepairSummary(tmuxResult: TmuxRepairResult): void {
 }
 
 /**
+ * 查找 tmux 配置文件路径
+ * 按优先级：~/.tmux.conf > ~/.config/tmux/tmux.conf
+ * 如果都不存在，返回 ~/.tmux.conf（默认创建路径）
+ */
+async function findTmuxConfigPath(): Promise<string> {
+  const homeDir = os.homedir();
+  const candidates = [
+    path.join(homeDir, '.tmux.conf'),
+    path.join(homeDir, '.config', 'tmux', 'tmux.conf')
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // 文件不存在，继续尝试下一个
+    }
+  }
+
+  return candidates[0];
+}
+
+/**
+ * 向 tmux 配置文件添加 allow-passthrough on 设置
+ */
+async function addAllowPassthroughToConfig(configPath: string): Promise<void> {
+  let content = '';
+  try {
+    content = await fs.readFile(configPath, 'utf-8');
+  } catch {
+    // 文件不存在，从空文件开始
+  }
+
+  const lines = content.split('\n');
+  const existingLineIndex = lines.findIndex(line =>
+    /^\s*set\s+(-g\s+)?allow-passthrough/.test(line)
+  );
+
+  if (existingLineIndex !== -1) {
+    lines[existingLineIndex] = 'set -g allow-passthrough on';
+    content = lines.join('\n');
+  } else {
+    const separator = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
+    content = content + separator + 'set -g allow-passthrough on\n';
+  }
+
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, content, 'utf-8');
+}
+
+/**
+ * 检查并提示用户配置 allow-passthrough
+ * @returns true 表示可继续执行，false 表示已修改配置需用户重新加载后退出
+ */
+async function checkAndConfigureAllowPassthrough(): Promise<boolean> {
+  const status = checkAllowPassthrough();
+
+  if (status === 'on') {
+    return true;
+  }
+
+  if (status === 'unsupported') {
+    outputWarning(t('commands.tmux.passthroughUnsupported'));
+    return true;
+  }
+
+  // status === 'off'
+  outputLine();
+  output(t('commands.tmux.passthroughNotEnabled'));
+  output(t('commands.tmux.passthroughDescription'));
+  outputLine();
+
+  const { confirmed } = await enquirer.prompt<{ confirmed: boolean }>({
+    type: 'confirm',
+    name: 'confirmed',
+    message: t('commands.tmux.passthroughConfirm'),
+    initial: true,
+    stdout: process.stderr
+  });
+
+  if (!confirmed) {
+    output(t('commands.tmux.passthroughSkipped'));
+    outputLine();
+    return true;
+  }
+
+  const configPath = await findTmuxConfigPath();
+  await addAllowPassthroughToConfig(configPath);
+
+  outputLine();
+  outputSuccess(t('commands.tmux.passthroughAdded', { configPath }));
+  outputLine();
+  output(t('commands.tmux.passthroughReloadHint', { configPath }));
+  output(t('commands.tmux.passthroughRerunHint'));
+  outputLine();
+
+  return false;
+}
+
+/**
  * tmux start 命令主函数
  */
 async function tmuxStartCommand(): Promise<void> {
@@ -312,6 +417,13 @@ async function tmuxStartCommand(): Promise<void> {
         t('commands.tmux.notInstalled'),
         t('commands.tmux.installHint')
       );
+    }
+
+    // 检查并配置 allow-passthrough（仅在 tmux 可用时进行）
+    const shouldContinue = await checkAndConfigureAllowPassthrough();
+    if (!shouldContinue) {
+      outputResult({ success: true });
+      return;
     }
 
     // 1. 获取项目路径
