@@ -851,6 +851,14 @@ Solution:
     autoMigrated: 'ℹ Auto-configured toolchain plugins: {{plugins}}',
     autoMigratedNone: 'ℹ Toolchain configured (no matching plugins detected)',
     autoMigratedHint: 'To change, edit the plugins field in .colyn/settings.json',
+    xcode: {
+      autoSelectedScheme: 'Auto-selected scheme: {{scheme}}',
+      noSharedSchemes: 'No shared scheme found, please enter manually',
+      selectScheme: 'Select Xcode scheme',
+      inputScheme: 'Enter scheme name (view in Xcode → Product → Scheme)',
+      inferredDestination: 'Inferred target platform: {{destination}}',
+      selectDestination: 'Select target platform',
+    },
   },
 
   // Errors

@@ -1,7 +1,8 @@
 # Xcode 插件设计文档（草案）
 
-**状态**：设计阶段（草案）
+**状态**：已实现
 **创建时间**：2026-02-22
+**实现文件**：`src/plugins/builtin/xcode.ts`
 **相关文档**：`docs/design-plugin-toolchain.md`
 
 ---
