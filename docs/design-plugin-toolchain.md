@@ -141,25 +141,14 @@ export interface ToolchainPlugin {
   // ════════════════════════════════════════════
 
   /**
-   * 项目初始化操作
+   * 返回运行时配置文件名
    *
-   * 触发场景：
-   * - `colyn init`：初始化新项目时调用
-   * - `colyn repair`：修复/重新初始化时调用
+   * colyn 会确保该文件名被添加到 .gitignore。
+   * 返回 null 表示该工具链无运行时配置文件需要忽略。
    *
-   * 用于一次性的项目级配置，例如：
-   * - 更新 .gitignore 排除本地配置文件
-   * - 创建配置文件模板
-   *
-   * 不实现此方法则跳过初始化步骤。
-   *
-   * **失败处理**：初始化操作失败时，插件必须抛出 `PluginCommandError`，
-   * 并在 `output` 字段中包含错误详情。
-   *
-   * @param worktreePath 执行初始化的目录路径
-   * @throws {PluginCommandError} 初始化失败时，output 包含错误详情
+   * @returns 文件名（如 '.env.local'、'application-local.properties'），或 null
    */
-  init?(worktreePath: string): Promise<void>;
+  getRuntimeConfigFileName?(): string | null;
 
   // ════════════════════════════════════════════
   // 工具链信息（供其他插件查询，如 terminal session 插件）
@@ -251,7 +240,7 @@ export interface ToolchainPlugin {
 
 ### 2.2 设计原则
 
-1. **直接执行**：操作类方法（`init`、`install`、`lint`、`build`、`bumpVersion`）由插件自行执行，失败时抛出异常，colyn 捕获后显示错误并终止当前命令
+1. **直接执行**：操作类方法（`install`、`lint`、`build`、`bumpVersion`）由插件自行执行，失败时抛出异常，colyn 捕获后显示错误并终止当前命令
 2. **可选扩展点**：所有方法均为可选，插件只需实现关心的部分
 3. **路径由插件决定**：`readRuntimeConfig` 和 `writeRuntimeConfig` 均接收 `worktreePath`，由插件自行推断应读写哪个配置文件（npm 插件用 `.env.local`，maven 插件用 `application-local.properties`）
 4. **阶段失败语义**：lint 失败、build 失败均会阻止后续步骤
@@ -260,6 +249,7 @@ export interface ToolchainPlugin {
 7. **插件自主读配置**：`install` 等需要 npm/yarn/pnpm 命令的方法，由插件自行读取 `.colyn/settings.json` 获取 `systemCommands.npm` 配置
 8. **工具链信息分离**：`devServerCommand` 只返回命令数组，不执行——执行职责留给 terminal session 插件
 9. **结构化失败信息**：lint / build 失败时抛出 `PluginCommandError`，`output` 字段携带命令的完整输出；所有 colyn 命令支持 `-v` / `--verbose` 选项，开启后在失败时展示详情
+10. **gitignore 由调用方统一管理**：插件通过 `getRuntimeConfigFileName()` 声明运行时配置文件名，由 `PluginManager.ensureRuntimeConfigIgnored()` 统一负责将其加入 `.gitignore`，插件无需自行操作文件系统
 
 ---
 
@@ -273,7 +263,7 @@ export interface ToolchainPlugin {
 |--------|------|
 | `detect` | 检查 `package.json` 存在 |
 | `portConfig` | `{ key: 'PORT', defaultPort: 3000 }` |
-| `init` | 在 `{worktreePath}/.gitignore` 中添加 `.env.local`，防止本地配置被提交 |
+| `getRuntimeConfigFileName` | 返回 `'.env.local'`（由 colyn 确保加入 `.gitignore`） |
 | `readRuntimeConfig` | 从 `{worktreePath}/.env.local` 解析 dotenv 格式 |
 | `writeRuntimeConfig` | 写入 `{worktreePath}/.env.local`，保留注释 |
 | `devServerCommand` | 读取 `package.json` 的 `scripts.dev`，返回 `[npmCmd, 'run', 'dev']` 或 null |
@@ -292,7 +282,7 @@ export interface ToolchainPlugin {
 |--------|------|
 | `detect` | 检查 `pom.xml` 存在 |
 | `portConfig` | `{ key: 'server.port', defaultPort: 8080 }` |
-| `init` | 在 `{worktreePath}/.gitignore` 中添加 `application-local.*`，防止本地配置被提交 |
+| `getRuntimeConfigFileName` | 返回 `'application-local.properties'`（由 colyn 确保加入 `.gitignore`） |
 | `readRuntimeConfig` | 按顺序读取 `{worktreePath}/src/main/resources/application-local.properties` 和 `application-local.yaml`（本地 profile），均不存在则回退读取 `application.properties` / `application.yaml` |
 | `writeRuntimeConfig` | 写入 `{worktreePath}/src/main/resources/application-local.properties`（本地 profile，不提交 git） |
 | `devServerCommand` | 返回 `['mvn', 'spring-boot:run']` |
@@ -311,7 +301,7 @@ export interface ToolchainPlugin {
 |--------|------|
 | `detect` | 检查 `build.gradle` 或 `build.gradle.kts` 存在 |
 | `portConfig` | `{ key: 'server.port', defaultPort: 8080 }` |
-| `init` | 在 `{worktreePath}/.gitignore` 中添加 `application-local.*`，防止本地配置被提交 |
+| `getRuntimeConfigFileName` | 返回 `'application-local.properties'`（由 colyn 确保加入 `.gitignore`） |
 | `readRuntimeConfig` | 按顺序读取 `{worktreePath}/src/main/resources/application-local.properties` 和 `application-local.yaml`（本地 profile），均不存在则回退读取 `application.properties` / `application.yaml` |
 | `writeRuntimeConfig` | 写入 `{worktreePath}/src/main/resources/application-local.properties`（本地 profile，不提交 git） |
 | `devServerCommand` | 返回 `['./gradlew', 'bootRun']` |
@@ -328,7 +318,7 @@ export interface ToolchainPlugin {
 |--------|------|
 | `detect` | 检查 `requirements.txt` 或 `pyproject.toml` 存在 |
 | `portConfig` | `{ key: 'PORT', defaultPort: 8000 }` |
-| `init` | 在 `{worktreePath}/.gitignore` 中添加 `.env.local`，防止本地配置被提交 |
+| `getRuntimeConfigFileName` | 返回 `'.env.local'`（由 colyn 确保加入 `.gitignore`） |
 | `readRuntimeConfig` | 解析 `{worktreePath}/.env.local` 文件（dotenv 格式） |
 | `writeRuntimeConfig` | 写入 `{worktreePath}/.env.local` 文件 |
 | `devServerCommand` | 检查项目类型：Django → `['python', 'manage.py', 'runserver']`，其他 → null |
@@ -363,12 +353,11 @@ class PluginManager {
   getActive(enabledPluginNames: string[]): ToolchainPlugin[];
 
   /**
-   * 调用所有激活插件的 init（全部执行，任一失败则整体失败）
+   * 确保激活插件的运行时配置文件被 .gitignore 忽略
+   * 调用各插件的 getRuntimeConfigFileName()，幂等地将文件名加入 .gitignore
    * 在 colyn init 和 colyn repair 时调用
-   *
-   * @param verbose 为 true 时，捕获 PluginCommandError 后将 output 展示给用户
    */
-  async runInit(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async ensureRuntimeConfigIgnored(worktreePath: string, activePlugins: ToolchainPlugin[]): Promise<void>;
 
   /**
    * 调用所有激活插件的 readRuntimeConfig（顺序尝试，取第一个非 null 的结果）
@@ -514,9 +503,9 @@ const SettingsSchemaBase = z.object({
   如果返回非 null → 交互式询问用户主分支端口号（默认值取自 portConfig.defaultPort）
   如果返回 null  → 跳过（该工具链不需要端口）
 
-步骤 N+2：插件初始化
-  调用 pluginManager.runInit(worktreePath, activePlugins)
-  例如：maven/gradle 插件在 .gitignore 中添加 application-local.*
+步骤 N+2：确保运行时配置文件被 .gitignore 忽略
+  调用 pluginManager.ensureRuntimeConfigIgnored(worktreePath, activePlugins)
+  各插件通过 getRuntimeConfigFileName() 返回文件名，colyn 统一负责将其加入 .gitignore
 
 步骤 N+3：写入配置文件
   调用 pluginManager.writeRuntimeConfig() 让各插件写入各自格式的配置文件
@@ -737,7 +726,7 @@ src/
 | readRuntimeConfig/writeRuntimeConfig 参数 | 统一传 `worktreePath` | 调用方无需知道配置文件路径，由插件封装 |
 | maven/gradle 本地配置文件 | `application-local.properties`（本地 profile） | 不提交 git；Spring Boot profile 机制覆盖主配置 |
 | maven/gradle 配置格式 | 优先 `.properties`，同时支持 `.yaml` | properties 更简单，yaml 更强大，两种格式均流行 |
-| .gitignore 更新时机 | `init` 扩展点在 `colyn init` / `colyn repair` 时执行 | 与项目初始化绑定，一次性操作，不影响日常 worktree 操作 |
+| .gitignore 更新 | 插件通过 `getRuntimeConfigFileName()` 声明文件名，`PluginManager.ensureRuntimeConfigIgnored()` 统一处理 | 关注点分离——插件只声明文件名，colyn 负责 gitignore 操作，幂等且可重复执行 |
 | lint/build 脚本缺失 | 插件内部静默跳过 | 不是所有项目都配置 lint/build，不应视为错误 |
 | bumpVersion 未实现 | PluginManager 报错终止 release | 版本号更新是 release 必要步骤，不允许无声跳过 |
 | install 读取 npm 命令 | 插件自行读 `.colyn/settings.json` | 避免接口复杂化，插件内部自主获取配置 |
