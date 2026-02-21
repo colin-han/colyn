@@ -393,6 +393,14 @@ export const zhCN = {
       updatingCurrentWorktree: '正在更新当前 worktree...',
       updatingAllWorktrees: '正在更新所有 worktrees...',
       updatePartialSuccess: '⚠ 部分 worktrees 更新失败，请检查上方详情',
+      runningLint: '运行 lint 检查...',
+      lintPassed: 'Lint 检查通过',
+      lintFailed: 'Lint 检查失败',
+      lintFailedHint: '错误: {{error}}',
+      runningBuild: '运行编译检查...',
+      buildPassed: '编译成功',
+      buildFailed: '编译失败',
+      buildFailedHint: '错误: {{error}}',
     },
 
     // update command

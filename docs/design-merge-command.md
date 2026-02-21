@@ -1,7 +1,7 @@
 # Merge 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-15
-**最后更新**：2026-02-10
+**最后更新**：2026-02-21
 **命令名称**：`colyn merge`
 **状态**：✅ 已实现
 
@@ -29,6 +29,7 @@
 - ✅ **简化操作**：一条命令完成合并流程
 - ✅ **智能识别**：支持 ID、分支名、自动识别
 - ✅ **安全检查**：避免错误操作
+- ✅ **代码质量检查**：合并前自动运行 lint 和编译检查，确保代码质量
 - ✅ **线性历史**：默认使用 rebase 产生线性提交历史
 - ✅ **清晰历史**：使用 --no-ff 保持清晰的分支历史
 - ✅ **灵活推送**：可选自动推送或手动推送
@@ -54,8 +55,10 @@ sequenceDiagram
 
     C->>G: 检查主分支工作目录
     C->>G: 检查 worktree 工作目录
+    C->>C: 运行 lint 检查（在 worktree 中）
+    C->>C: 运行编译检查（在 worktree 中）
 
-    alt 工作目录干净
+    alt 工作目录干净且代码质量通过
         C->>U: ✓ 前置检查通过
         C->>G: 步骤1: git rebase main (在 worktree 中)
         G->>C: 变基成功
@@ -66,8 +69,8 @@ sequenceDiagram
         C->>G: git push origin main
         G->>C: 推送成功
         C->>U: ✓ 合并完成并已推送到远程！
-    else 工作目录不干净
-        C->>U: ✗ 主分支/Worktree 有未提交更改<br/>请先提交或 stash
+    else 工作目录不干净或代码质量检查失败
+        C->>U: ✗ 主分支/Worktree 有未提交更改 或 Lint/Build 失败<br/>请先修复后重试
     end
 ```
 
@@ -83,6 +86,8 @@ $ colyn merge feature/login
 ✓ 前置检查通过
 ✓ 主分支工作目录干净
 ✓ Worktree 工作目录干净
+✔ Lint 检查通过
+✔ 编译成功
 
 步骤 1/2: 在 worktree 中更新主分支代码
   目录: /path/to/worktrees/task-1
@@ -280,7 +285,15 @@ graph TD
 
     Check4 --> Pass4{干净?}
     Pass4 -->|否| Error4[✗ Worktree 有未提交更改]
-    Pass4 -->|是| Success[✓ 前置检查通过]
+    Pass4 -->|是| Check5[运行 lint 检查]
+
+    Check5 --> Pass5{通过?}
+    Pass5 -->|否| Error5[✗ Lint 检查失败]
+    Pass5 -->|是| Check6[运行编译检查]
+
+    Check6 --> Pass6{通过?}
+    Pass6 -->|否| Error6[✗ 编译失败]
+    Pass6 -->|是| Success[✓ 前置检查通过]
 
     Success --> Merge[执行合并]
 
@@ -288,6 +301,8 @@ graph TD
     style Error2 fill:#ffcccc
     style Error3 fill:#ffcccc
     style Error4 fill:#ffcccc
+    style Error5 fill:#ffcccc
+    style Error6 fill:#ffcccc
     style Success fill:#ccffcc
 ```
 
@@ -299,6 +314,8 @@ graph TD
 | Worktree 是否存在 | 通过 discovery 模块查找 | ID 或分支名不存在，运行 `colyn list` 查看 |
 | 主分支目录状态 | `git status` 是否干净 | 请先提交或 stash 主分支的更改 |
 | Worktree 目录状态 | `git status` 是否干净 | 请先提交 worktree 的更改 |
+| Lint 检查 | 在 worktree 目录运行 lint | 请先修复 lint 错误后再合并 |
+| 编译检查 | 在 worktree 目录运行 build | 请先修复编译错误后再合并 |
 
 ---
 
@@ -430,6 +447,8 @@ graph TD
 ✓ 前置检查通过
 ✓ 主分支工作目录干净
 ✓ Worktree 工作目录干净
+✔ Lint 检查通过
+✔ 编译成功
 切换到主分支目录: ...
 执行合并: git merge --no-ff ...
 ✓ 合并成功！
@@ -457,6 +476,8 @@ graph TD
 | **Worktree 不存在** | ✗ 找不到 worktree<br/>ID "1" 或分支 "feature/login" 不存在<br/>查看已有 worktree: colyn list | 检查 ID 或分支名是否正确<br/>运行 `colyn list` 查看 |
 | **主分支不干净** | ✗ 主分支目录有未提交的更改<br/>主分支目录: /path/to/my-project<br/>查看状态: cd my-project && git status | 提交或 stash 主分支的更改 |
 | **Worktree 不干净** | ✗ Worktree 目录有未提交的更改<br/>Worktree 目录: /path/to/worktrees/task-1<br/>查看状态: cd worktrees/task-1 && git status | 提交 worktree 的更改 |
+| **Lint 检查失败** | ✗ Lint 检查失败<br/>错误: ... | 修复 lint 错误后重试<br/>cd worktrees/task-1 && yarn lint |
+| **编译失败** | ✗ 编译失败<br/>错误: ... | 修复编译错误后重试<br/>cd worktrees/task-1 && yarn build |
 | **合并冲突** | ✗ 合并时发生冲突<br/>冲突文件: ...<br/>解决步骤: ... | 手动解决冲突<br/>不会自动回滚 |
 | **推送失败** | ✗ 推送到远程仓库失败<br/>错误信息: ...<br/>本地合并已完成，可稍后手动推送 | 检查网络和权限<br/>手动推送: cd my-project && git push |
 
@@ -498,6 +519,8 @@ graph TD
 - [ ] 检查 worktree 是否存在，失败时给出清晰提示
 - [ ] 检查主分支工作目录状态，不干净时拒绝合并
 - [ ] 检查 worktree 工作目录状态，不干净时拒绝合并
+- [x] 运行 lint 检查，失败时拒绝合并并显示错误详情
+- [x] 运行编译检查，失败时拒绝合并并显示错误详情
 
 ### 7.3 推送功能
 
@@ -605,6 +628,7 @@ cd my-project && git push origin main
 ✅ **简化操作**：一条命令完成合并
 ✅ **智能识别**：支持三种识别方式
 ✅ **安全检查**：避免错误操作
+✅ **代码质量**：合并前自动运行 lint 和编译检查
 ✅ **清晰历史**：使用 --no-ff 保持分支历史
 ✅ **灵活推送**：支持三种推送模式
 ✅ **保留 worktree**：由用户决定删除时机

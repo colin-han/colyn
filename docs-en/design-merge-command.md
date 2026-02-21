@@ -1,7 +1,7 @@
 # Merge Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-15
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-02-21
 **Command**: `colyn merge`
 **Status**: ✅ Implemented
 
@@ -29,6 +29,7 @@ Provide a simple command that automatically completes all steps of the worktree 
 - ✅ **Simplified Operations**: Complete merge workflow with one command
 - ✅ **Smart Detection**: Support ID, branch name, auto-detection
 - ✅ **Safety Checks**: Prevent erroneous operations
+- ✅ **Code Quality Checks**: Automatically run lint and build before merging to ensure code quality
 - ✅ **Linear History**: Use rebase by default to produce linear commit history
 - ✅ **Clear History**: Use --no-ff to maintain clear branch history
 - ✅ **Flexible Push**: Optional auto-push or manual push
@@ -54,8 +55,10 @@ sequenceDiagram
 
     C->>G: Check main branch working directory
     C->>G: Check worktree working directory
+    C->>C: Run lint check (in worktree)
+    C->>C: Run build check (in worktree)
 
-    alt Working directory clean
+    alt Working directory clean and code quality passed
         C->>U: ✓ Pre-checks passed
         C->>G: Step 1: git rebase main (in worktree)
         G->>C: Rebase successful
@@ -66,8 +69,8 @@ sequenceDiagram
         C->>G: git push origin main
         G->>C: Push successful
         C->>U: ✓ Merge complete and pushed to remote!
-    else Working directory dirty
-        C->>U: ✗ Main branch/Worktree has uncommitted changes<br/>Please commit or stash first
+    else Working directory dirty or code quality check failed
+        C->>U: ✗ Main branch/Worktree has uncommitted changes or Lint/Build failed<br/>Please fix and retry
     end
 ```
 
@@ -83,6 +86,8 @@ Detected worktree:
 ✓ Pre-checks passed
 ✓ Main branch working directory clean
 ✓ Worktree working directory clean
+✔ Lint check passed
+✔ Build succeeded
 
 Step 1/2: Update main branch code in worktree
   Directory: /path/to/worktrees/task-1
@@ -280,7 +285,15 @@ graph TD
 
     Check4 --> Pass4{Clean?}
     Pass4 -->|No| Error4[✗ Worktree has uncommitted changes]
-    Pass4 -->|Yes| Success[✓ Pre-checks passed]
+    Pass4 -->|Yes| Check5[Run lint check]
+
+    Check5 --> Pass5{Passed?}
+    Pass5 -->|No| Error5[✗ Lint check failed]
+    Pass5 -->|Yes| Check6[Run build check]
+
+    Check6 --> Pass6{Passed?}
+    Pass6 -->|No| Error6[✗ Build failed]
+    Pass6 -->|Yes| Success[✓ Pre-checks passed]
 
     Success --> Merge[Execute merge]
 
@@ -288,6 +301,8 @@ graph TD
     style Error2 fill:#ffcccc
     style Error3 fill:#ffcccc
     style Error4 fill:#ffcccc
+    style Error5 fill:#ffcccc
+    style Error6 fill:#ffcccc
     style Success fill:#ccffcc
 ```
 
@@ -299,6 +314,8 @@ graph TD
 | Worktree exists | Find through discovery module | ID or branch name doesn't exist, run `colyn list` |
 | Main directory status | Is `git status` clean | Please commit or stash main branch changes first |
 | Worktree directory status | Is `git status` clean | Please commit worktree changes first |
+| Lint check | Run lint in worktree directory | Please fix lint errors before merging |
+| Build check | Run build in worktree directory | Please fix build errors before merging |
 
 ---
 
@@ -426,6 +443,8 @@ Detected worktree: ...
 ✓ Pre-checks passed
 ✓ Main branch working directory clean
 ✓ Worktree working directory clean
+✔ Lint check passed
+✔ Build succeeded
 Switching to main branch directory: ...
 Executing merge: git merge --no-ff ...
 ✓ Merge successful!
@@ -453,6 +472,8 @@ Next steps:
 | **Worktree doesn't exist** | ✗ Cannot find worktree<br/>ID "1" or branch "feature/login" doesn't exist<br/>View existing worktrees: colyn list | Check ID or branch name<br/>Run `colyn list` |
 | **Main branch dirty** | ✗ Main branch directory has uncommitted changes<br/>Main branch directory: /path/to/my-project<br/>View status: cd my-project && git status | Commit or stash main branch changes |
 | **Worktree dirty** | ✗ Worktree directory has uncommitted changes<br/>Worktree directory: /path/to/worktrees/task-1<br/>View status: cd worktrees/task-1 && git status | Commit worktree changes |
+| **Lint check failed** | ✗ Lint check failed<br/>Error: ... | Fix lint errors and retry<br/>cd worktrees/task-1 && yarn lint |
+| **Build failed** | ✗ Build failed<br/>Error: ... | Fix build errors and retry<br/>cd worktrees/task-1 && yarn build |
 | **Merge conflict** | ✗ Conflict during merge<br/>Conflict files: ...<br/>Resolution steps: ... | Manually resolve conflicts<br/>Won't auto-rollback |
 | **Push failed** | ✗ Failed to push to remote repository<br/>Error message: ...<br/>Local merge complete, can push manually later | Check network and permissions<br/>Manual push: cd my-project && git push |
 
@@ -494,6 +515,8 @@ Next steps:
 - [ ] Check if worktree exists, provide clear message on failure
 - [ ] Check main branch directory status, refuse merge if dirty
 - [ ] Check worktree directory status, refuse merge if dirty
+- [x] Run lint check, refuse merge on failure and display error details
+- [x] Run build check, refuse merge on failure and display error details
 
 ### 7.3 Push Functionality
 
@@ -601,6 +624,7 @@ Related commands (to be implemented):
 ✅ **Simplified Operations**: Complete merge with one command
 ✅ **Smart Detection**: Support three detection methods
 ✅ **Safety Checks**: Prevent erroneous operations
+✅ **Code Quality**: Automatically run lint and build checks before merging
 ✅ **Clear History**: Use --no-ff to maintain branch history
 ✅ **Flexible Push**: Support three push modes
 ✅ **Preserve Worktree**: User decides deletion timing

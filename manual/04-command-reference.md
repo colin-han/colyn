@@ -616,6 +616,8 @@ colyn merge [target] [选项]
 - 主分支工作目录必须干净
 - Worktree 工作目录必须干净
 - `.env.local` 的本地变更不会触发该检查
+- 在 worktree 目录运行 lint 检查，失败则中止
+- 在 worktree 目录运行编译检查，失败则中止
 
 **合并后：**
 - 询问是否推送到远程仓库
@@ -654,6 +656,8 @@ $ colyn merge 1 --push
 ✓ 前置检查通过
 ✓ 主分支工作目录干净
 ✓ Worktree 工作目录干净
+✔ Lint 检查通过
+✔ 编译成功
 
 步骤 1/2: 在 worktree 中更新主分支代码
   目录: /path/to/worktrees/task-1
@@ -716,6 +720,8 @@ $ colyn merge 1 --push
 | Worktree 不存在 | `✗ 找不到 worktree` | 检查 ID 或分支名，运行 `colyn list` 查看 |
 | 主分支不干净 | `✗ 主分支目录有未提交的更改` | 提交或 stash 主分支的更改 |
 | Worktree 不干净 | `✗ Worktree 目录有未提交的更改` | 提交 worktree 的更改 |
+| Lint 检查失败 | `✗ Lint 检查失败` | 修复 lint 错误后重试 |
+| 编译失败 | `✗ 编译失败` | 修复编译错误后重试 |
 | 推送失败 | `✗ 推送到远程仓库失败` | 本地合并已完成，检查网络后手动推送 |
 
 > 说明：`.env.local` 变更不会单独触发“目录不干净”错误。
