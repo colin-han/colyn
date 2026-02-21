@@ -30,6 +30,7 @@ Introduce a **Toolchain Plugin** mechanism to decouple toolchain-specific logic 
 | `maven` | Java Spring Boot / Android, etc. (Maven) | `pom.xml` exists |
 | `gradle` | Java / Kotlin / Android, etc. (Gradle) | `build.gradle` or `build.gradle.kts` exists |
 | `pip` | Python (pip / poetry) | `requirements.txt` or `pyproject.toml` exists |
+| `xcode` | iOS / macOS / tvOS / watchOS native apps | `*.xcworkspace` / `*.xcodeproj` / `Package.swift` exists |
 
 > **Note**: Same language with different build tools (e.g., Maven vs Gradle) are treated as different plugins, since their commands differ entirely.
 

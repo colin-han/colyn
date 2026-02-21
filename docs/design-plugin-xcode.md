@@ -1,4 +1,4 @@
-# Xcode 插件设计文档（草案）
+# Xcode 插件设计文档
 
 **状态**：已实现
 **创建时间**：2026-02-22
@@ -15,9 +15,7 @@ Xcode 是 Apple 平台原生应用（iOS / macOS / tvOS / watchOS）的主要开
 - 项目类型检测策略
 - 各扩展点的实现方案
 - 利用 `repairSettings` 机制解决构建参数问题的思路
-- 尚未解决的设计问题
-
-> **说明**：本文档为草案状态，Xcode 插件尚未实现。实现时需基于本文档讨论确认细节。
+- 各设计问题的最终决策
 
 ---
 
@@ -262,17 +260,17 @@ agvtool new-marketing-version {version}
 
 ---
 
-## 7. 开放设计问题
+## 7. 设计决策记录
 
-以下问题在具体实现时需进一步确认：
+以下问题在实现时已按推荐方案确认：
 
-| 编号 | 问题 | 倾向方案 |
+| 编号 | 问题 | 采用方案 |
 |------|------|----------|
-| Q1 | 没有 shared scheme 时，是提示手动输入还是列出本地 scheme？ | 提示手动输入（本地 scheme 路径因人而异，不可靠） |
-| Q2 | 多 target 项目（App + Extension + Tests）应该构建哪个 scheme？ | 让用户选择（无法自动判断哪个是"主" scheme） |
-| Q3 | `agvtool` 不可用时的降级方案？ | 直接修改 `project.pbxproj` 的 `MARKETING_VERSION` |
-| Q4 | `colyn repair` 重跑时，是否强制重新询问所有参数？ | 否，只询问缺失或检测到变化的参数 |
-| Q5 | CI 环境（nonInteractive=true）无 scheme 时，`build` 是报错还是跳过？ | 静默跳过，避免阻断 CI pipeline |
+| Q1 | 没有 shared scheme 时，是提示手动输入还是列出本地 scheme？ | **提示手动输入**（本地 scheme 路径因人而异，不可靠） |
+| Q2 | 多 target 项目（App + Extension + Tests）应该构建哪个 scheme？ | **让用户选择**（无法自动判断哪个是"主" scheme） |
+| Q3 | `agvtool` 不可用时的降级方案？ | **直接修改 `project.pbxproj` 的 `MARKETING_VERSION`** |
+| Q4 | `colyn repair` 重跑时，是否强制重新询问所有参数？ | **否**，只询问缺失或检测到变化的参数（幂等） |
+| Q5 | CI 环境（nonInteractive=true）无 scheme 时，`build` 是报错还是跳过？ | **静默跳过**，避免阻断 CI pipeline |
 
 ---
 
@@ -280,15 +278,17 @@ agvtool new-marketing-version {version}
 
 ```
 src/plugins/builtin/
-└── xcode.ts    # 待实现（本文档草案确认后）
+└── xcode.ts    # 已实现
 ```
 
 ---
 
-## 9. 实施计划
+## 9. 实施记录
 
-1. 基于本设计文档讨论并确认细节（尤其是 §6 中的开放问题）
-2. 实现 `src/plugins/builtin/xcode.ts`
-3. 注册到 `src/plugins/index.ts`
+✅ 已完成：
+
+1. 实现 `src/plugins/builtin/xcode.ts`（含所有扩展点）
+2. 注册到 `src/plugins/index.ts`
+3. 添加 i18n 翻译（`zh-CN.ts` / `en.ts` 的 `plugins.xcode` 命名空间）
 4. 更新 `docs/design-plugin-toolchain.md` 添加 xcode 插件条目
 5. 更新用户手册 `manual/11-plugin-system.md`

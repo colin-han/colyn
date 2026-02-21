@@ -1,6 +1,6 @@
 # 工具链插件系统
 
-Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Maven/Gradle）、Python 等不同技术栈的项目，自动处理各工具链的差异化操作（依赖安装、Lint 检查、构建、版本号更新等）。
+Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Maven/Gradle）、Python、Apple 平台（Xcode）等不同技术栈的项目，自动处理各工具链的差异化操作（依赖安装、Lint 检查、构建、版本号更新等）。
 
 ---
 
@@ -31,7 +31,7 @@ Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Mave
 
 ### 核心设计原则
 
-- **按工具链划分**：每个插件对应一种构建工具（npm/maven/gradle/pip），而非编程语言
+- **按工具链划分**：每个插件对应一种构建工具（npm/maven/gradle/pip/xcode），而非编程语言
 - **可选扩展点**：每个操作（install/lint/build 等）都是可选的，插件只实现自己支持的功能
 - **静默跳过**：如果工具链没有对应的脚本或工具（如无 lint 脚本），插件自动跳过，不报错
 - **自动检测**：初始化时自动识别项目使用的工具链，无需手动配置
@@ -46,8 +46,9 @@ Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Mave
 | `maven` | Java Spring Boot（Maven） | `pom.xml` 存在 | 8080 |
 | `gradle` | Java / Kotlin / Android（Gradle） | `build.gradle` 或 `build.gradle.kts` 存在 | 8080 |
 | `pip` | Python（pip / poetry） | `requirements.txt` 或 `pyproject.toml` 存在 | 8000 |
+| `xcode` | iOS / macOS / tvOS / watchOS 原生应用 | `*.xcworkspace` / `*.xcodeproj` / `Package.swift` 存在 | 无 |
 
-> **说明**：使用 Maven 和 Gradle 的 Java 项目视为不同插件，因为构建命令完全不同。
+> **说明**：使用 Maven 和 Gradle 的 Java 项目视为不同插件，因为构建命令完全不同。Xcode 插件无端口配置，因为原生 App 不需要 web 端口。
 
 ---
 
@@ -142,6 +143,7 @@ Colyn 自动检查并确保各插件的运行时配置文件被加入 `.gitignor
 | maven | `mvn install -DskipTests` |
 | gradle | `./gradlew build -x test` |
 | pip | `poetry install` 或 `pip install -r requirements.txt` |
+| xcode | 有 `Podfile` → `pod install`；有 `Package.swift` → `swift package resolve`；否则静默跳过 |
 
 **如果依赖安装失败**，会显示错误信息，但 Worktree 已创建完成，用户可以手动安装。
 
@@ -164,6 +166,7 @@ Colyn 自动检查并确保各插件的运行时配置文件被加入 `.gitignor
 | maven | `pom.xml` 配置了 checkstyle 插件 | `mvn checkstyle:check` |
 | gradle | `build.gradle` 配置了 checkstyle | `./gradlew checkstyleMain` |
 | pip | 有 ruff 配置 | `ruff check .`；否则尝试 `flake8` |
+| xcode | 有 `.swiftlint.yml` 且 swiftlint 已安装 | `swiftlint lint` |
 
 #### Build 检查（仅在 `colyn merge` 中执行）
 
@@ -178,6 +181,9 @@ Colyn 自动检查并确保各插件的运行时配置文件被加入 `.gitignor
 | maven | 始终执行 | `mvn package -DskipTests` |
 | gradle | 始终执行 | `./gradlew build` |
 | pip | 不执行（Python 通常无构建步骤） | - |
+| xcode | 已配置 scheme | `xcodebuild -workspace/-project {x} -scheme {s} -destination {d} build` |
+| xcode | 纯 SPM 且无 scheme | `swift build` |
+| xcode | 有 xcodeproj 但未配置 scheme | 静默跳过，提示运行 `colyn repair` |
 
 #### 跳过检查：`--skip-build`
 
@@ -249,6 +255,7 @@ colyn merge -v
 | maven | `pom.xml` 的 `<version>` 标签 | `mvn versions:set -DnewVersion=X.Y.Z` |
 | gradle | `build.gradle` / `build.gradle.kts` 的 `version` | 正则替换 |
 | pip | `pyproject.toml` 或 `setup.py` 的 version | 正则替换 |
+| xcode | `project.pbxproj` 的 `MARKETING_VERSION` | `agvtool new-marketing-version X.Y.Z`；失败时直接修改 `project.pbxproj` |
 
 > **注意**：如果激活的插件没有实现版本更新功能，`colyn release` 会报错终止，因为版本号更新是发布的必要步骤。
 
@@ -332,7 +339,7 @@ colyn release -v
 }
 ```
 
-**可选值**：`"npm"`、`"maven"`、`"gradle"`、`"pip"`，以及任意组合的数组。
+**可选值**：`"npm"`、`"maven"`、`"gradle"`、`"pip"`、`"xcode"`，以及任意组合的数组。
 
 **留空表示不使用任何工具链插件**：
 
@@ -468,6 +475,98 @@ colyn release -v
 | bumpVersion | 有 `setup.py` | 正则替换 `version=...` |
 | devServerCommand | 有 `manage.py`（Django） | `['python', 'manage.py', 'runserver']` |
 | devServerCommand | 其他 | null（不自动启动） |
+
+---
+
+### xcode 插件
+
+**适用范围**：包含 `*.xcworkspace`（排除内部的 `project.xcworkspace`）、`*.xcodeproj` 或 `Package.swift` 的 Apple 平台项目
+
+**端口配置**：无（原生 App 不需要 web 端口）
+
+**配置文件**：无（Xcode 没有标准的运行时配置文件）
+
+**专属配置（pluginSettings.xcode）**：
+
+Xcode 插件需要在 `colyn init` / `colyn repair` 时通过交互式提问收集以下信息，并保存到 `.colyn/settings.json` 的 `pluginSettings.xcode` 字段供 `build` 命令使用：
+
+| 字段 | 说明 | 来源 |
+|------|------|------|
+| `workspace` | `.xcworkspace` 文件名（如 `MyApp.xcworkspace`） | 文件系统扫描 |
+| `project` | `.xcodeproj` 文件名（如 `MyApp.xcodeproj`） | 文件系统扫描 |
+| `scheme` | Xcode scheme 名称 | 自动检测（shared scheme）或用户输入 |
+| `destination` | 构建目标平台字符串 | 从 `SDKROOT` 推断或用户选择 |
+
+**scheme 检测规则**：
+
+- 搜索 `{project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme`（已提交到 git 的 shared scheme）
+- 只有一个 shared scheme → 自动选择
+- 多个 shared scheme → 让用户选择（单选）
+- 没有 shared scheme → 提示用户手动输入（本地 scheme 路径因人而异）
+
+**destination 推断规则**：
+
+| SDKROOT 值 | 推断为 |
+|-----------|--------|
+| `iphoneos` | `generic/platform=iOS Simulator` |
+| `macosx` | `platform=macOS` |
+| `appletvos` | `generic/platform=tvOS Simulator` |
+| `watchos` | `generic/platform=watchOS Simulator` |
+
+无法推断时，会提供常见选项让用户选择。
+
+**详细行为**：
+
+| 操作 | 条件 | 命令 |
+|------|------|------|
+| detect | 始终 | 检测 `.xcworkspace` / `.xcodeproj` / `Package.swift` |
+| portConfig | 始终 | 返回 null（无端口） |
+| getRuntimeConfigFileName | 始终 | 返回 null（无运行时配置文件） |
+| repairSettings | 始终 | 交互式收集 scheme / destination，保存到 pluginSettings.xcode |
+| install | 有 `Podfile` | `pod install` |
+| install | 有 `Package.swift`（无 Podfile） | `swift package resolve` |
+| install | 两者都没有 | 静默跳过 |
+| lint | 有 `.swiftlint.yml` 且 swiftlint 已安装 | `swiftlint lint` |
+| lint | swiftlint 未安装 | 静默跳过（不是错误） |
+| build | 已配置 scheme + workspace | `xcodebuild -workspace {w} -scheme {s} -destination {d} build` |
+| build | 已配置 scheme + project | `xcodebuild -project {p} -scheme {s} -destination {d} build` |
+| build | 未配置 scheme，纯 SPM | `swift build` |
+| build | 未配置 scheme，有 xcodeproj | 静默跳过，提示运行 `colyn repair` |
+| bumpVersion | 始终优先 | `agvtool new-marketing-version X.Y.Z` |
+| bumpVersion | agvtool 失败时 | 正则替换 `project.pbxproj` 的 `MARKETING_VERSION` |
+
+**示例配置（`settings.json`）**：
+
+```json
+{
+  "version": 3,
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "workspace": "MyApp.xcworkspace",
+      "scheme": "MyApp",
+      "destination": "generic/platform=iOS Simulator"
+    }
+  }
+}
+```
+
+**纯 SPM 项目**（无需 scheme 配置）：
+
+```json
+{
+  "version": 3,
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {}
+  }
+}
+```
+
+**注意事项**：
+- `agvtool` 需要项目 Build Settings 中设置 `VERSIONING_SYSTEM = apple-generic`
+- CocoaPods 管理的项目通常有 `.xcworkspace`，应优先使用 workspace 而非 project
+- CI 环境（`nonInteractive=true`）下，如果无法自动推断 scheme，`build` 步骤会静默跳过
 
 ---
 
