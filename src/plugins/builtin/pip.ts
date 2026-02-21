@@ -1,8 +1,8 @@
 /**
- * npm 内置工具链插件
+ * pip 内置工具链插件
  *
- * 支持基于 npm/yarn/pnpm 的 Node.js 项目。
- * 通过检测 package.json 来识别项目类型。
+ * 支持基于 pip / poetry 的 Python 项目。
+ * 通过检测 requirements.txt 或 pyproject.toml 来识别项目类型。
  */
 
 import * as fs from 'fs/promises';
@@ -11,33 +11,32 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
 import { type ToolchainPlugin, type PortConfig, PluginCommandError } from '../../types/plugin.js';
-import { getNpmCommand, getRunCommand } from '../../core/config.js';
-import { extractOutput } from '../utils.js';
+import { extractOutput, addToGitignore } from '../utils.js';
 
 /**
- * 读取 package.json 并解析
+ * 读取 pyproject.toml 内容（若存在）
  */
-async function readPackageJson(worktreePath: string): Promise<Record<string, unknown> | null> {
-  const packageJsonPath = path.join(worktreePath, 'package.json');
+async function readPyprojectToml(worktreePath: string): Promise<string | null> {
   try {
-    const content = await fs.readFile(packageJsonPath, 'utf-8');
-    return JSON.parse(content) as Record<string, unknown>;
+    return await fs.readFile(path.join(worktreePath, 'pyproject.toml'), 'utf-8');
   } catch {
     return null;
   }
 }
 
-export const npmPlugin: ToolchainPlugin = {
-  name: 'npm',
-  displayName: 'Node.js (npm/yarn/pnpm)',
+export const pipPlugin: ToolchainPlugin = {
+  name: 'pip',
+  displayName: 'Python (pip/poetry)',
 
   // ────────────────────────────────────────
   // 检测
   // ────────────────────────────────────────
 
   detect(worktreePath: string): boolean {
-    const packageJsonPath = path.join(worktreePath, 'package.json');
-    return fsSync.existsSync(packageJsonPath);
+    return (
+      fsSync.existsSync(path.join(worktreePath, 'requirements.txt')) ||
+      fsSync.existsSync(path.join(worktreePath, 'pyproject.toml'))
+    );
   },
 
   // ────────────────────────────────────────
@@ -45,14 +44,11 @@ export const npmPlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   portConfig(): PortConfig {
-    return {
-      key: 'PORT',
-      defaultPort: 3000,
-    };
+    return { key: 'PORT', defaultPort: 8000 };
   },
 
   // ────────────────────────────────────────
-  // 运行时配置（.env.local）
+  // 运行时配置（.env.local，dotenv 格式）
   // ────────────────────────────────────────
 
   async readRuntimeConfig(worktreePath: string): Promise<Record<string, string> | null> {
@@ -72,13 +68,12 @@ export const npmPlugin: ToolchainPlugin = {
     try {
       existingContent = await fs.readFile(envLocalPath, 'utf-8');
     } catch {
-      // 文件不存在，写入新内容
       const lines = Object.entries(config).map(([k, v]) => `${k}=${v}`);
       await fs.writeFile(envLocalPath, lines.join('\n') + '\n', 'utf-8');
       return;
     }
 
-    // 保留注释，逐行更新
+    // 保留注释，更新已有 key，追加新 key
     const lines = existingContent.split('\n');
     const result: string[] = [];
     const updatedKeys = new Set<string>();
@@ -103,7 +98,6 @@ export const npmPlugin: ToolchainPlugin = {
       }
     }
 
-    // 追加新增的 key
     for (const [key, value] of Object.entries(config)) {
       if (!updatedKeys.has(key)) {
         result.push(`${key}=${value}`);
@@ -118,18 +112,12 @@ export const npmPlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async devServerCommand(worktreePath: string): Promise<string[] | null> {
-    const pkg = await readPackageJson(worktreePath);
-    if (!pkg) return null;
-
-    const scripts = pkg.scripts as Record<string, string> | undefined;
-    if (!scripts?.dev) return null;
-
-    const npmCmd = await getNpmCommand();
-    // npm -> ['npm', 'run', 'dev']; yarn/pnpm -> ['yarn', 'dev'] / ['pnpm', 'dev']
-    if (npmCmd === 'npm') {
-      return ['npm', 'run', 'dev'];
+    // Django 项目：存在 manage.py
+    const managePy = path.join(worktreePath, 'manage.py');
+    if (fsSync.existsSync(managePy)) {
+      return ['python', 'manage.py', 'runserver'];
     }
-    return [npmCmd, 'dev'];
+    return null;
   },
 
   // ────────────────────────────────────────
@@ -137,25 +125,12 @@ export const npmPlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async init(worktreePath: string): Promise<void> {
-    const gitignorePath = path.join(worktreePath, '.gitignore');
-
-    let content = '';
-    try {
-      content = await fs.readFile(gitignorePath, 'utf-8');
-    } catch {
-      // 文件不存在，将创建新的
-    }
-
-    // 如果已经有 .env.local 或 *.local 规则，则跳过
-    if (content.includes('.env.local') || content.includes('*.local')) {
-      return;
-    }
-
-    const newContent = content.trim()
-      ? `${content}\n\n# Environment files\n.env.local\n`
-      : '# Environment files\n.env.local\n';
-
-    await fs.writeFile(gitignorePath, newContent, 'utf-8');
+    await addToGitignore(
+      worktreePath,
+      '.env.local',
+      ['.env.local', '*.local'],
+      'Environment files'
+    );
   },
 
   // ────────────────────────────────────────
@@ -163,63 +138,87 @@ export const npmPlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async install(worktreePath: string): Promise<void> {
-    const npmCmd = await getNpmCommand();
+    const hasPyproject = fsSync.existsSync(path.join(worktreePath, 'pyproject.toml'));
+    const cmd = hasPyproject ? 'poetry install' : 'pip install -r requirements.txt';
     try {
-      execSync(`${npmCmd} install`, {
-        cwd: worktreePath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
+      execSync(cmd, { cwd: worktreePath, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (error) {
-      const output = extractOutput(error);
-      throw new PluginCommandError(`${npmCmd} install failed`, output);
+      throw new PluginCommandError(`${cmd} failed`, extractOutput(error));
     }
   },
 
   async lint(worktreePath: string): Promise<void> {
-    const pkg = await readPackageJson(worktreePath);
-    if (!pkg) return;
+    // 优先检查 ruff
+    const hasRuffToml = fsSync.existsSync(path.join(worktreePath, 'ruff.toml'));
+    const pyproject = await readPyprojectToml(worktreePath);
+    const hasRuffConfig = hasRuffToml || (pyproject !== null && pyproject.includes('[tool.ruff]'));
 
-    const scripts = pkg.scripts as Record<string, string> | undefined;
-    // 没有 lint 脚本则静默跳过
-    if (!scripts?.lint) return;
+    if (hasRuffConfig) {
+      try {
+        execSync('ruff check .', { cwd: worktreePath, stdio: ['ignore', 'pipe', 'pipe'] });
+        return;
+      } catch (error) {
+        throw new PluginCommandError('ruff check failed', extractOutput(error));
+      }
+    }
 
-    const runCmd = await getRunCommand();
+    // 其次尝试 flake8（通过 which 检测是否安装）
     try {
-      execSync(`${runCmd} lint`, {
-        cwd: worktreePath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    } catch (error) {
-      const output = extractOutput(error);
-      throw new PluginCommandError(`${runCmd} lint failed`, output);
+      execSync('which flake8', { stdio: 'ignore' });
+      // flake8 存在，运行它
+      try {
+        execSync('flake8 .', { cwd: worktreePath, stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (error) {
+        throw new PluginCommandError('flake8 failed', extractOutput(error));
+      }
+    } catch {
+      // flake8 不存在，静默跳过
     }
   },
 
-  async build(worktreePath: string): Promise<void> {
-    const pkg = await readPackageJson(worktreePath);
-    if (!pkg) return;
-
-    const scripts = pkg.scripts as Record<string, string> | undefined;
-    // 没有 build 脚本则静默跳过
-    if (!scripts?.build) return;
-
-    const runCmd = await getRunCommand();
-    try {
-      execSync(`${runCmd} build`, {
-        cwd: worktreePath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    } catch (error) {
-      const output = extractOutput(error);
-      throw new PluginCommandError(`${runCmd} build failed`, output);
-    }
-  },
+  // build 不实现，Python 通常无需构建步骤
 
   async bumpVersion(worktreePath: string, version: string): Promise<void> {
-    const packageJsonPath = path.join(worktreePath, 'package.json');
-    const content = await fs.readFile(packageJsonPath, 'utf-8');
-    const pkg = JSON.parse(content) as Record<string, unknown>;
-    pkg.version = version;
-    await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+    const pyprojectContent = await readPyprojectToml(worktreePath);
+
+    if (pyprojectContent !== null) {
+      // 更新 pyproject.toml 中的 version
+      // 支持 [tool.poetry] version = "..." 和 [project] version = "..."
+      const updated = pyprojectContent.replace(
+        /(version\s*=\s*)"[^"]*"/g,
+        `$1"${version}"`
+      );
+      if (updated === pyprojectContent) {
+        throw new PluginCommandError(
+          'Cannot update version in pyproject.toml',
+          'No version = "..." pattern found'
+        );
+      }
+      await fs.writeFile(path.join(worktreePath, 'pyproject.toml'), updated, 'utf-8');
+      return;
+    }
+
+    // 回退到 setup.py
+    const setupPyPath = path.join(worktreePath, 'setup.py');
+    try {
+      const setupContent = await fs.readFile(setupPyPath, 'utf-8');
+      const updated = setupContent.replace(
+        /(version\s*=\s*['"])[^'"]*(['"])/g,
+        `$1${version}$2`
+      );
+      if (updated === setupContent) {
+        throw new PluginCommandError(
+          'Cannot update version in setup.py',
+          'No version = "..." pattern found'
+        );
+      }
+      await fs.writeFile(setupPyPath, updated, 'utf-8');
+    } catch (error) {
+      if (error instanceof PluginCommandError) throw error;
+      throw new PluginCommandError(
+        'Cannot update Python project version',
+        'Neither pyproject.toml nor setup.py found'
+      );
+    }
   },
 };
