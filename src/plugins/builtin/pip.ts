@@ -11,7 +11,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
 import { type ToolchainPlugin, type PortConfig, PluginCommandError } from '../../types/plugin.js';
-import { extractOutput, addToGitignore } from '../utils.js';
+import { extractOutput } from '../utils.js';
 
 /**
  * 读取 pyproject.toml 内容（若存在）
@@ -124,13 +124,8 @@ export const pipPlugin: ToolchainPlugin = {
   // 项目初始化
   // ────────────────────────────────────────
 
-  async init(worktreePath: string): Promise<void> {
-    await addToGitignore(
-      worktreePath,
-      '.env.local',
-      ['.env.local', '*.local'],
-      'Environment files'
-    );
+  getRuntimeConfigFileName(): string {
+    return '.env.local';
   },
 
   // ────────────────────────────────────────

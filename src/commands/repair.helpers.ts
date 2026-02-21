@@ -562,7 +562,7 @@ export async function repairProject(): Promise<void> {
     }).start();
 
     try {
-      await pluginManager.runInit(paths.mainDir, activePlugins);
+      await pluginManager.ensureRuntimeConfigIgnored(paths.mainDir, activePlugins);
       pluginSpinner.succeed(t('commands.repair.pluginsInitialized'));
     } catch {
       // 插件初始化失败不阻断 repair 流程

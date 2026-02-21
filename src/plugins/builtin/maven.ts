@@ -12,7 +12,6 @@ import { execSync } from 'child_process';
 import { type ToolchainPlugin, type PortConfig, PluginCommandError } from '../../types/plugin.js';
 import {
   extractOutput,
-  addToGitignore,
   readSpringRuntimeConfig,
   writeSpringRuntimeConfig,
 } from '../utils.js';
@@ -61,13 +60,8 @@ export const mavenPlugin: ToolchainPlugin = {
   // 项目初始化
   // ────────────────────────────────────────
 
-  async init(worktreePath: string): Promise<void> {
-    await addToGitignore(
-      worktreePath,
-      'application-local.*',
-      ['application-local.'],
-      'Spring Boot local profile (not committed)'
-    );
+  getRuntimeConfigFileName(): string {
+    return 'application-local.properties';
   },
 
   // ────────────────────────────────────────

@@ -136,26 +136,8 @@ export const npmPlugin: ToolchainPlugin = {
   // 项目初始化
   // ────────────────────────────────────────
 
-  async init(worktreePath: string): Promise<void> {
-    const gitignorePath = path.join(worktreePath, '.gitignore');
-
-    let content = '';
-    try {
-      content = await fs.readFile(gitignorePath, 'utf-8');
-    } catch {
-      // 文件不存在，将创建新的
-    }
-
-    // 如果已经有 .env.local 或 *.local 规则，则跳过
-    if (content.includes('.env.local') || content.includes('*.local')) {
-      return;
-    }
-
-    const newContent = content.trim()
-      ? `${content}\n\n# Environment files\n.env.local\n`
-      : '# Environment files\n.env.local\n';
-
-    await fs.writeFile(gitignorePath, newContent, 'utf-8');
+  getRuntimeConfigFileName(): string {
+    return '.env.local';
   },
 
   // ────────────────────────────────────────
