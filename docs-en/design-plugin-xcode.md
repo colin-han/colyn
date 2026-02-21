@@ -1,7 +1,8 @@
-# Xcode Plugin Design Document (Draft)
+# Xcode Plugin Design Document
 
-**Status**: Design Phase (Draft)
+**Status**: Implemented
 **Created**: 2026-02-22
+**Implementation File**: `src/plugins/builtin/xcode.ts`
 **Related Document**: `docs-en/design-plugin-toolchain.md`
 
 ---
@@ -14,9 +15,7 @@ This document records the Xcode plugin design analysis, including:
 - Project type detection strategy
 - Implementation approach for each extension point
 - Using the `repairSettings` mechanism to solve the build parameters problem
-- Unresolved design questions
-
-> **Note**: This document is in draft status; the Xcode plugin has not yet been implemented. Details need to be confirmed based on this document before implementation.
+- Final decisions for each design question
 
 ---
 
@@ -261,17 +260,17 @@ Pure SPM project (no scheme configuration) example:
 
 ---
 
-## 7. Open Design Questions
+## 7. Design Decisions
 
-The following questions need confirmation during implementation:
+The following questions were resolved during implementation using the recommended approaches:
 
-| ID | Question | Preferred Approach |
-|----|----------|-------------------|
-| Q1 | When there are no shared schemes, should we prompt for manual input or list local schemes? | Prompt for manual input (local scheme paths vary by user, unreliable) |
-| Q2 | For multi-target projects (App + Extension + Tests), which scheme to build? | Let user choose (cannot automatically determine which is the "main" scheme) |
-| Q3 | Fallback when `agvtool` is unavailable? | Directly modify `MARKETING_VERSION` in `project.pbxproj` |
-| Q4 | When `colyn repair` re-runs, force re-asking all parameters? | No, only ask for missing or changed parameters |
-| Q5 | In CI (nonInteractive=true) with no scheme available, should `build` error or skip? | Silently skip to avoid blocking CI pipeline |
+| ID | Question | Decision |
+|----|----------|----------|
+| Q1 | When there are no shared schemes, should we prompt for manual input or list local schemes? | **Prompt for manual input** (local scheme paths vary by user, unreliable) |
+| Q2 | For multi-target projects (App + Extension + Tests), which scheme to build? | **Let user choose** (cannot automatically determine which is the "main" scheme) |
+| Q3 | Fallback when `agvtool` is unavailable? | **Directly modify `MARKETING_VERSION` in `project.pbxproj`** |
+| Q4 | When `colyn repair` re-runs, force re-asking all parameters? | **No** — only ask for missing or changed parameters (idempotent) |
+| Q5 | In CI (nonInteractive=true) with no scheme available, should `build` error or skip? | **Silently skip** to avoid blocking CI pipeline |
 
 ---
 
@@ -279,15 +278,17 @@ The following questions need confirmation during implementation:
 
 ```
 src/plugins/builtin/
-└── xcode.ts    # To be implemented (after this draft is confirmed)
+└── xcode.ts    # Implemented
 ```
 
 ---
 
-## 9. Implementation Plan
+## 9. Implementation Record
 
-1. Discuss and confirm details based on this design document (especially the open questions in §7)
-2. Implement `src/plugins/builtin/xcode.ts`
-3. Register in `src/plugins/index.ts`
-4. Update `docs-en/design-plugin-toolchain.md` to add xcode plugin entry
-5. Update user manual `manual/11-plugin-system.md`
+✅ Completed:
+
+1. Implemented `src/plugins/builtin/xcode.ts` (all extension points)
+2. Registered in `src/plugins/index.ts`
+3. Added i18n translations (`zh-CN.ts` / `en.ts` under `plugins.xcode` namespace)
+4. Updated `docs-en/design-plugin-toolchain.md` with xcode plugin entry
+5. Updated user manual `manual/11-plugin-system.md`

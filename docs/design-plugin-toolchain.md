@@ -30,6 +30,7 @@
 | `maven` | Java Spring Boot / Android 等（Maven） | `pom.xml` 存在 |
 | `gradle` | Java / Kotlin / Android 等（Gradle） | `build.gradle` 或 `build.gradle.kts` 存在 |
 | `pip` | Python（pip / poetry） | `requirements.txt` 或 `pyproject.toml` 存在 |
+| `xcode` | iOS / macOS / tvOS / watchOS 原生应用 | `*.xcworkspace` / `*.xcodeproj` / `Package.swift` 存在 |
 
 > **说明**：同一编程语言使用不同构建工具时（如 Maven vs Gradle）视为不同插件，因为工具链命令完全不同。
 
