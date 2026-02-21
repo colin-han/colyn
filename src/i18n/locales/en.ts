@@ -675,9 +675,9 @@ Or force delete:
       updateWorktree: 'WORKTREE: {{old}} → {{new}}',
       updatePort: 'PORT: {{old}} → {{new}}',
       gitRepairDetail: 'Git worktree connections repaired',
-      initializingPlugins: 'Running plugin initialization...',
-      pluginsInitialized: 'Plugin initialization complete',
-      pluginsInitFailed: 'Plugin initialization failed (non-fatal)',
+      initializingPlugins: 'Checking .gitignore rules for runtime config files...',
+      pluginsInitialized: '.gitignore check complete',
+      pluginsInitFailed: '.gitignore check failed (non-fatal)',
     },
 
     // config command

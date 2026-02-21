@@ -65,7 +65,7 @@ async function detectAndInitPlugins(
   const detectedPlugins = await pluginManager.detectPlugins(mainDirPath);
   if (detectedPlugins.length > 0) {
     await savePluginsToSettings(projectRoot, configDirPath, detectedPlugins);
-    await pluginManager.runInit(mainDirPath, detectedPlugins);
+    await pluginManager.ensureRuntimeConfigIgnored(mainDirPath, detectedPlugins);
   }
   return detectedPlugins;
 }

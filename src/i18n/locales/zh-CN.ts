@@ -675,9 +675,9 @@ export const zhCN = {
       updateWorktree: 'WORKTREE: {{old}} → {{new}}',
       updatePort: 'PORT: {{old}} → {{new}}',
       gitRepairDetail: 'Git worktree 连接已修复',
-      initializingPlugins: '运行插件初始化...',
-      pluginsInitialized: '插件初始化完成',
-      pluginsInitFailed: '插件初始化失败（非致命）',
+      initializingPlugins: '检查运行时配置文件的 .gitignore 忽略规则...',
+      pluginsInitialized: '.gitignore 检查完成',
+      pluginsInitFailed: '.gitignore 检查失败（非致命）',
     },
 
     // config command

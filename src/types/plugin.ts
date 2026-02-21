@@ -112,15 +112,14 @@ export interface ToolchainPlugin {
   // ════════════════════════════════════════════
 
   /**
-   * 项目初始化操作
+   * 返回运行时配置文件名
    *
-   * 触发场景：`colyn init` 和 `colyn repair`
-   * 用于一次性的项目级配置（更新 .gitignore 等）。
+   * colyn 会确保该文件名被添加到 .gitignore。
+   * 返回 null 表示该工具链无运行时配置文件需要忽略。
    *
-   * @param worktreePath 执行初始化的目录路径
-   * @throws {PluginCommandError} 初始化失败时，output 包含错误详情
+   * @returns 文件名（如 '.env.local'、'application-local.properties'），或 null
    */
-  init?(worktreePath: string): Promise<void>;
+  getRuntimeConfigFileName?(): string | null;
 
   // ════════════════════════════════════════════
   // 生命周期操作（插件直接执行，失败则抛出 PluginCommandError）
