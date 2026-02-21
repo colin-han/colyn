@@ -438,6 +438,7 @@ graph TD
 | `--no-update` | 否 | 合并后不自动更新当前 worktree | 默认会更新 |
 | `--update-all` | 否 | 合并后更新所有 worktrees | 与 `--no-update` 互斥 |
 | `--no-fetch` | 否 | 跳过从远程拉取主分支最新代码 | 离线工作或无上游时使用 |
+| `--skip-build` | 否 | 跳过 lint 和 build 检查 | 紧急合并或确认代码已检查时使用 |
 
 ### 4.2 系统输出
 

@@ -42,6 +42,7 @@ interface MergeOptions {
   updateAll?: boolean;  // 合并后更新所有 worktrees
   verbose?: boolean;  // 显示详细的步骤信息
   fetch?: boolean;     // 是否 fetch,默认 true
+  skipBuild?: boolean; // 跳过 lint 和 build 检查
 }
 
 /**
@@ -99,24 +100,27 @@ async function mergeCommand(
       throw error;
     }
 
-    // 步骤4.5: Lint 检查
-    const lintSpinner = ora({ text: t('commands.merge.runningLint'), stream: process.stderr }).start();
-    try {
-      await runLintCheck(worktree.path);
-      lintSpinner.succeed(t('commands.merge.lintPassed'));
-    } catch (error) {
-      lintSpinner.fail(t('commands.merge.lintFailed'));
-      throw error;
-    }
+    // 步骤4.5: Lint 和 Build 检查（可通过 --skip-build 跳过）
+    if (options.skipBuild) {
+      output(t('commands.merge.skippingBuild'));
+    } else {
+      const lintSpinner = ora({ text: t('commands.merge.runningLint'), stream: process.stderr }).start();
+      try {
+        await runLintCheck(worktree.path);
+        lintSpinner.succeed(t('commands.merge.lintPassed'));
+      } catch (error) {
+        lintSpinner.fail(t('commands.merge.lintFailed'));
+        throw error;
+      }
 
-    // 步骤4.6: Build 检查
-    const buildSpinner = ora({ text: t('commands.merge.runningBuild'), stream: process.stderr }).start();
-    try {
-      await runBuildCheck(worktree.path);
-      buildSpinner.succeed(t('commands.merge.buildPassed'));
-    } catch (error) {
-      buildSpinner.fail(t('commands.merge.buildFailed'));
-      throw error;
+      const buildSpinner = ora({ text: t('commands.merge.runningBuild'), stream: process.stderr }).start();
+      try {
+        await runBuildCheck(worktree.path);
+        buildSpinner.succeed(t('commands.merge.buildPassed'));
+      } catch (error) {
+        buildSpinner.fail(t('commands.merge.buildFailed'));
+        throw error;
+      }
     }
 
     // 步骤5: 获取主分支名称
@@ -333,6 +337,7 @@ export function register(program: Command): void {
     .option('--update-all', t('commands.merge.updateAllOption'))
     .option('-v, --verbose', t('commands.merge.verboseOption'))
     .option('--no-fetch', t('commands.merge.noFetchOption'))
+    .option('--skip-build', t('commands.merge.skipBuildOption'))
     .action(async (target: string | undefined, options: MergeOptions) => {
       await mergeCommand(target, options);
     });
