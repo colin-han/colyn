@@ -45,6 +45,7 @@ colyn release [version-type] [选项]
 
 **选项：**
 - `--no-update` - 跳过发布后自动更新所有 Worktree
+- `--verbose` / `-v` - install/lint/build 失败时显示完整命令输出
 
 示例：
 ```bash
@@ -55,6 +56,7 @@ colyn release major              # 发布 major 版本并自动更新所有 work
 colyn release 1.2.3              # 发布指定版本并自动更新所有 worktree
 colyn release patch --no-update  # 发布但不更新 worktree
 colyn release --no-update        # 发布 patch 版本但不更新 worktree
+colyn release -v                 # 发布时，失败则显示完整命令输出
 ```
 
 ### 2.2 运行位置规则
@@ -121,13 +123,20 @@ $ colyn release major
 
 - 复用现有发布脚本的检查逻辑（要求工作区干净）
 
-### 5.3 与现有发布脚本一致
+### 5.3 与现有发布脚本一致（插件驱动）
 
-- 安装依赖（使用配置的包管理器命令）
-- 运行 lint / build
-- 更新 `package.json` 版本
-- 创建提交与 tag
-- 推送到远程
+发布流程由工具链插件（`PluginManager`）驱动，根据 `.colyn/settings.json` 中的 `plugins` 字段调用对应实现：
+
+| 步骤 | 插件方法 | npm 实现 | maven/gradle 实现 |
+|------|---------|---------|-----------------|
+| 安装依赖 | `runInstall()` | `yarn install`（或配置的包管理器） | `mvn install -DskipTests` |
+| Lint 检查 | `runLint()` | `yarn lint` | `mvn checkstyle:check`（若有） |
+| 编译检查 | `runBuild()` | `yarn build` | `mvn package -DskipTests` |
+| 更新版本号 | `bumpVersion()` | 更新 `package.json` | `mvn versions:set` |
+| 创建提交与 tag | （通用逻辑） | 与工具链无关 | 与工具链无关 |
+| 推送到远程 | （通用逻辑） | 与工具链无关 | 与工具链无关 |
+
+> **注意**：若项目未配置任何插件（`plugins: []`），则回退到原有的 `yarn install/lint/build` 逻辑（向后兼容）。
 
 ### 5.4 自动更新 Worktree
 

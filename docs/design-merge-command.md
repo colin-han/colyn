@@ -314,8 +314,8 @@ graph TD
 | Worktree 是否存在 | 通过 discovery 模块查找 | ID 或分支名不存在，运行 `colyn list` 查看 |
 | 主分支目录状态 | `git status` 是否干净 | 请先提交或 stash 主分支的更改 |
 | Worktree 目录状态 | `git status` 是否干净 | 请先提交 worktree 的更改 |
-| Lint 检查 | 在 worktree 目录运行 lint | 请先修复 lint 错误后再合并 |
-| 编译检查 | 在 worktree 目录运行 build | 请先修复编译错误后再合并 |
+| Lint 检查（插件驱动） | 根据 `.colyn/settings.json` 中配置的工具链插件运行 lint；使用 `--skip-build` 可跳过 | 请先修复 lint 错误后再合并（使用 `-v` 查看完整输出） |
+| 编译检查（插件驱动） | 根据配置的工具链插件运行 build；使用 `--skip-build` 可跳过 | 请先修复编译错误后再合并（使用 `-v` 查看完整输出） |
 
 ---
 
@@ -439,6 +439,7 @@ graph TD
 | `--update-all` | 否 | 合并后更新所有 worktrees | 与 `--no-update` 互斥 |
 | `--no-fetch` | 否 | 跳过从远程拉取主分支最新代码 | 离线工作或无上游时使用 |
 | `--skip-build` | 否 | 跳过 lint 和 build 检查 | 紧急合并或确认代码已检查时使用 |
+| `--verbose` / `-v` | 否 | lint/build 失败时显示完整命令输出 | 调试 lint/build 错误时使用 |
 
 ### 4.2 系统输出
 

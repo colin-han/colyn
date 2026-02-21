@@ -314,8 +314,8 @@ graph TD
 | Worktree exists | Find through discovery module | ID or branch name doesn't exist, run `colyn list` |
 | Main directory status | Is `git status` clean | Please commit or stash main branch changes first |
 | Worktree directory status | Is `git status` clean | Please commit worktree changes first |
-| Lint check | Run lint in worktree directory | Please fix lint errors before merging |
-| Build check | Run build in worktree directory | Please fix build errors before merging |
+| Lint check | Run lint in worktree directory (plugin-driven; use `--skip-build` to skip, `-v` to see full output) | Please fix lint errors before merging |
+| Build check | Run build in worktree directory (plugin-driven; use `--skip-build` to skip, `-v` to see full output) | Please fix build errors before merging |
 
 ---
 
@@ -435,6 +435,7 @@ Worktree is **not deleted** after successful merge:
 | `--push` | No | Auto push after merge | Mutually exclusive with `--no-push` |
 | `--no-push` | No | Don't push after merge (skip prompt) | Mutually exclusive with `--push` |
 | `--skip-build` | No | Skip lint and build checks | Use for urgent merges or when code is already verified |
+| `--verbose` / `-v` | No | Show full command output when lint/build fails | Use when debugging lint/build errors |
 
 ### 4.2 System Output
 
