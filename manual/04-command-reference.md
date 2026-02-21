@@ -77,6 +77,8 @@ colyn init [选项]
 - 创建目录结构并移动所有文件到主分支目录
 - 如果是 git 仓库，检查工作目录必须干净
 - 配置环境变量和 .gitignore
+- **自动检测工具链插件**（npm / Maven / Gradle / pip），写入 `.colyn/settings.json`
+- 根据检测到的插件运行初始化（写入工具链运行配置、安装依赖等）
 
 #### 3. 已初始化项目（补全模式）
 - 检测缺失的部分并补全
@@ -112,6 +114,7 @@ my-project/                 # 项目根目录
 │   └── ...                # 其他项目文件
 ├── worktrees/             # Worktree 目录（初始为空）
 └── .colyn/                # Colyn 配置目录
+    └── settings.json      # 项目配置（包含 plugins 字段）
 ```
 
 ### 常见错误
@@ -600,6 +603,7 @@ colyn merge [target] [选项]
 | `--update-all` | 合并后更新所有 worktrees |
 | `--no-fetch` | 跳过从远程拉取主分支最新代码 |
 | `--skip-build` | 跳过 lint 和 build 检查 |
+| `--verbose` / `-v` | 显示 lint/build 的完整命令输出（失败时） |
 
 ### 功能说明
 
@@ -617,8 +621,9 @@ colyn merge [target] [选项]
 - 主分支工作目录必须干净
 - Worktree 工作目录必须干净
 - `.env.local` 的本地变更不会触发该检查
-- 在 worktree 目录运行 lint 检查，失败则中止
-- 在 worktree 目录运行编译检查，失败则中止
+- 根据项目配置的工具链插件运行 lint 检查，失败则中止
+- 根据项目配置的工具链插件运行编译检查，失败则中止
+- 使用 `--skip-build` 可跳过 lint 和编译检查；`-v` 可在失败时显示完整输出
 
 **合并后：**
 - 询问是否推送到远程仓库
@@ -1208,7 +1213,12 @@ colyn repair
    - 运行 `git worktree repair` 修复连接
    - 修复主分支与 worktree 的双向连接
 
-4. **孤儿 worktree 目录**
+4. **插件初始化**（非致命）
+   - 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件 init
+   - 例如：修复 `.gitignore` 中的插件条目、恢复工具链配置文件
+   - 失败时仅显示警告，不中断修复流程
+
+5. **孤儿 worktree 目录**
    - 检测路径失效的 worktree（可修复）
    - 检测真孤儿型 worktree（仅报告）
 
@@ -1625,6 +1635,7 @@ colyn release [version-type] [选项]
 | 选项 | 说明 |
 |------|------|
 | `--no-update` | 跳过发布后自动更新所有 worktree |
+| `--verbose` / `-v` | 显示 install/lint/build 的完整命令输出（失败时） |
 
 ### 功能说明
 
