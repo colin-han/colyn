@@ -71,6 +71,22 @@ export class PluginCommandError extends Error {
 }
 
 /**
+ * Context object passed to repairSettings
+ *
+ * Passed to each plugin's repairSettings method during colyn init / colyn repair.
+ */
+export interface RepairSettingsContext {
+  /** Project root directory (parent of .colyn) */
+  projectRoot: string;
+  /** Main branch directory path (contains project source files) */
+  worktreePath: string;
+  /** Currently saved plugin-specific settings (from settings.json pluginSettings[name]) */
+  currentSettings: Record<string, unknown>;
+  /** Whether running in non-interactive mode (e.g., CI environment, cannot show interactive prompts) */
+  nonInteractive: boolean;
+}
+
+/**
  * Toolchain Plugin Interface
  *
  * All methods are optional; plugins only need to implement the extension points they care about.
@@ -148,6 +164,23 @@ export interface ToolchainPlugin {
    * @returns Filename (e.g., '.env.local', 'application-local.properties'), or null
    */
   getRuntimeConfigFileName?(): string | null;
+
+  /**
+   * Check and repair plugin-specific project settings
+   *
+   * Called during `colyn init` and `colyn repair`.
+   * The plugin should scan the project structure and identify required configuration
+   * (e.g., Xcode scheme / destination). If it cannot be auto-detected, the plugin
+   * may interactively prompt the user to fill in the values.
+   * Results are saved by colyn to `.colyn/settings.json` under `pluginSettings[name]`.
+   *
+   * **Typical use case**: The Xcode plugin uses this method to ask the user for
+   * scheme and destination, which are then used by subsequent `build` commands.
+   *
+   * @param context Contains projectRoot, worktreePath, current saved settings, and non-interactive flag
+   * @returns Plugin-specific config key-value pairs (will completely overwrite pluginSettings[name])
+   */
+  repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 
   // ════════════════════════════════════════════
   // Toolchain Info (for other plugins to query, e.g., terminal session plugin)
@@ -239,7 +272,6 @@ export interface ToolchainPlugin {
 ### 2.2 Design Principles
 
 1. **Direct execution**: Operation methods (`install`, `lint`, `build`, `bumpVersion`) are executed directly by the plugin, throwing exceptions on failure
-9. **Structured failure info**: lint / build failures throw `PluginCommandError` carrying the full command output in `output`; all colyn commands support `-v` / `--verbose` to display failure details
 2. **Optional extension points**: All methods are optional; plugins only implement what they need
 3. **Plugin owns path resolution**: Both `readRuntimeConfig` and `writeRuntimeConfig` receive `worktreePath`; the plugin decides which config file to read/write (e.g., npm uses `.env.local`, maven uses `application-local.properties`)
 4. **Phase failure semantics**: lint failure, build failure all block subsequent steps
@@ -247,7 +279,9 @@ export interface ToolchainPlugin {
 6. **Error on missing bumpVersion**: If the active plugin doesn't implement `bumpVersion`, PluginManager throws — version bump is mandatory for release
 7. **Plugin reads own config**: Methods needing npm/yarn/pnpm read `.colyn/settings.json` directly — no need to pass it as parameter
 8. **Toolchain info separation**: `devServerCommand` only returns the command array — execution is terminal session plugin's responsibility
-9. **gitignore managed by caller**: Plugins declare their runtime config filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles adding it to `.gitignore` — plugins do not touch the filesystem for this
+9. **Structured failure info**: lint / build failures throw `PluginCommandError` carrying the full command output in `output`; all colyn commands support `-v` / `--verbose` to display failure details
+10. **gitignore managed by caller**: Plugins declare their runtime config filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles adding it to `.gitignore` — plugins do not touch the filesystem for this
+11. **Plugin-specific config persistence**: Some plugins (e.g., Xcode) require build parameters that cannot be auto-inferred. Plugins use `repairSettings(context)` to identify and interactively collect these settings; `PluginManager.runRepairSettings()` saves them to `settings.json` under `pluginSettings[name]`. Subsequent commands (e.g., `build`) read from `currentSettings` without prompting again
 
 ---
 
@@ -353,6 +387,19 @@ class PluginManager {
   async ensureRuntimeConfigIgnored(worktreePath: string, activePlugins: ToolchainPlugin[]): Promise<void>;
 
   /**
+   * Run repairSettings on all active plugins and save results to settings.json
+   * Each plugin may auto-detect or interactively prompt for required settings;
+   * results are saved to pluginSettings[name]
+   * Called during colyn init and colyn repair
+   */
+  async runRepairSettings(
+    projectRoot: string,
+    worktreePath: string,
+    activePluginNames: string[],
+    nonInteractive?: boolean
+  ): Promise<void>;
+
+  /**
    * Try readRuntimeConfig on active plugins sequentially, return first non-null result
    * Receives worktreePath — each plugin resolves its own config file path
    */
@@ -434,7 +481,7 @@ export const pluginManager = new PluginManager([
 
 ## 5. Config Schema Changes
 
-Add an optional `plugins` field to the existing `Settings` schema:
+Add optional `plugins` and `pluginSettings` fields to the existing `Settings` schema:
 
 ```typescript
 // src/core/config-schema.ts addition
@@ -447,6 +494,11 @@ const SettingsSchemaBase = z.object({
 
   // New: toolchain plugin list
   plugins: z.array(z.string()).optional(),
+  //        ↑ Plugin name list, e.g., ['npm'], ['maven', 'pip']
+
+  // New: plugin-specific settings (written by repairSettings)
+  pluginSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+  //               ↑ { pluginName: { key: value, ... } }
 });
 ```
 
@@ -456,11 +508,18 @@ const SettingsSchemaBase = z.object({
 {
   "version": 3,
   "lang": "zh-CN",
-  "plugins": ["npm"]
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "workspace": "MyApp.xcworkspace",
+      "scheme": "MyApp",
+      "destination": "generic/platform=iOS Simulator"
+    }
+  }
 }
 ```
 
-**Migration note**: `plugins` is an optional field — old configs without it are treated as `undefined`. No Migration needed. Legacy migration is handled via runtime detection (see Section 7).
+**Migration note**: `plugins` and `pluginSettings` are both **optional fields** — old configs without them are treated as `undefined`. No Migration needed. Legacy migration is handled via runtime detection (see Section 7).
 
 ---
 
@@ -486,7 +545,12 @@ Step N+2: Ensure runtime config files are git-ignored
   Call pluginManager.ensureRuntimeConfigIgnored(worktreePath, activePlugins)
   Each plugin declares its filename via getRuntimeConfigFileName(); colyn handles adding it to .gitignore
 
-Step N+3: Write Config Files
+Step N+3: Repair plugin-specific project settings
+  Call pluginManager.runRepairSettings(projectRoot, worktreePath, activePlugins)
+  Each plugin uses repairSettings() to auto-detect or interactively prompt for required settings
+  (e.g., Xcode scheme/destination); results are saved to settings.json under pluginSettings[pluginName]
+
+Step N+4: Write Config Files
   Call pluginManager.writeRuntimeConfig() for each plugin to write their native config format
 ```
 
@@ -693,6 +757,7 @@ src/
 | maven/gradle local config | `application-local.properties` (local profile) | Not committed to git; Spring Boot profile overlays main config |
 | maven/gradle config format | Prefer `.properties`, also support `.yaml` | Properties simpler, yaml more powerful; both formats widely used |
 | .gitignore handling | Plugin declares filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles the update | Separation of concerns — plugin declares intent, colyn handles the file operation; idempotent |
+| Plugin-specific settings | `repairSettings(context)` + `pluginSettings` field mechanism; interactively collected and persisted during init/repair | Solves the problem of parameters requiring user decisions (e.g., xcodebuild); avoids re-prompting on every build |
 | Missing lint/build scripts | Plugin silently skips internally | Not all projects configure lint/build; shouldn't be an error |
 | Missing bumpVersion impl | PluginManager throws, aborts release | Version bump is mandatory for release — silent skip not allowed |
 | install reads npm command | Plugin reads `.colyn/settings.json` directly | Avoids complicating the interface; plugin self-sufficient |
