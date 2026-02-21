@@ -5,12 +5,13 @@
 自动化版本发布流程，包括：
 
 1. ✅ 验证 git 工作区状态（必须干净）
-2. ✅ 运行代码质量检查（lint）
-3. ✅ 编译项目
-4. ✅ 更新 package.json 版本号
-5. ✅ 创建 git commit
-6. ✅ 创建 git tag
-7. ✅ 推送到远程仓库
+2. ✅ 安装依赖（使用配置的包管理器命令）
+3. ✅ 运行代码质量检查（lint）
+4. ✅ 编译项目
+5. ✅ 更新 package.json 版本号
+6. ✅ 创建 git commit
+7. ✅ 创建 git tag
+8. ✅ 推送到远程仓库
 
 ## 使用方法
 
@@ -18,29 +19,16 @@
 
 ```bash
 # 发布补丁版本 (1.2.0 -> 1.2.1)
-volta run yarn release:patch
+colyn release patch
 
 # 发布次版本 (1.2.0 -> 1.3.0)
-volta run yarn release:minor
+colyn release minor
 
 # 发布主版本 (1.2.0 -> 2.0.0)
-volta run yarn release:major
-```
+colyn release major
 
-### 直接运行脚本
-
-```bash
-# 发布补丁版本
-node scripts/release.js patch
-
-# 发布次版本
-node scripts/release.js minor
-
-# 发布主版本
-node scripts/release.js major
-
-# 指定版本号
-node scripts/release.js 1.2.3
+# 发布指定版本号
+colyn release 1.2.3
 ```
 
 ## 版本号规则
@@ -81,7 +69,7 @@ git commit -m "feat: 添加新功能"
 
 ```bash
 # 发布补丁版本
-volta run yarn release:patch
+colyn release patch
 ```
 
 脚本会自动执行以下步骤：
@@ -97,28 +85,30 @@ volta run yarn release:patch
   当前版本: 1.2.0
 新版本: 1.2.0 -> 1.2.1
 
-步骤 3: 运行测试和代码检查
+步骤 3: 安装依赖
+  安装依赖...
+✓ 依赖安装成功
+
+步骤 4: 运行代码检查
   运行 lint...
 ✓ Lint 检查通过
 
-步骤 4: 编译项目
+步骤 5: 编译项目
   运行 build...
 ✓ 编译成功
 
-步骤 5: 更新 package.json
+步骤 6: 更新 package.json
 ✓ 版本号已更新: 1.2.0 -> 1.2.1
 
-步骤 6: 创建 git commit
+步骤 7: 创建 git commit
 ✓ 已创建提交: chore: release v1.2.1
 
-步骤 7: 创建 git tag
+步骤 8: 创建 git tag
 ✓ 已创建标签: v1.2.1
 
-步骤 8: 推送到远程仓库
-  推送提交...
-✓ 已推送提交
-  推送标签...
-✓ 已推送标签
+步骤 9: 推送到远程仓库
+  推送中...
+✓ 已推送到远程仓库
 
 === 发布完成！===
 
@@ -193,11 +183,11 @@ git stash
 
 **解决方案**：
 ```bash
-# 运行 lint 检查
-volta run yarn lint
+# 运行 lint 检查（使用项目配置的包管理器）
+npm run lint
 
 # 自动修复可修复的问题
-volta run yarn lint:fix
+npm run lint:fix
 
 # 手动修复其他问题
 ```

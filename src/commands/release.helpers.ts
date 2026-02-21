@@ -119,6 +119,22 @@ export async function updatePackageVersion(
 }
 
 /**
+ * 运行 install
+ */
+export async function runInstall(dir: string): Promise<void> {
+  try {
+    const npmCommand = await getNpmCommand(dir);
+    execSync(`${npmCommand} install`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new ColynError(
+      t('commands.release.installFailed'),
+      t('commands.release.installFailedHint', { error: errorMessage })
+    );
+  }
+}
+
+/**
  * 运行 lint
  */
 export async function runLint(dir: string): Promise<void> {
@@ -253,47 +269,54 @@ export async function executeRelease(
     new: newVersion
   }));
 
-  // 步骤 3: 运行 lint
+  // 步骤 3: 安装依赖
   outputLine();
   outputBold(t('commands.release.step3'));
+  outputInfo(t('commands.release.runningInstall'));
+  await runInstall(dir);
+  outputSuccess(t('commands.release.installSucceeded'));
+
+  // 步骤 4: 运行 lint
+  outputLine();
+  outputBold(t('commands.release.step4'));
   outputInfo(t('commands.release.runningLint'));
   await runLint(dir);
   outputSuccess(t('commands.release.lintPassed'));
 
-  // 步骤 4: 运行 build
+  // 步骤 5: 运行 build
   outputLine();
-  outputBold(t('commands.release.step4'));
+  outputBold(t('commands.release.step5'));
   outputInfo(t('commands.release.runningBuild'));
   await runBuild(dir);
   outputSuccess(t('commands.release.buildSucceeded'));
 
-  // 步骤 5: 更新 package.json
+  // 步骤 6: 更新 package.json
   outputLine();
-  outputBold(t('commands.release.step5'));
+  outputBold(t('commands.release.step6'));
   const versionInfo = await updatePackageVersion(dir, newVersion);
   outputSuccess(t('commands.release.versionUpdated', {
     old: versionInfo.oldVersion,
     new: versionInfo.newVersion
   }));
 
-  // 步骤 6: 创建 commit
+  // 步骤 7: 创建 commit
   outputLine();
-  outputBold(t('commands.release.step6'));
+  outputBold(t('commands.release.step7'));
   const commitMessage = `chore: release v${newVersion}`;
   await createCommit(dir, commitMessage);
   outputSuccess(t('commands.release.commitCreated', { message: commitMessage }));
 
-  // 步骤 7: 创建 tag
+  // 步骤 8: 创建 tag
   outputLine();
-  outputBold(t('commands.release.step7'));
+  outputBold(t('commands.release.step8'));
   const tagName = `v${newVersion}`;
   const tagMessage = `Release v${newVersion}`;
   await createTag(dir, tagName, tagMessage);
   outputSuccess(t('commands.release.tagCreated', { tag: tagName }));
 
-  // 步骤 8: 推送到远程
+  // 步骤 9: 推送到远程
   outputLine();
-  outputBold(t('commands.release.step8'));
+  outputBold(t('commands.release.step9'));
   outputInfo(t('commands.release.pushing'));
   await pushToRemote(dir, currentBranch, tagName);
   outputSuccess(t('commands.release.pushSucceeded'));

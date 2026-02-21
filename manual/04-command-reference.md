@@ -1629,11 +1629,12 @@ colyn release [version-type] [选项]
 1. 检查当前目录是否有未提交代码
 2. 检查当前分支是否已合并（仅在 worktree 中执行时）
 3. 检查 git 状态（主分支）
-4. 运行 lint 和 build
-5. 更新 package.json 版本
-6. 创建提交与 tag
-7. 推送到远程
-8. **自动更新所有 worktree（除非使用 `--no-update`）**
+4. 安装依赖（使用配置的包管理器命令）
+5. 运行 lint 和 build
+6. 更新 package.json 版本
+7. 创建提交与 tag
+8. 推送到远程
+9. **自动更新所有 worktree（除非使用 `--no-update`）**
 
 ### 运行位置规则
 
@@ -1690,7 +1691,7 @@ $ colyn release --no-update
 
 - 复用现有发布脚本逻辑
 - 无需手动切换到主分支目录
-- 发布流程与 `yarn release:xxx` 保持一致
+- 包管理器命令通过 `colyn config set npm <命令>` 配置（默认 `npm`）
 - 默认自动更新所有 worktree，确保所有开发分支基于最新版本
 - 如果不希望自动更新，使用 `--no-update` 选项
 - **最常用方式**：直接运行 `colyn release` 即可发布 patch 版本

@@ -5,12 +5,13 @@
 Automated version release process, including:
 
 1. ✅ Verify git working directory status (must be clean)
-2. ✅ Run code quality checks (lint)
-3. ✅ Build project
-4. ✅ Update package.json version number
-5. ✅ Create git commit
-6. ✅ Create git tag
-7. ✅ Push to remote repository
+2. ✅ Install dependencies (using the configured package manager command)
+3. ✅ Run code quality checks (lint)
+4. ✅ Build project
+5. ✅ Update package.json version number
+6. ✅ Create git commit
+7. ✅ Create git tag
+8. ✅ Push to remote repository
 
 ## Usage
 
@@ -18,29 +19,16 @@ Automated version release process, including:
 
 ```bash
 # Release patch version (1.2.0 -> 1.2.1)
-volta run yarn release:patch
+colyn release patch
 
 # Release minor version (1.2.0 -> 1.3.0)
-volta run yarn release:minor
+colyn release minor
 
 # Release major version (1.2.0 -> 2.0.0)
-volta run yarn release:major
-```
+colyn release major
 
-### Run Script Directly
-
-```bash
-# Release patch version
-node scripts/release.js patch
-
-# Release minor version
-node scripts/release.js minor
-
-# Release major version
-node scripts/release.js major
-
-# Specify version number
-node scripts/release.js 1.2.3
+# Release specific version
+colyn release 1.2.3
 ```
 
 ## Version Number Rules
@@ -81,7 +69,7 @@ git commit -m "feat: add new feature"
 
 ```bash
 # Release patch version
-volta run yarn release:patch
+colyn release patch
 ```
 
 The script will automatically execute the following steps:
@@ -97,28 +85,30 @@ Step 2: Determine new version number
   Current version: 1.2.0
 New version: 1.2.0 -> 1.2.1
 
-Step 3: Run tests and code checks
+Step 3: Install dependencies
+  Installing dependencies...
+✓ Dependencies installed successfully
+
+Step 4: Run code quality check
   Running lint...
 ✓ Lint check passed
 
-Step 4: Build project
+Step 5: Build project
   Running build...
 ✓ Build successful
 
-Step 5: Update package.json
+Step 6: Update package.json
 ✓ Version updated: 1.2.0 -> 1.2.1
 
-Step 6: Create git commit
+Step 7: Create git commit
 ✓ Created commit: chore: release v1.2.1
 
-Step 7: Create git tag
+Step 8: Create git tag
 ✓ Created tag: v1.2.1
 
-Step 8: Push to remote repository
-  Pushing commits...
-✓ Commits pushed
-  Pushing tags...
-✓ Tags pushed
+Step 9: Push to remote repository
+  Pushing...
+✓ Pushed to remote repository
 
 === Release Complete! ===
 
@@ -193,11 +183,11 @@ git stash
 
 **Solution**:
 ```bash
-# Run lint check
-volta run yarn lint
+# Run lint check (using your configured package manager)
+npm run lint
 
 # Auto-fix fixable issues
-volta run yarn lint:fix
+npm run lint:fix
 
 # Manually fix other issues
 ```

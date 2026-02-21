@@ -112,6 +112,7 @@ $ colyn release major
 
 ### 5.3 Consistency with Existing Script
 
+- Install dependencies (using the configured package manager command)
 - Run lint / build
 - Update `package.json` version
 - Create commit and tag
