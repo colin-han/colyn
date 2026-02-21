@@ -168,7 +168,7 @@ Hints:
       branchNotMerged: 'Branch "{{branch}}" has not been merged to "{{main}}"',
       branchNotMergedHint: 'Please merge the branch to main branch before releasing:\ncolyn merge {{branch}}\n\nOr run release from main branch directory',
       depsNotInstalled: 'Dependencies not installed in main branch directory',
-      depsNotInstalledHint: 'Please install dependencies in main branch directory:\ncd "{{path}}"\nyarn install',
+      depsNotInstalledHint: 'Please install dependencies in main branch directory:\ncd "{{path}}"\n{{npmCommand}} install',
       invalidVersion: 'Invalid version format: {{version}}',
       invalidVersionHint: 'Version format should be: 1.2.3',
       step1: 'Step 1: Check git status',

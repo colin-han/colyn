@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import simpleGit from 'simple-git';
 import { ColynError } from '../types/index.js';
 import {
@@ -10,6 +11,7 @@ import {
   outputInfo
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
+import { getRunCommand, getNpmCommand } from '../core/config.js';
 
 /**
  * 解析后的版本号
@@ -120,10 +122,9 @@ export async function updatePackageVersion(
  * 运行 lint
  */
 export async function runLint(dir: string): Promise<void> {
-  const git = simpleGit(dir);
-
   try {
-    await git.raw(['exec', 'volta', 'run', 'yarn', 'lint']);
+    const runCommand = await getRunCommand(dir);
+    execSync(`${runCommand} lint`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new ColynError(
@@ -137,10 +138,9 @@ export async function runLint(dir: string): Promise<void> {
  * 运行 build
  */
 export async function runBuild(dir: string): Promise<void> {
-  const git = simpleGit(dir);
-
   try {
-    await git.raw(['exec', 'volta', 'run', 'yarn', 'build']);
+    const runCommand = await getRunCommand(dir);
+    execSync(`${runCommand} build`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new ColynError(
@@ -346,6 +346,7 @@ export async function checkDependenciesInstalled(dir: string): Promise<void> {
   const pnpFile = path.join(dir, '.pnp.cjs');
   const pnpMjsFile = path.join(dir, '.pnp.mjs');
   const nodeModulesDir = path.join(dir, 'node_modules');
+  const npmCommand = await getNpmCommand(dir);
 
   try {
     const pnpExists = await fs.access(pnpFile).then(() => true).catch(() => false);
@@ -355,7 +356,7 @@ export async function checkDependenciesInstalled(dir: string): Promise<void> {
     if (!pnpExists && !pnpMjsExists && !nodeModulesExists) {
       throw new ColynError(
         t('commands.release.depsNotInstalled'),
-        t('commands.release.depsNotInstalledHint', { path: dir })
+        t('commands.release.depsNotInstalledHint', { path: dir, npmCommand })
       );
     }
   } catch (error) {
@@ -364,7 +365,7 @@ export async function checkDependenciesInstalled(dir: string): Promise<void> {
     }
     throw new ColynError(
       t('commands.release.depsNotInstalled'),
-      t('commands.release.depsNotInstalledHint', { path: dir })
+      t('commands.release.depsNotInstalledHint', { path: dir, npmCommand })
     );
   }
 }
