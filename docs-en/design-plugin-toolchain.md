@@ -140,25 +140,14 @@ export interface ToolchainPlugin {
   // ════════════════════════════════════════════
 
   /**
-   * Initialize plugin-specific project settings
+   * Return the runtime config filename that should be git-ignored
    *
-   * Triggered in:
-   * - `colyn init`: when initializing a new project
-   * - `colyn repair`: when repairing/re-initializing a project
+   * colyn will ensure this filename is added to .gitignore.
+   * Return null if the toolchain has no runtime config file to ignore.
    *
-   * Used for one-time project-level setup, e.g.:
-   * - Updating .gitignore to exclude local config files
-   * - Creating config file templates
-   *
-   * If not implemented, initialization step is skipped.
-   *
-   * **Failure handling**: On initialization failure, the plugin must throw `PluginCommandError`
-   * with error details in the `output` field.
-   *
-   * @param worktreePath Directory path to initialize (main branch or worktree directory)
-   * @throws {PluginCommandError} on initialization failure, with output containing error details
+   * @returns Filename (e.g., '.env.local', 'application-local.properties'), or null
    */
-  init?(worktreePath: string): Promise<void>;
+  getRuntimeConfigFileName?(): string | null;
 
   // ════════════════════════════════════════════
   // Toolchain Info (for other plugins to query, e.g., terminal session plugin)
@@ -249,7 +238,7 @@ export interface ToolchainPlugin {
 
 ### 2.2 Design Principles
 
-1. **Direct execution**: Operation methods (`init`, `install`, `lint`, `build`, `bumpVersion`) are executed directly by the plugin, throwing exceptions on failure
+1. **Direct execution**: Operation methods (`install`, `lint`, `build`, `bumpVersion`) are executed directly by the plugin, throwing exceptions on failure
 9. **Structured failure info**: lint / build failures throw `PluginCommandError` carrying the full command output in `output`; all colyn commands support `-v` / `--verbose` to display failure details
 2. **Optional extension points**: All methods are optional; plugins only implement what they need
 3. **Plugin owns path resolution**: Both `readRuntimeConfig` and `writeRuntimeConfig` receive `worktreePath`; the plugin decides which config file to read/write (e.g., npm uses `.env.local`, maven uses `application-local.properties`)
@@ -258,6 +247,7 @@ export interface ToolchainPlugin {
 6. **Error on missing bumpVersion**: If the active plugin doesn't implement `bumpVersion`, PluginManager throws — version bump is mandatory for release
 7. **Plugin reads own config**: Methods needing npm/yarn/pnpm read `.colyn/settings.json` directly — no need to pass it as parameter
 8. **Toolchain info separation**: `devServerCommand` only returns the command array — execution is terminal session plugin's responsibility
+9. **gitignore managed by caller**: Plugins declare their runtime config filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles adding it to `.gitignore` — plugins do not touch the filesystem for this
 
 ---
 
@@ -271,7 +261,7 @@ export interface ToolchainPlugin {
 |----------------|----------------|
 | `detect` | Check if `package.json` exists |
 | `portConfig` | `{ key: 'PORT', defaultPort: 3000 }` |
-| `init` | Add `.env.local` to `{worktreePath}/.gitignore` to prevent local config from being committed |
+| `getRuntimeConfigFileName` | Returns `'.env.local'` (colyn ensures it is added to `.gitignore`) |
 | `readRuntimeConfig` | Parse `{worktreePath}/.env.local` (dotenv format) |
 | `writeRuntimeConfig` | Write to `{worktreePath}/.env.local`, preserving comments |
 | `devServerCommand` | Read `package.json` `scripts.dev`, return `[npmCmd, 'run', 'dev']` or null |
@@ -290,7 +280,7 @@ export interface ToolchainPlugin {
 |----------------|----------------|
 | `detect` | Check if `pom.xml` exists |
 | `portConfig` | `{ key: 'server.port', defaultPort: 8080 }` |
-| `init` | Add `application-local.*` to `{worktreePath}/.gitignore` to prevent local config from being committed |
+| `getRuntimeConfigFileName` | Returns `'application-local.properties'` (colyn ensures it is added to `.gitignore`) |
 | `readRuntimeConfig` | Try `{worktreePath}/src/main/resources/application-local.properties` then `application-local.yaml` (local profile); fall back to `application.properties` / `application.yaml` if neither exists |
 | `writeRuntimeConfig` | Write to `{worktreePath}/src/main/resources/application-local.properties` (local profile, git-ignored) |
 | `devServerCommand` | Return `['mvn', 'spring-boot:run']` |
@@ -309,7 +299,7 @@ export interface ToolchainPlugin {
 |----------------|----------------|
 | `detect` | Check if `build.gradle` or `build.gradle.kts` exists |
 | `portConfig` | `{ key: 'server.port', defaultPort: 8080 }` |
-| `init` | Add `application-local.*` to `{worktreePath}/.gitignore` to prevent local config from being committed |
+| `getRuntimeConfigFileName` | Returns `'application-local.properties'` (colyn ensures it is added to `.gitignore`) |
 | `readRuntimeConfig` | Try `{worktreePath}/src/main/resources/application-local.properties` then `application-local.yaml` (local profile); fall back to `application.properties` / `application.yaml` if neither exists |
 | `writeRuntimeConfig` | Write to `{worktreePath}/src/main/resources/application-local.properties` (local profile, git-ignored) |
 | `devServerCommand` | Return `['./gradlew', 'bootRun']` |
@@ -326,7 +316,7 @@ export interface ToolchainPlugin {
 |----------------|----------------|
 | `detect` | Check if `requirements.txt` or `pyproject.toml` exists |
 | `portConfig` | `{ key: 'PORT', defaultPort: 8000 }` |
-| `init` | Add `.env.local` to `{worktreePath}/.gitignore` to prevent local config from being committed |
+| `getRuntimeConfigFileName` | Returns `'.env.local'` (colyn ensures it is added to `.gitignore`) |
 | `readRuntimeConfig` | Parse `{worktreePath}/.env.local` (dotenv format) |
 | `writeRuntimeConfig` | Write to `{worktreePath}/.env.local` |
 | `devServerCommand` | Django → `['python', 'manage.py', 'runserver']`; others → null |
@@ -356,12 +346,11 @@ class PluginManager {
   getActive(enabledPluginNames: string[]): ToolchainPlugin[];
 
   /**
-   * Call init on all active plugins (any failure = overall failure)
+   * Ensure runtime config files of active plugins are git-ignored
+   * Calls getRuntimeConfigFileName() on each plugin and idempotently adds the filename to .gitignore
    * Called during colyn init and colyn repair
-   *
-   * @param verbose When true, display PluginCommandError.output on failure
    */
-  async runInit(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async ensureRuntimeConfigIgnored(worktreePath: string, activePlugins: ToolchainPlugin[]): Promise<void>;
 
   /**
    * Try readRuntimeConfig on active plugins sequentially, return first non-null result
@@ -493,9 +482,9 @@ Step N+1: Port Configuration (conditional)
   If non-null → interactively prompt user for main branch port (default = portConfig.defaultPort)
   If null    → skip (toolchain does not require a port)
 
-Step N+2: Plugin Initialization
-  Call pluginManager.runInit(worktreePath, activePlugins)
-  e.g., maven/gradle plugin adds application-local.* to .gitignore
+Step N+2: Ensure runtime config files are git-ignored
+  Call pluginManager.ensureRuntimeConfigIgnored(worktreePath, activePlugins)
+  Each plugin declares its filename via getRuntimeConfigFileName(); colyn handles adding it to .gitignore
 
 Step N+3: Write Config Files
   Call pluginManager.writeRuntimeConfig() for each plugin to write their native config format
@@ -703,7 +692,7 @@ src/
 | All plugin params | Unified `worktreePath` | Single consistent parameter; caller always passes the target directory |
 | maven/gradle local config | `application-local.properties` (local profile) | Not committed to git; Spring Boot profile overlays main config |
 | maven/gradle config format | Prefer `.properties`, also support `.yaml` | Properties simpler, yaml more powerful; both formats widely used |
-| .gitignore update timing | `init` extension point in `colyn init` / `colyn repair` | One-time setup tied to project initialization |
+| .gitignore handling | Plugin declares filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles the update | Separation of concerns — plugin declares intent, colyn handles the file operation; idempotent |
 | Missing lint/build scripts | Plugin silently skips internally | Not all projects configure lint/build; shouldn't be an error |
 | Missing bumpVersion impl | PluginManager throws, aborts release | Version bump is mandatory for release — silent skip not allowed |
 | install reads npm command | Plugin reads `.colyn/settings.json` directly | Avoids complicating the interface; plugin self-sufficient |

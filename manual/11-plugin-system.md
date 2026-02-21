@@ -67,13 +67,15 @@ Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Mave
 
 如果未能自动识别，会询问用户手动选择。
 
-#### 2. 运行插件初始化
+#### 2. 确保运行时配置文件被 .gitignore 忽略
 
-每个检测到的插件会执行一次性的项目级初始化，例如：
+Colyn 自动检查并确保各插件的运行时配置文件被加入 `.gitignore`：
 
-- **npm 插件**：在 `.gitignore` 中添加 `.env.local`
-- **maven/gradle 插件**：在 `.gitignore` 中添加 `application-local.*`
-- **pip 插件**：在 `.gitignore` 中添加 `.env.local`
+- **npm 插件**：确保 `.env.local` 在 `.gitignore` 中
+- **maven/gradle 插件**：确保 `application-local.properties` 在 `.gitignore` 中
+- **pip 插件**：确保 `.env.local` 在 `.gitignore` 中
+
+此操作是幂等的——如果文件名已在 `.gitignore` 中，不会重复添加。
 
 #### 3. 询问端口号（条件执行）
 
@@ -254,16 +256,16 @@ colyn release -v
 
 ### colyn repair
 
-**修复时**，插件重新执行初始化操作（相当于重新运行 `colyn init` 中的插件初始化步骤）：
+**修复时**，Colyn 重新检查并确保运行时配置文件被 `.gitignore` 正确忽略：
 
 ```
-⠿ 运行插件初始化...
-✔ 插件初始化完成
+⠿ 检查运行时配置文件的 .gitignore 忽略规则...
+✔ .gitignore 检查完成
 ```
 
-**作用**：确保 `.gitignore` 中的忽略规则正确，避免配置文件被意外提交。
+**作用**：确保 `.gitignore` 中的忽略规则存在且完整，避免运行时配置文件（如 `.env.local`）被意外提交。此操作幂等——已存在的规则不会重复添加。
 
-如果插件初始化失败，`colyn repair` 只显示警告，不中断修复流程（非致命）。
+如果检查失败，`colyn repair` 只显示警告，不中断修复流程（非致命）。
 
 ---
 
@@ -347,7 +349,7 @@ colyn release -v
 
 | 操作 | 条件 | 命令 |
 |------|------|------|
-| init | 始终 | 在 `.gitignore` 添加 `.env.local` |
+| getRuntimeConfigFileName | 始终 | 返回 `'.env.local'`（由 colyn 加入 `.gitignore`） |
 | install | 始终 | `<npm/yarn/pnpm> install` |
 | lint | `scripts.lint` 存在 | `<npm/yarn/pnpm> run lint` |
 | build | `scripts.build` 存在 | `<npm/yarn/pnpm> run build` |
@@ -370,7 +372,7 @@ colyn release -v
 
 | 操作 | 条件 | 命令 |
 |------|------|------|
-| init | 始终 | 在 `.gitignore` 添加 `application-local.*` |
+| getRuntimeConfigFileName | 始终 | 返回 `'application-local.properties'`（由 colyn 加入 `.gitignore`） |
 | readRuntimeConfig | 始终 | 按优先级读取：local.properties → local.yaml → application.properties → application.yaml |
 | writeRuntimeConfig | 始终 | 写入 `application-local.properties` |
 | install | 始终 | `mvn install -DskipTests` |
@@ -393,7 +395,7 @@ colyn release -v
 
 | 操作 | 条件 | 命令 |
 |------|------|------|
-| init | 始终 | 在 `.gitignore` 添加 `application-local.*` |
+| getRuntimeConfigFileName | 始终 | 返回 `'application-local.properties'`（由 colyn 加入 `.gitignore`） |
 | readRuntimeConfig | 始终 | 同 maven 插件 |
 | writeRuntimeConfig | 始终 | 写入 `application-local.properties` |
 | install | 始终 | `./gradlew build -x test` |
@@ -416,7 +418,7 @@ colyn release -v
 
 | 操作 | 条件 | 命令 |
 |------|------|------|
-| init | 始终 | 在 `.gitignore` 添加 `.env.local` |
+| getRuntimeConfigFileName | 始终 | 返回 `'.env.local'`（由 colyn 加入 `.gitignore`） |
 | readRuntimeConfig | 始终 | 读取 `.env.local` |
 | writeRuntimeConfig | 始终 | 写入 `.env.local` |
 | install | 有 `pyproject.toml` | `poetry install` |
