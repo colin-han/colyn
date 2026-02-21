@@ -19,12 +19,14 @@ import {
   displayReleaseSuccess,
   displayRollbackCommands
 } from './release.helpers.js';
+import { loadProjectConfig } from '../core/config-loader.js';
 
 /**
  * Release 命令选项
  */
 interface ReleaseOptions {
   noUpdate?: boolean;
+  verbose?: boolean;
 }
 
 /**
@@ -120,13 +122,19 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
       await checkIsGitRepo();
     });
 
-    // 步骤7: 检查主分支目录的依赖是否已安装
-    await checkDependenciesInstalled(paths.mainDir);
+    // 步骤7: 加载激活插件
+    const projectSettings = await loadProjectConfig(paths.rootDir);
+    const activePlugins = projectSettings?.plugins ?? [];
+
+    // 检查主分支目录的依赖是否已安装（无插件时使用旧逻辑）
+    if (activePlugins.length === 0) {
+      await checkDependenciesInstalled(paths.mainDir);
+    }
 
     // 步骤8: 在主分支目录执行发布流程
     let newVersion: string;
     try {
-      newVersion = await executeRelease(paths.mainDir, version);
+      newVersion = await executeRelease(paths.mainDir, version, activePlugins, options.verbose);
     } catch (error) {
       // 如果发布失败，尝试回滚
       if (error instanceof ColynError) {
@@ -167,6 +175,7 @@ export function register(program: Command): void {
     .command('release [version]')
     .description(t('commands.release.description'))
     .option('--no-update', t('commands.release.noUpdateOption'))
+    .option('-v, --verbose', t('commands.release.verboseOption'))
     .action(async (version: string | undefined, options: ReleaseOptions) => {
       await releaseCommand(version, options);
     });

@@ -110,6 +110,8 @@ const SettingsSchemaBase = z.object({
   systemCommands: SystemCommandsSchema.optional(),
   /** tmux 相关配置 */
   tmux: TmuxConfigSchema.optional(),
+  /** 已激活的工具链插件列表，如 ['npm']、['maven'] */
+  plugins: z.array(z.string()).optional(),
 });
 
 /**

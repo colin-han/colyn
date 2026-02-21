@@ -9,11 +9,10 @@ import { detectMainBranch, checkWorkingDirectoryClean } from '../core/git.js';
 import {
   createDirectoryStructure,
   moveFilesToMainDir,
-  configureEnvFile,
-  configureGitignore,
   displaySuccessInfo,
   displayEmptyDirectorySuccess,
-  checkDirectoryConflict
+  checkDirectoryConflict,
+  getPortConfig
 } from './init.helpers.js';
 import {
   output,
@@ -31,6 +30,9 @@ import {
   getWindowName
 } from '../core/tmux.js';
 import { getDevServerCommand } from '../core/dev-server.js';
+import { pluginManager } from '../plugins/index.js';
+import { loadProjectConfig, saveConfigFile } from '../core/config-loader.js';
+import { CURRENT_CONFIG_VERSION } from '../core/config-schema.js';
 
 /**
  * 处理结果接口
@@ -38,6 +40,55 @@ import { getDevServerCommand } from '../core/dev-server.js';
 export interface InitHandlerResult {
   mainDirPath: string;
   mainDirName: string;
+}
+
+/**
+ * 将检测到的插件保存到项目 settings.json
+ */
+async function savePluginsToSettings(projectRoot: string, configDirPath: string, plugins: string[]): Promise<void> {
+  const existing = await loadProjectConfig(projectRoot);
+  const settings = existing ?? { version: CURRENT_CONFIG_VERSION };
+  settings.plugins = plugins;
+  const settingsPath = path.join(configDirPath, 'settings.json');
+  await saveConfigFile(settingsPath, settings);
+}
+
+/**
+ * 检测插件并执行插件初始化（gitignore 等）
+ * @returns 检测到的插件名称列表
+ */
+async function detectAndInitPlugins(
+  mainDirPath: string,
+  projectRoot: string,
+  configDirPath: string
+): Promise<string[]> {
+  const detectedPlugins = await pluginManager.detectPlugins(mainDirPath);
+  if (detectedPlugins.length > 0) {
+    await savePluginsToSettings(projectRoot, configDirPath, detectedPlugins);
+    await pluginManager.runInit(mainDirPath, detectedPlugins);
+  }
+  return detectedPlugins;
+}
+
+/**
+ * 根据插件 portConfig 决定是否询问端口，并写入运行时配置
+ */
+async function configurePortAndEnv(
+  mainDirPath: string,
+  detectedPlugins: string[],
+  options: { port?: string },
+  worktreeLabel: string
+): Promise<number | undefined> {
+  const portConfig = pluginManager.getPortConfig(detectedPlugins);
+  if (!portConfig) return undefined;
+
+  const port = await getPortConfig(options, portConfig.defaultPort);
+  await pluginManager.writeRuntimeConfig(
+    mainDirPath,
+    { [portConfig.key]: port.toString(), WORKTREE: worktreeLabel },
+    detectedPlugins
+  );
+  return port;
 }
 
 /**
@@ -161,7 +212,7 @@ function displayTmuxSetupInfo(result: TmuxSetupResult): void {
  */
 export async function handleEmptyDirectory(
   dirInfo: DirectoryInfo,
-  port: number
+  options: { port?: string }
 ): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
@@ -180,17 +231,17 @@ export async function handleEmptyDirectory(
 
   spinner.succeed(t('commands.init.structureCreated'));
 
-  // 步骤2: 创建 .env.local
-  await configureEnvFile(mainDirPath, port, 'main');
+  // 步骤2: 检测插件并初始化（空目录通常没有插件）
+  const detectedPlugins = await detectAndInitPlugins(mainDirPath, rootDir, configDirPath);
 
-  // 步骤3: 创建 .gitignore
-  await configureGitignore(mainDirPath);
+  // 步骤3: 如果插件有 portConfig，询问端口并写入运行时配置
+  const port = await configurePortAndEnv(mainDirPath, detectedPlugins, options, 'main');
 
   // 步骤4: 设置 tmux 环境
   const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
 
   // 步骤5: 显示成功信息
-  displayEmptyDirectorySuccess(mainDirName, port, mainBranch);
+  displayEmptyDirectorySuccess(mainDirName, port ?? 0, mainBranch);
 
   // 步骤6: 显示 tmux 设置信息
   if (tmuxResult.success) {
@@ -206,7 +257,7 @@ export async function handleEmptyDirectory(
  */
 export async function handleInitializedDirectory(
   dirInfo: DirectoryInfo,
-  port: number
+  options: { port?: string }
 ): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
@@ -238,30 +289,13 @@ export async function handleInitializedDirectory(
     });
   }
 
-  // 检查并补全 .colyn 配置目录（仅目录，不再需要 config.json）
+  // 检查并补全 .colyn 配置目录
   if (!dirInfo.hasConfigDir) {
     tasks.push({
       name: t('commands.init.createConfigDir'),
       action: async () => {
-        const configDirPath = path.join(rootDir, '.colyn');
-        await fs.mkdir(configDirPath, { recursive: true });
-      }
-    });
-  }
-
-  // 如果主分支目录存在，检查环境变量配置
-  if (dirInfo.hasMainDir) {
-    tasks.push({
-      name: t('commands.init.checkEnvLocal'),
-      action: async () => {
-        await configureEnvFile(mainDirPath, port, 'main');
-      }
-    });
-
-    tasks.push({
-      name: t('commands.init.checkGitignore'),
-      action: async () => {
-        await configureGitignore(mainDirPath);
+        const newConfigDirPath = path.join(rootDir, '.colyn');
+        await fs.mkdir(newConfigDirPath, { recursive: true });
       }
     });
   }
@@ -283,6 +317,12 @@ export async function handleInitializedDirectory(
   if (tasks.length === 0) {
     outputInfo(t('commands.init.noCompletionNeeded') + '\n');
   }
+
+  // 检测插件并初始化（gitignore 等）
+  const detectedPlugins = await detectAndInitPlugins(mainDirPath, rootDir, configDirPath);
+
+  // 如果插件有 portConfig，询问端口并写入运行时配置
+  await configurePortAndEnv(mainDirPath, detectedPlugins, options, 'main');
 
   // 设置 tmux 环境（获取主分支名称）
   let mainBranch = 'main';
@@ -308,7 +348,7 @@ export async function handleInitializedDirectory(
  */
 export async function handleExistingProject(
   dirInfo: DirectoryInfo,
-  port: number,
+  options: { port?: string },
   skipConfirm: boolean = false
 ): Promise<InitHandlerResult | null> {
   const rootDir = process.cwd();
@@ -377,12 +417,12 @@ export async function handleExistingProject(
   // 步骤8: 移动文件
   await moveFilesToMainDir(rootDir, mainDirName);
 
-  // 步骤9: 配置环境变量
+  // 步骤9: 检测插件并初始化（含 .gitignore 配置）
   const mainDirPath = path.join(rootDir, mainDirName);
-  await configureEnvFile(mainDirPath, port, 'main');
+  const detectedPlugins = await detectAndInitPlugins(mainDirPath, rootDir, configDirPath);
 
-  // 步骤10: 配置 .gitignore
-  await configureGitignore(mainDirPath);
+  // 步骤10: 如果插件有 portConfig，询问端口并写入运行时配置
+  const port = await configurePortAndEnv(mainDirPath, detectedPlugins, options, 'main');
 
   // 步骤11: 设置 tmux 环境
   const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);

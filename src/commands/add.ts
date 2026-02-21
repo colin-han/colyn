@@ -23,6 +23,8 @@ import {
   configureWorktreeEnv,
   displayAddSuccess
 } from './add.helpers.js';
+import { pluginManager } from '../plugins/index.js';
+import { loadProjectConfig } from '../core/config-loader.js';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -40,6 +42,7 @@ import {
 } from '../core/tmux-config.js';
 import { getRunCommand } from '../core/config.js';
 import chalk from 'chalk';
+import ora from 'ora';
 
 /**
  * tmux 提示文件路径
@@ -248,8 +251,40 @@ async function addCommand(branchName: string): Promise<void> {
       return await createWorktree(paths.rootDir, cleanBranchName, id, projectInfo.worktrees);
     });
 
-    // 步骤9: 配置环境变量
-    await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
+    // 步骤9: 配置环境变量（优先使用插件，回退到原有逻辑）
+    const projectSettings = await loadProjectConfig(paths.rootDir);
+    const activePlugins = projectSettings?.plugins ?? [];
+
+    if (activePlugins.length > 0) {
+      // 读取主分支运行时配置，写入 worktree（更新 PORT 和 WORKTREE）
+      const mainConfig = await pluginManager.readRuntimeConfig(paths.mainDir, activePlugins);
+      if (mainConfig !== null) {
+        const portConfig = pluginManager.getPortConfig(activePlugins);
+        const portKey = portConfig?.key ?? 'PORT';
+        const worktreeConfig: Record<string, string> = {
+          ...mainConfig,
+          [portKey]: port.toString(),
+          WORKTREE: id.toString(),
+        };
+        await pluginManager.writeRuntimeConfig(worktreePath, worktreeConfig, activePlugins);
+      } else {
+        await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
+      }
+    } else {
+      await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
+    }
+
+    // 步骤9.5: 安装依赖
+    if (activePlugins.length > 0) {
+      const installSpinner = ora({ text: t('commands.add.installingDeps'), stream: process.stderr }).start();
+      try {
+        await pluginManager.runInstall(worktreePath, activePlugins);
+        installSpinner.succeed(t('commands.add.depsInstalled'));
+      } catch {
+        installSpinner.warn(t('commands.add.depsInstallFailed'));
+        // install 失败不阻断 add 流程
+      }
+    }
 
     // 步骤10: 计算相对路径并显示成功信息
     const displayPath = path.relative(paths.rootDir, worktreePath);

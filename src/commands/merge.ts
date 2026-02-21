@@ -21,10 +21,10 @@ import {
   displayCheckPassed,
   displayMergeSuccess,
   displayMergeConflict,
-  displayPushFailed,
-  runLintCheck,
-  runBuildCheck
+  displayPushFailed
 } from './merge.helpers.js';
+import { pluginManager } from '../plugins/index.js';
+import { loadProjectConfig } from '../core/config-loader.js';
 import {
   pullMainBranch,
   updateAllWorktrees,
@@ -100,13 +100,17 @@ async function mergeCommand(
       throw error;
     }
 
+    // 加载激活插件
+    const projectSettings = await loadProjectConfig(paths.rootDir);
+    const activePlugins = projectSettings?.plugins ?? [];
+
     // 步骤4.5: Lint 和 Build 检查（可通过 --skip-build 跳过）
     if (options.skipBuild) {
       output(t('commands.merge.skippingBuild'));
     } else {
       const lintSpinner = ora({ text: t('commands.merge.runningLint'), stream: process.stderr }).start();
       try {
-        await runLintCheck(worktree.path);
+        await pluginManager.runLint(worktree.path, activePlugins, options.verbose);
         lintSpinner.succeed(t('commands.merge.lintPassed'));
       } catch (error) {
         lintSpinner.fail(t('commands.merge.lintFailed'));
@@ -115,7 +119,7 @@ async function mergeCommand(
 
       const buildSpinner = ora({ text: t('commands.merge.runningBuild'), stream: process.stderr }).start();
       try {
-        await runBuildCheck(worktree.path);
+        await pluginManager.runBuild(worktree.path, activePlugins, options.verbose);
         buildSpinner.succeed(t('commands.merge.buildPassed'));
       } catch (error) {
         buildSpinner.fail(t('commands.merge.buildFailed'));

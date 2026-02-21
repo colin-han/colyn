@@ -120,6 +120,9 @@ Hints:
       tmuxPaneBash: '  `- Bash         (bottom-right 28%)',
       tmuxHintTitle: 'Hint: Colyn supports tmux integration for a better multi-worktree experience',
       tmuxHintAttach: `  Run 'tmux attach -t {{session}}' to enter tmux environment`,
+      installingDeps: 'Installing project dependencies...',
+      depsInstalled: 'Dependencies installed',
+      depsInstallFailed: 'Failed to install dependencies (you can run install manually)',
     },
 
     // list command
@@ -161,6 +164,7 @@ Hints:
       execFailed: 'Failed to execute release script',
       runInMain: 'Running release script in main branch directory: {{path}}',
       noUpdateOption: 'Skip automatic update of all worktrees',
+      verboseOption: 'Output detailed logs from failed commands',
       updatingWorktrees: 'Updating all worktrees...',
       updateFailed: '⚠ Failed to update worktrees, but release completed successfully',
       currentDirNotClean: 'Current directory has uncommitted changes',

@@ -3,8 +3,7 @@ import { DirectoryStatus, CommandResult } from '../types/index.js';
 import { formatError, outputResult } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import {
-  detectDirectoryStatus,
-  getPortConfig
+  detectDirectoryStatus
 } from './init.helpers.js';
 import {
   handleEmptyDirectory,
@@ -21,23 +20,20 @@ async function initCommand(options: { port?: string; yes?: boolean }): Promise<v
     // 步骤1: 检测目录状态
     const dirInfo = await detectDirectoryStatus();
 
-    // 步骤2: 获取端口配置
-    const port = await getPortConfig(options);
-
-    // 步骤3: 根据目录状态执行不同流程
+    // 步骤2: 根据目录状态执行不同流程（端口配置已移入各 handler，由插件决定）
     let handlerResult: InitHandlerResult | null = null;
 
     switch (dirInfo.status) {
       case DirectoryStatus.Empty:
-        handlerResult = await handleEmptyDirectory(dirInfo, port);
+        handlerResult = await handleEmptyDirectory(dirInfo, options);
         break;
 
       case DirectoryStatus.Initialized:
-        handlerResult = await handleInitializedDirectory(dirInfo, port);
+        handlerResult = await handleInitializedDirectory(dirInfo, options);
         break;
 
       case DirectoryStatus.ExistingProject:
-        handlerResult = await handleExistingProject(dirInfo, port, options.yes || false);
+        handlerResult = await handleExistingProject(dirInfo, options, options.yes || false);
         break;
     }
 
