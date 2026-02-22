@@ -14,7 +14,6 @@ import { checkIsGitRepo } from './add.helpers.js';
 import { executeUpdate } from './update.js';
 import { checkBranchMerged } from './remove.helpers.js';
 import {
-  checkDependenciesInstalled,
   executeRelease,
   displayReleaseSuccess,
   displayRollbackCommands
@@ -125,11 +124,6 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
     // 步骤7: 加载激活插件
     const projectSettings = await loadProjectConfig(paths.rootDir);
     const activePlugins = projectSettings?.plugins ?? [];
-
-    // 检查主分支目录的依赖是否已安装（无插件时使用旧逻辑）
-    if (activePlugins.length === 0) {
-      await checkDependenciesInstalled(paths.mainDir);
-    }
 
     // 步骤8: 在主分支目录执行发布流程
     let newVersion: string;

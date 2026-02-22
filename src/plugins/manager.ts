@@ -261,6 +261,21 @@ export class PluginManager {
   }
 
   /**
+   * 读取当前版本号 — 返回第一个非 null 的结果
+   */
+  async runReadVersion(
+    worktreePath: string,
+    activePluginNames: string[]
+  ): Promise<string | null> {
+    for (const plugin of this.getActivePlugins(activePluginNames)) {
+      if (!plugin.readVersion) continue;
+      const version = await plugin.readVersion(worktreePath);
+      if (version !== null) return version;
+    }
+    return null;
+  }
+
+  /**
    * 运行所有激活插件的 bumpVersion
    * 若已激活插件未实现此方法，则报错终止
    */

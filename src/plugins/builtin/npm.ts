@@ -197,6 +197,12 @@ export const npmPlugin: ToolchainPlugin = {
     }
   },
 
+  async readVersion(worktreePath: string): Promise<string | null> {
+    const pkg = await readPackageJson(worktreePath);
+    if (!pkg) return null;
+    return typeof pkg.version === 'string' ? pkg.version : null;
+  },
+
   async bumpVersion(worktreePath: string, version: string): Promise<void> {
     const packageJsonPath = path.join(worktreePath, 'package.json');
     const content = await fs.readFile(packageJsonPath, 'utf-8');
