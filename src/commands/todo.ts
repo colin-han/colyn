@@ -25,7 +25,9 @@ import {
   saveArchivedTodoFile,
   parseTodoId,
   findTodo,
-  formatTodoTable
+  formatTodoTable,
+  editMessageWithEditor,
+  copyToClipboard
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
 
@@ -41,41 +43,112 @@ function getStatusLabels(): Record<string, string> {
 }
 
 /**
+ * 列出待办任务（默认行为）
+ */
+async function listPendingTodos(configDir: string): Promise<void> {
+  const statusLabels = getStatusLabels();
+  const todoFile = await readTodoFile(configDir);
+  const pending = todoFile.todos.filter(item => item.status === 'pending');
+  if (pending.length === 0) {
+    outputInfo(t('commands.todo.list.empty'));
+    return;
+  }
+  output(formatTodoTable(pending, statusLabels));
+}
+
+/**
  * 注册 todo 命令
  */
 export function register(program: Command): void {
   const todo = program
     .command('todo')
-    .description(t('commands.todo.description'));
+    .description(t('commands.todo.description'))
+    .action(async () => {
+      try {
+        const paths = await getProjectPaths();
+        await validateProjectInitialized(paths);
+        await listPendingTodos(paths.configDir);
+      } catch (error) {
+        formatError(error);
+        process.exit(1);
+      }
+    });
 
-  // todo add <todoId> <message>
+  // todo add [todoId] [message]
   todo
-    .command('add <todoId> <message>')
+    .command('add [todoId] [message]')
     .description(t('commands.todo.add.description'))
-    .action(async (todoId: string, message: string) => {
+    .action(async (todoId: string | undefined, message: string | undefined) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
         let type: string;
         let name: string;
-        try {
-          ({ type, name } = parseTodoId(todoId));
-        } catch {
-          throw new ColynError(t('commands.todo.add.invalidFormat'));
+
+        if (todoId) {
+          try {
+            ({ type, name } = parseTodoId(todoId));
+          } catch {
+            throw new ColynError(t('commands.todo.add.invalidFormat'));
+          }
+        } else {
+          // 交互式选择 type 和输入 name
+          const typeResponse = await prompt<{ type: string }>({
+            type: 'select',
+            name: 'type',
+            message: t('commands.todo.add.selectType'),
+            choices: ['feature', 'bugfix', 'refactor', 'document'],
+            stdout: process.stderr,
+          });
+          type = typeResponse.type;
+
+          const nameResponse = await prompt<{ name: string }>({
+            type: 'input',
+            name: 'name',
+            message: t('commands.todo.add.inputName'),
+            stdout: process.stderr,
+          });
+          name = nameResponse.name.trim();
+
+          if (!name) {
+            throw new ColynError(t('commands.todo.add.emptyName'));
+          }
         }
 
+        const resolvedTodoId = `${type}/${name}`;
         const todoFile = await readTodoFile(paths.configDir);
 
         const existing = findTodo(todoFile.todos, type, name);
         if (existing) {
-          throw new ColynError(t('commands.todo.add.alreadyExists', { todoId }));
+          throw new ColynError(t('commands.todo.add.alreadyExists', { todoId: resolvedTodoId }));
+        }
+
+        let resolvedMessage = message;
+
+        if (!resolvedMessage) {
+          let edited: string | null;
+          try {
+            edited = await editMessageWithEditor(resolvedTodoId);
+          } catch (error) {
+            const editor = error instanceof Error ? error.message : 'vim';
+            throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+          }
+          if (edited === null) {
+            output(chalk.gray(t('commands.todo.add.editorCanceled')));
+            return;
+          }
+          resolvedMessage = edited;
+        }
+
+        if (!resolvedMessage.trim()) {
+          throw new ColynError(t('commands.todo.add.emptyMessage'));
         }
 
         const newTodo: TodoItem = {
           type,
           name,
-          message,
+          message: resolvedMessage,
           status: 'pending',
           createdAt: new Date().toISOString(),
         };
@@ -83,7 +156,7 @@ export function register(program: Command): void {
         todoFile.todos.push(newTodo);
         await saveTodoFile(paths.configDir, todoFile);
 
-        outputSuccess(t('commands.todo.add.success', { todoId, message }));
+        outputSuccess(t('commands.todo.add.success', { todoId: resolvedTodoId, message: resolvedMessage }));
       } catch (error) {
         formatError(error);
         process.exit(1);
@@ -94,7 +167,8 @@ export function register(program: Command): void {
   todo
     .command('start <todoId>')
     .description(t('commands.todo.start.description'))
-    .action(async (todoId: string) => {
+    .option('--no-clipboard', t('commands.todo.start.noClipboardOption'))
+    .action(async (todoId: string, options: { clipboard: boolean }) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
@@ -134,6 +208,21 @@ export function register(program: Command): void {
         await saveTodoFile(paths.configDir, todoFile);
 
         outputSuccess(t('commands.todo.start.success', { todoId }));
+
+        // 输出 message 并复制到剪贴板
+        outputLine();
+        output(chalk.bold(t('commands.todo.start.messageTitle')));
+        output(item.message);
+        outputLine();
+
+        if (options.clipboard) {
+          const copied = copyToClipboard(item.message);
+          if (copied) {
+            outputInfo(t('commands.todo.start.clipboardCopied'));
+          } else {
+            outputInfo(t('commands.todo.start.clipboardFailed'));
+          }
+        }
       } catch (error) {
         formatError(error);
         process.exit(1);
@@ -143,6 +232,7 @@ export function register(program: Command): void {
   // todo list [--completed] [--archived]
   todo
     .command('list')
+    .alias('ls')
     .description(t('commands.todo.list.description'))
     .option('--completed', t('commands.todo.list.completedOption'))
     .option('--archived', t('commands.todo.list.archivedOption'))
@@ -164,20 +254,14 @@ export function register(program: Command): void {
           output(formatTodoTable(todoItems, { ...statusLabels, completed: statusLabels.archived }));
         } else if (options.completed) {
           const todoFile = await readTodoFile(paths.configDir);
-          const completed = todoFile.todos.filter(t => t.status === 'completed');
+          const completed = todoFile.todos.filter(item => item.status === 'completed');
           if (completed.length === 0) {
             outputInfo(t('commands.todo.list.empty'));
             return;
           }
           output(formatTodoTable(completed, statusLabels));
         } else {
-          const todoFile = await readTodoFile(paths.configDir);
-          const pending = todoFile.todos.filter(t => t.status === 'pending');
-          if (pending.length === 0) {
-            outputInfo(t('commands.todo.list.empty'));
-            return;
-          }
-          output(formatTodoTable(pending, statusLabels));
+          await listPendingTodos(paths.configDir);
         }
       } catch (error) {
         formatError(error);

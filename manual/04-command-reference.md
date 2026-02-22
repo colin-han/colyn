@@ -20,6 +20,7 @@
 - [colyn completion](#colyn-completion)
 - [colyn system-integration](#colyn-system-integration)
 - [colyn release](#colyn-release)
+- [colyn todo](#colyn-todo)
 
 ---
 
@@ -1718,6 +1719,267 @@ $ colyn release --no-update
 - 默认自动更新所有 worktree，确保所有开发分支基于最新版本
 - 如果不希望自动更新，使用 `--no-update` 选项
 - **最常用方式**：直接运行 `colyn release` 即可发布 patch 版本
+---
+
+## colyn todo
+
+管理项目的 Todo 任务列表，与并行 Vibe Coding 工作流深度集成。
+
+### 语法
+
+```bash
+colyn todo [子命令] [选项]
+```
+
+不带子命令时等同于 `colyn todo list`，显示所有待办任务。
+
+### 子命令
+
+| 子命令 | 说明 |
+|--------|------|
+| `add [todoId] [message]` | 添加 Todo 任务 |
+| `start <todoId>` | 开始执行任务（创建分支 + 复制描述到剪贴板） |
+| `list` / `ls` | 列出任务（默认显示待办） |
+| `remove <todoId>` | 删除任务 |
+| `archive` | 归档所有已完成任务 |
+| `uncomplete [todoId]` | 将已完成任务回退为待办 |
+
+### Todo ID 格式
+
+Todo ID 采用 `{type}/{name}` 格式，与 Git 分支名一致：
+
+```
+feature/login
+bugfix/fix-crash
+refactor/auth-module
+document/api-guide
+```
+
+**支持的类型**：`feature` / `bugfix` / `refactor` / `document`
+
+---
+
+### colyn todo add
+
+添加新的待办任务。所有参数均为可选，无参数时进入完全交互式模式。
+
+#### 语法
+
+```bash
+colyn todo add [todoId] [message]
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|------|------|
+| `todoId` | Todo ID（格式：`type/name`），省略时交互式选择 |
+| `message` | 任务描述，省略时打开编辑器（支持 Markdown） |
+
+#### 示例
+
+```bash
+# 完全交互式（选择 type → 输入 name → 编辑器输入描述）
+$ colyn todo add
+
+# 指定 ID，描述通过编辑器输入
+$ colyn todo add feature/login
+
+# 全部直接指定
+$ colyn todo add feature/login "实现用户登录功能"
+```
+
+#### 编辑器说明
+
+无 `message` 参数时，自动打开编辑器（优先使用 `$VISUAL`，其次 `$EDITOR`，默认 `vim`）。编辑器中以 `# ` 开头的行为注释，保存退出后自动过滤。文件格式为 `.md`，支持 Markdown 语法高亮。
+
+---
+
+### colyn todo start
+
+开始执行待办任务：在当前 Worktree 切换/创建对应分支，并将任务描述复制到剪贴板。
+
+#### 语法
+
+```bash
+colyn todo start [选项] <todoId>
+```
+
+#### 选项
+
+| 选项 | 说明 |
+|------|------|
+| `--no-clipboard` | 跳过复制描述到剪贴板 |
+
+#### 执行过程
+
+1. 验证 todo 存在且状态为 `pending`
+2. 在当前 Worktree 切换到 `{type}/{name}` 分支（若不存在则创建）
+3. 将 todo 状态标记为 `completed`
+4. 在终端输出任务描述（message）
+5. 将任务描述复制到剪贴板（macOS / Linux / Windows 均支持）
+
+#### 示例
+
+```bash
+# 开始执行任务，描述自动复制到剪贴板
+$ colyn todo start feature/login
+
+✓ Todo "feature/login" 已标记为完成
+
+任务描述：
+实现用户登录功能
+
+## 任务说明
+- 添加登录表单
+- 验证用户凭据
+
+✓ 已复制到剪贴板
+
+# 跳过剪贴板操作
+$ colyn todo start feature/login --no-clipboard
+```
+
+**典型工作流**：`todo start` 后直接打开 Claude Code，将剪贴板内容粘贴到输入框，作为本次会话的任务上下文。
+
+---
+
+### colyn todo list
+
+列出 Todo 任务。
+
+#### 语法
+
+```bash
+colyn todo list [选项]
+colyn todo ls [选项]
+colyn todo           # 不带子命令时等同于此命令
+```
+
+#### 选项
+
+| 选项 | 说明 |
+|------|------|
+| `--completed` | 显示已完成（`completed`）的任务 |
+| `--archived` | 显示已归档的任务 |
+
+#### 示例
+
+```bash
+# 显示待办任务（默认）
+$ colyn todo
+  Type     Name   Message        Status  Created
+  ------------------------------------------------
+  feature  login  实现用户登录功能  待办    2026/02/22
+
+# 显示已完成任务
+$ colyn todo list --completed
+
+# 显示已归档任务
+$ colyn todo list --archived
+```
+
+---
+
+### colyn todo remove
+
+删除待办任务。
+
+#### 语法
+
+```bash
+colyn todo remove [选项] <todoId>
+```
+
+#### 选项
+
+| 选项 | 短选项 | 说明 |
+|------|--------|------|
+| `--yes` | `-y` | 跳过确认直接删除 |
+
+#### 示例
+
+```bash
+# 交互式确认删除
+$ colyn todo remove feature/login
+
+# 直接删除（无需确认）
+$ colyn todo remove feature/login -y
+```
+
+---
+
+### colyn todo archive
+
+将所有 `completed` 状态的任务批量归档，移入 `.colyn/archived-todo.json`。
+
+#### 语法
+
+```bash
+colyn todo archive [选项]
+```
+
+#### 选项
+
+| 选项 | 短选项 | 说明 |
+|------|--------|------|
+| `--yes` | `-y` | 跳过确认直接归档 |
+
+#### 示例
+
+```bash
+# 交互式确认归档
+$ colyn todo archive
+? 确认归档 3 个已完成的任务？ (Y/n)
+
+# 直接归档（无需确认）
+$ colyn todo archive -y
+✓ 已归档 3 个任务
+```
+
+---
+
+### colyn todo uncomplete
+
+将 `completed` 状态的任务回退为 `pending`（清除 `startedAt` 和 `branch` 记录）。
+
+#### 语法
+
+```bash
+colyn todo uncomplete [todoId]
+```
+
+若未指定 `todoId`，自动使用当前所在 Worktree 的分支名。
+
+#### 示例
+
+```bash
+# 指定 Todo ID
+$ colyn todo uncomplete feature/login
+
+# 在 feature/login Worktree 中，自动使用当前分支名
+$ colyn todo uncomplete
+```
+
+---
+
+### 常见错误
+
+| 错误场景 | 错误信息 | 解决方法 |
+|---------|---------|---------|
+| Todo ID 格式错误 | `✗ Todo ID 格式错误，应为 {type}/{name}` | 使用正确格式，如 `feature/login` |
+| Todo 不存在 | `✗ Todo "xxx" 不存在` | 先用 `todo add` 添加 |
+| Todo 不是待办状态 | `✗ Todo "xxx" 不是待办状态` | 已 completed 的任务无法再次 start |
+| 重复添加 | `✗ Todo "xxx" 已存在` | 每个 type/name 只能添加一次 |
+| 创建分支失败 | `✗ 创建分支失败，Todo 状态未更改` | 检查 git 状态，确保工作区干净 |
+
+### 提示
+
+- `colyn todo` 不带任何参数即可查看待办列表，是最常用的调用方式
+- `todo start` 执行的是完整的 `colyn checkout` 流程，包括未提交检查、fetch 远程、归档旧日志等
+- 描述（message）支持完整的 Markdown 语法，有助于在 Claude 会话中提供清晰的上下文
+- 定期执行 `colyn todo archive -y` 可保持待办列表整洁
+
 ---
 
 ## 总结
