@@ -151,39 +151,99 @@ export function copyToClipboard(text: string): boolean {
   return result.status === 0;
 }
 
+/** 判断 Unicode 码点是否为宽字符（终端显示宽度 2） */
+function isWideCodePoint(code: number): boolean {
+  return (
+    (code >= 0x1100 && code <= 0x115f) ||
+    (code >= 0x2e80 && code <= 0x303e) ||
+    (code >= 0x3040 && code <= 0x33ff) ||
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xac00 && code <= 0xd7af) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0xff00 && code <= 0xff60) ||
+    (code >= 0xffe0 && code <= 0xffe6) ||
+    (code >= 0x20000 && code <= 0x2a6df) ||
+    (code >= 0x2a700 && code <= 0x2ceaf)
+  );
+}
+
+/** 计算字符串在终端中的显示宽度 */
+function strWidth(s: string): number {
+  let w = 0;
+  for (const ch of s) {
+    w += isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+  }
+  return w;
+}
+
+/** 填充字符串到指定显示宽度 */
+function padWidth(s: string, target: number): string {
+  return s + ' '.repeat(Math.max(0, target - strWidth(s)));
+}
+
+/** 截断字符串到指定显示宽度，超出时末尾加省略号并补全剩余空格 */
+function truncWidth(s: string, maxW: number): string {
+  if (strWidth(s) <= maxW) return padWidth(s, maxW);
+  let w = 0;
+  let result = '';
+  for (const ch of s) {
+    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    if (w + cw + 1 > maxW) break; // 保留 1 格放省略号
+    result += ch;
+    w += cw;
+  }
+  return padWidth(result + '…', maxW);
+}
+
 /**
  * 格式化 Todo 表格输出
+ * - message 仅显示首行
+ * - 其他列按内容自适应宽度，message 列填满终端剩余空间
+ * - message 过长时自动截断并加省略号
  */
 export function formatTodoTable(todos: TodoItem[], statusLabel: Record<string, string>): string {
-  if (todos.length === 0) {
-    return '';
-  }
+  if (todos.length === 0) return '';
 
-  const rows = todos.map(t => ({
-    type: t.type,
-    name: t.name,
-    message: t.message,
-    status: statusLabel[t.status] ?? t.status,
-    createdAt: formatDate(t.createdAt),
+  const INDENT = 2;
+  const GAP = 2;
+
+  const rows = todos.map(item => ({
+    type: item.type,
+    name: item.name,
+    message: item.message.split('\n')[0],
+    status: statusLabel[item.status] ?? item.status,
+    createdAt: formatDate(item.createdAt),
   }));
 
-  const colWidths = {
-    type: Math.max(4, ...rows.map(r => r.type.length)),
-    name: Math.max(4, ...rows.map(r => r.name.length)),
-    message: Math.max(4, ...rows.map(r => r.message.length)),
-    status: Math.max(4, ...rows.map(r => r.status.length)),
-    createdAt: Math.max(8, ...rows.map(r => r.createdAt.length)),
-  };
+  const typeW = Math.max(strWidth('Type'), ...rows.map(r => strWidth(r.type)));
+  const nameW = Math.max(strWidth('Name'), ...rows.map(r => strWidth(r.name)));
+  const statusW = Math.max(strWidth('Status'), ...rows.map(r => strWidth(r.status)));
+  const createdW = Math.max(strWidth('Created'), ...rows.map(r => strWidth(r.createdAt)));
 
-  const pad = (s: string, w: number) => s.padEnd(w);
-  const separator = `${'-'.repeat(colWidths.type + 2)}-${'-'.repeat(colWidths.name + 2)}-${'-'.repeat(colWidths.message + 2)}-${'-'.repeat(colWidths.status + 2)}-${'-'.repeat(colWidths.createdAt + 2)}`;
+  const termW = process.stdout.columns ?? process.stderr.columns ?? 80;
+  // INDENT + typeW + GAP + nameW + GAP + msgW + GAP + statusW + GAP + createdW = termW
+  const msgW = Math.max(strWidth('Message'), termW - INDENT - typeW - nameW - statusW - createdW - GAP * 4);
 
-  const header = `  ${pad('Type', colWidths.type)}  ${pad('Name', colWidths.name)}  ${pad('Message', colWidths.message)}  ${pad('Status', colWidths.status)}  ${pad('Created', colWidths.createdAt)}`;
+  const mkRow = (type: string, name: string, msg: string, status: string, created: string): string =>
+    ' '.repeat(INDENT) +
+    padWidth(type, typeW) + ' '.repeat(GAP) +
+    padWidth(name, nameW) + ' '.repeat(GAP) +
+    truncWidth(msg, msgW) + ' '.repeat(GAP) +
+    padWidth(status, statusW) + ' '.repeat(GAP) +
+    created;
 
-  const lines = [header, `  ${separator}`];
-  for (const row of rows) {
-    lines.push(`  ${pad(row.type, colWidths.type)}  ${pad(row.name, colWidths.name)}  ${pad(row.message, colWidths.message)}  ${pad(row.status, colWidths.status)}  ${pad(row.createdAt, colWidths.createdAt)}`);
-  }
+  const sepRow =
+    ' '.repeat(INDENT) +
+    '-'.repeat(typeW) + '-'.repeat(GAP) +
+    '-'.repeat(nameW) + '-'.repeat(GAP) +
+    '-'.repeat(msgW) + '-'.repeat(GAP) +
+    '-'.repeat(statusW) + '-'.repeat(GAP) +
+    '-'.repeat(createdW);
 
-  return lines.join('\n');
+  return [
+    mkRow('Type', 'Name', 'Message', 'Status', 'Created'),
+    sepRow,
+    ...rows.map(r => mkRow(r.type, r.name, r.message, r.status, r.createdAt)),
+  ].join('\n');
 }

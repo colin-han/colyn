@@ -847,6 +847,8 @@ Solution:
         messageTitle: 'Task message:',
         clipboardCopied: 'Copied to clipboard',
         clipboardFailed: 'Failed to copy to clipboard',
+        noPending: 'No pending tasks',
+        selectTodo: 'Select a task to start',
       },
       list: {
         description: 'List Todo tasks',

@@ -847,6 +847,8 @@ export const zhCN = {
         messageTitle: '任务描述：',
         clipboardCopied: '已复制到剪贴板',
         clipboardFailed: '复制到剪贴板失败',
+        noPending: '没有待办任务',
+        selectTodo: '选择要开始的任务',
       },
       list: {
         description: '列出 Todo 任务',
