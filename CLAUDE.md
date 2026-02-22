@@ -24,7 +24,7 @@
 
 ### 术语规范
 * **必须使用统一的术语**：项目中的所有文档、代码注释、提示信息都应使用一致的术语
-* **术语参考**：使用前请查阅 `docs/glossary.md` 确认正确的术语和用法
+* **术语参考**：使用前请查阅 `docs/zh-CN/develop/glossary.md` 确认正确的术语和用法
 * **常用术语**：
   - ✅ 使用 "Worktree"（不是 "work tree" 或 "working tree"）
   - ✅ 使用 "Main branch"（不是 "master branch" 或 "primary branch"）
@@ -34,7 +34,7 @@
   - ✅ 使用 "Session name"（不是 "session id"）
   - ✅ 使用 "Dev server"（不是 "development server" 或 "local server"）
   - ✅ 使用 "并行 Vibe Coding"（这是项目特有术语）
-* **新术语引入**：如果需要引入新术语，必须先在 `docs/glossary.md` 中定义后再使用
+* **新术语引入**：如果需要引入新术语，必须先在 `docs/zh-CN/develop/glossary.md` 中定义后再使用
 
 ### 包管理
 * node 包管理使用 `volta run yarn` 命令
@@ -193,7 +193,7 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
    - [ ] 验证迁移后的配置可正常使用
 
 5. **更新文档**
-   - [ ] 在 `docs/design-config-migration.md` 中添加迁移示例
+   - [ ] 在 `docs/zh-CN/develop/design/design-config-migration.md` 中添加迁移示例
    - [ ] 更新 CHANGELOG（如果有）
    - [ ] 如有必要，更新用户手册
 
@@ -226,7 +226,7 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
 }
 ```
 
-**参考文档**：`docs/design-config-migration.md`
+**参考文档**：`docs/zh-CN/develop/design/design-config-migration.md`
 
 ---
 
@@ -420,8 +420,8 @@ result=$("$COLYN_BIN" "$@")  # 捕获 stdout
 #### 第一步：检查现有文档 📋
 在开始实现之前，必须先检查：
 
-- [ ] 设计文档（`docs/design-*.md`）
-- [ ] 需求文档（`docs/requirement-*.md`）
+- [ ] 设计文档（`docs/zh-CN/develop/design/*.md`）
+- [ ] 需求文档（`docs/zh-CN/develop/requirement/*.md`）
 - [ ] 已有的实现代码
 - [ ] 相关的日志记录（`.claude/logs/*.md`）
 
@@ -472,12 +472,12 @@ C. [折中方案]
 
 每次实现完成后，必须检查并更新以下文档：
 
-- [ ] **设计文档** (`docs/design-*.md`)
+- [ ] **设计文档** (`docs/zh-CN/develop/design/`)
   - 修改了哪些设计决策？
   - 新增了哪些功能？
   - 改变了哪些行为？
 
-- [ ] **需求文档** (`docs/requirement-*.md`)
+- [ ] **需求文档** (`docs/zh-CN/develop/requirement/`)
   - 是否需要更新需求说明？
   - 是否需要添加新的用例？
 
@@ -495,17 +495,22 @@ C. [折中方案]
 
 - [ ] **多语言文档同步** ⚠️ **重要规则**
   - **任何对参数或交互方式的修改，都需要检查并更新相关文档**
-  - `docs/` - 中文设计文档和需求文档
-  - `docs-en/` - 英文设计文档和需求文档
-  - `manual/` - 用户手册（中文）
+  - `docs/zh-CN/develop/design/` - 中文设计文档（非命令相关）
+  - `docs/zh-CN/develop/design/commands/` - 中文命令设计文档
+  - `docs/zh-CN/develop/requirement/` - 中文需求文档
+  - `docs/en/develop/design/` - 英文设计文档（非命令相关）
+  - `docs/en/develop/design/commands/` - 英文命令设计文档
+  - `docs/zh-CN/manual/` - 中文用户手册
+  - `docs/en/manual/` - 英文用户手册
   - 确保所有语言版本的文档内容一致
 
   **文档创建和删除规则**：
   - ✅ **创建新设计文档**时，必须同时创建对应的英文版本
-    - 中文：`docs/design-xxx.md`
-    - 英文：`docs-en/design-xxx.md`
+    - 中文（命令）：`docs/zh-CN/develop/design/commands/design-xxx-command.md`
+    - 英文（命令）：`docs/en/develop/design/commands/design-xxx-command.md`
+    - 中文（非命令）：`docs/zh-CN/develop/design/design-xxx.md`
+    - 英文（非命令）：`docs/en/develop/design/design-xxx.md`
   - ✅ **删除设计文档**时，必须同时删除对应的英文版本
-    - 删除 `docs/design-xxx.md` 时，也删除 `docs-en/design-xxx.md`
   - ✅ **合并文档**时，同步处理两种语言的文档
     - 中文文档合并后，英文文档也要进行相同的合并操作
   - ⚠️ **实施日志**（`.claude/logs/*.md`）仅中文，无需创建英文版
