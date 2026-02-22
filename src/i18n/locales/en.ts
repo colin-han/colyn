@@ -873,6 +873,7 @@ Solution:
         confirm: 'Confirm remove Todo "{{todoId}}"?',
         success: 'Removed Todo: {{todoId}}',
         canceled: 'Remove canceled',
+        selectTodo: 'Select a task to remove',
       },
       archive: {
         description: 'Archive all completed Todo tasks',
