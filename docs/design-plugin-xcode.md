@@ -33,26 +33,41 @@ Xcode 是 Apple 平台原生应用（iOS / macOS / tvOS / watchOS）的主要开
 
 **必须排除 `project.xcworkspace`**：每个 `.xcodeproj` 内部都会自动生成一个 `project.xcworkspace` 子目录（路径为 `*.xcodeproj/project.xcworkspace/`），这是 Xcode 自动管理的内部文件，不是用户创建的独立 workspace。若将其误检为有效 workspace，后续 `-workspace` 参数会指向错误路径。
 
+### 2.3 子目录检测
+
+部分项目（如 React Native 的 iOS 子项目、原生 macOS 伴侣 App）将 Xcode 工程放在子目录中，例如：
+
+```
+my-project/
+├── ios/
+│   └── MyApp.xcodeproj/    ← Xcode 工程在子目录
+├── android/
+└── src/
+```
+
+检测策略：**先扫根目录，若未找到，再扫一级子目录**（跳过 `node_modules`、`build`、`DerivedData`、`.git`、`worktrees`、`Pods` 等无关目录）。
+
 **检测逻辑（伪代码）**：
 
 ```typescript
 async detect(worktreePath: string): Promise<boolean> {
+  // 先扫根目录
+  const root = await scanXcodeDir(worktreePath);
+  if (root.workspace || root.project || root.hasSPM) return true;
+
+  // 再扫一级子目录
   const entries = await fs.readdir(worktreePath);
-
-  // 检测真正的 xcworkspace（排除名为 project.xcworkspace 的）
-  const hasWorkspace = entries.some(
-    e => e.endsWith('.xcworkspace') && e !== 'project.xcworkspace'
-  );
-
-  // 检测 xcodeproj
-  const hasProject = entries.some(e => e.endsWith('.xcodeproj'));
-
-  // 检测 Package.swift
-  const hasSPM = entries.includes('Package.swift');
-
-  return hasWorkspace || hasProject || hasSPM;
+  for (const entry of entries) {
+    if (entry.startsWith('.') || SKIP_DIRS.has(entry)) continue;
+    if (!(await fs.stat(path.join(worktreePath, entry))).isDirectory()) continue;
+    const sub = await scanXcodeDir(path.join(worktreePath, entry));
+    if (sub.workspace || sub.project || sub.hasSPM) return true;
+  }
+  return false;
 }
 ```
+
+检测到子目录时，`subdir` 字段（如 `"ios"`）会随 `workspace`/`project` 一起保存到 `pluginSettings.xcode`，供后续命令使用。
 
 ---
 
@@ -99,31 +114,38 @@ xcodebuild -workspace MyApp.xcworkspace \
 
 ```
 步骤 1：查找项目入口
-  扫描 worktreePath，找到 .xcworkspace（过滤 project.xcworkspace）或 .xcodeproj
-  记录 workspaceFile 或 projectFile
+  调用 findXcodeProject(worktreePath)：
+  - 先扫根目录，找到 .xcworkspace（过滤 project.xcworkspace）或 .xcodeproj
+  - 未找到时，扫一级子目录（跳过 SKIP_DIRS）
+  记录 workspaceFile / projectFile，以及所在子目录（subdir）
 
-步骤 2：发现 shared scheme
-  路径：{project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme
+步骤 2：保存 subdir
+  若 xcodeproj 在子目录（如 "macos"），记录 subdir = "macos"
+  后续步骤基于 xcodeDir = path.join(worktreePath, subdir) 执行
+
+步骤 3：发现 shared scheme
+  路径：{xcodeDir}/{project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme
   shared scheme 会提交到 git，是最可靠的构建目标
   非 shared 的 scheme 存储在用户私有目录中，不会提交
 
-步骤 3：推断目标平台
-  读取 {project}.xcodeproj/project.pbxproj
+步骤 4：推断目标平台
+  读取 {xcodeDir}/{project}.xcodeproj/project.pbxproj
   查找 SDKROOT 值：
     iphoneos     → iOS
     macosx       → macOS
     appletvos    → tvOS
     watchos      → watchOS
 
-步骤 4：决策与交互
+步骤 5：决策与交互
   - 只有一个 shared scheme → 自动使用，告知用户
   - 有多个 shared scheme   → 让用户选择（单选）
   - 没有 shared scheme     → 提示用户手动输入 scheme 名称
   - destination 可明确推断 → 自动使用
   - destination 不确定     → 询问用户（提供常见选项）
 
-步骤 5：返回结果
+步骤 6：返回结果
   {
+    subdir: "macos",              // 子目录（根目录时缺省此字段）
     workspace: "MyApp.xcworkspace",  // 或 project: "MyApp.xcodeproj"
     scheme: "MyApp",
     destination: "generic/platform=iOS Simulator"
@@ -162,26 +184,30 @@ CI 环境下无法弹出交互提问：
 
 ```
 检测逻辑（按优先级）：
-1. 如果 worktreePath 下有 Podfile
-   → 执行 pod install
+1. 调用 findXcodeProject(worktreePath) 获取 xcodeDir（含子目录支持）
+
+2. 如果 xcodeDir 下有 Podfile
+   → 执行 pod install（cwd: xcodeDir）
    → 如果 pod 命令不存在，抛出 PluginCommandError 提示用户安装 CocoaPods
 
-2. 如果 worktreePath 下有 Package.swift（且无 Podfile）
-   → 执行 swift package resolve
+3. 如果 xcodeDir 下有 Package.swift（且无 Podfile）
+   → 执行 swift package resolve（cwd: xcodeDir）
 
-3. 两者都没有 → 静默跳过
+4. 两者都没有 → 静默跳过
 ```
 
 ### 5.2 lint
 
 ```
 检测逻辑：
-1. 如果 worktreePath 下有 .swiftlint.yml 或 .swiftlint.yaml
-   → 执行 swiftlint lint
+1. 调用 findXcodeProject(worktreePath) 获取 xcodeDir（含子目录支持）
+
+2. 如果 xcodeDir 下有 .swiftlint.yml 或 .swiftlint.yaml
+   → 执行 swiftlint lint（cwd: xcodeDir）
    → 如果 swiftlint 命令不存在，静默跳过（不是错误，工具未安装）
    → 失败时抛出 PluginCommandError
 
-2. 否则 → 静默跳过
+3. 否则 → 静默跳过
 ```
 
 ### 5.3 build
@@ -193,15 +219,18 @@ CI 环境下无法弹出交互提问：
 **推荐的 build 逻辑**：
 
 ```
-1. 尝试从 pluginSettings.xcode 读取 scheme：
+1. 从 pluginSettings.xcode 读取 subdir，派生 xcodeDir：
+   xcodeDir = subdir ? path.join(worktreePath, subdir) : worktreePath
+
+2. 尝试从 pluginSettings.xcode 读取 scheme：
    - 如果 scheme 存在：
      构建 xcodebuild 命令，根据 workspace/project 选择 -workspace 或 -project 参数
-     执行：xcodebuild -workspace {w} -scheme {s} -destination {d} build
-     或：  xcodebuild -project   {p} -scheme {s} -destination {d} build
+     执行：xcodebuild -workspace {w} -scheme {s} -destination {d} build（cwd: xcodeDir）
+     或：  xcodebuild -project   {p} -scheme {s} -destination {d} build（cwd: xcodeDir）
 
    - 如果 scheme 不存在（repairSettings 未运行或用户跳过配置）：
      检查是否有 Package.swift
-       有 → SPM fallback：swift build（可能不是用户想要的，但至少能构建）
+       有 → SPM fallback：swift build（cwd: xcodeDir）
        无 → 静默跳过，同时输出提示："请运行 colyn repair 配置 Xcode 构建参数"
 ```
 
@@ -214,7 +243,7 @@ CI 环境下无法弹出交互提问：
 使用 Apple 官方工具 `agvtool`：
 
 ```bash
-# 在 worktreePath 下执行
+# 在 xcodeDir（含子目录支持）下执行
 agvtool new-marketing-version {version}
 ```
 
@@ -232,6 +261,8 @@ agvtool new-marketing-version {version}
 
 配置成功保存后，`.colyn/settings.json` 示例：
 
+**根目录项目**（xcodeproj 在 worktree 根目录下）：
+
 ```json
 {
   "version": 3,
@@ -241,6 +272,23 @@ agvtool new-marketing-version {version}
       "workspace": "MyApp.xcworkspace",
       "scheme": "MyApp",
       "destination": "generic/platform=iOS Simulator"
+    }
+  }
+}
+```
+
+**子目录项目**（xcodeproj 在子目录中，如 `macos/ColynPuppy.xcodeproj`）：
+
+```json
+{
+  "version": 3,
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "subdir": "macos",
+      "project": "ColynPuppy.xcodeproj",
+      "scheme": "ColynPuppy",
+      "destination": "platform=macOS"
     }
   }
 }
@@ -292,3 +340,10 @@ src/plugins/builtin/
 3. 添加 i18n 翻译（`zh-CN.ts` / `en.ts` 的 `plugins.xcode` 命名空间）
 4. 更新 `docs/design-plugin-toolchain.md` 添加 xcode 插件条目
 5. 更新用户手册 `manual/11-plugin-system.md`
+
+✅ 2026-02-22 补充实现：
+
+6. 添加 `XcodeProject.subdir` 字段，支持子目录检测
+7. 将 `findXcodeProject` 拆分为 `scanXcodeDir` + `findXcodeProject`（支持一级子目录扫描）
+8. `repairSettings` 保存 `subdir`，使用 `xcodeDir` 执行 scheme/destination 检测
+9. `install` / `lint` / `build` / `bumpVersion` 均基于 `xcodeDir` 执行（正确处理子目录）

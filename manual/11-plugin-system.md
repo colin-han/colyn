@@ -46,7 +46,7 @@ Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Mave
 | `maven` | Java Spring Boot（Maven） | `pom.xml` 存在 | 8080 |
 | `gradle` | Java / Kotlin / Android（Gradle） | `build.gradle` 或 `build.gradle.kts` 存在 | 8080 |
 | `pip` | Python（pip / poetry） | `requirements.txt` 或 `pyproject.toml` 存在 | 8000 |
-| `xcode` | iOS / macOS / tvOS / watchOS 原生应用 | `*.xcworkspace` / `*.xcodeproj` / `Package.swift` 存在 | 无 |
+| `xcode` | iOS / macOS / tvOS / watchOS 原生应用 | `*.xcworkspace` / `*.xcodeproj` / `Package.swift` 存在（根目录或一级子目录） | 无 |
 
 > **说明**：使用 Maven 和 Gradle 的 Java 项目视为不同插件，因为构建命令完全不同。Xcode 插件无端口配置，因为原生 App 不需要 web 端口。
 
@@ -60,13 +60,25 @@ Colyn 内置**工具链插件机制**，让它能够适配 Node.js、Java（Mave
 
 #### 1. 自动检测工具链
 
-扫描主分支目录，识别项目使用的工具链：
+扫描主分支目录（根目录及一级子目录），识别项目使用的工具链：
 
 ```
 ✔ 检测到工具链：Node.js (npm)
 ```
 
-如果未能自动识别，会询问用户手动选择。
+**如果未能自动识别**，会显示多选 prompt，让用户手动选择要启用的插件（可多选，直接回车跳过不启用任何插件）：
+
+```
+ℹ 未检测到已知工具链，请手动选择要启用的插件（可多选，直接回车跳过）
+? 选择工具链插件 ›
+  ◯ npm
+  ◯ maven
+  ◯ gradle
+  ◯ pip
+  ◯ xcode
+```
+
+插件列表（包括空列表）会始终写入 `.colyn/settings.json`，避免后续命令重复触发自动迁移。
 
 #### 2. 确保运行时配置文件被 .gitignore 忽略
 
@@ -371,7 +383,7 @@ colyn release -v
 3. 将识别结果写入 `settings.json`
 4. 显示提示信息（不阻断命令执行）
 
-**如果未检测到任何工具链**，`plugins` 字段会被设为 `[]`，后续命令跳过所有工具链相关步骤。
+**如果未检测到任何工具链**，`colyn init` 会提示用户手动选择插件；自动迁移场景下则将 `plugins` 字段设为 `[]`，后续命令跳过所有工具链相关步骤。
 
 > 自动迁移失败时静默忽略，不影响命令正常执行。
 
@@ -480,7 +492,7 @@ colyn release -v
 
 ### xcode 插件
 
-**适用范围**：包含 `*.xcworkspace`（排除内部的 `project.xcworkspace`）、`*.xcodeproj` 或 `Package.swift` 的 Apple 平台项目
+**适用范围**：包含 `*.xcworkspace`（排除内部的 `project.xcworkspace`）、`*.xcodeproj` 或 `Package.swift` 的 Apple 平台项目。这些文件可位于 Worktree 根目录，也可位于一级子目录（如 `ios/`、`macos/`）中。
 
 **端口配置**：无（原生 App 不需要 web 端口）
 
@@ -492,6 +504,7 @@ Xcode 插件需要在 `colyn init` / `colyn repair` 时通过交互式提问收�
 
 | 字段 | 说明 | 来源 |
 |------|------|------|
+| `subdir` | Xcode 工程所在子目录（如 `"ios"`、`"macos"`），根目录时无此字段 | 文件系统扫描 |
 | `workspace` | `.xcworkspace` 文件名（如 `MyApp.xcworkspace`） | 文件系统扫描 |
 | `project` | `.xcodeproj` 文件名（如 `MyApp.xcodeproj`） | 文件系统扫描 |
 | `scheme` | Xcode scheme 名称 | 自动检测（shared scheme）或用户输入 |
@@ -537,6 +550,8 @@ Xcode 插件需要在 `colyn init` / `colyn repair` 时通过交互式提问收�
 
 **示例配置（`settings.json`）**：
 
+根目录项目（xcodeproj 在 Worktree 根目录下）：
+
 ```json
 {
   "version": 3,
@@ -546,6 +561,23 @@ Xcode 插件需要在 `colyn init` / `colyn repair` 时通过交互式提问收�
       "workspace": "MyApp.xcworkspace",
       "scheme": "MyApp",
       "destination": "generic/platform=iOS Simulator"
+    }
+  }
+}
+```
+
+子目录项目（xcodeproj 在子目录中，如 `macos/ColynPuppy.xcodeproj`）：
+
+```json
+{
+  "version": 3,
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "subdir": "macos",
+      "project": "ColynPuppy.xcodeproj",
+      "scheme": "ColynPuppy",
+      "destination": "platform=macOS"
     }
   }
 }
@@ -578,7 +610,9 @@ Xcode 插件需要在 `colyn init` / `colyn repair` 时通过交互式提问收�
 - 该目录中未找到工具链特征文件（`package.json`、`pom.xml` 等）
 - 是空目录场景，工具链检测在创建目录结构后进行
 
-**解决方式**：在主分支目录中初始化项目（`npm init`、`mvn archetype:generate` 等），然后重新运行 `colyn init`。
+**行为说明**：从 v3.0.1 起，如果未自动检测到任何工具链，`colyn init` 会显示多选 prompt，让你手动选择要启用的插件（直接回车可跳过不启用）。
+
+**解决方式**：在 prompt 中选择对应插件，或在主分支目录中初始化项目后重新运行 `colyn init`。
 
 ---
 

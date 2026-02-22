@@ -212,8 +212,9 @@ graph TD
 
     CreateDirs --> MoveFiles[移动所有文件]
     MoveFiles --> ConfigEnv[配置环境变量]
-    ConfigEnv --> DetectPlugins[自动检测工具链插件<br/>写入 settings.json]
-    DetectPlugins --> RunPluginInit[运行插件初始化<br/>写入工具链配置、安装依赖]
+    ConfigEnv --> DetectPlugins[自动检测工具链插件<br/>未检测到时提示用户手动选择]
+    DetectPlugins --> SavePlugins[将插件列表写入 settings.json<br/>空列表也写入]
+    SavePlugins --> RunPluginInit[运行插件初始化<br/>写入工具链配置、安装依赖]
     RunPluginInit --> ProjectSuccess[✓ 显示成功信息]
     ProjectSuccess --> End
 
@@ -307,7 +308,8 @@ sequenceDiagram
 - ✔ 环境变量配置完成
 - ✔ .gitignore 配置完成
 - ✔ 配置文件保存完成
-- ✔ 检测到工具链: {plugin-name}（或：未检测到匹配的工具链）
+- ✔ 检测到工具链: {plugin-name}（自动检测成功）
+- ℹ 未检测到已知工具链，显示多选 prompt 让用户手动选择（或直接回车跳过）
 - ✔ 插件初始化完成（若有插件被激活）
 
 **成功信息**：
@@ -574,7 +576,7 @@ A: 不会。补全模式只会添加缺失的部分，不会覆盖已有的配�
 
 1. **智能识别**：自动识别三种目录状态，采取不同策略
 2. **安全第一**：破坏性操作前必须用户确认
-3. **工具链自动配置**：自动检测 npm/Maven/Gradle/pip 并写入 `settings.json`，运行插件初始化
+3. **工具链自动配置**：自动检测 npm/Maven/Gradle/pip/xcode 并写入 `settings.json`；未检测到时提示用户手动选择，运行插件初始化
 4. **清晰反馈**：每步操作都有明确的进度和结果提示
 5. **容错处理**：详细的错误信息和解决建议
 6. **用户友好**：提供后续操作建议和常见问题解答
