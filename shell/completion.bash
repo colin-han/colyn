@@ -11,7 +11,7 @@ _colyn_completion() {
     _init_completion || return
 
     # 所有可用命令
-    local commands="init add list merge update remove checkout info status repair config setup tmux release completion"
+    local commands="init add list list-project lsp merge update remove checkout info status repair config setup tmux release completion todo"
 
     # 当前命令（第一个参数）
     local command="${words[1]}"
@@ -161,6 +161,63 @@ _colyn_completion() {
             return 0
             ;;
 
+        list-project|lsp)
+            # list-project [--json] [-p|--paths]
+            if [[ $cur == -* ]]; then
+                local lsp_opts="--json -p --paths"
+                COMPREPLY=($(compgen -W "$lsp_opts" -- "$cur"))
+            fi
+            return 0
+            ;;
+
+        todo)
+            local subcommand="${words[2]}"
+            # 第一级：补全子命令
+            if [[ $cword -eq 2 ]]; then
+                COMPREPLY=($(compgen -W "add start list ls remove archive uncomplete" -- "$cur"))
+                return 0
+            fi
+            # 第二级：根据子命令补全参数
+            case "$subcommand" in
+                add)
+                    if [[ $cword -eq 3 && $cur != -* ]]; then
+                        # 补全 todoId 类型前缀
+                        COMPREPLY=($(compgen -W "feature/ bugfix/ refactor/ document/" -- "$cur"))
+                    fi
+                    ;;
+                start)
+                    if [[ $cur == -* ]]; then
+                        COMPREPLY=($(compgen -W "--no-clipboard" -- "$cur"))
+                    elif [[ $cword -eq 3 ]]; then
+                        _colyn_todo_ids
+                    fi
+                    ;;
+                list|ls)
+                    if [[ $cur == -* ]]; then
+                        COMPREPLY=($(compgen -W "--completed --archived --id-only" -- "$cur"))
+                    fi
+                    ;;
+                remove)
+                    if [[ $cur == -* ]]; then
+                        COMPREPLY=($(compgen -W "-y --yes" -- "$cur"))
+                    elif [[ $cword -eq 3 ]]; then
+                        _colyn_todo_ids
+                    fi
+                    ;;
+                archive)
+                    if [[ $cur == -* ]]; then
+                        COMPREPLY=($(compgen -W "-y --yes" -- "$cur"))
+                    fi
+                    ;;
+                uncomplete)
+                    if [[ $cword -eq 3 ]]; then
+                        _colyn_todo_completed_ids
+                    fi
+                    ;;
+            esac
+            return 0
+            ;;
+
         *)
             # 未知命令，不提供补全
             return 0
@@ -188,6 +245,24 @@ _colyn_complete_worktree_ids() {
         # 提取 ID
         local ids=$(echo "$worktrees_json" | grep -o '"id":[0-9]*' | cut -d: -f2)
         COMPREPLY=($(compgen -W "$ids" -- "$cur"))
+    fi
+}
+
+# 补全待办 todo ID
+_colyn_todo_ids() {
+    local output
+    output=$(colyn todo list --id-only 2>/dev/null)
+    if [[ -n "$output" ]]; then
+        COMPREPLY=($(compgen -W "$output" -- "$cur"))
+    fi
+}
+
+# 补全已完成 todo ID
+_colyn_todo_completed_ids() {
+    local output
+    output=$(colyn todo list --completed --id-only 2>/dev/null)
+    if [[ -n "$output" ]]; then
+        COMPREPLY=($(compgen -W "$output" -- "$cur"))
     fi
 }
 
