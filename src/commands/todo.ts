@@ -163,33 +163,60 @@ export function register(program: Command): void {
       }
     });
 
-  // todo start <todoId>
+  // todo start [todoId]
   todo
-    .command('start <todoId>')
+    .command('start [todoId]')
     .description(t('commands.todo.start.description'))
     .option('--no-clipboard', t('commands.todo.start.noClipboardOption'))
-    .action(async (todoId: string, options: { clipboard: boolean }) => {
+    .action(async (todoId: string | undefined, options: { clipboard: boolean }) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
+        const todoFile = await readTodoFile(paths.configDir);
+        const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+
+        let resolvedTodoId: string;
+
+        if (!todoId) {
+          if (pendingTodos.length === 0) {
+            outputInfo(t('commands.todo.start.noPending'));
+            return;
+          }
+
+          const choices = pendingTodos.map(item => ({
+            name: `${item.type}/${item.name}`,
+            message: `${item.type}/${item.name}  ${chalk.gray(item.message.split('\n')[0])}`,
+          }));
+
+          const response = await prompt<{ todoId: string }>({
+            type: 'select',
+            name: 'todoId',
+            message: t('commands.todo.start.selectTodo'),
+            choices,
+            stdout: process.stderr,
+          });
+          resolvedTodoId = response.todoId;
+        } else {
+          resolvedTodoId = todoId;
+        }
+
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(todoId));
+          ({ type, name } = parseTodoId(resolvedTodoId));
         } catch {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const todoFile = await readTodoFile(paths.configDir);
         const item = findTodo(todoFile.todos, type, name);
 
         if (!item) {
-          throw new ColynError(t('commands.todo.start.notFound', { todoId }));
+          throw new ColynError(t('commands.todo.start.notFound', { todoId: resolvedTodoId }));
         }
 
         if (item.status !== 'pending') {
-          throw new ColynError(t('commands.todo.start.notPending', { todoId }));
+          throw new ColynError(t('commands.todo.start.notPending', { todoId: resolvedTodoId }));
         }
 
         const branch = `${type}/${name}`;
@@ -207,7 +234,7 @@ export function register(program: Command): void {
         item.branch = branch;
         await saveTodoFile(paths.configDir, todoFile);
 
-        outputSuccess(t('commands.todo.start.success', { todoId }));
+        outputSuccess(t('commands.todo.start.success', { todoId: resolvedTodoId }));
 
         // 输出 message 并复制到剪贴板
         outputLine();
