@@ -399,17 +399,18 @@ commands: {
    const spinner = ora('处理中...').start();
    ```
 
-4. **只有 JSON 结果输出到 stdout**
+4. **JSON 结果仅在 `COLYN_OUTPUT_JSON=1` 时输出到 stdout**
    - 使用 `outputResult()` 函数
-   - 供 shell/colyn.sh 脚本解析
+   - `outputResult()` 内部检测 `COLYN_OUTPUT_JSON` 环境变量，**仅当该变量存在时**才向 stdout 输出 JSON
+   - 直接运行 colyn 命令时（无该环境变量），JSON 结果不会输出，避免干扰终端
 
 ### 原因
 
-shell/colyn.sh 会捕获 stdout 用于解析 JSON：
+shell/colyn.sh 调用 colyn 时会设置 `COLYN_OUTPUT_JSON=1` 并捕获 stdout 用于解析 JSON：
 ```bash
-result=$("$COLYN_BIN" "$@")  # 捕获 stdout
+result=$(COLYN_OUTPUT_JSON=1 "$COLYN_BIN" "$@")  # 设置环境变量，捕获 stdout
 ```
-如果提示信息输出到 stdout，用户将看不到这些信息。
+直接在终端运行 `colyn` 时不设置该变量，所以 JSON 不会输出到终端，用户体验更干净。
 
 ---
 
@@ -481,9 +482,10 @@ C. [折中方案]
   - 是否需要更新需求说明？
   - 是否需要添加新的用例？
 
-- [ ] **实现日志** (`.claude/logs/*.md`)
-  - 创建新的日志文件记录本次修改
-  - 包含背景、实现细节、测试结果
+- [ ] **用户手册** (`docs/zh-CN/manual/` 和 `docs/en/manual/`)
+  - 是否新增或修改了用户可见的功能？
+  - 是否改变了命令的使用方式或参数？
+  - 中英文手册必须同步更新
 
 - [ ] **README.md**（如果影响用户使用）
   - 是否改变了使用方式？
