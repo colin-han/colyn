@@ -1,8 +1,9 @@
 # 工具链插件设计文档
 
-**状态**：设计阶段
+**状态**：已实现
 **创建时间**：2026-02-21
-**相关需求**：`docs/requirements/requirement-plugin-system.md`
+**最后更新**：2026-02-22（V4 配置格式重构 + Mono Repo 支持）
+**相关需求**：`docs/requirements/requirement-plugin-system.md`、`docs/requirement-mono-repo.md`
 
 ---
 
@@ -77,11 +78,11 @@ export class PluginCommandError extends Error {
  * 在 colyn init / colyn repair 时传入各插件的 repairSettings 方法。
  */
 export interface RepairSettingsContext {
-  /** 项目根目录（.colyn 的父目录） */
+  /** 项目根目录（.colyn 的父目录），暂留字段，实际传入空字符串 */
   projectRoot: string;
-  /** 主分支目录路径（包含项目代码文件） */
+  /** 子项目目录路径（单项目模式 = worktree 根目录；Mono Repo 模式 = worktree/subPath） */
   worktreePath: string;
-  /** 当前已保存的本插件专属配置（来自 settings.json 的 pluginSettings[name]） */
+  /** 当前已保存的工具链专属配置（来自 settings.toolchain.settings 或 projects[i].toolchain.settings） */
   currentSettings: Record<string, unknown>;
   /** 是否处于非交互式模式（如 CI 环境，不能弹出交互提问） */
   nonInteractive: boolean;
@@ -173,13 +174,13 @@ export interface ToolchainPlugin {
    * 在 `colyn init` 和 `colyn repair` 时调用。
    * 插件应扫描项目结构，识别必要的配置项（如 Xcode 的 scheme / destination）。
    * 如果无法自动确定，可通过交互式提问让用户填写。
-   * 结果由 colyn 保存到 `.colyn/settings.json` 的 `pluginSettings[name]` 字段。
+   * 结果由 colyn 保存到 `.colyn/settings.json` 的 `toolchain.settings` 或 `projects[i].toolchain.settings` 字段。
    *
    * **典型用途**：Xcode 插件通过此方法询问用户 scheme 和 destination，
    * 供后续 `build` 命令使用。
    *
-   * @param context 包含 projectRoot、worktreePath、当前已保存配置、非交互模式标志
-   * @returns 插件专属配置键值对（将完整覆盖 pluginSettings[name]）
+   * @param context 包含 worktreePath、当前已保存工具链配置、非交互模式标志
+   * @returns 工具链专属配置键值对（将完整覆盖对应 toolchain.settings）
    */
   repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 
@@ -283,7 +284,7 @@ export interface ToolchainPlugin {
 8. **工具链信息分离**：`devServerCommand` 只返回命令数组，不执行——执行职责留给 terminal session 插件
 9. **结构化失败信息**：lint / build 失败时抛出 `PluginCommandError`，`output` 字段携带命令的完整输出；所有 colyn 命令支持 `-v` / `--verbose` 选项，开启后在失败时展示详情
 10. **gitignore 由调用方统一管理**：插件通过 `getRuntimeConfigFileName()` 声明运行时配置文件名，由 `PluginManager.ensureRuntimeConfigIgnored()` 统一负责将其加入 `.gitignore`，插件无需自行操作文件系统
-11. **插件专属配置持久化**：部分插件（如 Xcode）需要构建参数等无法自动推断的配置。插件通过 `repairSettings(context)` 方法识别并交互式获取这些配置，由 `PluginManager.runRepairSettings()` 统一保存到 `settings.json` 的 `pluginSettings[name]` 字段；后续命令（如 `build`）从 `currentSettings` 读取，无需重复询问
+11. **插件专属配置持久化**：部分插件（如 Xcode）需要构建参数等无法自动推断的配置。插件通过 `repairSettings(context)` 方法识别并交互式获取这些配置，由调用方（toolchain-resolver）保存到 `settings.json` 的 `toolchain.settings`（单项目）或 `projects[i].toolchain.settings`（Mono Repo）字段；后续命令（如 `build`）从 `currentSettings` 读取，无需重复询问
 
 ---
 
@@ -369,41 +370,49 @@ export interface ToolchainPlugin {
 
 ```typescript
 class PluginManager {
-  private readonly plugins: ToolchainPlugin[];
-
-  constructor(plugins: ToolchainPlugin[]) {
-    this.plugins = plugins;
-  }
+  private readonly plugins: Map<string, ToolchainPlugin>;
 
   /**
-   * 检测项目匹配哪些工具链（用于 colyn init）
+   * 注册插件
    */
-  async detectAll(worktreePath: string): Promise<ToolchainPlugin[]>;
+  register(plugin: ToolchainPlugin): void;
 
   /**
-   * 从配置中加载已激活的插件列表
-   * 配置来源：.colyn/settings.json 的 plugins 字段
+   * 获取所有已注册的插件列表（用于展示选择菜单）
    */
-  getActive(enabledPluginNames: string[]): ToolchainPlugin[];
+  getAllPlugins(): ToolchainPlugin[];
+
+  /**
+   * 自动检测并返回匹配的插件名称列表
+   * 用于 toolchain-resolver.ts 内的按需发现流程
+   */
+  async detectPlugins(worktreePath: string): Promise<string[]>;
 
   /**
    * 确保激活插件的运行时配置文件被 .gitignore 忽略
    * 调用各插件的 getRuntimeConfigFileName()，幂等地将文件名加入 .gitignore
-   * 在 colyn init 和 colyn repair 时调用
+   * 在 colyn init 和 colyn repair 时调用（对每个 ToolchainContext 分别调用）
    */
-  async ensureRuntimeConfigIgnored(worktreePath: string, activePlugins: ToolchainPlugin[]): Promise<void>;
+  async ensureRuntimeConfigIgnored(worktreePath: string, activePluginNames: string[]): Promise<void>;
 
   /**
-   * 运行所有激活插件的 repairSettings，将结果保存到 settings.json
-   * 各插件可自动检测或交互式询问必要配置，结果保存到 pluginSettings[name]
-   * 在 colyn init 和 colyn repair 时调用
+   * 运行指定工具链插件的 repairSettings，返回更新后的配置
+   *
+   * 与旧版不同：调用方（toolchain-resolver.saveRepairSettingsResult）负责保存结果。
+   * 插件可自动检测或交互式询问必要配置，colyn 保存到 toolchain.settings 或 projects[i].toolchain.settings。
+   *
+   * @param worktreePath 子项目目录路径
+   * @param toolchainName 工具链名称（插件标识符）
+   * @param currentSettings 当前已保存的工具链专属配置
+   * @param nonInteractive 是否非交互模式（默认 false）
+   * @returns 更新后的配置，若插件未实现 repairSettings 则返回 null
    */
   async runRepairSettings(
-    projectRoot: string,
     worktreePath: string,
-    activePluginNames: string[],
+    toolchainName: string,
+    currentSettings: Record<string, unknown>,
     nonInteractive?: boolean
-  ): Promise<void>;
+  ): Promise<Record<string, unknown> | null>;
 
   /**
    * 调用所有激活插件的 readRuntimeConfig（顺序尝试，取第一个非 null 的结果）
@@ -411,7 +420,7 @@ class PluginManager {
    */
   async readRuntimeConfig(
     worktreePath: string,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<Record<string, string> | null>;
 
   /**
@@ -420,7 +429,7 @@ class PluginManager {
   async writeRuntimeConfig(
     worktreePath: string,
     config: Record<string, string>,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<void>;
 
   /**
@@ -429,7 +438,7 @@ class PluginManager {
    */
   async getDevServerCommand(
     worktreePath: string,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<string[] | null>;  // 如 ['npm', 'run', 'dev']，无 dev server 则返回 null
 
   /**
@@ -437,7 +446,7 @@ class PluginManager {
    *
    * @param verbose 为 true 时，捕获 PluginCommandError 后将 output 展示给用户
    */
-  async runInstall(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async runInstall(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
 
   /**
    * 调用所有激活插件的 lint（任一插件抛出异常则整体失败）
@@ -445,7 +454,7 @@ class PluginManager {
    *
    * @param verbose 为 true 时，捕获 PluginCommandError 后将 output 展示给用户
    */
-  async runLint(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async runLint(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
 
   /**
    * 调用所有激活插件的 build（任一插件抛出异常则整体失败）
@@ -453,7 +462,7 @@ class PluginManager {
    *
    * @param verbose 为 true 时，捕获 PluginCommandError 后将 output 展示给用户
    */
-  async runBuild(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async runBuild(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
 
   /**
    * 调用所有激活插件的 bumpVersion
@@ -465,14 +474,14 @@ class PluginManager {
   async runBumpVersion(
     worktreePath: string,
     version: string,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<void>;
 
   /**
    * 返回第一个激活插件中 portConfig() 不为 null 的配置
    * 按激活顺序依次查询，取第一个有效结果
    */
-  getPortConfig(activePlugins: ToolchainPlugin[]): PortConfig | null;
+  getPortConfig(activePluginNames: string[]): PortConfig | null;
 }
 ```
 
@@ -485,49 +494,66 @@ import { NpmPlugin } from './builtin/npm.js';
 import { MavenPlugin } from './builtin/maven.js';
 import { GradlePlugin } from './builtin/gradle.js';
 import { PipPlugin } from './builtin/pip.js';
+import { XcodePlugin } from './builtin/xcode.js';
 
-export const pluginManager = new PluginManager([
-  NpmPlugin,
-  MavenPlugin,
-  GradlePlugin,
-  PipPlugin,
-]);
+export const pluginManager = new PluginManager();
+pluginManager.register(new NpmPlugin());
+pluginManager.register(new MavenPlugin());
+pluginManager.register(new GradlePlugin());
+pluginManager.register(new PipPlugin());
+pluginManager.register(new XcodePlugin());
 ```
 
 ---
 
-## 5. 配置 Schema 变更
+## 5. 配置 Schema 变更（V4）
 
-在现有的 `Settings` Schema 中添加可选的 `plugins` 字段：
+V4 版本将 `plugins[]` + `pluginSettings{}` 替换为结构化的 `toolchain` 和 `projects` 字段：
 
 ```typescript
-// src/core/config-schema.ts 增加
+// src/core/config-schema.ts
 
+// 工具链配置（存储工具链类型 + 专属设置）
+const ToolchainConfigSchema = z.object({
+  type: z.string(),                                          // 工具链类型，如 'npm'、'xcode'
+  settings: z.record(z.string(), z.unknown()).default({}),   // 工具链专属配置（repairSettings 写入）
+});
+export type ToolchainConfig = z.infer<typeof ToolchainConfigSchema>;
+
+// Mono Repo 子项目
+const SubProjectSchema = z.object({
+  path: z.string(),                                          // 相对于根目录的路径，如 'frontend'
+  toolchain: z.union([ToolchainConfigSchema, z.null()]),     // null 表示该子项目无工具链
+});
+export type SubProject = z.infer<typeof SubProjectSchema>;
+
+// V4 Settings（工具链相关字段）
 const SettingsSchemaBase = z.object({
   version: z.number(),
   lang: z.enum(['en', 'zh-CN']).optional(),
   systemCommands: SystemCommandsSchema.optional(),
   tmux: TmuxConfigSchema.optional(),
 
-  // 新增：工具链插件配置
-  plugins: z.array(z.string()).optional(),
-  //        ↑ 插件名列表，如 ['npm']、['maven', 'pip']
+  // 单项目模式（toolchain !== undefined 时生效）
+  // null 表示明确无工具链（避免重复提示）
+  toolchain: z.union([ToolchainConfigSchema, z.null()]).optional(),
 
-  // 新增：插件专属配置（由 repairSettings 写入）
-  pluginSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
-  //               ↑ { pluginName: { key: value, ... } }
+  // Mono Repo 模式（projects !== undefined 时生效）
+  projects: z.array(SubProjectSchema).optional(),
 });
+
+export const CURRENT_CONFIG_VERSION = 4;
 ```
 
-**存储示例**（`.colyn/settings.json`）：
+**存储示例 — 单项目模式**（`.colyn/settings.json`）：
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
-  "plugins": ["xcode"],
-  "pluginSettings": {
-    "xcode": {
+  "toolchain": {
+    "type": "xcode",
+    "settings": {
       "workspace": "MyApp.xcworkspace",
       "scheme": "MyApp",
       "destination": "generic/platform=iOS Simulator"
@@ -536,145 +562,183 @@ const SettingsSchemaBase = z.object({
 }
 ```
 
+**存储示例 — Mono Repo 模式**（`.colyn/settings.json`）：
+
+```json
+{
+  "version": 4,
+  "projects": [
+    {
+      "path": "frontend",
+      "toolchain": { "type": "npm", "settings": {} }
+    },
+    {
+      "path": "backend",
+      "toolchain": { "type": "maven", "settings": {} }
+    },
+    {
+      "path": "scripts",
+      "toolchain": null
+    }
+  ]
+}
+```
+
 **关于 Migration**：
 
-`plugins` 和 `pluginSettings` 都是**可选字段**，旧配置中不存在时视为 `undefined`，不需要创建 Migration。旧项目的迁移逻辑通过运行时检测处理（见第 7 节）。
+V3 配置（含 `plugins`/`pluginSettings` 字段）在首次命令运行时通过 Zod transform 自动迁移到 V4（见第 7 节）。V4 的 `toolchain`/`projects` 均为**可选字段**，两者都未定义时触发「按需发现」策略（见第 6 节）。
 
 ---
 
 ## 6. 与现有命令的集成
 
+所有命令通过 `src/core/toolchain-resolver.ts` 获取当前应操作的子项目列表（`ToolchainContext[]`），实现单项目/Mono Repo 的统一处理。
+
+### 6.0 工具链解析器（toolchain-resolver.ts）
+
+**核心类型**：
+
+```typescript
+export type ToolchainContext = {
+  absolutePath: string;                   // 子项目的绝对路径（供 PluginManager 使用）
+  subPath: string;                        // 相对于 worktree 根目录的相对路径（'.' 表示根目录）
+  toolchainName: string;                  // 工具链名称，如 'npm'、'xcode'
+  toolchainSettings: Record<string, unknown>; // 当前工具链专属配置
+};
+```
+
+**两个核心函数**：
+
+```typescript
+// 用于 colyn init：强制重新检测，写入 settings.json，返回 contexts
+export async function detectAndConfigureToolchains(
+  projectRoot: string,
+  mainDirPath: string,
+  nonInteractive?: boolean
+): Promise<ToolchainContext[]>
+
+// 用于 add/merge/release/repair：读取配置 + 处理新发现子目录
+export async function resolveToolchains(
+  projectRoot: string,
+  worktreePath: string,
+  nonInteractive?: boolean
+): Promise<ToolchainContext[]>
+```
+
+**resolveToolchains 决策树**：
+
+```
+1. settings.toolchain !== undefined → 单项目模式，返回单个 context
+   （toolchain === null 表示明确无工具链，返回空数组）
+
+2. settings.projects !== undefined → Mono Repo 模式
+   a. 遍历配置的 projects，生成 contexts
+   b. 扫描 worktreePath 中新出现的子目录（配置中未记录的）
+   c. 对新目录：先自动检测，失败则 prompt 用户选择
+   d. 将新发现写入 settings.projects 保存
+
+3. 两者都未定义 → 触发「按需发现」
+   a. 检测根目录是否有工具链 → 有则单项目模式
+   b. 无则扫描一级子目录，自动检测 + 可能 prompt
+   c. 有子目录工具链 → Mono Repo 模式；全无 → 保存 toolchain=null
+```
+
 ### 6.1 `colyn init` 命令
 
-**新增步骤**（在现有初始化流程中插入）：
+**流程**：调用 `detectAndConfigureToolchains(projectRoot, mainDirPath)`，对每个返回的 context 执行：
 
 ```
-步骤 N：工具链检测与选择
-  1. 调用 pluginManager.detectAll(worktreePath) 扫描所有插件
-  2. 如果有匹配插件 → 交互式展示，让用户确认
-  3. 如果没有匹配插件 → 展示所有可用插件，让用户手动选择
-  4. 将选择结果写入 .colyn/settings.json 的 plugins 字段
+1. detectAndConfigureToolchains：
+   - 检测根目录是否有工具链（单项目）
+   - 无则扫描一级子目录（Mono Repo）
+   - 有子目录未被识别时，prompt 用户手动选择
+   - 结果写入 settings.json（toolchain 或 projects）
 
-步骤 N+1：端口配置（条件执行）
-  调用 pluginManager.getPortConfig(activePlugins)
-  如果返回非 null → 交互式询问用户主分支端口号（默认值取自 portConfig.defaultPort）
-  如果返回 null  → 跳过（该工具链不需要端口）
+2. 对每个 context：
+   - pluginManager.ensureRuntimeConfigIgnored(ctx.absolutePath, [ctx.toolchainName])
+   - pluginManager.runRepairSettings(ctx.absolutePath, ctx.toolchainName, ctx.toolchainSettings)
+   - 若有返回 → saveRepairSettingsResult(projectRoot, ctx.subPath, newSettings)
 
-步骤 N+2：确保运行时配置文件被 .gitignore 忽略
-  调用 pluginManager.ensureRuntimeConfigIgnored(worktreePath, activePlugins)
-  各插件通过 getRuntimeConfigFileName() 返回文件名，colyn 统一负责将其加入 .gitignore
-
-步骤 N+3：修复插件专属项目配置
-  调用 pluginManager.runRepairSettings(projectRoot, worktreePath, activePlugins)
-  各插件通过 repairSettings() 自动检测或交互式询问必要配置项（如 Xcode 的 scheme/destination）
-  结果保存到 settings.json 的 pluginSettings[pluginName] 字段
-
-步骤 N+4：写入配置文件
-  调用 pluginManager.writeRuntimeConfig() 让各插件写入各自格式的配置文件
+3. 对每个 context：
+   - pluginManager.getPortConfig([ctx.toolchainName])
+   - 有端口 → 询问端口，pluginManager.writeRuntimeConfig(ctx.absolutePath, config, [ctx.toolchainName])
 ```
 
-**交互示例（有匹配，需要端口）**：
+**交互示例（单项目，有匹配）**：
 ```
-✔ 检测到工具链：
-
-? 请确认要启用的工具链插件：（空格选择，回车确认）
-  ◉ Node.js (npm)  [已检测到 package.json]
-
-✔ 已启用插件: npm
-
+✔ 检测到单项目（npm）
 ? 请输入主分支端口号：(3000)
 ```
 
-**交互示例（无匹配）**：
+**交互示例（Mono Repo，部分无匹配）**：
 ```
-⚠ 未能自动识别工具链
-
-? 请选择项目使用的工具链：
+✔ 检测到 Mono Repo 结构，发现 2 个子项目
+ℹ 子目录 scripts 未被任何工具链识别
+? 请为 scripts 选择工具链：
   ○ Node.js (npm)
   ○ Java (Maven)
-  ○ Java (Gradle)
-  ○ Python (pip/poetry)
-  ○ 不使用工具链
+  ○ (无工具链)
 ```
 
 ### 6.2 `colyn add` 命令
 
-**新增步骤**（在创建 worktree 后插入）：
+```typescript
+const contexts = await resolveToolchains(projectRoot, paths.mainDir);
 
-```
-步骤 N：复制环境配置
-  原逻辑（复制 .env.local）→ 改为调用 pluginManager.writeRuntimeConfig()
-  各插件写入各自格式的配置文件，包含 PORT 和 WORKTREE 值
-
-步骤 N+1：安装依赖（可选）
-  调用 pluginManager.runInstall(worktreePath, activePlugins)
-  各插件自行执行安装命令，显示进度
-```
-
-**输出示例**：
-```
-✔ 创建 worktree: task-1
-✔ 复制环境配置 → .env.local (PORT=10001)
-✔ 安装依赖
-  → npm install ... 完成
+for (const ctx of contexts) {
+  const worktreeSubPath = ctx.subPath === '.' ? worktreePath : path.join(worktreePath, ctx.subPath);
+  // 从 mainDir 对应子目录读取 base port
+  const mainConfig = await pluginManager.readRuntimeConfig(ctx.absolutePath, [ctx.toolchainName]);
+  // Mono Repo 中每个子项目端口独立：basePort + worktreeId
+  const portConfig = pluginManager.getPortConfig([ctx.toolchainName]);
+  const newPort = basePort + id;  // basePort 从 mainConfig 读取
+  await pluginManager.writeRuntimeConfig(worktreeSubPath, { ...mainConfig, [portKey]: newPort, WORKTREE: id }, [ctx.toolchainName]);
+  await pluginManager.runInstall(worktreeSubPath, [ctx.toolchainName], verbose);
+}
 ```
 
 ### 6.3 `colyn merge` 命令
 
-**新增选项**：`-v` / `--verbose`：失败时展示命令完整输出
+```typescript
+const contexts = await resolveToolchains(projectRoot, worktree.path);
 
-**新增步骤**（在 merge 前插入）：
-
-```
-步骤 0（预检）：代码质量检查
-  调用 pluginManager.runLint(worktreePath, activePlugins, verbose)
-  任一插件 lint 失败 → 输出错误，终止 merge
-```
-
-**输出示例**：
-```
-✔ 检查代码质量...
-  → npm run lint ... 完成
-
-✔ 合并分支 feature/auth → main
-```
-
-**失败示例（默认）**：
-```
-✖ 代码质量检查失败（npm lint）
-  使用 -v 查看详情：colyn merge -v
-```
-
-**失败示例（-v）**：
-```
-✖ 代码质量检查失败（npm lint）
-
-  src/foo.ts:10:5 error  'x' is not defined
-  ...（完整 lint 输出）
-
-  请修复后重试：colyn merge
+for (const ctx of contexts) {
+  await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
+  await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
 ```
 
 ### 6.4 `colyn release` 命令
 
-**新增选项**：`-v` / `--verbose`：lint / build 失败时展示命令完整输出
+```typescript
+const contexts = await resolveToolchains(projectRoot, dir);
 
-**在现有流程中插入 install → lint → build → bumpVersion**：
-
+for (const ctx of contexts) {
+  await pluginManager.runInstall(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
+for (const ctx of contexts) {
+  await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
+for (const ctx of contexts) {
+  await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
+for (const ctx of contexts) {
+  await pluginManager.runBumpVersion(ctx.absolutePath, newVersion, [ctx.toolchainName]);
+}
 ```
-原有步骤：
-  1. 检查依赖（checkDependenciesInstalled）
-  2. 执行更新（executeUpdate）
-  3. 执行发布（executeRelease）
 
-新增步骤（在步骤 1 之前，在主分支目录下执行）：
-  0a. 安装依赖（pluginManager.runInstall，worktreePath = mainDir）
-      确保主分支依赖为最新状态，再执行后续步骤
-  0b. 代码质量检查（pluginManager.runLint，worktreePath = mainDir，verbose）
-  0c. 构建项目（pluginManager.runBuild，worktreePath = mainDir，verbose）
+### 6.5 `colyn repair` 命令
 
-新增步骤（在步骤 3 中）：
-  3a. 更新版本号（pluginManager.runBumpVersion，worktreePath = mainDir）
+```typescript
+const contexts = await resolveToolchains(projectRoot, paths.mainDir);
+
+for (const ctx of contexts) {
+  await pluginManager.ensureRuntimeConfigIgnored(ctx.absolutePath, [ctx.toolchainName]);
+  const newSettings = await pluginManager.runRepairSettings(ctx.absolutePath, ctx.toolchainName, ctx.toolchainSettings);
+  if (newSettings !== null) {
+    await saveRepairSettingsResult(projectRoot, ctx.subPath, newSettings);
+  }
+}
 ```
 
 > **install 的两个触发场景**：
@@ -683,44 +747,54 @@ const SettingsSchemaBase = z.object({
 
 ---
 
-## 7. 旧项目迁移方案
+## 7. 版本迁移方案
 
-### 7.1 触发时机
+### 7.1 V3 → V4 迁移（自动 Zod transform）
 
-**任意 colyn 命令首次执行时**自动检测并迁移：
+V3 配置（含 `plugins`/`pluginSettings` 字段）**无需用户操作**，首次运行任意 colyn 命令时，`config-migration.ts` 的 Zod transform 链自动将其升级到 V4：
 
 ```typescript
-// 在命令执行前的通用检查中
-async function ensurePluginsConfigured(configDir: string, worktreePath: string) {
-  const settings = await loadProjectConfig(worktreePath);
+// src/core/config-migration.ts
 
-  // 检查是否已有 plugins 配置
-  if (settings?.plugins !== undefined) return;
+function migrateV3ToV4Recursive(settings: V3Settings): Settings {
+  const result: Settings = {
+    version: 4,
+    lang: settings.lang,
+    systemCommands: settings.systemCommands,
+  };
+  if (settings.tmux) result.tmux = settings.tmux;
 
-  // 旧项目：自动检测并迁移
-  await autoMigratePlugins(configDir, worktreePath);
+  // 丢弃 plugins/pluginSettings
+  // toolchain/projects 故意不设置（undefined），触发后续按需发现
+  if (settings.branchOverrides) {
+    result.branchOverrides = Object.fromEntries(
+      Object.entries(settings.branchOverrides).map(([k, v]) => [k, migrateV3ToV4Recursive(v as V3Settings)])
+    );
+  }
+  return result;
 }
+
+export const ConfigSchema = z.union([
+  V0ToV3Schema,   // V0 → V3
+  V1ToV2Schema,   // V1 → V2
+  V2ToV3Schema,   // V2 → V3
+  V3ToV4Schema,   // V3 → V4（新增）
+  SettingsSchema, // 当前版本 V4
+]);
 ```
 
-### 7.2 迁移逻辑
+### 7.2 迁移策略
 
-```
-1. 运行 pluginManager.detectAll(worktreePath) 检测工具链
-2. 将检测结果写入 .colyn/settings.json 的 plugins 字段
-3. 显示迁移提示（非阻塞）：
-   "ℹ 已自动配置工具链插件：npm
-    如需修改，运行 colyn config 或编辑 .colyn/settings.json"
-```
+- **丢弃旧字段**：`plugins` / `pluginSettings` 在迁移时被丢弃
+- **按需重新发现**：`toolchain`/`projects` 故意设为 `undefined`，触发下次命令执行时的「按需发现」
+- **用户无感知**：迁移后首次执行工具链感知命令（init/add/merge/release/repair）时，`resolveToolchains` 自动重新检测并保存结果
 
 ### 7.3 无法检测时
 
-如果旧项目中工具链检测失败（无任何匹配），写入空数组：
-
-```json
-{ "plugins": [] }
-```
-
-功能降级：跳过所有工具链相关步骤（不 install、不 lint、不 bumpVersion）。
+`resolveToolchains` 检测失败（所有目录均无工具链匹配）时：
+- 保存 `toolchain: null` 到 settings.json
+- 返回空数组（`[]`）
+- 命令继续执行，跳过所有工具链相关步骤（不 install、不 lint、不 bumpVersion）
 
 ---
 
@@ -729,53 +803,64 @@ async function ensurePluginsConfigured(configDir: string, worktreePath: string) 
 ```
 src/
 ├── types/
-│   ├── index.ts           # 现有类型
-│   └── plugin.ts          # 新增：ToolchainPlugin 接口 + PortConfig
+│   ├── index.ts                  # 现有类型
+│   └── plugin.ts                 # ToolchainPlugin 接口 + PortConfig + RepairSettingsContext
 │
 ├── plugins/
-│   ├── index.ts           # 导出 pluginManager 单例
-│   ├── manager.ts         # PluginManager 类
+│   ├── index.ts                  # 导出 pluginManager 单例（register 各插件）
+│   ├── manager.ts                # PluginManager 类
 │   └── builtin/
-│       ├── npm.ts         # npm 插件
-│       ├── maven.ts       # Maven 插件
-│       ├── gradle.ts      # Gradle 插件
-│       └── pip.ts         # pip 插件
+│       ├── npm.ts                # npm 插件
+│       ├── maven.ts              # Maven 插件
+│       ├── gradle.ts             # Gradle 插件
+│       ├── pip.ts                # pip 插件
+│       └── xcode.ts             # Xcode 插件
 │
 ├── core/
-│   ├── config-schema.ts   # 添加 plugins 字段到 Settings Schema
+│   ├── config-schema.ts          # V4 Schema（ToolchainConfig + SubProject）
+│   ├── config-migration.ts       # Zod 迁移链（V0→V3, V1→V2, V2→V3, V3→V4）
+│   ├── toolchain-resolver.ts     # 新增：按需发现 + resolveToolchains
 │   └── ...（其他文件不变）
 │
 └── commands/
-    ├── init.ts            # 集成工具链检测
-    ├── add.ts             # 集成 install
-    ├── merge.ts           # 集成 lint 预检
-    └── release.ts         # 集成 lint + build + bumpVersion
+    ├── init.handlers.ts          # 调用 detectAndConfigureToolchains
+    ├── add.ts                    # 调用 resolveToolchains，循环处理各 context
+    ├── merge.ts                  # 调用 resolveToolchains，lint/build 循环
+    ├── release.ts                # 传递 projectRoot，调用 executeRelease
+    ├── release.helpers.ts        # 调用 resolveToolchains，install/lint/build/bump 循环
+    └── repair.helpers.ts         # 调用 resolveToolchains，gitignore/repairSettings 循环
 ```
 
 ---
 
-## 9. 实施计划
+## 9. 实施历史
 
-### 阶段一：核心框架
+### 阶段一：核心框架（已完成）
 
 1. 定义 `ToolchainPlugin` 接口（`src/types/plugin.ts`）
 2. 实现 `PluginManager`（`src/plugins/manager.ts`）
-3. 更新 `config-schema.ts` 添加 `plugins` 字段
-4. 实现 npm 插件（`src/plugins/builtin/npm.ts`，迁移现有逻辑）
+3. 更新 `config-schema.ts`（V3 → V4 类型）
+4. 实现 npm 插件（`src/plugins/builtin/npm.ts`）
 
-### 阶段二：命令集成
+### 阶段二：命令集成（已完成）
 
-5. 集成到 `colyn init`（检测 + 用户选择 + 配置写入）
-6. 集成到 `colyn add`（配置复制 + 依赖安装）
-7. 集成到 `colyn merge`（lint 预检）
+5. 集成到 `colyn init`（通过 toolchain-resolver 检测 + 配置写入）
+6. 集成到 `colyn add`（配置复制 + 依赖安装，支持 Mono Repo）
+7. 集成到 `colyn merge`（lint/build 预检）
 8. 集成到 `colyn release`（lint + build + bumpVersion）
-9. 实现旧项目自动迁移逻辑
+9. 实现 V3→V4 Zod transform 迁移
 
-### 阶段三：更多插件
+### 阶段三：更多插件（已完成）
 
 10. 实现 maven 插件
 11. 实现 gradle 插件
 12. 实现 pip 插件
+
+### 阶段四：Mono Repo 支持（已完成）
+
+13. 新建 `toolchain-resolver.ts`（按需发现策略）
+14. 实现 Xcode 插件（含子目录检测、scheme 自动识别）
+15. 所有命令改为循环处理 `ToolchainContext[]`
 
 ---
 
@@ -783,19 +868,21 @@ src/
 
 | 决策 | 选择 | 原因 |
 |------|------|------|
-| 插件粒度 | 按工具链（npm/maven/gradle/pip） | 工具链决定命令差异，不是编程语言 |
+| 插件粒度 | 按工具链（npm/maven/gradle/pip/xcode） | 工具链决定命令差异，不是编程语言 |
 | 命令执行方式 | 插件直接执行（`Promise<void>`） | 灵活性高，支持复杂多步操作 |
 | readRuntimeConfig/writeRuntimeConfig 参数 | 统一传 `worktreePath` | 调用方无需知道配置文件路径，由插件封装 |
 | maven/gradle 本地配置文件 | `application-local.properties`（本地 profile） | 不提交 git；Spring Boot profile 机制覆盖主配置 |
 | maven/gradle 配置格式 | 优先 `.properties`，同时支持 `.yaml` | properties 更简单，yaml 更强大，两种格式均流行 |
 | .gitignore 更新 | 插件通过 `getRuntimeConfigFileName()` 声明文件名，`PluginManager.ensureRuntimeConfigIgnored()` 统一处理 | 关注点分离——插件只声明文件名，colyn 负责 gitignore 操作，幂等且可重复执行 |
-| 插件专属配置 | 通过 `repairSettings(context)` + `pluginSettings` 字段机制，在 init/repair 时交互获取并持久化 | 解决 xcodebuild 等需要用户决策的参数问题，避免每次 build 都重新询问 |
+| 插件专属配置（V4） | 通过 `repairSettings(context)` 交互获取，由 `saveRepairSettingsResult()` 保存到 `toolchain.settings` 或 `projects[i].toolchain.settings` | 与工具链配置内聚（而非 V3 的 pluginSettings 全局字典）；Mono Repo 每个子项目独立配置 |
 | lint/build 脚本缺失 | 插件内部静默跳过 | 不是所有项目都配置 lint/build，不应视为错误 |
 | bumpVersion 未实现 | PluginManager 报错终止 release | 版本号更新是 release 必要步骤，不允许无声跳过 |
 | install 读取 npm 命令 | 插件自行读 `.colyn/settings.json` | 避免接口复杂化，插件内部自主获取配置 |
 | devServerCommand | 返回 `string[]`，不执行 | 执行职责归 terminal session 插件，关注点分离 |
 | install 触发时机 | `add`（worktree）+ `release`（主分支） | 见第 6 节说明 |
-| 无法检测工具链 | 展示所有选项让用户选择 | 比报错更友好，覆盖特殊场景 |
-| plugins 配置存储 | `settings.json` 的 `plugins` 可选字段 | 不需要 Migration，向后兼容 |
-| 旧项目迁移 | 首次运行任意命令自动检测并迁移 | 零摩擦升级体验 |
-| 多工具链支持 | 不支持（超出范围） | 降低复杂度，聚焦核心场景 |
+| 无法检测工具链 | prompt 用户选择（或 nonInteractive 模式下跳过） | 比报错更友好，覆盖特殊场景 |
+| V4 配置结构 | `toolchain: {type, settings}`（单项目）/ `projects: [{path, toolchain}]`（Mono Repo） | 将工具链类型与专属配置内聚，支持子项目独立配置 |
+| V3→V4 迁移策略 | Zod transform 丢弃 plugins/pluginSettings，toolchain/projects 留 undefined | undefined 触发按需发现，用户无感知，自动重新检测 |
+| Mono Repo 子项目发现 | 「按需发现」：有新子目录时在命令执行时就地检测 + 保存 | 避免用户手动维护配置，命令执行时自动更新 |
+| Mono Repo 端口 | 每个子项目独立：从主分支 base port + worktree ID | 端口不冲突，符合 colyn 多 worktree 开发模式 |
+| runRepairSettings 返回值（V4） | `Promise<Record<string,unknown> \| null>`（原为 void） | 调用方（toolchain-resolver）负责保存，解耦持久化逻辑 |

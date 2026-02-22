@@ -908,6 +908,16 @@ export const zhCN = {
     },
   },
 
+  // Toolchain resolver
+  toolchain: {
+    unrecognizedDirectory: '子目录 {{path}} 未被任何工具链识别',
+    selectForDirectory: '请为 {{path}} 选择工具链',
+    noToolchain: '(无工具链)',
+    monoRepoDetected: '检测到 Mono Repo 结构，发现 {{count}} 个子项目',
+    singleProjectDetected: '检测到单项目（{{toolchain}}）',
+    subProjectSkipped: '子目录 {{path}} 在当前 Worktree 中不存在，已跳过',
+  },
+
   // Plugin system
   plugins: {
     autoMigrated: 'ℹ 已自动配置工具链插件：{{plugins}}',

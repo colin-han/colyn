@@ -3,13 +3,15 @@
  *
  * 使用 Zod transform 实现配置文件的版本迁移
  * - V0 (无版本号) -> V3
- * - V1 -> V3
+ * - V1 -> V2
  * - V2 -> V3
+ * - V3 -> V4
  *
  * 迁移内容：
  * - V0 -> V1: 添加版本号
  * - V1 -> V2: 配置结构重构和废弃命令处理
  * - V2 -> V3: 重命名内置命令（去掉 "auto" 前缀）
+ * - V3 -> V4: 插件系统重构（plugins/pluginSettings → toolchain/projects）
  */
 
 import { z } from 'zod';
@@ -313,6 +315,45 @@ const V1ToV2Schema = V1SettingsSchema.transform(
 );
 
 // ============================================================================
+// V3 Settings 类型和 Schema（包含 plugins/pluginSettings 的旧版本）
+// ============================================================================
+
+/**
+ * V3 Settings 类型（含旧字段：plugins, pluginSettings）
+ */
+type V3Settings = {
+  version: 3;
+  lang?: 'en' | 'zh-CN';
+  systemCommands?: { npm?: string; claude?: string };
+  tmux?: TmuxConfig;
+  plugins?: string[];
+  pluginSettings?: Record<string, Record<string, unknown>>;
+  branchOverrides?: Record<string, Partial<V3Settings>>;
+};
+
+const V3SettingsSchemaBase = z.object({
+  version: z.literal(3),
+  lang: z.enum(['en', 'zh-CN']).optional(),
+  systemCommands: z
+    .object({
+      npm: z.string().optional(),
+      claude: z.string().optional(),
+    })
+    .optional(),
+  tmux: TmuxConfigSchema.optional(),
+  plugins: z.array(z.string()).optional(),
+  pluginSettings: z
+    .record(z.string(), z.record(z.string(), z.unknown()))
+    .optional(),
+});
+
+const V3SettingsSchema: z.ZodType<V3Settings> = V3SettingsSchemaBase.extend({
+  branchOverrides: z
+    .record(z.string(), z.lazy(() => V3SettingsSchema))
+    .optional(),
+}) as z.ZodType<V3Settings>;
+
+// ============================================================================
 // V2 -> V3 迁移
 // ============================================================================
 
@@ -354,6 +395,51 @@ const V2ToV3Schema = V2SettingsSchema.transform(
 );
 
 // ============================================================================
+// V3 -> V4 迁移
+// ============================================================================
+
+/**
+ * 递归迁移 V3 Settings 到 V4
+ * - 丢弃 plugins 和 pluginSettings（在运行时按需重新检测）
+ * - toolchain 和 projects 设为 undefined（触发按需发现）
+ */
+function migrateV3ToV4Recursive(settings: V3Settings): Settings {
+  const result: Settings = {
+    version: 4,
+    lang: settings.lang,
+    systemCommands: settings.systemCommands,
+  };
+
+  if (settings.tmux) {
+    result.tmux = settings.tmux;
+  }
+
+  // 递归处理 branchOverrides
+  if (settings.branchOverrides) {
+    result.branchOverrides = {};
+    for (const [branch, branchSettings] of Object.entries(
+      settings.branchOverrides
+    )) {
+      result.branchOverrides[branch] = migrateV3ToV4Recursive(
+        branchSettings as V3Settings
+      );
+    }
+  }
+
+  // 注意：toolchain 和 projects 故意不设置（undefined），
+  // 这会在命令运行时触发「按需发现」流程重新检测工具链
+
+  return result;
+}
+
+/**
+ * V3 -> V4 Migration Schema
+ */
+const V3ToV4Schema = V3SettingsSchema.transform(
+  (v3): Settings => migrateV3ToV4Recursive(v3)
+);
+
+// ============================================================================
 // V0 -> V3 迁移（通过 V1 -> V2 -> V3）
 // ============================================================================
 
@@ -383,12 +469,15 @@ import { SettingsSchema } from './config-schema.js';
 /**
  * 统一的配置 Schema（支持所有版本）
  * Zod 会自动选择匹配的 Schema 并执行 transform
+ *
+ * 注意：顺序很重要，version literal 更具体的 Schema 放在前面
  */
 export const ConfigSchema = z.union([
-  V0ToV3Schema,  // V0 -> V3
-  V1ToV2Schema,  // V1 -> V2
-  V2ToV3Schema,  // V2 -> V3
-  SettingsSchema, // 当前版本（V3）
+  V0ToV3Schema,   // V0 -> V3（版本号为 undefined）
+  V1ToV2Schema,   // V1 -> V2（版本号为 1）
+  V2ToV3Schema,   // V2 -> V3（版本号为 2）
+  V3ToV4Schema,   // V3 -> V4（版本号为 3，含 plugins/pluginSettings）
+  SettingsSchema, // 当前版本（V4）
 ]);
 
 /**

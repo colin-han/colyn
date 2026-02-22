@@ -18,7 +18,6 @@ import {
   displayReleaseSuccess,
   displayRollbackCommands
 } from './release.helpers.js';
-import { loadProjectConfig } from '../core/config-loader.js';
 
 /**
  * Release 命令选项
@@ -121,14 +120,10 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
       await checkIsGitRepo();
     });
 
-    // 步骤7: 加载激活插件
-    const projectSettings = await loadProjectConfig(paths.rootDir);
-    const activePlugins = projectSettings?.plugins ?? [];
-
-    // 步骤8: 在主分支目录执行发布流程
+    // 步骤7: 在主分支目录执行发布流程
     let newVersion: string;
     try {
-      newVersion = await executeRelease(paths.mainDir, version, activePlugins, options.verbose);
+      newVersion = await executeRelease(paths.rootDir, paths.mainDir, version, options.verbose);
     } catch (error) {
       // 如果发布失败，尝试回滚
       if (error instanceof ColynError) {
@@ -138,7 +133,7 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
       throw error;
     }
 
-    // 步骤9: 发布成功后，自动更新所有 worktree（除非指定 --no-update）
+    // 步骤8: 发布成功后，自动更新所有 worktree（除非指定 --no-update）
     if (!options.noUpdate) {
       output(''); // 空行分隔
       output(t('commands.release.updatingWorktrees'));

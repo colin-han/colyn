@@ -12,7 +12,7 @@ export interface RepairSettingsContext {
   projectRoot: string;
   /** 主分支目录路径（包含项目代码文件） */
   worktreePath: string;
-  /** 当前已保存的本插件专属配置（来自 settings.json 的 pluginSettings[name]） */
+  /** 当前已保存的工具链专属配置（来自 settings.toolchain.settings 或 projects[i].toolchain.settings） */
   currentSettings: Record<string, unknown>;
   /** 是否处于非交互式模式（如 CI 环境，不能弹出交互提问） */
   nonInteractive: boolean;
@@ -143,13 +143,13 @@ export interface ToolchainPlugin {
    * 在 `colyn init` 和 `colyn repair` 时调用。
    * 插件应扫描项目结构，识别必要的配置项（如 Xcode 的 scheme / destination）。
    * 如果无法自动确定，可通过交互式提问让用户填写。
-   * 结果由 colyn 保存到 `.colyn/settings.json` 的 `pluginSettings[name]` 字段。
+   * 结果由 colyn 保存到 `.colyn/settings.json` 的 `toolchain.settings` 或 `projects[i].toolchain.settings` 字段。
    *
    * **典型用途**：Xcode 插件通过此方法询问用户 scheme 和 destination，
    * 供后续 `build` 命令使用。
    *
-   * @param context 包含 projectRoot、worktreePath、当前已保存配置、非交互模式标志
-   * @returns 插件专属配置键值对（将完整覆盖 pluginSettings[name]）
+   * @param context 包含 worktreePath、当前已保存工具链配置、非交互模式标志
+   * @returns 工具链专属配置键值对（将完整覆盖对应 toolchain.settings）
    */
   repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 

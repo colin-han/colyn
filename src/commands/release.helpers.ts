@@ -9,6 +9,7 @@ import {
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import { pluginManager } from '../plugins/index.js';
+import { resolveToolchains } from '../core/toolchain-resolver.js';
 
 /**
  * 解析后的版本号
@@ -165,15 +166,15 @@ export async function pushToRemote(
 
 /**
  * 执行发布流程
+ * @param projectRoot 项目根目录（.colyn 的父目录）
  * @param dir 主分支目录路径
  * @param versionType 版本类型或版本号
- * @param activePlugins 激活的插件名称列表
  * @param verbose 是否输出详细信息
  */
 export async function executeRelease(
+  projectRoot: string,
   dir: string,
   versionType: VersionType | string,
-  activePlugins: string[] = [],
   verbose: boolean = false
 ): Promise<string> {
   // 步骤 1: 检查 git 状态
@@ -190,11 +191,14 @@ export async function executeRelease(
   const currentBranch = await getCurrentBranch(dir);
   outputInfo(t('commands.release.currentBranch', { branch: currentBranch }));
 
+  // 解析工具链上下文
+  const contexts = await resolveToolchains(projectRoot, dir);
+
   // 步骤 2: 确定新版本号（通过插件读取当前版本）
   outputLine();
   outputBold(t('commands.release.step2'));
-  const currentVersion = activePlugins.length > 0
-    ? await pluginManager.runReadVersion(dir, activePlugins)
+  const currentVersion = contexts.length > 0
+    ? await pluginManager.runReadVersion(contexts[0].absolutePath, [contexts[0].toolchainName])
     : null;
   const newVersion = bumpVersion(currentVersion, versionType);
   if (currentVersion !== null) {
@@ -204,38 +208,46 @@ export async function executeRelease(
     outputSuccess(t('commands.release.targetVersion', { version: newVersion }));
   }
 
-  // 步骤 3: 安装依赖（通过插件）
-  if (activePlugins.length > 0) {
+  // 步骤 3: 安装依赖（通过工具链插件）
+  if (contexts.length > 0) {
     outputLine();
     outputBold(t('commands.release.step3'));
     outputInfo(t('commands.release.runningInstall'));
-    await pluginManager.runInstall(dir, activePlugins, verbose);
+    for (const ctx of contexts) {
+      await pluginManager.runInstall(ctx.absolutePath, [ctx.toolchainName], verbose);
+    }
     outputSuccess(t('commands.release.installSucceeded'));
   }
 
-  // 步骤 4: 运行 lint（通过插件）
-  if (activePlugins.length > 0) {
+  // 步骤 4: 运行 lint（通过工具链插件）
+  if (contexts.length > 0) {
     outputLine();
     outputBold(t('commands.release.step4'));
     outputInfo(t('commands.release.runningLint'));
-    await pluginManager.runLint(dir, activePlugins, verbose);
+    for (const ctx of contexts) {
+      await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
+    }
     outputSuccess(t('commands.release.lintPassed'));
   }
 
-  // 步骤 5: 运行 build（通过插件）
-  if (activePlugins.length > 0) {
+  // 步骤 5: 运行 build（通过工具链插件）
+  if (contexts.length > 0) {
     outputLine();
     outputBold(t('commands.release.step5'));
     outputInfo(t('commands.release.runningBuild'));
-    await pluginManager.runBuild(dir, activePlugins, verbose);
+    for (const ctx of contexts) {
+      await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
+    }
     outputSuccess(t('commands.release.buildSucceeded'));
   }
 
-  // 步骤 6: 更新版本号（通过插件）
-  if (activePlugins.length > 0) {
+  // 步骤 6: 更新版本号（通过工具链插件）
+  if (contexts.length > 0) {
     outputLine();
     outputBold(t('commands.release.step6'));
-    await pluginManager.runBumpVersion(dir, newVersion, activePlugins);
+    for (const ctx of contexts) {
+      await pluginManager.runBumpVersion(ctx.absolutePath, newVersion, [ctx.toolchainName]);
+    }
     outputSuccess(t('commands.release.versionUpdated', {
       old: currentVersion ?? newVersion,
       new: newVersion

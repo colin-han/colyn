@@ -17,7 +17,7 @@ import {
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import { pluginManager } from '../plugins/index.js';
-import { loadProjectConfig } from '../core/config-loader.js';
+import { resolveToolchains, saveRepairSettingsResult } from '../core/toolchain-resolver.js';
 
 /**
  * 修复结果接口
@@ -552,28 +552,38 @@ export async function repairProject(): Promise<void> {
     gitSpinner.fail(t('commands.repair.gitRepairFailed'));
   }
 
-  // 7. 运行插件初始化（重新应用插件的 init，如修复 .gitignore 条目）
-  const pluginSettings = await loadProjectConfig(paths.rootDir);
-  const activePlugins = pluginSettings?.plugins ?? [];
-  if (activePlugins.length > 0) {
+  // 7. 解析工具链并运行初始化（重新应用 .gitignore 条目）
+  const contexts = await resolveToolchains(paths.rootDir, paths.mainDir);
+  if (contexts.length > 0) {
     const pluginSpinner = ora({
       text: t('commands.repair.initializingPlugins'),
       stream: process.stderr
     }).start();
 
     try {
-      await pluginManager.ensureRuntimeConfigIgnored(paths.mainDir, activePlugins);
+      for (const ctx of contexts) {
+        await pluginManager.ensureRuntimeConfigIgnored(ctx.absolutePath, [ctx.toolchainName]);
+      }
       pluginSpinner.succeed(t('commands.repair.pluginsInitialized'));
     } catch {
-      // 插件初始化失败不阻断 repair 流程
+      // 初始化失败不阻断 repair 流程
       pluginSpinner.warn(t('commands.repair.pluginsInitFailed'));
     }
 
-    // 运行插件配置修复（可能有交互提问，不使用 spinner）
-    try {
-      await pluginManager.runRepairSettings(paths.rootDir, paths.mainDir, activePlugins);
-    } catch {
-      // 非致命，不阻断 repair 流程
+    // 运行工具链配置修复（可能有交互提问，不使用 spinner）
+    for (const ctx of contexts) {
+      try {
+        const newSettings = await pluginManager.runRepairSettings(
+          ctx.absolutePath,
+          ctx.toolchainName,
+          ctx.toolchainSettings
+        );
+        if (newSettings !== null) {
+          await saveRepairSettingsResult(paths.rootDir, ctx.subPath, newSettings);
+        }
+      } catch {
+        // 非致命，不阻断 repair 流程
+      }
     }
   }
 
