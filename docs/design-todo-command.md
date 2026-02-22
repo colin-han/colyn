@@ -183,6 +183,21 @@ pending ────────────────────────
 
 若未指定 `todoId`，自动使用当前所在 Worktree 的分支名（需在非主分支的 Worktree 中执行）。
 
+### 5.7 `colyn todo edit [todoId] [message]`
+
+编辑已有 Todo 任务的描述。
+
+**参数**：
+- `todoId`（可选）：格式为 `{type}/{name}`；省略时交互式选择
+- `message`（可选）：新的描述文本；省略时打开编辑器交互式编辑
+
+**交互逻辑**：
+- 无 `todoId`：交互式选择列表，显示所有 pending + completed 任务
+- 无 `message`：通过 `$VISUAL` / `$EDITOR` / `vim` 打开编辑器（使用临时文件）
+- Todo 已 `completed`：询问用户是否先回退为 `pending`，拒绝则以 exit(1) 报错退出
+
+**与 `uncomplete` 的区别**：`uncomplete` 专门处理状态回退；`edit` 主要修改 message，只在必要时顺带回退状态。
+
 ---
 
 ## 6. Checkout 集成

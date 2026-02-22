@@ -891,6 +891,17 @@ Solution:
         success: 'Todo "{{todoId}}" reverted to pending',
         usingCurrentBranch: 'Using current branch name: {{branch}}',
       },
+      edit: {
+        description: 'Edit the message of a Todo task',
+        notFound: 'Todo "{{todoId}}" not found',
+        noTodos: 'No Todo tasks available to edit',
+        selectTodo: 'Select a Todo task to edit',
+        isCompleted: 'Todo "{{todoId}}" is completed. Revert to pending?',
+        revertCanceled: 'Canceled, Todo status unchanged',
+        success: 'Todo "{{todoId}}" message updated',
+        messageEmpty: 'Message cannot be empty',
+        editorFailed: 'Editor exited unexpectedly, message not updated',
+      },
     },
 
     // list-project command
