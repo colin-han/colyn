@@ -862,6 +862,8 @@ Solution:
         completedOption: 'Show completed tasks',
         archivedOption: 'Show archived tasks',
         idOnlyOption: 'Output todo IDs only, one per line (for script integration)',
+        jsonOption: 'Output in JSON format',
+        jsonConflict: 'Option conflict: --json and --id-only cannot be used together',
         empty: 'No tasks',
         headerType: 'Type',
         headerName: 'Name',

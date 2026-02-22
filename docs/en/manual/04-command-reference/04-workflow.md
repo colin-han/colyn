@@ -242,6 +242,7 @@ colyn todo           # Equivalent to this command when no subcommand given
 | `--completed` | Show completed (`completed`) tasks |
 | `--archived` | Show archived tasks |
 | `--id-only` | Output Todo IDs only (one per line), for script integration |
+| `--json` | Output task list in JSON format |
 
 #### Examples
 
@@ -260,6 +261,24 @@ $ colyn todo list --completed
 $ colyn todo list --id-only
 feature/login
 bugfix/fix-crash
+
+# Output in JSON format (for script integration)
+$ colyn todo list --json
+[
+  {
+    "type": "feature",
+    "name": "login",
+    "message": "Implement user login",
+    "status": "pending",
+    "createdAt": "2026-02-22T10:00:00.000Z"
+  }
+]
+
+# Output completed tasks in JSON format
+$ colyn todo list --json --completed
+
+# Output archived tasks in JSON format (includes archivedAt field)
+$ colyn todo list --json --archived
 ```
 
 ---

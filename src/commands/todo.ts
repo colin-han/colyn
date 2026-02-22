@@ -273,7 +273,7 @@ export function register(program: Command): void {
       }
     });
 
-  // todo list [--completed] [--archived] [--id-only]
+  // todo list [--completed] [--archived] [--id-only] [--json]
   todo
     .command('list')
     .alias('ls')
@@ -281,10 +281,15 @@ export function register(program: Command): void {
     .option('--completed', t('commands.todo.list.completedOption'))
     .option('--archived', t('commands.todo.list.archivedOption'))
     .option('--id-only', t('commands.todo.list.idOnlyOption'))
-    .action(async (options: { completed?: boolean; archived?: boolean; idOnly?: boolean }) => {
+    .option('--json', t('commands.todo.list.jsonOption'))
+    .action(async (options: { completed?: boolean; archived?: boolean; idOnly?: boolean; json?: boolean }) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
+
+        if (options.json && options.idOnly) {
+          throw new ColynError(t('commands.todo.list.jsonConflict'));
+        }
 
         if (options.idOnly) {
           let todos: TodoItem[];
@@ -301,6 +306,22 @@ export function register(program: Command): void {
           for (const todo of todos) {
             process.stdout.write(`${todo.type}/${todo.name}\n`);
           }
+          return;
+        }
+
+        if (options.json) {
+          let todos: TodoItem[];
+          if (options.archived) {
+            const archivedFile = await readArchivedTodoFile(paths.configDir);
+            todos = archivedFile.todos;
+          } else if (options.completed) {
+            const todoFile = await readTodoFile(paths.configDir);
+            todos = todoFile.todos.filter(item => item.status === 'completed');
+          } else {
+            const todoFile = await readTodoFile(paths.configDir);
+            todos = todoFile.todos.filter(item => item.status === 'pending');
+          }
+          console.log(JSON.stringify(todos, null, 2));
           return;
         }
 
