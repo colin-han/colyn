@@ -15,6 +15,7 @@
 - [colyn remove](#colyn-remove)
 - [colyn checkout](#colyn-checkout)
 - [colyn info](#colyn-info)
+- [colyn status](#colyn-status)
 - [colyn repair](#colyn-repair)
 - [colyn config](#colyn-config)
 - [colyn completion](#colyn-completion)
@@ -1063,6 +1064,8 @@ colyn info [选项]
 | `worktree-dir` | Worktree 目录名 | `task-1` |
 | `worktree-path` | Worktree 目录完整路径 | `/Users/me/work/myapp/worktrees/task-1` |
 | `branch` | 当前分支名称 | `feature/login` |
+| `status` | 工作流状态（`idle`/`running`/`waiting-confirm`/`finish`） | `running` |
+| `last-updated-at` | 状态最后更新时间（ISO 8601，未设置时为空字符串） | `2026-02-22T10:00:00.000Z` |
 
 ### 功能说明
 
@@ -1097,6 +1100,8 @@ $ colyn info
 📁 Worktree Dir:  task-1
 📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1
 🌿 Branch:        feature/login
+⚡ Status:        running
+📅 Last Updated:  2026-02-22 18:00:04
 ```
 
 **输出简短标识符（推荐用于 shell 提示符）：**
@@ -1187,6 +1192,132 @@ myapp:1:feature/login
 - `--short` 选项支持智能降级，可在任何目录使用
 - 适合集成到 shell 提示符、终端标题或日志前缀
 - 字段输出适合在脚本中使用
+- `status` 和 `last-updated-at` 字段可与 `colyn status set` 联动，追踪工作流进度
+
+---
+
+## colyn status
+
+查询或设置当前 Worktree 的工作流状态。
+
+### 语法
+
+```bash
+colyn status [get] [--json]
+colyn status set <status>
+```
+
+- `get` 为可选子命令，`colyn status` 与 `colyn status get` 等价
+- 别名：`st`
+
+### 子命令
+
+#### `colyn status get`（默认）
+
+获取当前 Worktree 的工作流状态。
+
+| 选项 | 说明 |
+|------|------|
+| `--json` | 以 JSON 格式输出 |
+
+#### `colyn status set <status>`
+
+设置当前 Worktree 的工作流状态。
+
+| 参数 | 说明 |
+|------|------|
+| `<status>` | 状态值：`idle` \| `running` \| `waiting-confirm` \| `finish` |
+
+### 状态值说明
+
+| 状态值 | 含义 |
+|--------|------|
+| `idle` | 空闲，没有正在进行的任务 |
+| `running` | 运行中，Claude 正在处理任务 |
+| `waiting-confirm` | 等待用户确认 |
+| `finish` | 已完成，等待合并 |
+
+### 示例
+
+**查询状态（人类可读）：**
+
+```bash
+$ colyn status
+Status:   running
+Updated:  2026-02-22 18:00:04
+
+$ colyn status get
+Status:   running
+Updated:  2026-02-22 18:00:04
+```
+
+**从未设置时：**
+
+```bash
+$ colyn status
+Status:   idle
+Updated:  （从未设置）
+```
+
+**JSON 格式输出：**
+
+```bash
+$ colyn status --json
+{"worktreeDir":"task-1","worktreeId":1,"status":"running","updatedAt":"2026-02-22T10:00:04.000Z"}
+
+$ colyn status get --json
+{"worktreeDir":"task-1","worktreeId":1,"status":"running","updatedAt":"2026-02-22T10:00:04.000Z"}
+```
+
+**设置状态：**
+
+```bash
+$ colyn status set running
+✓ 状态已更新: running
+
+$ colyn status set finish
+✓ 状态已更新: finish
+
+$ colyn status set invalid
+✗ 无效的状态值: invalid
+  有效状态: idle, running, waiting-confirm, finish
+```
+
+### 自动重置
+
+以下命令成功执行后，对应 Worktree 状态会自动重置为 `idle`：
+
+- `colyn add`：创建新 Worktree 后
+- `colyn checkout`：切换分支后
+- `colyn merge`：合并到主分支后
+
+### 状态文件
+
+状态持久化到以下两个文件：
+
+| 文件 | 说明 |
+|------|------|
+| `{projectRoot}/.colyn/status.json` | 项目级状态（各 Worktree 的状态） |
+| `~/.colyn-status.json` | 全局索引（记录有活跃状态的项目路径） |
+
+### 与 colyn info 的关系
+
+`colyn info` 读取状态文件，提供 `status` 和 `last-updated-at` 字段：
+
+```bash
+$ colyn info -f status
+running
+
+$ colyn info --format="[{status}] {project}/{worktree-dir}"
+[running] myapp/task-1
+```
+
+### 常见错误
+
+| 错误场景 | 错误信息 | 解决方法 |
+|---------|---------|---------|
+| 不在 colyn 项目中 | `✗ 当前目录不是 colyn 项目` | 切换到 colyn 项目目录 |
+| 无效状态值 | `✗ 无效的状态值: xxx` | 使用有效状态值 |
 
 ---
 

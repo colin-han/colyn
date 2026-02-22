@@ -38,6 +38,7 @@ import {
   getWindowName,
   setIterm2Title
 } from '../core/tmux.js';
+import { setWorktreeStatus } from '../core/worktree-status.js';
 
 /**
  * 检查分支是否已合并到主分支
@@ -422,6 +423,11 @@ export async function checkoutCommand(
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new ColynError(t('commands.checkout.gitCheckoutFailed'), errorMessage);
     }
+
+    // 更新 worktree 状态为 idle
+    try {
+      await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
+    } catch { /* 状态更新失败不影响主流程 */ }
 
     // 步骤9.5: 更新 tmux window 名称（如果在 tmux 中）
     if (isTmuxAvailable() && isInTmux()) {
