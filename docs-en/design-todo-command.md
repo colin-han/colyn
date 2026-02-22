@@ -1,7 +1,7 @@
 # Todo Command Design Document
 
 **Created**: 2026-02-22
-**Last Updated**: 2026-02-22
+**Last Updated**: 2026-02-22 (updated: list output format, interactive select improvements)
 **Command Name**: `colyn todo`
 **Status**: ✅ Implemented
 
@@ -124,7 +124,13 @@ No message → Open editor ($VISUAL / $EDITOR / vim)
 
 Start executing a todo task. `todoId` is optional:
 
-**Without todoId**: Displays all `pending` tasks (format: `type/name  first line of description`) for interactive selection; exits with a message if no pending tasks exist.
+**Without todoId**: Shows an interactive selection list of all `pending` tasks; exits with a message if no pending tasks exist.
+
+Select list format:
+- Each row shows `type/name` (left-aligned, padded to the longest ID width) + two spaces + first line of message (gray)
+- The message first line is truncated to fit the available terminal width, ensuring each option occupies one line
+- After selecting an item, the first 4 lines of that task's message are displayed below the list as a preview (gray)
+- All width calculations are CJK-aware (Chinese characters count as width 2) for accurate alignment
 
 **With todoId**: Executes the specified task directly.
 
@@ -155,6 +161,14 @@ List tasks. Alias: `colyn todo ls`.
 | `colyn todo list --archived` | Tasks in `archived-todo.json` |
 
 **`colyn todo` (without subcommand) is equivalent to `colyn todo list`**.
+
+**Table output format**:
+
+- Columns: Type / Name / Message / Status / Created
+- Message column shows only the **first line** of the message
+- Type, Name, Status, and Created columns auto-size to fit content; Message column fills remaining terminal width
+- Message content is truncated with an ellipsis (`…`) when it exceeds the column width
+- All column width calculations are CJK-aware (Chinese characters count as width 2)
 
 ### 5.4 `colyn todo remove <todoId> [-y]`
 
@@ -203,5 +217,18 @@ All user-visible messages are written to **stderr**, following the project's dua
 ```
 src/commands/
 ├── todo.ts           # Command registration and all subcommand implementations
-└── todo.helpers.ts   # File I/O, vim editing, clipboard, table formatting
+└── todo.helpers.ts   # File I/O, vim editing, clipboard, table formatting, interactive select
 ```
+
+Key exports from `todo.helpers.ts`:
+
+| Function | Description |
+|----------|-------------|
+| `readTodoFile` / `saveTodoFile` | Active todo file read/write |
+| `readArchivedTodoFile` / `saveArchivedTodoFile` | Archived todo file read/write |
+| `parseTodoId` | Parse `type/name` format |
+| `findTodo` | Find a todo item in the list |
+| `editMessageWithEditor` | Open editor to interactively edit message |
+| `copyToClipboard` | Copy text to system clipboard |
+| `formatTodoTable` | Format table output (CJK-aware width) |
+| `selectPendingTodo` | Interactive task selection with preview |

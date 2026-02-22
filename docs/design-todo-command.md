@@ -1,7 +1,7 @@
 # Todo 命令设计文档
 
 **创建时间**：2026-02-22
-**最后更新**：2026-02-22
+**最后更新**：2026-02-22（更新：列表输出格式、交互式选择优化）
 **命令名称**：`colyn todo`
 **状态**：✅ 已实现
 
@@ -123,7 +123,13 @@ pending ────────────────────────
 
 开始执行待办任务。`todoId` 为可选参数：
 
-**无 todoId 时**：展示所有 `pending` 任务列表（格式：`type/name  描述首行`），用户交互式选择后执行；若无待办任务则直接提示退出。
+**无 todoId 时**：展示所有 `pending` 任务交互式选择列表，若无待办任务则直接提示退出。
+
+选择列表格式：
+- 每行显示 `type/name`（左对齐，补齐至最长 ID 宽度）+ 两空格 + message 首行（灰色）
+- message 首行按终端可用宽度截断，确保每个选项占一行
+- 选中某项后，列表下方显示该任务 message 的前 4 行内容作为预览（灰色）
+- 宽字符（CJK）按实际显示宽度（2）计算，确保对齐准确
 
 **有 todoId 时**：直接执行指定任务。
 
@@ -154,6 +160,14 @@ pending ────────────────────────
 | `colyn todo list --archived` | archived-todo.json 中的任务 |
 
 **`colyn todo`（不带子命令）等同于 `colyn todo list`**。
+
+**表格输出格式**：
+
+- 列：Type / Name / Message / Status / Created
+- Message 列仅显示 message 的**首行**内容
+- Type、Name、Status、Created 列按内容自适应宽度；Message 列填满终端剩余空间
+- Message 内容超出列宽时自动截断并追加省略号（`…`）
+- 所有列宽计算均采用 CJK 感知的显示宽度（中文字符宽度为 2）
 
 ### 5.4 `colyn todo remove <todoId> [-y]`
 
@@ -202,5 +216,18 @@ await checkoutCommand(undefined, branch, {});
 ```
 src/commands/
 ├── todo.ts           # 命令注册，所有子命令实现
-└── todo.helpers.ts   # 文件读写、vim 编辑、剪贴板、表格格式化
+└── todo.helpers.ts   # 文件读写、vim 编辑、剪贴板、表格格式化、交互式选择
 ```
+
+`todo.helpers.ts` 主要导出函数：
+
+| 函数 | 说明 |
+|------|------|
+| `readTodoFile` / `saveTodoFile` | 活跃 todo 文件读写 |
+| `readArchivedTodoFile` / `saveArchivedTodoFile` | 归档 todo 文件读写 |
+| `parseTodoId` | 解析 `type/name` 格式 |
+| `findTodo` | 在列表中查找条目 |
+| `editMessageWithEditor` | 打开编辑器交互式编辑 message |
+| `copyToClipboard` | 复制文本到系统剪贴板 |
+| `formatTodoTable` | 格式化表格输出（CJK 感知宽度） |
+| `selectPendingTodo` | 带预览的交互式任务选择 |

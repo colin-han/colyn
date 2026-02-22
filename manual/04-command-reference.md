@@ -1738,7 +1738,7 @@ colyn todo [子命令] [选项]
 | 子命令 | 说明 |
 |--------|------|
 | `add [todoId] [message]` | 添加 Todo 任务 |
-| `start <todoId>` | 开始执行任务（创建分支 + 复制描述到剪贴板） |
+| `start [todoId]` | 开始执行任务（创建分支 + 复制描述到剪贴板） |
 | `list` / `ls` | 列出任务（默认显示待办） |
 | `remove <todoId>` | 删除任务 |
 | `archive` | 归档所有已完成任务 |
@@ -1827,8 +1827,12 @@ colyn todo start [选项] [todoId]
 # 不带参数：交互式选择待办任务
 $ colyn todo start
 ? 选择要开始的任务 ›
-❯ feature/login  实现用户登录功能
-  bugfix/fix-crash  修复崩溃问题
+❯ feature/login    实现用户登录功能，支持邮箱和手机号…
+  bugfix/fix-crash  修复应用崩溃问题
+
+  实现用户登录功能，支持邮箱和手机号两种方式
+  - 添加登录表单
+  - 验证用户凭据
 
 # 直接指定任务 ID
 $ colyn todo start feature/login
@@ -1836,9 +1840,7 @@ $ colyn todo start feature/login
 ✓ Todo "feature/login" 已标记为完成
 
 任务描述：
-实现用户登录功能
-
-## 任务说明
+实现用户登录功能，支持邮箱和手机号两种方式
 - 添加登录表单
 - 验证用户凭据
 
@@ -1847,6 +1849,11 @@ $ colyn todo start feature/login
 # 跳过剪贴板操作
 $ colyn todo start feature/login --no-clipboard
 ```
+
+**交互式选择说明**：
+- 每行只显示 message 首行，按终端宽度自动截断（CJK 字符宽度为 2）
+- 所有选项的 ID 列左对齐补齐，便于快速扫描
+- 选中某项时，列表下方会显示该任务 message 的前 4 行内容作为预览
 
 **典型工作流**：`todo start` 后直接打开 Claude Code，将剪贴板内容粘贴到输入框，作为本次会话的任务上下文。
 
@@ -1876,9 +1883,10 @@ colyn todo           # 不带子命令时等同于此命令
 ```bash
 # 显示待办任务（默认）
 $ colyn todo
-  Type     Name   Message        Status  Created
-  ------------------------------------------------
-  feature  login  实现用户登录功能  待办    2026/02/22
+  Type     Name       Message                    Status  Created
+  ---------------------------------------------------------------
+  feature  login      实现用户登录功能，支持邮…    待办    2026/02/22 10:00
+  bugfix   fix-crash  修复应用崩溃问题              待办    2026/02/22 11:30
 
 # 显示已完成任务
 $ colyn todo list --completed
@@ -1886,6 +1894,11 @@ $ colyn todo list --completed
 # 显示已归档任务
 $ colyn todo list --archived
 ```
+
+**表格输出说明**：
+- Message 列仅显示 message 首行；各列自适应内容宽度，Message 列填满终端剩余空间
+- Message 内容超出列宽时自动截断并追加省略号（`…`）
+- 中文等宽字符按实际显示宽度计算，确保对齐准确
 
 ---
 
