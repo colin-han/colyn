@@ -35,6 +35,7 @@ Colyn is especially well-suited for the following scenarios:
 
 This user manual contains the following chapters:
 
+0. **[User Story: From Solo Developer to an AI Team](00-user-story.md)** - See what Colyn can do through a complete real-world scenario
 1. **[Quick Start](01-quick-start.md)** - Get up and running in 5 minutes
 2. **[Installation Guide](02-installation.md)** - Detailed installation instructions
 3. **[Core Concepts](03-core-concepts.md)** - Understanding how Colyn works
@@ -55,9 +56,10 @@ This user manual contains the following chapters:
 
 If this is your first time using Colyn:
 
-1. Read [Quick Start](01-quick-start.md) to learn the basics
-2. Check [Core Concepts](03-core-concepts.md) to understand how it works
-3. Refer to [Command Reference](04-command-reference/README.md) to learn specific commands
+1. Read [User Story](00-user-story.md) to quickly understand what problem Colyn solves
+2. Read [Quick Start](01-quick-start.md) to learn the basics
+3. Check [Core Concepts](03-core-concepts.md) to understand how it works
+4. Refer to [Command Reference](04-command-reference/README.md) to learn specific commands
 
 ### Existing Users
 
