@@ -304,36 +304,64 @@ export function register(program: Command): void {
       }
     });
 
-  // todo remove <todoId> [-y]
+  // todo remove [todoId] [-y]
   todo
-    .command('remove <todoId>')
+    .command('remove [todoId]')
     .description(t('commands.todo.remove.description'))
     .option('-y, --yes', t('commands.todo.remove.yesOption'))
-    .action(async (todoId: string, options: { yes?: boolean }) => {
+    .action(async (todoId: string | undefined, options: { yes?: boolean }) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
+        const todoFile = await readTodoFile(paths.configDir);
+
+        let resolvedTodoId: string;
+
+        if (!todoId) {
+          if (todoFile.todos.length === 0) {
+            outputInfo(t('commands.todo.list.empty'));
+            return;
+          }
+
+          const statusLabels = getStatusLabels();
+          const choices = todoFile.todos.map(item => ({
+            name: `${item.type}/${item.name}`,
+            message: `${item.type}/${item.name}  (${statusLabels[item.status] ?? item.status})`,
+          }));
+
+          const response = await prompt<{ todoId: string }>({
+            type: 'select',
+            name: 'todoId',
+            message: t('commands.todo.remove.selectTodo'),
+            choices,
+            stdout: process.stderr,
+          });
+
+          resolvedTodoId = response.todoId;
+        } else {
+          resolvedTodoId = todoId;
+        }
+
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(todoId));
+          ({ type, name } = parseTodoId(resolvedTodoId));
         } catch {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const todoFile = await readTodoFile(paths.configDir);
-        const index = todoFile.todos.findIndex(t => t.type === type && t.name === name);
+        const index = todoFile.todos.findIndex(item => item.type === type && item.name === name);
 
         if (index === -1) {
-          throw new ColynError(t('commands.todo.remove.notFound', { todoId }));
+          throw new ColynError(t('commands.todo.remove.notFound', { todoId: resolvedTodoId }));
         }
 
         if (!options.yes) {
           const response = await prompt<{ confirm: boolean }>({
             type: 'confirm',
             name: 'confirm',
-            message: t('commands.todo.remove.confirm', { todoId }),
+            message: t('commands.todo.remove.confirm', { todoId: resolvedTodoId }),
             initial: false,
             stdout: process.stderr
           });
@@ -347,7 +375,7 @@ export function register(program: Command): void {
         todoFile.todos.splice(index, 1);
         await saveTodoFile(paths.configDir, todoFile);
 
-        outputSuccess(t('commands.todo.remove.success', { todoId }));
+        outputSuccess(t('commands.todo.remove.success', { todoId: resolvedTodoId }));
       } catch (error) {
         formatError(error);
         process.exit(1);

@@ -1871,7 +1871,7 @@ colyn todo [子命令] [选项]
 | `add [todoId] [message]` | 添加 Todo 任务 |
 | `start [todoId]` | 开始执行任务（创建分支 + 复制描述到剪贴板） |
 | `list` / `ls` | 列出任务（默认显示待办） |
-| `remove <todoId>` | 删除任务 |
+| `remove [todoId]` | 删除任务（省略时交互式选择） |
 | `archive` | 归档所有已完成任务 |
 | `uncomplete [todoId]` | 将已完成任务回退为待办 |
 
@@ -2008,6 +2008,7 @@ colyn todo           # 不带子命令时等同于此命令
 |------|------|
 | `--completed` | 显示已完成（`completed`）的任务 |
 | `--archived` | 显示已归档的任务 |
+| `--id-only` | 仅输出 Todo ID（每行一个），用于脚本集成 |
 
 #### 示例
 
@@ -2024,6 +2025,11 @@ $ colyn todo list --completed
 
 # 显示已归档任务
 $ colyn todo list --archived
+
+# 仅输出 ID（用于脚本或自动补全）
+$ colyn todo list --id-only
+feature/login
+bugfix/fix-crash
 ```
 
 **表格输出说明**：
@@ -2035,13 +2041,19 @@ $ colyn todo list --archived
 
 ### colyn todo remove
 
-删除待办任务。
+删除一个 Todo 任务。
 
 #### 语法
 
 ```bash
-colyn todo remove [选项] <todoId>
+colyn todo remove [todoId] [选项]
 ```
+
+#### 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 否 | 要删除的 Todo ID；省略时交互式选择 |
 
 #### 选项
 
@@ -2049,14 +2061,28 @@ colyn todo remove [选项] <todoId>
 |------|--------|------|
 | `--yes` | `-y` | 跳过确认直接删除 |
 
+#### 功能说明
+
+省略 `todoId` 时，会列出所有任务（待办 + 已完成）供交互式选择，选项同时显示任务状态。
+
 #### 示例
 
 ```bash
-# 交互式确认删除
-$ colyn todo remove feature/login
+# 交互式选择要删除的任务
+$ colyn todo remove
+? 选择要删除的任务
+❯ feature/login  (待办)
+  bugfix/crash   (待办)
+  refactor/auth  (已完成)
 
-# 直接删除（无需确认）
+# 直接删除指定任务
+$ colyn todo remove feature/login
+? 确认删除 Todo "feature/login"？ (y/N) y
+✓ 已删除 Todo: feature/login
+
+# 跳过确认直接删除
 $ colyn todo remove feature/login -y
+✓ 已删除 Todo: feature/login
 ```
 
 ---
@@ -2093,7 +2119,7 @@ $ colyn todo archive -y
 
 ### colyn todo uncomplete
 
-将 `completed` 状态的任务回退为 `pending`（清除 `startedAt` 和 `branch` 记录）。
+将 `completed` 状态的任务回退为 `pending`（清除 `startedAt` 和 `branch` 记录）。省略 `todoId` 时，自动使用当前 Worktree 的分支名。
 
 #### 语法
 
@@ -2101,16 +2127,23 @@ $ colyn todo archive -y
 colyn todo uncomplete [todoId]
 ```
 
-若未指定 `todoId`，自动使用当前所在 Worktree 的分支名。
+#### 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 否 | 要回退的 Todo ID；省略时使用当前分支名 |
 
 #### 示例
 
 ```bash
-# 指定 Todo ID
-$ colyn todo uncomplete feature/login
-
-# 在 feature/login Worktree 中，自动使用当前分支名
+# 在 feature/login Worktree 中直接执行（自动推断）
 $ colyn todo uncomplete
+ℹ 使用当前分支名: feature/login
+✓ Todo "feature/login" 已回退为待办状态
+
+# 显式指定 ID
+$ colyn todo uncomplete feature/login
+✓ Todo "feature/login" 已回退为待办状态
 ```
 
 ---
@@ -2120,10 +2153,11 @@ $ colyn todo uncomplete
 | 错误场景 | 错误信息 | 解决方法 |
 |---------|---------|---------|
 | Todo ID 格式错误 | `✗ Todo ID 格式错误，应为 {type}/{name}` | 使用正确格式，如 `feature/login` |
-| Todo 不存在 | `✗ Todo "xxx" 不存在` | 先用 `todo add` 添加 |
-| Todo 不是待办状态 | `✗ Todo "xxx" 不是待办状态` | 已 completed 的任务无法再次 start |
+| Todo 不存在 | `✗ Todo "xxx" 不存在` | 先用 `todo add` 添加，或用 `colyn todo list` 查看 |
+| Todo 不是待办状态 | `✗ Todo "xxx" 不是待办状态` | 使用 `colyn todo uncomplete` 回退后再 start |
 | 重复添加 | `✗ Todo "xxx" 已存在` | 每个 type/name 只能添加一次 |
 | 创建分支失败 | `✗ 创建分支失败，Todo 状态未更改` | 检查 git 状态，确保工作区干净 |
+| 没有可选择的任务 | `ℹ 没有任务` | 先用 `colyn todo add` 添加任务 |
 
 ### 提示
 
@@ -2131,6 +2165,7 @@ $ colyn todo uncomplete
 - `todo start` 执行的是完整的 `colyn checkout` 流程，包括未提交检查、fetch 远程、归档旧日志等
 - 描述（message）支持完整的 Markdown 语法，有助于在 Claude 会话中提供清晰的上下文
 - 定期执行 `colyn todo archive -y` 可保持待办列表整洁
+- `remove` 命令无参数时的交互式选择会同时显示待办和已完成任务，方便批量清理
 
 ---
 

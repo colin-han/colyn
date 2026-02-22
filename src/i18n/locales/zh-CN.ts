@@ -873,6 +873,7 @@ export const zhCN = {
         confirm: '确认删除 Todo "{{todoId}}"？',
         success: '已删除 Todo: {{todoId}}',
         canceled: '已取消删除',
+        selectTodo: '选择要删除的任务',
       },
       archive: {
         description: '归档所有已完成的 Todo 任务',
