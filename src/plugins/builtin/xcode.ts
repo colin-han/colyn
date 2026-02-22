@@ -36,21 +36,16 @@ interface XcodeProject {
   project: string | undefined;
   /** 是否有 Package.swift */
   hasSPM: boolean;
-  /** 相对于 worktreePath 的子目录（如 'macos'），根目录时为 undefined */
-  subdir: string | undefined;
 }
 
 // ════════════════════════════════════════════
 // 辅助函数
 // ════════════════════════════════════════════
 
-/** 扫描子目录时跳过的目录名 */
-const SKIP_DIRS = new Set(['node_modules', 'build', 'DerivedData', '.git', 'worktrees', 'Pods']);
-
 /**
- * 扫描单个目录，找到 xcworkspace / xcodeproj / Package.swift
+ * 扫描目录，找到 xcworkspace / xcodeproj / Package.swift
  */
-async function scanXcodeDir(dir: string): Promise<Omit<XcodeProject, 'subdir'>> {
+async function scanXcodeDir(dir: string): Promise<XcodeProject> {
   let entries: string[] = [];
   try {
     entries = await fs.readdir(dir);
@@ -70,43 +65,6 @@ async function scanXcodeDir(dir: string): Promise<Omit<XcodeProject, 'subdir'>> 
   const hasSPM = entries.includes('Package.swift');
 
   return { workspace, project, hasSPM };
-}
-
-/**
- * 在 worktreePath 及其一级子目录中查找 Xcode 项目文件
- * 先扫根目录，未找到时再扫一级子目录
- */
-async function findXcodeProject(worktreePath: string): Promise<XcodeProject> {
-  // 先扫根目录
-  const root = await scanXcodeDir(worktreePath);
-  if (root.workspace ?? root.project ?? root.hasSPM) {
-    return { ...root, subdir: undefined };
-  }
-
-  // 扫一级子目录
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(worktreePath);
-  } catch {
-    return { workspace: undefined, project: undefined, hasSPM: false, subdir: undefined };
-  }
-
-  for (const entry of entries) {
-    if (entry.startsWith('.') || SKIP_DIRS.has(entry)) continue;
-    const subPath = path.join(worktreePath, entry);
-    try {
-      const stat = await fs.stat(subPath);
-      if (!stat.isDirectory()) continue;
-    } catch {
-      continue;
-    }
-    const sub = await scanXcodeDir(subPath);
-    if (sub.workspace ?? sub.project ?? sub.hasSPM) {
-      return { ...sub, subdir: entry };
-    }
-  }
-
-  return { workspace: undefined, project: undefined, hasSPM: false, subdir: undefined };
 }
 
 /**
@@ -186,7 +144,7 @@ export const xcodePlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async detect(worktreePath: string): Promise<boolean> {
-    const xcProject = await findXcodeProject(worktreePath);
+    const xcProject = await scanXcodeDir(worktreePath);
     return !!(xcProject.workspace ?? xcProject.project ?? xcProject.hasSPM);
   },
 
@@ -217,19 +175,15 @@ export const xcodePlugin: ToolchainPlugin = {
     const result: Record<string, unknown> = { ...currentSettings };
 
     // 扫描项目文件
-    const xcProject = await findXcodeProject(worktreePath);
+    const xcProject = await scanXcodeDir(worktreePath);
 
     if (!xcProject.workspace && !xcProject.project && !xcProject.hasSPM) {
       // 没有找到任何 Xcode 项目文件，不修改配置
       return result;
     }
 
-    // 更新 subdir（记录 xcodeproj 所在子目录）
-    if (xcProject.subdir !== undefined) {
-      result.subdir = xcProject.subdir;
-    } else {
-      delete result.subdir;
-    }
+    // 清理旧版本可能遗留的 subdir 配置
+    delete result.subdir;
 
     // 更新 workspace / project 引用（保持与项目实际状态一致）
     if (xcProject.workspace) {
@@ -255,14 +209,9 @@ export const xcodePlugin: ToolchainPlugin = {
 
     if (!projectFile) return result;
 
-    // xcodeproj 实际所在目录
-    const xcodeDir = xcProject.subdir
-      ? path.join(worktreePath, xcProject.subdir)
-      : worktreePath;
-
     // ── 处理 scheme ──────────────────────────────────
 
-    const schemes = await findSharedSchemes(xcodeDir, projectFile);
+    const schemes = await findSharedSchemes(worktreePath, projectFile);
 
     // 检查当前 scheme 是否仍然有效
     const currentScheme = typeof result.scheme === 'string' ? result.scheme : undefined;
@@ -316,7 +265,7 @@ export const xcodePlugin: ToolchainPlugin = {
     // ── 处理 destination ─────────────────────────────
 
     if (!result.destination) {
-      const inferred = await inferDestination(xcodeDir, projectFile);
+      const inferred = await inferDestination(worktreePath, projectFile);
       if (inferred) {
         result.destination = inferred;
         if (!nonInteractive) {
@@ -350,16 +299,13 @@ export const xcodePlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async install(worktreePath: string): Promise<void> {
-    const xcProject = await findXcodeProject(worktreePath);
-    const xcodeDir = xcProject.subdir ? path.join(worktreePath, xcProject.subdir) : worktreePath;
-
-    const hasPodfile = fsSync.existsSync(path.join(xcodeDir, 'Podfile'));
-    const hasPackageSwift = fsSync.existsSync(path.join(xcodeDir, 'Package.swift'));
+    const hasPodfile = fsSync.existsSync(path.join(worktreePath, 'Podfile'));
+    const hasPackageSwift = fsSync.existsSync(path.join(worktreePath, 'Package.swift'));
 
     if (hasPodfile) {
       try {
         execSync('pod install', {
-          cwd: xcodeDir,
+          cwd: worktreePath,
           stdio: ['ignore', 'pipe', 'pipe'],
         });
       } catch (error) {
@@ -369,7 +315,7 @@ export const xcodePlugin: ToolchainPlugin = {
     } else if (hasPackageSwift) {
       try {
         execSync('swift package resolve', {
-          cwd: xcodeDir,
+          cwd: worktreePath,
           stdio: ['ignore', 'pipe', 'pipe'],
         });
       } catch (error) {
@@ -385,12 +331,9 @@ export const xcodePlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async lint(worktreePath: string): Promise<void> {
-    const xcProject = await findXcodeProject(worktreePath);
-    const xcodeDir = xcProject.subdir ? path.join(worktreePath, xcProject.subdir) : worktreePath;
-
     const hasLintConfig =
-      fsSync.existsSync(path.join(xcodeDir, '.swiftlint.yml')) ||
-      fsSync.existsSync(path.join(xcodeDir, '.swiftlint.yaml'));
+      fsSync.existsSync(path.join(worktreePath, '.swiftlint.yml')) ||
+      fsSync.existsSync(path.join(worktreePath, '.swiftlint.yaml'));
 
     if (!hasLintConfig) return; // 无 swiftlint 配置，静默跳过
 
@@ -403,7 +346,7 @@ export const xcodePlugin: ToolchainPlugin = {
 
     try {
       execSync('swiftlint lint', {
-        cwd: xcodeDir,
+        cwd: worktreePath,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (error) {
@@ -444,17 +387,15 @@ export const xcodePlugin: ToolchainPlugin = {
     const destination = xcodeSettings.destination ?? 'generic/platform=iOS Simulator';
     const workspace = xcodeSettings.workspace;
     const project = xcodeSettings.project;
-    const subdir = xcodeSettings.subdir;
-    const xcodeDir = subdir ? path.join(worktreePath, subdir) : worktreePath;
 
     if (!scheme) {
       // 没有配置 scheme：如果是纯 SPM 则使用 swift build，否则静默跳过
-      const xcProject = await findXcodeProject(worktreePath);
+      const xcProject = await scanXcodeDir(worktreePath);
       if (xcProject.hasSPM && !xcProject.project && !xcProject.workspace) {
         // 纯 SPM 项目
         try {
           execSync('swift build', {
-            cwd: xcodeDir,
+            cwd: worktreePath,
             stdio: ['ignore', 'pipe', 'pipe'],
           });
         } catch (error) {
@@ -479,7 +420,7 @@ export const xcodePlugin: ToolchainPlugin = {
 
     try {
       execSync(cmd, {
-        cwd: xcodeDir,
+        cwd: worktreePath,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (error) {
@@ -493,13 +434,12 @@ export const xcodePlugin: ToolchainPlugin = {
   // ────────────────────────────────────────
 
   async bumpVersion(worktreePath: string, version: string): Promise<void> {
-    const xcProject = await findXcodeProject(worktreePath);
-    const xcodeDir = xcProject.subdir ? path.join(worktreePath, xcProject.subdir) : worktreePath;
+    const xcProject = await scanXcodeDir(worktreePath);
 
     // 优先使用 agvtool（Apple 官方工具，需要 VERSIONING_SYSTEM = apple-generic）
     try {
       execSync(`agvtool new-marketing-version ${version}`, {
-        cwd: xcodeDir,
+        cwd: worktreePath,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       return; // 成功
@@ -517,7 +457,7 @@ export const xcodePlugin: ToolchainPlugin = {
       );
     }
 
-    const pbxprojPath = path.join(xcodeDir, projectFile, 'project.pbxproj');
+    const pbxprojPath = path.join(worktreePath, projectFile, 'project.pbxproj');
 
     let content: string;
     try {
