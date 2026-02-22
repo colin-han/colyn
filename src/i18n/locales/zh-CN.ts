@@ -767,6 +767,10 @@ export const zhCN = {
       features: '功能说明：',
       featureAutoSwitch: '✓ colyn 命令支持自动目录切换',
       featureCompletion: '✓ 使用 Tab 键可自动完成命令和参数',
+      configuringClaudeHooks: '配置 Claude Code hooks...',
+      claudeHooksAdded: '✓ 已配置 Claude Code status hooks',
+      claudeHooksUpdated: '✓ 已更新 Claude Code status hooks',
+      claudeHooksFailed: '⚠ 配置 Claude Code hooks 失败（Claude Code 可能未安装）',
     },
 
     // tmux command
