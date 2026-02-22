@@ -38,7 +38,7 @@ Colyn 特别适合以下使用场景：
 1. **[快速开始](01-quick-start.md)** - 5 分钟快速上手
 2. **[安装指南](02-installation.md)** - 详细的安装说明
 3. **[核心概念](03-core-concepts.md)** - 理解 Colyn 的工作原理
-4. **[命令参考](04-command-reference.md)** - 所有命令的详细说明
+4. **[命令参考](04-command-reference/README.md)** - 所有命令的详细说明（按分类组织）
 5. **[高级用法](05-advanced-usage.md)** - 高级功能和技巧
 6. **[tmux 集成](06-tmux-integration.md)** - tmux 环境下的高效工作流
 7. **[最佳实践](07-best-practices.md)** - 推荐的工作流程和技巧
@@ -57,13 +57,13 @@ Colyn 特别适合以下使用场景：
 
 1. 阅读 [快速开始](01-quick-start.md) 了解基本用法
 2. 查看 [核心概念](03-core-concepts.md) 理解工作原理
-3. 参考 [命令参考](04-command-reference.md) 学习具体命令
+3. 参考 [命令参考](04-command-reference/README.md) 学习具体命令
 
 ### 已有用户
 
 如果你已经在使用 Colyn：
 
-- 需要特定命令说明 → [命令参考](04-command-reference.md)
+- 需要特定命令说明 → [命令参考](04-command-reference/README.md)
 - 配置文件设置 → [配置系统](10-configuration.md)
 - 遇到问题 → [故障排除](08-troubleshooting.md)
 - 查找术语 → [术语表](09-glossary.md)

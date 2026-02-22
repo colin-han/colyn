@@ -53,7 +53,7 @@ source ~/my-tools/colyn/colyn.d/colyn.sh
 source ~/my-tools/colyn/colyn.d/completion.bash  # or completion.zsh
 ```
 
-For detailed installation instructions, see [docs/installation.md](docs/installation.md).
+For detailed installation instructions, see [docs/en/develop/installation.md](docs/en/develop/installation.md).
 
 ---
 
