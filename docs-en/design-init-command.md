@@ -211,8 +211,9 @@ graph TD
 
     CreateDirs --> MoveFiles[Move all files]
     MoveFiles --> ConfigEnv[Configure environment variables]
-    ConfigEnv --> DetectPlugins[Detect toolchain plugins<br/>npm / Maven / Gradle / pip]
-    DetectPlugins --> RunPluginInit[Run plugin initialization<br/>e.g. add .env.local to .gitignore]
+    ConfigEnv --> DetectPlugins[Detect toolchain plugins<br/>npm / Maven / Gradle / pip / xcode]
+    DetectPlugins --> SavePlugins[Save plugin list to settings.json<br/>even if empty]
+    SavePlugins --> RunPluginInit[Run plugin initialization<br/>e.g. add .env.local to .gitignore]
     RunPluginInit --> ProjectSuccess[✓ Show success message]
     ProjectSuccess --> End
 
@@ -305,8 +306,9 @@ sequenceDiagram
 - ✔ Move project files
 - ✔ Environment variables configured
 - ✔ .gitignore configured
-- ✔ Detected toolchain: npm (or maven / gradle / pip)
-- ✔ Plugin initialization complete
+- ✔ Detected toolchain: {plugin-name} (auto-detected)
+- ℹ No toolchain detected — shows a multi-select prompt for manual plugin selection (press Enter to skip)
+- ✔ Plugin initialization complete (if any plugin is activated)
 - ✔ Config file saved
 
 **Success information**:

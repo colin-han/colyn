@@ -55,16 +55,36 @@ async function savePluginsToSettings(projectRoot: string, configDirPath: string,
 
 /**
  * 检测插件并执行插件初始化（gitignore 等）
+ * @param nonInteractive 是否非交互模式（默认 false）
  * @returns 检测到的插件名称列表
  */
 async function detectAndInitPlugins(
   mainDirPath: string,
   projectRoot: string,
-  configDirPath: string
+  configDirPath: string,
+  nonInteractive = false
 ): Promise<string[]> {
-  const detectedPlugins = await pluginManager.detectPlugins(mainDirPath);
+  let detectedPlugins = await pluginManager.detectPlugins(mainDirPath);
+
+  // 未检测到插件时，交互模式下提示用户手动选择
+  if (detectedPlugins.length === 0 && !nonInteractive) {
+    const allPlugins = pluginManager.getAllPlugins();
+    const choices = allPlugins.map(p => ({ name: p.name, message: p.displayName }));
+    outputInfo(t('commands.init.noPluginsDetected'));
+    const response = await prompt<{ plugins: string[] }>({
+      type: 'multiselect',
+      name: 'plugins',
+      message: t('commands.init.selectPlugins'),
+      choices,
+      stdout: process.stderr,
+    });
+    detectedPlugins = response.plugins;
+  }
+
+  // 始终保存（包括空选择），防止 ensurePluginsConfigured 重复触发自动迁移
+  await savePluginsToSettings(projectRoot, configDirPath, detectedPlugins);
+
   if (detectedPlugins.length > 0) {
-    await savePluginsToSettings(projectRoot, configDirPath, detectedPlugins);
     await pluginManager.ensureRuntimeConfigIgnored(mainDirPath, detectedPlugins);
     await pluginManager.runRepairSettings(projectRoot, mainDirPath, detectedPlugins);
   }

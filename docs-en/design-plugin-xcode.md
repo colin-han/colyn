@@ -33,26 +33,41 @@ This document records the Xcode plugin design analysis, including:
 
 **Must exclude `project.xcworkspace`**: Every `.xcodeproj` automatically generates an internal `project.xcworkspace` subdirectory (path: `*.xcodeproj/project.xcworkspace/`). This is an Xcode-managed internal file, not a user-created standalone workspace. Misdetecting it as a valid workspace would cause incorrect `-workspace` parameter paths.
 
+### 2.3 Subdirectory Detection
+
+Some projects place the Xcode workspace in a subdirectory (e.g., React Native iOS subproject, native macOS companion app):
+
+```
+my-project/
+├── ios/
+│   └── MyApp.xcodeproj/    ← Xcode project in subdirectory
+├── android/
+└── src/
+```
+
+Detection strategy: **scan root directory first; if nothing found, scan one level of subdirectories** (skipping `node_modules`, `build`, `DerivedData`, `.git`, `worktrees`, `Pods`, etc.).
+
 **Detection Logic (pseudocode)**:
 
 ```typescript
 async detect(worktreePath: string): Promise<boolean> {
+  // Scan root directory first
+  const root = await scanXcodeDir(worktreePath);
+  if (root.workspace || root.project || root.hasSPM) return true;
+
+  // Then scan one level of subdirectories
   const entries = await fs.readdir(worktreePath);
-
-  // Detect real xcworkspace (exclude project.xcworkspace)
-  const hasWorkspace = entries.some(
-    e => e.endsWith('.xcworkspace') && e !== 'project.xcworkspace'
-  );
-
-  // Detect xcodeproj
-  const hasProject = entries.some(e => e.endsWith('.xcodeproj'));
-
-  // Detect Package.swift
-  const hasSPM = entries.includes('Package.swift');
-
-  return hasWorkspace || hasProject || hasSPM;
+  for (const entry of entries) {
+    if (entry.startsWith('.') || SKIP_DIRS.has(entry)) continue;
+    if (!(await fs.stat(path.join(worktreePath, entry))).isDirectory()) continue;
+    const sub = await scanXcodeDir(path.join(worktreePath, entry));
+    if (sub.workspace || sub.project || sub.hasSPM) return true;
+  }
+  return false;
 }
 ```
+
+When a subdirectory is detected, the `subdir` field (e.g., `"ios"`) is saved to `pluginSettings.xcode` along with `workspace`/`project` for use by subsequent commands.
 
 ---
 
@@ -99,31 +114,38 @@ The responsibility of `repairSettings`: automatically discover deterministic inf
 
 ```
 Step 1: Find project entry point
-  Scan worktreePath, find .xcworkspace (filter project.xcworkspace) or .xcodeproj
-  Record workspaceFile or projectFile
+  Call findXcodeProject(worktreePath):
+  - Scan root directory first, find .xcworkspace (filter project.xcworkspace) or .xcodeproj
+  - If not found, scan one level of subdirectories (skip SKIP_DIRS)
+  Record workspaceFile / projectFile, and the subdirectory (subdir) where they reside
 
-Step 2: Discover shared schemes
-  Path: {project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme
+Step 2: Save subdir
+  If xcodeproj is in a subdirectory (e.g. "macos"), record subdir = "macos"
+  Subsequent steps operate using xcodeDir = path.join(worktreePath, subdir)
+
+Step 3: Discover shared schemes
+  Path: {xcodeDir}/{project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme
   Shared schemes are committed to git and are the most reliable build targets
   Non-shared schemes are stored in user private directories and not committed
 
-Step 3: Infer target platform
-  Read {project}.xcodeproj/project.pbxproj
+Step 4: Infer target platform
+  Read {xcodeDir}/{project}.xcodeproj/project.pbxproj
   Find SDKROOT value:
     iphoneos     → iOS
     macosx       → macOS
     appletvos    → tvOS
     watchos      → watchOS
 
-Step 4: Decision and interaction
+Step 5: Decision and interaction
   - Only one shared scheme → use automatically, inform user
   - Multiple shared schemes → let user choose (single select)
   - No shared schemes → prompt user to manually enter scheme name
   - destination can be clearly inferred → use automatically
   - destination unclear → ask user (provide common options)
 
-Step 5: Return result
+Step 6: Return result
   {
+    subdir: "macos",              // subdirectory (omitted for root-level projects)
     workspace: "MyApp.xcworkspace",  // or project: "MyApp.xcodeproj"
     scheme: "MyApp",
     destination: "generic/platform=iOS Simulator"
@@ -162,26 +184,30 @@ In CI environments, interactive prompts are not possible:
 
 ```
 Detection Logic (by priority):
-1. If Podfile exists in worktreePath
-   → Execute: pod install
+1. Call findXcodeProject(worktreePath) to get xcodeDir (with subdirectory support)
+
+2. If Podfile exists in xcodeDir
+   → Execute: pod install (cwd: xcodeDir)
    → If pod command not found, throw PluginCommandError prompting user to install CocoaPods
 
-2. If Package.swift exists (and no Podfile)
-   → Execute: swift package resolve
+3. If Package.swift exists in xcodeDir (and no Podfile)
+   → Execute: swift package resolve (cwd: xcodeDir)
 
-3. Neither exists → silently skip
+4. Neither exists → silently skip
 ```
 
 ### 5.2 lint
 
 ```
 Detection Logic:
-1. If .swiftlint.yml or .swiftlint.yaml exists in worktreePath
-   → Execute: swiftlint lint
+1. Call findXcodeProject(worktreePath) to get xcodeDir (with subdirectory support)
+
+2. If .swiftlint.yml or .swiftlint.yaml exists in xcodeDir
+   → Execute: swiftlint lint (cwd: xcodeDir)
    → If swiftlint command not found, silently skip (not an error; tool not installed)
    → On failure, throw PluginCommandError
 
-2. Otherwise → silently skip
+3. Otherwise → silently skip
 ```
 
 ### 5.3 build
@@ -193,15 +219,18 @@ Detection Logic:
 **Recommended build logic**:
 
 ```
-1. Try to read scheme from pluginSettings.xcode:
+1. Read subdir from pluginSettings.xcode to derive xcodeDir:
+   xcodeDir = subdir ? path.join(worktreePath, subdir) : worktreePath
+
+2. Try to read scheme from pluginSettings.xcode:
    - If scheme exists:
      Build xcodebuild command, choose -workspace or -project based on saved config
-     Execute: xcodebuild -workspace {w} -scheme {s} -destination {d} build
-     or:      xcodebuild -project   {p} -scheme {s} -destination {d} build
+     Execute: xcodebuild -workspace {w} -scheme {s} -destination {d} build (cwd: xcodeDir)
+     or:      xcodebuild -project   {p} -scheme {s} -destination {d} build (cwd: xcodeDir)
 
    - If scheme doesn't exist (repairSettings not run or user skipped):
      Check if Package.swift exists
-       Yes → SPM fallback: swift build (may not be what user wants, but builds something)
+       Yes → SPM fallback: swift build (cwd: xcodeDir)
        No  → silently skip, output hint: "Run colyn repair to configure Xcode build parameters"
 ```
 
@@ -214,7 +243,7 @@ Detection Logic:
 Using Apple's official `agvtool` tool:
 
 ```bash
-# Execute in worktreePath
+# Execute in xcodeDir (with subdirectory support)
 agvtool new-marketing-version {version}
 ```
 
@@ -232,6 +261,8 @@ If `agvtool` is unavailable or project lacks `VERSIONING_SYSTEM`:
 
 After successful configuration save, `.colyn/settings.json` example:
 
+**Root-level project** (xcodeproj at the root of the worktree):
+
 ```json
 {
   "version": 3,
@@ -241,6 +272,23 @@ After successful configuration save, `.colyn/settings.json` example:
       "workspace": "MyApp.xcworkspace",
       "scheme": "MyApp",
       "destination": "generic/platform=iOS Simulator"
+    }
+  }
+}
+```
+
+**Subdirectory project** (xcodeproj in a subdirectory, e.g., `macos/ColynPuppy.xcodeproj`):
+
+```json
+{
+  "version": 3,
+  "plugins": ["xcode"],
+  "pluginSettings": {
+    "xcode": {
+      "subdir": "macos",
+      "project": "ColynPuppy.xcodeproj",
+      "scheme": "ColynPuppy",
+      "destination": "platform=macOS"
     }
   }
 }
@@ -292,3 +340,10 @@ src/plugins/builtin/
 3. Added i18n translations (`zh-CN.ts` / `en.ts` under `plugins.xcode` namespace)
 4. Updated `docs-en/design-plugin-toolchain.md` with xcode plugin entry
 5. Updated user manual `manual/11-plugin-system.md`
+
+✅ 2026-02-22 Follow-up:
+
+6. Added `XcodeProject.subdir` field for subdirectory detection support
+7. Split `findXcodeProject` into `scanXcodeDir` + `findXcodeProject` (one-level subdirectory scan)
+8. `repairSettings` saves `subdir` and uses `xcodeDir` for scheme/destination detection
+9. `install` / `lint` / `build` / `bumpVersion` all operate using `xcodeDir` (correct subdirectory handling)

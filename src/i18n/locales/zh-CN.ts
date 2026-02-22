@@ -299,6 +299,8 @@ export const zhCN = {
       tmuxPaneDevServer: '  ├─ Dev Server   (右上 12%)',
       tmuxPaneBash: '  └─ Bash         (右下 28%)',
       tmuxAttachHint: `提示: 运行 'tmux attach -t {{session}}' 进入工作环境`,
+      noPluginsDetected: '未检测到已知工具链，请手动选择要启用的插件（可多选，直接回车跳过）',
+      selectPlugins: '选择工具链插件',
     },
 
     // merge command

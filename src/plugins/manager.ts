@@ -24,6 +24,13 @@ export class PluginManager {
   }
 
   /**
+   * 获取所有已注册的插件列表
+   */
+  getAllPlugins(): ToolchainPlugin[] {
+    return Array.from(this.plugins.values());
+  }
+
+  /**
    * 获取激活的插件列表
    * @param activePluginNames 激活插件名称数组（来自 settings.plugins）
    */

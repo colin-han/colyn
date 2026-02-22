@@ -299,6 +299,8 @@ Hints:
       tmuxPaneDevServer: '  |- Dev Server   (top-right 12%)',
       tmuxPaneBash: '  `- Bash         (bottom-right 28%)',
       tmuxAttachHint: `Hint: Run 'tmux attach -t {{session}}' to enter workspace`,
+      noPluginsDetected: 'No toolchain detected. Please select plugins to enable (multi-select, press Enter to skip):',
+      selectPlugins: 'Select toolchain plugins',
     },
 
     // merge command
