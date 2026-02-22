@@ -119,14 +119,21 @@ pending ────────────────────────
 
 **重复检测**：同一 `type+name` 不允许重复添加。
 
-### 5.2 `colyn todo start <todoId>`
+### 5.2 `colyn todo start [todoId]`
 
-开始执行待办任务：
+开始执行待办任务。`todoId` 为可选参数：
 
-1. 验证 todo 存在且状态为 `pending`
-2. 调用 `checkoutCommand(undefined, branch, {})` 创建/切换到对应分支
-3. checkout 成功后：更新状态为 `completed`，记录 `startedAt` 和 `branch`
-4. 输出任务描述（message），并复制到剪贴板
+**无 todoId 时**：展示所有 `pending` 任务列表（格式：`type/name  描述首行`），用户交互式选择后执行；若无待办任务则直接提示退出。
+
+**有 todoId 时**：直接执行指定任务。
+
+**执行流程**：
+
+1. 若未提供 todoId，交互式选择一个 pending 任务
+2. 验证 todo 存在且状态为 `pending`
+3. 调用 `checkoutCommand(undefined, branch, {})` 创建/切换到对应分支
+4. checkout 成功后：更新状态为 `completed`，记录 `startedAt` 和 `branch`
+5. 输出任务描述（message），并复制到剪贴板
 
 **剪贴板支持**：
 - macOS：`pbcopy`

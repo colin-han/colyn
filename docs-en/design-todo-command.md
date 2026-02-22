@@ -120,14 +120,21 @@ No message → Open editor ($VISUAL / $EDITOR / vim)
 
 **Duplicate detection**: The same `type+name` combination cannot be added twice.
 
-### 5.2 `colyn todo start <todoId>`
+### 5.2 `colyn todo start [todoId]`
 
-Start executing a todo task:
+Start executing a todo task. `todoId` is optional:
 
-1. Validate the todo exists and is in `pending` status
-2. Call `checkoutCommand(undefined, branch, {})` to create/switch to the branch
-3. On success: update status to `completed`, record `startedAt` and `branch`
-4. Output the task description (message) and copy it to the clipboard
+**Without todoId**: Displays all `pending` tasks (format: `type/name  first line of description`) for interactive selection; exits with a message if no pending tasks exist.
+
+**With todoId**: Executes the specified task directly.
+
+**Execution flow**:
+
+1. If no todoId is provided, interactively select a pending task
+2. Validate the todo exists and is in `pending` status
+3. Call `checkoutCommand(undefined, branch, {})` to create/switch to the branch
+4. On success: update status to `completed`, record `startedAt` and `branch`
+5. Output the task description (message) and copy it to the clipboard
 
 **Clipboard support**:
 - macOS: `pbcopy`

@@ -1802,8 +1802,10 @@ $ colyn todo add feature/login "实现用户登录功能"
 #### 语法
 
 ```bash
-colyn todo start [选项] <todoId>
+colyn todo start [选项] [todoId]
 ```
+
+`todoId` 为可选参数。不指定时，交互式展示所有待办任务供选择。
 
 #### 选项
 
@@ -1813,7 +1815,7 @@ colyn todo start [选项] <todoId>
 
 #### 执行过程
 
-1. 验证 todo 存在且状态为 `pending`
+1. 若未指定 `todoId`，列出所有 `pending` 任务并交互式选择；无待办任务则退出
 2. 在当前 Worktree 切换到 `{type}/{name}` 分支（若不存在则创建）
 3. 将 todo 状态标记为 `completed`
 4. 在终端输出任务描述（message）
@@ -1822,7 +1824,13 @@ colyn todo start [选项] <todoId>
 #### 示例
 
 ```bash
-# 开始执行任务，描述自动复制到剪贴板
+# 不带参数：交互式选择待办任务
+$ colyn todo start
+? 选择要开始的任务 ›
+❯ feature/login  实现用户登录功能
+  bugfix/fix-crash  修复崩溃问题
+
+# 直接指定任务 ID
 $ colyn todo start feature/login
 
 ✓ Todo "feature/login" 已标记为完成
