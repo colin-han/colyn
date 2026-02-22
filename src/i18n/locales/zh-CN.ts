@@ -822,6 +822,62 @@ export const zhCN = {
       passthroughRerunHint: '重新加载完成后，再次运行 colyn tmux start',
     },
 
+    // todo command
+    todo: {
+      description: '管理 Todo 任务',
+      add: {
+        description: '添加 Todo 任务',
+        invalidFormat: 'Todo ID 格式错误，应为 {type}/{name}',
+        alreadyExists: 'Todo "{{todoId}}" 已存在',
+        success: '已添加 Todo: {{todoId}} - {{message}}',
+      },
+      start: {
+        description: '开始执行 Todo 任务（创建对应分支）',
+        notFound: 'Todo "{{todoId}}" 不存在',
+        notPending: 'Todo "{{todoId}}" 不是待办状态',
+        checkoutFailed: '创建分支失败，Todo 状态未更改',
+        success: 'Todo "{{todoId}}" 已标记为完成',
+      },
+      list: {
+        description: '列出 Todo 任务',
+        completedOption: '显示已完成的任务',
+        archivedOption: '显示已归档的任务',
+        empty: '没有任务',
+        headerType: '类型',
+        headerName: '名称',
+        headerMessage: '描述',
+        headerStatus: '状态',
+        headerCreatedAt: '创建时间',
+        statusPending: '待办',
+        statusCompleted: '已完成',
+        statusArchived: '已归档',
+      },
+      remove: {
+        description: '删除 Todo 任务',
+        yesOption: '跳过确认直接删除',
+        notFound: 'Todo "{{todoId}}" 不存在',
+        confirm: '确认删除 Todo "{{todoId}}"？',
+        success: '已删除 Todo: {{todoId}}',
+        canceled: '已取消删除',
+      },
+      archive: {
+        description: '归档所有已完成的 Todo 任务',
+        yesOption: '跳过确认直接归档',
+        noCompleted: '没有已完成的任务可以归档',
+        confirm: '确认归档 {{count}} 个已完成的任务？',
+        success: '已归档 {{count}} 个任务',
+        canceled: '已取消归档',
+      },
+      uncomplete: {
+        description: '将已完成的 Todo 任务回退为待办状态',
+        notFound: 'Todo "{{todoId}}" 不存在',
+        notCompleted: 'Todo "{{todoId}}" 不是已完成状态',
+        noBranch: '当前不在 worktree 分支中，请指定 Todo ID',
+        success: 'Todo "{{todoId}}" 已回退为待办状态',
+        usingCurrentBranch: '使用当前分支名: {{branch}}',
+      },
+    },
+
     // list-project command
     listProject: {
       description: '列出所有 tmux session 中的项目',
