@@ -6,7 +6,6 @@ import { dirname, join } from 'path';
 import { registerAllCommands } from './commands/index.js';
 import { t, initI18n } from './i18n/index.js';
 import { getProjectPaths } from './core/paths.js';
-import { ensurePluginsConfigured } from './plugins/index.js';
 
 // 获取 package.json 中的版本号
 const __filename = fileURLToPath(import.meta.url);
@@ -135,17 +134,6 @@ export async function run(): Promise<void> {
   } catch {
     // 不在项目目录中，只使用环境变量和用户配置
     await initI18n();
-  }
-
-  // 旧项目自动迁移：若 settings.json 缺少 plugins 字段，自动检测并写入
-  // 排除 init 命令（init 本身负责插件检测和配置）
-  const isInitCommand = process.argv.some((arg) => arg === 'init');
-  if (!isInitCommand && projectPaths) {
-    await ensurePluginsConfigured(
-      projectPaths.rootDir,
-      projectPaths.configDir,
-      projectPaths.mainDir
-    );
   }
 
   program.parse();

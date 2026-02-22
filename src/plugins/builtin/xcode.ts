@@ -426,7 +426,19 @@ export const xcodePlugin: ToolchainPlugin = {
     }
 
     const settings = await loadProjectConfig(projectRoot);
-    const xcodeSettings = (settings?.pluginSettings?.['xcode'] ?? {}) as Record<string, string>;
+
+    // V4: 从 toolchain.settings 或 projects[i].toolchain.settings 读取 xcode 配置
+    let xcodeSettings: Record<string, string> = {};
+    if (settings?.toolchain?.type === 'xcode') {
+      xcodeSettings = (settings.toolchain.settings as Record<string, string>) ?? {};
+    } else if (settings?.projects) {
+      for (const project of settings.projects) {
+        if (project.toolchain?.type === 'xcode') {
+          xcodeSettings = (project.toolchain.settings as Record<string, string>) ?? {};
+          break;
+        }
+      }
+    }
 
     const scheme = xcodeSettings.scheme;
     const destination = xcodeSettings.destination ?? 'generic/platform=iOS Simulator';

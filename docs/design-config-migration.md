@@ -44,7 +44,7 @@
 **版本号定义**：
 - 在 `Settings` 接口中添加 `version: number` 字段
 - 定义 `CURRENT_CONFIG_VERSION` 常量表示当前最新版本
-- **当前版本号：3**
+- **当前版本号：4**
 
 **版本检测**：
 - 配置文件中没有 `version` 字段 → 视为版本 0（旧版本）
@@ -77,10 +77,11 @@ const V1ToV2Schema = V1SettingsSchema.transform((v1): V2Settings => {
 
 // 统一的配置 Schema（支持所有版本）
 export const ConfigSchema = z.union([
-  V0ToV3Schema,  // V0 → V3
-  V1ToV2Schema,  // V1 → V2
-  V2ToV3Schema,  // V2 → V3
-  SettingsSchema, // 当前版本（V3）
+  V0ToV3Schema,   // V0 → V3
+  V1ToV2Schema,   // V1 → V2
+  V2ToV3Schema,   // V2 → V3
+  V3ToV4Schema,   // V3 → V4（plugins/pluginSettings → toolchain/projects）
+  SettingsSchema, // 当前版本（V4）
 ]);
 ```
 

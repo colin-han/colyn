@@ -1,8 +1,9 @@
 # Toolchain Plugin Design Document
 
-**Status**: Design Phase
+**Status**: Implemented
 **Created**: 2026-02-21
-**Related Requirement**: `docs/requirements/requirement-plugin-system.md`
+**Last Updated**: 2026-02-22 (V4 config format refactor + Mono Repo support)
+**Related Requirement**: `docs/requirements/requirement-plugin-system.md`, `docs/requirement-mono-repo.md`
 
 ---
 
@@ -77,11 +78,11 @@ export class PluginCommandError extends Error {
  * Passed to each plugin's repairSettings method during colyn init / colyn repair.
  */
 export interface RepairSettingsContext {
-  /** Project root directory (parent of .colyn) */
+  /** Project root directory (parent of .colyn) — reserved field, currently passed as empty string */
   projectRoot: string;
-  /** Main branch directory path (contains project source files) */
+  /** Sub-project directory path (single-project = worktree root; Mono Repo = worktree/subPath) */
   worktreePath: string;
-  /** Currently saved plugin-specific settings (from settings.json pluginSettings[name]) */
+  /** Currently saved toolchain-specific settings (from settings.toolchain.settings or projects[i].toolchain.settings) */
   currentSettings: Record<string, unknown>;
   /** Whether running in non-interactive mode (e.g., CI environment, cannot show interactive prompts) */
   nonInteractive: boolean;
@@ -167,19 +168,20 @@ export interface ToolchainPlugin {
   getRuntimeConfigFileName?(): string | null;
 
   /**
-   * Check and repair plugin-specific project settings
+   * Check and repair toolchain-specific project settings
    *
    * Called during `colyn init` and `colyn repair`.
    * The plugin should scan the project structure and identify required configuration
    * (e.g., Xcode scheme / destination). If it cannot be auto-detected, the plugin
    * may interactively prompt the user to fill in the values.
-   * Results are saved by colyn to `.colyn/settings.json` under `pluginSettings[name]`.
+   * Results are saved by colyn to `.colyn/settings.json` under `toolchain.settings`
+   * (single-project) or `projects[i].toolchain.settings` (Mono Repo).
    *
    * **Typical use case**: The Xcode plugin uses this method to ask the user for
    * scheme and destination, which are then used by subsequent `build` commands.
    *
-   * @param context Contains projectRoot, worktreePath, current saved settings, and non-interactive flag
-   * @returns Plugin-specific config key-value pairs (will completely overwrite pluginSettings[name])
+   * @param context Contains worktreePath, current saved toolchain settings, and non-interactive flag
+   * @returns Toolchain-specific config key-value pairs (will completely overwrite toolchain.settings)
    */
   repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 
@@ -282,7 +284,7 @@ export interface ToolchainPlugin {
 8. **Toolchain info separation**: `devServerCommand` only returns the command array — execution is terminal session plugin's responsibility
 9. **Structured failure info**: lint / build failures throw `PluginCommandError` carrying the full command output in `output`; all colyn commands support `-v` / `--verbose` to display failure details
 10. **gitignore managed by caller**: Plugins declare their runtime config filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles adding it to `.gitignore` — plugins do not touch the filesystem for this
-11. **Plugin-specific config persistence**: Some plugins (e.g., Xcode) require build parameters that cannot be auto-inferred. Plugins use `repairSettings(context)` to identify and interactively collect these settings; `PluginManager.runRepairSettings()` saves them to `settings.json` under `pluginSettings[name]`. Subsequent commands (e.g., `build`) read from `currentSettings` without prompting again
+11. **Toolchain-specific config persistence**: Some plugins (e.g., Xcode) require build parameters that cannot be auto-inferred. Plugins use `repairSettings(context)` to identify and interactively collect these settings; the caller (`toolchain-resolver.saveRepairSettingsResult()`) saves them to `settings.json` under `toolchain.settings` (single-project) or `projects[i].toolchain.settings` (Mono Repo). Subsequent commands (e.g., `build`) read from `currentSettings` without prompting again
 
 ---
 
@@ -368,52 +370,60 @@ export interface ToolchainPlugin {
 
 ```typescript
 class PluginManager {
-  private readonly plugins: ToolchainPlugin[];
+  private readonly plugins: Map<string, ToolchainPlugin>;
 
-  constructor(plugins: ToolchainPlugin[]) {
-    this.plugins = plugins;
-  }
+  /** Register a plugin */
+  register(plugin: ToolchainPlugin): void;
 
-  /** Detect which toolchains match the project (for colyn init) */
-  async detectAll(worktreePath: string): Promise<ToolchainPlugin[]>;
+  /** Get all registered plugins (for displaying selection menus) */
+  getAllPlugins(): ToolchainPlugin[];
 
-  /** Load active plugins by name from settings.json plugins field */
-  getActive(enabledPluginNames: string[]): ToolchainPlugin[];
+  /**
+   * Detect which toolchains match the directory
+   * Used by toolchain-resolver.ts in the on-demand discovery flow
+   */
+  async detectPlugins(worktreePath: string): Promise<string[]>;
 
   /**
    * Ensure runtime config files of active plugins are git-ignored
-   * Calls getRuntimeConfigFileName() on each plugin and idempotently adds the filename to .gitignore
-   * Called during colyn init and colyn repair
+   * Calls getRuntimeConfigFileName() and idempotently adds the filename to .gitignore
+   * Called per ToolchainContext during colyn init and colyn repair
    */
-  async ensureRuntimeConfigIgnored(worktreePath: string, activePlugins: ToolchainPlugin[]): Promise<void>;
+  async ensureRuntimeConfigIgnored(worktreePath: string, activePluginNames: string[]): Promise<void>;
 
   /**
-   * Run repairSettings on all active plugins and save results to settings.json
-   * Each plugin may auto-detect or interactively prompt for required settings;
-   * results are saved to pluginSettings[name]
-   * Called during colyn init and colyn repair
+   * Run repairSettings for the specified toolchain plugin, return updated settings
+   *
+   * Unlike v3: the caller (toolchain-resolver.saveRepairSettingsResult) handles persistence.
+   * Plugin may auto-detect or interactively prompt for required settings.
+   *
+   * @param worktreePath Sub-project directory path
+   * @param toolchainName Toolchain name (plugin identifier)
+   * @param currentSettings Currently saved toolchain-specific settings
+   * @param nonInteractive Non-interactive mode (default false)
+   * @returns Updated settings, or null if plugin does not implement repairSettings
    */
   async runRepairSettings(
-    projectRoot: string,
     worktreePath: string,
-    activePluginNames: string[],
+    toolchainName: string,
+    currentSettings: Record<string, unknown>,
     nonInteractive?: boolean
-  ): Promise<void>;
+  ): Promise<Record<string, unknown> | null>;
 
   /**
    * Try readRuntimeConfig on active plugins sequentially, return first non-null result
-   * Receives worktreePath — each plugin resolves its own config file path
+   * Each plugin resolves its own config file path from worktreePath
    */
   async readRuntimeConfig(
     worktreePath: string,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<Record<string, string> | null>;
 
   /** Call writeRuntimeConfig on all active plugins */
   async writeRuntimeConfig(
     worktreePath: string,
     config: Record<string, string>,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<void>;
 
   /**
@@ -422,31 +432,28 @@ class PluginManager {
    */
   async getDevServerCommand(
     worktreePath: string,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<string[] | null>;  // e.g., ['npm', 'run', 'dev'], or null if no dev server
 
   /**
    * Call install on all active plugins (any failure = overall failure)
-   *
    * @param verbose When true, display PluginCommandError.output on failure
    */
-  async runInstall(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async runInstall(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
 
   /**
    * Call lint on all active plugins
    * Plugin throws = failure; plugin silently skips (no throw) = treated as passing
-   *
    * @param verbose When true, display PluginCommandError.output on failure
    */
-  async runLint(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async runLint(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
 
   /**
    * Call build on all active plugins
    * Plugin throws = failure; plugin silently skips (no throw) = treated as passing
-   *
    * @param verbose When true, display PluginCommandError.output on failure
    */
-  async runBuild(worktreePath: string, activePlugins: ToolchainPlugin[], verbose?: boolean): Promise<void>;
+  async runBuild(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
 
   /**
    * Call bumpVersion on all active plugins
@@ -458,11 +465,11 @@ class PluginManager {
   async runBumpVersion(
     worktreePath: string,
     version: string,
-    activePlugins: ToolchainPlugin[]
+    activePluginNames: string[]
   ): Promise<void>;
 
   /** Return port config from the first active plugin that provides one, or null */
-  getPortConfig(activePlugins: ToolchainPlugin[]): PortConfig | null;
+  getPortConfig(activePluginNames: string[]): PortConfig | null;
 }
 ```
 
@@ -470,48 +477,64 @@ class PluginManager {
 
 ```typescript
 // src/plugins/index.ts
-export const pluginManager = new PluginManager([
-  NpmPlugin,
-  MavenPlugin,
-  GradlePlugin,
-  PipPlugin,
-]);
+export const pluginManager = new PluginManager();
+pluginManager.register(new NpmPlugin());
+pluginManager.register(new MavenPlugin());
+pluginManager.register(new GradlePlugin());
+pluginManager.register(new PipPlugin());
+pluginManager.register(new XcodePlugin());
 ```
 
 ---
 
-## 5. Config Schema Changes
+## 5. Config Schema Changes (V4)
 
-Add optional `plugins` and `pluginSettings` fields to the existing `Settings` schema:
+V4 replaces `plugins[]` + `pluginSettings{}` with structured `toolchain` and `projects` fields:
 
 ```typescript
-// src/core/config-schema.ts addition
+// src/core/config-schema.ts
 
+// Toolchain configuration (stores toolchain type + specific settings)
+const ToolchainConfigSchema = z.object({
+  type: z.string(),                                          // e.g., 'npm', 'xcode'
+  settings: z.record(z.string(), z.unknown()).default({}),   // toolchain-specific settings (written by repairSettings)
+});
+export type ToolchainConfig = z.infer<typeof ToolchainConfigSchema>;
+
+// Mono Repo sub-project
+const SubProjectSchema = z.object({
+  path: z.string(),                                          // relative to root dir, e.g., 'frontend'
+  toolchain: z.union([ToolchainConfigSchema, z.null()]),     // null = explicitly no toolchain
+});
+export type SubProject = z.infer<typeof SubProjectSchema>;
+
+// V4 Settings (toolchain-related fields)
 const SettingsSchemaBase = z.object({
   version: z.number(),
   lang: z.enum(['en', 'zh-CN']).optional(),
   systemCommands: SystemCommandsSchema.optional(),
   tmux: TmuxConfigSchema.optional(),
 
-  // New: toolchain plugin list
-  plugins: z.array(z.string()).optional(),
-  //        ↑ Plugin name list, e.g., ['npm'], ['maven', 'pip']
+  // Single-project mode (takes effect when toolchain !== undefined)
+  // null = explicitly no toolchain (prevents repeated detection prompts)
+  toolchain: z.union([ToolchainConfigSchema, z.null()]).optional(),
 
-  // New: plugin-specific settings (written by repairSettings)
-  pluginSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
-  //               ↑ { pluginName: { key: value, ... } }
+  // Mono Repo mode (takes effect when projects !== undefined)
+  projects: z.array(SubProjectSchema).optional(),
 });
+
+export const CURRENT_CONFIG_VERSION = 4;
 ```
 
-**Storage example** (`.colyn/settings.json`):
+**Storage example — Single-project mode** (`.colyn/settings.json`):
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
-  "plugins": ["xcode"],
-  "pluginSettings": {
-    "xcode": {
+  "toolchain": {
+    "type": "xcode",
+    "settings": {
       "workspace": "MyApp.xcworkspace",
       "scheme": "MyApp",
       "destination": "generic/platform=iOS Simulator"
@@ -520,135 +543,180 @@ const SettingsSchemaBase = z.object({
 }
 ```
 
-**Migration note**: `plugins` and `pluginSettings` are both **optional fields** — old configs without them are treated as `undefined`. No Migration needed. Legacy migration is handled via runtime detection (see Section 7).
+**Storage example — Mono Repo mode** (`.colyn/settings.json`):
+
+```json
+{
+  "version": 4,
+  "projects": [
+    {
+      "path": "frontend",
+      "toolchain": { "type": "npm", "settings": {} }
+    },
+    {
+      "path": "backend",
+      "toolchain": { "type": "maven", "settings": {} }
+    },
+    {
+      "path": "scripts",
+      "toolchain": null
+    }
+  ]
+}
+```
+
+**Migration note**: V3 configs (with `plugins`/`pluginSettings`) are automatically migrated to V4 via Zod transform on first command run (see Section 7). V4's `toolchain`/`projects` are both **optional** — when both are undefined, the "on-demand discovery" strategy is triggered (see Section 6).
 
 ---
 
 ## 6. Integration with Existing Commands
 
+All commands obtain the list of sub-projects to operate on (`ToolchainContext[]`) via `src/core/toolchain-resolver.ts`, enabling unified handling for single-project and Mono Repo modes.
+
+### 6.0 Toolchain Resolver (toolchain-resolver.ts)
+
+**Core type**:
+
+```typescript
+export type ToolchainContext = {
+  absolutePath: string;                   // Absolute path of sub-project (for PluginManager)
+  subPath: string;                        // Relative to worktree root ('.' = root)
+  toolchainName: string;                  // Toolchain name, e.g., 'npm', 'xcode'
+  toolchainSettings: Record<string, unknown>; // Current toolchain-specific settings
+};
+```
+
+**Two core functions**:
+
+```typescript
+// For colyn init: force re-detection, write to settings.json, return contexts
+export async function detectAndConfigureToolchains(
+  projectRoot: string,
+  mainDirPath: string,
+  nonInteractive?: boolean
+): Promise<ToolchainContext[]>
+
+// For add/merge/release/repair: read config + handle newly discovered sub-dirs
+export async function resolveToolchains(
+  projectRoot: string,
+  worktreePath: string,
+  nonInteractive?: boolean
+): Promise<ToolchainContext[]>
+```
+
+**resolveToolchains decision tree**:
+
+```
+1. settings.toolchain !== undefined → single-project mode, return single context
+   (toolchain === null = explicitly no toolchain, return empty array)
+
+2. settings.projects !== undefined → Mono Repo mode
+   a. Iterate configured projects, build contexts
+   b. Scan worktreePath for new sub-dirs not recorded in settings
+   c. For new dirs: auto-detect first, then prompt if needed
+   d. Write new discoveries to settings.projects and save
+
+3. Both undefined → trigger on-demand discovery
+   a. Detect root dir → found: single-project mode
+   b. Not found: scan sub-dirs, auto-detect + optional prompt
+   c. Sub-dirs found → Mono Repo mode; none found → save toolchain=null
+```
+
 ### 6.1 `colyn init` Command
 
-**New steps** (inserted into existing init flow):
+**Flow**: Call `detectAndConfigureToolchains(projectRoot, mainDirPath)`, then for each returned context:
 
 ```
-Step N: Toolchain Detection & Selection
-  1. Call pluginManager.detectAll(worktreePath)
-  2. If matches found → show interactively, let user confirm
-  3. If no matches → show all available plugins, let user manually select
-  4. Write selection to plugins field in .colyn/settings.json
+1. detectAndConfigureToolchains:
+   - Detect root dir toolchain (single-project)
+   - If none, scan first-level sub-dirs (Mono Repo)
+   - Prompt user for unrecognized sub-dirs
+   - Write results to settings.json (toolchain or projects)
 
-Step N+1: Port Configuration (conditional)
-  Call pluginManager.getPortConfig(activePlugins)
-  If non-null → interactively prompt user for main branch port (default = portConfig.defaultPort)
-  If null    → skip (toolchain does not require a port)
+2. For each context:
+   - pluginManager.ensureRuntimeConfigIgnored(ctx.absolutePath, [ctx.toolchainName])
+   - pluginManager.runRepairSettings(ctx.absolutePath, ctx.toolchainName, ctx.toolchainSettings)
+   - If result returned → saveRepairSettingsResult(projectRoot, ctx.subPath, newSettings)
 
-Step N+2: Ensure runtime config files are git-ignored
-  Call pluginManager.ensureRuntimeConfigIgnored(worktreePath, activePlugins)
-  Each plugin declares its filename via getRuntimeConfigFileName(); colyn handles adding it to .gitignore
-
-Step N+3: Repair plugin-specific project settings
-  Call pluginManager.runRepairSettings(projectRoot, worktreePath, activePlugins)
-  Each plugin uses repairSettings() to auto-detect or interactively prompt for required settings
-  (e.g., Xcode scheme/destination); results are saved to settings.json under pluginSettings[pluginName]
-
-Step N+4: Write Config Files
-  Call pluginManager.writeRuntimeConfig() for each plugin to write their native config format
+3. For each context:
+   - pluginManager.getPortConfig([ctx.toolchainName])
+   - If port required → prompt, pluginManager.writeRuntimeConfig(ctx.absolutePath, config, [ctx.toolchainName])
 ```
 
-**Interaction (matches found, port required)**:
+**Interaction (single-project detected)**:
 ```
-✔ Detected toolchain:
-
-? Confirm toolchain plugins to enable: (space to select, enter to confirm)
-  ◉ Node.js (npm)  [package.json detected]
-
-✔ Enabled plugin: npm
-
+✔ Single project detected (npm)
 ? Enter main branch port number: (3000)
 ```
 
-**Interaction (no match)**:
+**Interaction (Mono Repo, some unrecognized)**:
 ```
-⚠ Unable to auto-detect toolchain
-
-? Select your project toolchain:
+✔ Mono Repo structure detected, found 2 sub-projects
+ℹ Sub-directory scripts not recognized by any toolchain
+? Select toolchain for scripts:
   ○ Node.js (npm)
-  ○ Java (Maven)
-  ○ Java (Gradle)
-  ○ Python (pip/poetry)
-  ○ No toolchain
+  ○ Apple (Xcode)
+  ○ (No toolchain)
 ```
 
 ### 6.2 `colyn add` Command
 
-**New steps** (inserted after worktree creation):
+```typescript
+const contexts = await resolveToolchains(projectRoot, paths.mainDir);
 
-```
-Step N: Copy Environment Config
-  Original logic (copy .env.local) → replaced by pluginManager.writeRuntimeConfig()
-  Each plugin writes its own config format with PORT and WORKTREE values
-
-Step N+1: Install Dependencies
-  Call pluginManager.runInstall(worktreePath, activePlugins)
-  worktreePath = newly created worktree directory
-```
-
-**Output example**:
-```
-✔ Created worktree: task-1
-✔ Environment config → .env.local (PORT=10001)
-✔ Installing dependencies
-  → npm install ... done
+for (const ctx of contexts) {
+  const worktreeSubPath = ctx.subPath === '.' ? worktreePath : path.join(worktreePath, ctx.subPath);
+  // Read base port from mainDir's sub-dir
+  const mainConfig = await pluginManager.readRuntimeConfig(ctx.absolutePath, [ctx.toolchainName]);
+  // Each Mono Repo sub-project has independent port: basePort + worktreeId
+  const newPort = basePort + id;
+  await pluginManager.writeRuntimeConfig(worktreeSubPath, { ...mainConfig, [portKey]: newPort, WORKTREE: id }, [ctx.toolchainName]);
+  await pluginManager.runInstall(worktreeSubPath, [ctx.toolchainName], verbose);
+}
 ```
 
 ### 6.3 `colyn merge` Command
 
-**New option**: `-v` / `--verbose`: display full command output on failure
+```typescript
+const contexts = await resolveToolchains(projectRoot, worktree.path);
 
-**New step** (inserted before merge):
-
-```
-Step 0 (Pre-check): Code Quality Check
-  Call pluginManager.runLint(worktreePath, activePlugins, verbose)
-  Any plugin throws → display error, abort merge
-```
-
-**Failure (default)**:
-```
-✖ Code quality check failed (npm lint)
-  Use -v to see details: colyn merge -v
-```
-
-**Failure (-v)**:
-```
-✖ Code quality check failed (npm lint)
-
-  src/foo.ts:10:5 error  'x' is not defined
-  ...（full lint output）
-
-  Fix the issues and retry: colyn merge
+for (const ctx of contexts) {
+  await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
+  await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
 ```
 
 ### 6.4 `colyn release` Command
 
-**New option**: `-v` / `--verbose`: display full command output when lint / build fails
+```typescript
+const contexts = await resolveToolchains(projectRoot, dir);
 
-**Insert install → lint → build → bumpVersion into existing flow**:
-
+for (const ctx of contexts) {
+  await pluginManager.runInstall(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
+for (const ctx of contexts) {
+  await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
+for (const ctx of contexts) {
+  await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
+for (const ctx of contexts) {
+  await pluginManager.runBumpVersion(ctx.absolutePath, newVersion, [ctx.toolchainName]);
+}
 ```
-Original steps:
-  1. Check dependencies (checkDependenciesInstalled)
-  2. Execute update (executeUpdate)
-  3. Execute release (executeRelease)
 
-New steps before step 1 (executed in mainDir):
-  0a. Install dependencies (pluginManager.runInstall, worktreePath = mainDir)
-      Ensures main branch deps are up-to-date before lint/build
-  0b. Code quality check (pluginManager.runLint, worktreePath = mainDir, verbose)
-  0c. Build project (pluginManager.runBuild, worktreePath = mainDir, verbose)
+### 6.5 `colyn repair` Command
 
-New step within step 3:
-  3a. Bump version (pluginManager.runBumpVersion, worktreePath = mainDir)
+```typescript
+const contexts = await resolveToolchains(projectRoot, paths.mainDir);
+
+for (const ctx of contexts) {
+  await pluginManager.ensureRuntimeConfigIgnored(ctx.absolutePath, [ctx.toolchainName]);
+  const newSettings = await pluginManager.runRepairSettings(ctx.absolutePath, ctx.toolchainName, ctx.toolchainSettings);
+  if (newSettings !== null) {
+    await saveRepairSettingsResult(projectRoot, ctx.subPath, newSettings);
+  }
+}
 ```
 
 > **Two install scenarios**:
@@ -657,39 +725,54 @@ New step within step 3:
 
 ---
 
-## 7. Legacy Project Migration
+## 7. Version Migration
 
-### 7.1 Trigger
+### 7.1 V3 → V4 Migration (Automatic Zod Transform)
 
-**Auto-detected on first run of any colyn command**:
+V3 configs (with `plugins`/`pluginSettings` fields) are **automatically upgraded to V4** on first command run via the Zod transform chain in `config-migration.ts`:
 
 ```typescript
-async function ensurePluginsConfigured(configDir: string, worktreePath: string) {
-  const settings = await loadProjectConfig(worktreePath);
-  if (settings?.plugins !== undefined) return;
-  await autoMigratePlugins(configDir, worktreePath);
+// src/core/config-migration.ts
+
+function migrateV3ToV4Recursive(settings: V3Settings): Settings {
+  const result: Settings = {
+    version: 4,
+    lang: settings.lang,
+    systemCommands: settings.systemCommands,
+  };
+  if (settings.tmux) result.tmux = settings.tmux;
+
+  // Drop plugins/pluginSettings
+  // toolchain/projects intentionally left undefined to trigger on-demand discovery
+  if (settings.branchOverrides) {
+    result.branchOverrides = Object.fromEntries(
+      Object.entries(settings.branchOverrides).map(([k, v]) => [k, migrateV3ToV4Recursive(v as V3Settings)])
+    );
+  }
+  return result;
 }
+
+export const ConfigSchema = z.union([
+  V0ToV3Schema,   // V0 → V3
+  V1ToV2Schema,   // V1 → V2
+  V2ToV3Schema,   // V2 → V3
+  V3ToV4Schema,   // V3 → V4 (new)
+  SettingsSchema, // Current version V4
+]);
 ```
 
-### 7.2 Migration Logic
+### 7.2 Migration Strategy
 
-```
-1. Run pluginManager.detectAll(worktreePath)
-2. Write detection results to plugins field in .colyn/settings.json
-3. Show non-blocking notice:
-   "ℹ Auto-configured toolchain plugin: npm
-    To change, edit .colyn/settings.json"
-```
+- **Drop legacy fields**: `plugins` / `pluginSettings` are discarded on migration
+- **On-demand re-discovery**: `toolchain`/`projects` are intentionally left as `undefined`, triggering on-demand detection on the next command run
+- **Transparent to users**: After migration, the first toolchain-aware command (init/add/merge/release/repair) auto-detects and saves the config via `resolveToolchains`
 
 ### 7.3 Detection Failure
 
-If no toolchain matches, write empty array and degrade gracefully:
-
-```json
-{ "plugins": [] }
-```
-
-All toolchain-related steps (install, lint, bumpVersion) are skipped.
+When `resolveToolchains` fails to detect any toolchain:
+- Saves `toolchain: null` to settings.json
+- Returns empty array (`[]`)
+- Command continues, skipping all toolchain-related steps (no install, lint, or bumpVersion)
 
 ---
 
@@ -698,53 +781,64 @@ All toolchain-related steps (install, lint, bumpVersion) are skipped.
 ```
 src/
 ├── types/
-│   ├── index.ts           # Existing types
-│   └── plugin.ts          # NEW: ToolchainPlugin interface + PortConfig
+│   ├── index.ts                  # Existing types
+│   └── plugin.ts                 # ToolchainPlugin interface + PortConfig + RepairSettingsContext
 │
 ├── plugins/
-│   ├── index.ts           # Export pluginManager singleton
-│   ├── manager.ts         # PluginManager class
+│   ├── index.ts                  # Export pluginManager singleton (register all plugins)
+│   ├── manager.ts                # PluginManager class
 │   └── builtin/
-│       ├── npm.ts         # npm plugin (migrates existing env.ts / dev-server.ts logic)
-│       ├── maven.ts       # Maven plugin
-│       ├── gradle.ts      # Gradle plugin
-│       └── pip.ts         # pip plugin
+│       ├── npm.ts                # npm plugin
+│       ├── maven.ts              # Maven plugin
+│       ├── gradle.ts             # Gradle plugin
+│       ├── pip.ts                # pip plugin
+│       └── xcode.ts             # Xcode plugin
 │
 ├── core/
-│   ├── config-schema.ts   # Add plugins field to Settings Schema
-│   └── ...                # Other files unchanged
+│   ├── config-schema.ts          # V4 Schema (ToolchainConfig + SubProject)
+│   ├── config-migration.ts       # Zod migration chain (V0→V3, V1→V2, V2→V3, V3→V4)
+│   ├── toolchain-resolver.ts     # NEW: on-demand discovery + resolveToolchains
+│   └── ...                       # Other files unchanged
 │
 └── commands/
-    ├── init.ts            # Integrate toolchain detection
-    ├── add.ts             # Integrate install + writeRuntimeConfig
-    ├── merge.ts           # Integrate lint pre-check
-    └── release.ts         # Integrate install + lint + build + bumpVersion
+    ├── init.handlers.ts          # Calls detectAndConfigureToolchains
+    ├── add.ts                    # Calls resolveToolchains, loops over contexts
+    ├── merge.ts                  # Calls resolveToolchains, loops for lint/build
+    ├── release.ts                # Passes projectRoot, calls executeRelease
+    ├── release.helpers.ts        # Calls resolveToolchains, loops for install/lint/build/bump
+    └── repair.helpers.ts         # Calls resolveToolchains, loops for gitignore/repairSettings
 ```
 
 ---
 
-## 9. Implementation Plan
+## 9. Implementation History
 
-### Phase 1: Core Framework
+### Phase 1: Core Framework (Complete)
 
 1. Define `ToolchainPlugin` interface (`src/types/plugin.ts`)
 2. Implement `PluginManager` (`src/plugins/manager.ts`)
-3. Update `config-schema.ts` to add `plugins` field
-4. Implement npm plugin (`src/plugins/builtin/npm.ts`, migrating `env.ts` and `dev-server.ts` logic)
+3. Update `config-schema.ts` (V3 → V4 types)
+4. Implement npm plugin (`src/plugins/builtin/npm.ts`)
 
-### Phase 2: Command Integration
+### Phase 2: Command Integration (Complete)
 
-5. Integrate into `colyn init` (detect + user selection + config write)
-6. Integrate into `colyn add` (writeRuntimeConfig + install)
-7. Integrate into `colyn merge` (lint pre-check)
+5. Integrate into `colyn init` (via toolchain-resolver detection + config write)
+6. Integrate into `colyn add` (config copy + install, Mono Repo support)
+7. Integrate into `colyn merge` (lint/build pre-check)
 8. Integrate into `colyn release` (install + lint + build + bumpVersion)
-9. Implement legacy project auto-migration
+9. Implement V3→V4 Zod transform migration
 
-### Phase 3: More Plugins
+### Phase 3: More Plugins (Complete)
 
 10. Implement maven plugin
 11. Implement gradle plugin
 12. Implement pip plugin
+
+### Phase 4: Mono Repo Support (Complete)
+
+13. Create `toolchain-resolver.ts` (on-demand discovery strategy)
+14. Implement Xcode plugin (sub-dir detection, scheme auto-detection)
+15. All commands loop over `ToolchainContext[]`
 
 ---
 
@@ -752,19 +846,21 @@ src/
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Plugin granularity | By toolchain (npm/maven/gradle/pip) | Toolchain determines command differences, not language |
+| Plugin granularity | By toolchain (npm/maven/gradle/pip/xcode) | Toolchain determines command differences, not language |
 | Command execution | Plugin executes directly (`Promise<void>`) | High flexibility, supports complex multi-step operations |
 | All plugin params | Unified `worktreePath` | Single consistent parameter; caller always passes the target directory |
 | maven/gradle local config | `application-local.properties` (local profile) | Not committed to git; Spring Boot profile overlays main config |
 | maven/gradle config format | Prefer `.properties`, also support `.yaml` | Properties simpler, yaml more powerful; both formats widely used |
 | .gitignore handling | Plugin declares filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles the update | Separation of concerns — plugin declares intent, colyn handles the file operation; idempotent |
-| Plugin-specific settings | `repairSettings(context)` + `pluginSettings` field mechanism; interactively collected and persisted during init/repair | Solves the problem of parameters requiring user decisions (e.g., xcodebuild); avoids re-prompting on every build |
+| Toolchain-specific settings (V4) | `repairSettings(context)` + `saveRepairSettingsResult()` saves to `toolchain.settings` or `projects[i].toolchain.settings` | Co-located with toolchain config (vs. V3's global pluginSettings dict); Mono Repo sub-projects have independent settings |
 | Missing lint/build scripts | Plugin silently skips internally | Not all projects configure lint/build; shouldn't be an error |
 | Missing bumpVersion impl | PluginManager throws, aborts release | Version bump is mandatory for release — silent skip not allowed |
 | install reads npm command | Plugin reads `.colyn/settings.json` directly | Avoids complicating the interface; plugin self-sufficient |
 | devServerCommand | Returns `string[]`, does not execute | Execution is terminal session plugin's responsibility |
 | install trigger points | `add` (worktree) + `release` (main branch) | See Section 6 for details |
-| No toolchain detected | Show all options for user to select | More user-friendly than errors |
-| plugins config storage | Optional `plugins` field in `settings.json` | No Migration needed, backward compatible |
-| Legacy project migration | Auto-detect on first run of any command | Zero-friction upgrade experience |
-| Multi-toolchain support | Not supported (out of scope) | Reduces complexity, focus on core scenarios |
+| No toolchain detected | Prompt user to select (or skip in nonInteractive mode) | More user-friendly than errors |
+| V4 config structure | `toolchain: {type, settings}` (single) / `projects: [{path, toolchain}]` (Mono Repo) | Collocates toolchain type and settings; sub-projects have independent config |
+| V3→V4 migration strategy | Zod transform drops plugins/pluginSettings; toolchain/projects left undefined | undefined triggers on-demand discovery; user-transparent, auto re-detects |
+| Mono Repo sub-project discovery | "On-demand discovery": new sub-dirs detected and saved on command run | No manual config maintenance; auto-updates when commands run |
+| Mono Repo ports | Each sub-project independent: mainDir base port + worktree ID | No port conflicts; consistent with colyn's multi-worktree model |
+| runRepairSettings return value (V4) | `Promise<Record<string,unknown> \| null>` (was `void`) | Caller (toolchain-resolver) handles persistence; decouples the concerns |

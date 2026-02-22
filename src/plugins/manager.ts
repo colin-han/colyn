@@ -7,11 +7,9 @@
  * - 统一处理 PluginCommandError（verbose 模式下展示命令输出）
  */
 
-import * as path from 'path';
 import { type ToolchainPlugin, type PortConfig, type RepairSettingsContext, PluginCommandError } from '../types/plugin.js';
 import { outputError } from '../utils/logger.js';
 import { addToGitignore } from './utils.js';
-import { loadProjectConfig, saveConfigFile, findConfigFilePath } from '../core/config-loader.js';
 
 export class PluginManager {
   private readonly plugins: Map<string, ToolchainPlugin> = new Map();
@@ -32,7 +30,7 @@ export class PluginManager {
 
   /**
    * 获取激活的插件列表
-   * @param activePluginNames 激活插件名称数组（来自 settings.plugins）
+   * @param activePluginNames 激活插件名称数组（工具链类型标识符列表）
    */
   private getActivePlugins(activePluginNames: string[]): ToolchainPlugin[] {
     return activePluginNames
@@ -141,51 +139,34 @@ export class PluginManager {
   }
 
   /**
-   * 运行所有激活插件的 repairSettings，将结果保存到 settings.json
+   * 运行指定工具链插件的 repairSettings，返回更新后的配置
    *
-   * 各插件通过 repairSettings 检查项目配置，自动发现或交互询问必要的配置项，
-   * 结果以插件名为 key 保存到 pluginSettings 字段。
+   * 插件通过 repairSettings 检查项目配置，自动发现或交互询问必要的配置项。
+   * 调用方负责将结果保存到 settings 文件（通过 saveRepairSettingsResult）。
    *
-   * @param projectRoot 项目根目录（.colyn 的父目录）
-   * @param worktreePath 主分支目录路径
-   * @param activePluginNames 激活的插件名称列表
+   * @param worktreePath 子项目目录路径
+   * @param toolchainName 工具链名称（插件标识符）
+   * @param currentSettings 当前已保存的工具链专属配置
    * @param nonInteractive 是否非交互模式（默认 false）
+   * @returns 更新后的配置，若插件未实现 repairSettings 则返回 null
    */
   async runRepairSettings(
-    projectRoot: string,
     worktreePath: string,
-    activePluginNames: string[],
+    toolchainName: string,
+    currentSettings: Record<string, unknown>,
     nonInteractive = false
-  ): Promise<void> {
-    const plugins = this.getActivePlugins(activePluginNames).filter(p => p.repairSettings);
-    if (plugins.length === 0) return;
+  ): Promise<Record<string, unknown> | null> {
+    const plugin = this.plugins.get(toolchainName);
+    if (!plugin || !plugin.repairSettings) return null;
 
-    const settings = await loadProjectConfig(projectRoot);
-    if (!settings) return;
+    const context: RepairSettingsContext = {
+      projectRoot: '',
+      worktreePath,
+      currentSettings,
+      nonInteractive,
+    };
 
-    const currentPluginSettings: Record<string, Record<string, unknown>> =
-      (settings.pluginSettings as Record<string, Record<string, unknown>>) ?? {};
-
-    let hasChanges = false;
-    for (const plugin of plugins) {
-      const context: RepairSettingsContext = {
-        projectRoot,
-        worktreePath,
-        currentSettings: currentPluginSettings[plugin.name] ?? {},
-        nonInteractive,
-      };
-      const result = await plugin.repairSettings!(context);
-      currentPluginSettings[plugin.name] = result;
-      hasChanges = true;
-    }
-
-    if (hasChanges) {
-      settings.pluginSettings = currentPluginSettings;
-      const configDir = path.join(projectRoot, '.colyn');
-      const settingsFilePath =
-        (await findConfigFilePath(configDir)) ?? path.join(configDir, 'settings.json');
-      await saveConfigFile(settingsFilePath, settings);
-    }
+    return await plugin.repairSettings(context);
   }
 
   /**

@@ -908,6 +908,16 @@ Solution:
     },
   },
 
+  // Toolchain resolver
+  toolchain: {
+    unrecognizedDirectory: 'Subdirectory {{path}} was not recognized by any toolchain',
+    selectForDirectory: 'Select toolchain for {{path}}',
+    noToolchain: '(No toolchain)',
+    monoRepoDetected: 'Mono Repo structure detected, found {{count}} sub-projects',
+    singleProjectDetected: 'Single project detected ({{toolchain}})',
+    subProjectSkipped: 'Subdirectory {{path}} does not exist in current Worktree, skipping',
+  },
+
   // Plugin system
   plugins: {
     autoMigrated: 'ℹ Auto-configured toolchain plugins: {{plugins}}',

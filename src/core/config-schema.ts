@@ -99,6 +99,31 @@ export const SystemCommandsSchema = z.object({
 export type SystemCommands = z.infer<typeof SystemCommandsSchema>;
 
 /**
+ * 工具链配置 Schema
+ * 描述单个子项目（或根目录）使用的工具链类型和专属配置
+ */
+export const ToolchainConfigSchema = z.object({
+  /** 工具链类型，如 'npm'、'maven'、'xcode' */
+  type: z.string(),
+  /** 工具链专属配置（由各插件的 repairSettings 写入，如 xcode 的 scheme/destination） */
+  settings: z.record(z.string(), z.unknown()).default({}),
+});
+
+export type ToolchainConfig = z.infer<typeof ToolchainConfigSchema>;
+
+/**
+ * 子项目配置 Schema（Mono Repo 模式）
+ */
+export const SubProjectSchema = z.object({
+  /** 子项目相对路径（相对于 worktree 根目录） */
+  path: z.string(),
+  /** 子项目使用的工具链，null 表示无工具链 */
+  toolchain: z.union([ToolchainConfigSchema, z.null()]),
+});
+
+export type SubProject = z.infer<typeof SubProjectSchema>;
+
+/**
  * Settings Schema 基础部分（不包含递归的 branchOverrides）
  */
 const SettingsSchemaBase = z.object({
@@ -110,10 +135,19 @@ const SettingsSchemaBase = z.object({
   systemCommands: SystemCommandsSchema.optional(),
   /** tmux 相关配置 */
   tmux: TmuxConfigSchema.optional(),
-  /** 已激活的工具链插件列表，如 ['npm']、['maven'] */
-  plugins: z.array(z.string()).optional(),
-  /** 插件专属配置（由各插件的 repairSettings 写入，如 xcode 的 scheme/destination） */
-  pluginSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+  /**
+   * 单项目模式：根目录工具链配置
+   * - undefined: 尚未检测（触发按需发现）
+   * - null: 明确无工具链
+   * - ToolchainConfig: 已配置的工具链
+   */
+  toolchain: z.union([ToolchainConfigSchema, z.null()]).optional(),
+  /**
+   * Mono Repo 模式：子项目列表
+   * - undefined: 尚未检测
+   * - 数组：已配置的子项目列表
+   */
+  projects: z.array(SubProjectSchema).optional(),
 });
 
 /**
@@ -136,7 +170,7 @@ export const SettingsSchema: z.ZodType<Settings> = SettingsSchemaBase.extend({
 /**
  * 当前配置文件版本号
  */
-export const CURRENT_CONFIG_VERSION = 3;
+export const CURRENT_CONFIG_VERSION = 4;
 
 /**
  * 验证配置对象

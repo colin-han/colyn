@@ -24,7 +24,8 @@ import {
   displayAddSuccess
 } from './add.helpers.js';
 import { pluginManager } from '../plugins/index.js';
-import { loadProjectConfig } from '../core/config-loader.js';
+import { resolveToolchains } from '../core/toolchain-resolver.js';
+import * as fsPromises from 'fs/promises';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -251,34 +252,56 @@ async function addCommand(branchName: string): Promise<void> {
       return await createWorktree(paths.rootDir, cleanBranchName, id, projectInfo.worktrees);
     });
 
-    // 步骤9: 配置环境变量（优先使用插件，回退到原有逻辑）
-    const projectSettings = await loadProjectConfig(paths.rootDir);
-    const activePlugins = projectSettings?.plugins ?? [];
+    // 步骤9: 配置环境变量（通过工具链解析器）
+    const contexts = await resolveToolchains(paths.rootDir, paths.mainDir);
 
-    if (activePlugins.length > 0) {
-      // 读取主分支运行时配置，写入 worktree（更新 PORT 和 WORKTREE）
-      const mainConfig = await pluginManager.readRuntimeConfig(paths.mainDir, activePlugins);
-      if (mainConfig !== null) {
-        const portConfig = pluginManager.getPortConfig(activePlugins);
-        const portKey = portConfig?.key ?? 'PORT';
-        const worktreeConfig: Record<string, string> = {
-          ...mainConfig,
-          [portKey]: port.toString(),
-          WORKTREE: id.toString(),
-        };
-        await pluginManager.writeRuntimeConfig(worktreePath, worktreeConfig, activePlugins);
-      } else {
-        await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
+    if (contexts.length > 0) {
+      for (const ctx of contexts) {
+        const worktreeSubPath = ctx.subPath === '.'
+          ? worktreePath
+          : path.join(worktreePath, ctx.subPath);
+
+        // 检查子目录是否在新 worktree 中存在
+        try {
+          await fsPromises.access(worktreeSubPath);
+        } catch {
+          output(t('toolchain.subProjectSkipped', { path: ctx.subPath }));
+          continue;
+        }
+
+        // 从主分支对应子目录读取 base config
+        const mainConfig = await pluginManager.readRuntimeConfig(ctx.absolutePath, [ctx.toolchainName]);
+        if (mainConfig !== null) {
+          const portConfig = pluginManager.getPortConfig([ctx.toolchainName]);
+          const portKey = portConfig?.key ?? 'PORT';
+          const basePort = parseInt(mainConfig[portKey] || '0') || 0;
+          const worktreeConfig: Record<string, string> = {
+            ...mainConfig,
+            [portKey]: (basePort + id).toString(),
+            WORKTREE: id.toString(),
+          };
+          await pluginManager.writeRuntimeConfig(worktreeSubPath, worktreeConfig, [ctx.toolchainName]);
+        }
       }
     } else {
       await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
     }
 
     // 步骤9.5: 安装依赖
-    if (activePlugins.length > 0) {
+    if (contexts.length > 0) {
       const installSpinner = ora({ text: t('commands.add.installingDeps'), stream: process.stderr }).start();
       try {
-        await pluginManager.runInstall(worktreePath, activePlugins);
+        for (const ctx of contexts) {
+          const worktreeSubPath = ctx.subPath === '.'
+            ? worktreePath
+            : path.join(worktreePath, ctx.subPath);
+          try {
+            await fsPromises.access(worktreeSubPath);
+            await pluginManager.runInstall(worktreeSubPath, [ctx.toolchainName]);
+          } catch {
+            // 子目录不存在或安装失败，跳过
+          }
+        }
         installSpinner.succeed(t('commands.add.depsInstalled'));
       } catch {
         installSpinner.warn(t('commands.add.depsInstallFailed'));
