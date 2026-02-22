@@ -150,7 +150,7 @@ Select list format:
 
 **Design intent**: Copying to the clipboard allows users to quickly paste the task description into Claude's input box as context for a new session.
 
-### 5.3 `colyn todo list [--completed] [--archived]`
+### 5.3 `colyn todo list [--completed] [--archived] [--id-only] [--json]`
 
 List tasks. Alias: `colyn todo ls`.
 
@@ -159,10 +159,20 @@ List tasks. Alias: `colyn todo ls`.
 | `colyn todo list` (default) | Tasks in `pending` status |
 | `colyn todo list --completed` | Tasks in `completed` status |
 | `colyn todo list --archived` | Tasks in `archived-todo.json` |
+| `colyn todo list --json` | Output in JSON format to stdout |
+| `colyn todo list --json --completed` | Output completed tasks in JSON format |
+| `colyn todo list --json --archived` | Output archived tasks in JSON format |
 
 **`colyn todo` (without subcommand) is equivalent to `colyn todo list`**.
 
-**Table output format**:
+**`--json` option**:
+
+- Outputs the task list as a JSON array to stdout
+- Can be combined with `--completed` or `--archived` to select tasks by status
+- Mutually exclusive with `--id-only` (both are machine-readable formats)
+- Archived tasks (`--archived`) output includes the `archivedAt` field
+
+**Table output format** (without `--json`):
 
 - Columns: Type / Name / Message / Status / Created
 - Message column shows only the **first line** of the message

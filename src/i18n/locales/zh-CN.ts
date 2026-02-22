@@ -862,6 +862,8 @@ export const zhCN = {
         completedOption: '显示已完成的任务',
         archivedOption: '显示已归档的任务',
         idOnlyOption: '仅输出 Todo ID，每行一个（用于脚本集成）',
+        jsonOption: '以 JSON 格式输出',
+        jsonConflict: '选项冲突：--json 和 --id-only 不能同时使用',
         empty: '没有任务',
         headerType: '类型',
         headerName: '名称',

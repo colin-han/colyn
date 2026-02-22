@@ -149,7 +149,7 @@ pending ────────────────────────
 
 **设计意图**：复制到剪贴板是为了方便用户快速将任务描述粘贴到 Claude 输入框，作为新会话的初始上下文。
 
-### 5.3 `colyn todo list [--completed] [--archived]`
+### 5.3 `colyn todo list [--completed] [--archived] [--id-only] [--json]`
 
 列出任务。别名：`colyn todo ls`。
 
@@ -158,10 +158,20 @@ pending ────────────────────────
 | `colyn todo list`（默认） | pending 状态的任务 |
 | `colyn todo list --completed` | completed 状态的任务 |
 | `colyn todo list --archived` | archived-todo.json 中的任务 |
+| `colyn todo list --json` | 以 JSON 格式输出到 stdout |
+| `colyn todo list --json --completed` | 以 JSON 格式输出已完成任务 |
+| `colyn todo list --json --archived` | 以 JSON 格式输出归档任务 |
 
 **`colyn todo`（不带子命令）等同于 `colyn todo list`**。
 
-**表格输出格式**：
+**`--json` 选项**：
+
+- 将任务列表以 JSON 数组格式输出到 stdout
+- 可与 `--completed` 或 `--archived` 组合使用，选择不同状态的任务
+- 与 `--id-only` 互斥（两者均为机器可读格式，不能同时使用）
+- 归档任务（`--archived`）输出包含 `archivedAt` 字段的完整数据
+
+**表格输出格式**（不带 `--json`）：
 
 - 列：Type / Name / Message / Status / Created
 - Message 列仅显示 message 的**首行**内容

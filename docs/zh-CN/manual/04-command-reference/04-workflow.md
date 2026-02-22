@@ -242,6 +242,7 @@ colyn todo           # 不带子命令时等同于此命令
 | `--completed` | 显示已完成（`completed`）的任务 |
 | `--archived` | 显示已归档的任务 |
 | `--id-only` | 仅输出 Todo ID（每行一个），用于脚本集成 |
+| `--json` | 以 JSON 格式输出任务列表 |
 
 #### 示例
 
@@ -260,6 +261,24 @@ $ colyn todo list --completed
 $ colyn todo list --id-only
 feature/login
 bugfix/fix-crash
+
+# 以 JSON 格式输出（用于脚本集成）
+$ colyn todo list --json
+[
+  {
+    "type": "feature",
+    "name": "login",
+    "message": "实现用户登录功能",
+    "status": "pending",
+    "createdAt": "2026-02-22T10:00:00.000Z"
+  }
+]
+
+# JSON 格式输出已完成任务
+$ colyn todo list --json --completed
+
+# JSON 格式输出归档任务（含 archivedAt 字段）
+$ colyn todo list --json --archived
 ```
 
 ---
