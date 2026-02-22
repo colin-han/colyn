@@ -31,7 +31,7 @@ volta install colyn
 After installation, configure shell integration to enable the automatic directory switching feature:
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 Then reopen your terminal or run:
@@ -262,6 +262,6 @@ Having issues? See the [Troubleshooting](08-troubleshooting.md) chapter.
 
 Common issues:
 
-- **Directory did not switch automatically after command execution** → Confirm you have run `colyn system-integration` and restarted your terminal
+- **Directory did not switch automatically after command execution** → Confirm you have run `colyn setup` and restarted your terminal
 - **Port conflict** → Check the PORT configuration in the .env.local file
 - **Branch already exists** → Use `colyn list` to view existing worktrees

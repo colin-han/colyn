@@ -2,7 +2,7 @@
 
 **创建时间**：2026-01-24
 **最后更新**：2026-01-24
-**命令名称**：`colyn system-integration`
+**命令名称**：`colyn setup`
 **状态**：✅ 已实现（含补全脚本支持）
 
 ---
@@ -42,7 +42,7 @@
 $ npm install -g colyn
 
 # 配置 shell 集成
-$ colyn system-integration
+$ colyn setup
 
 检测系统环境...
 ✓ Shell 类型: zsh
@@ -69,7 +69,7 @@ $ colyn system-integration
 **用户情况**：之前已经配置过，colyn 升级后需要更新配置
 
 ```bash
-$ colyn system-integration
+$ colyn setup
 
 检测系统环境...
 ✓ Shell 类型: zsh
@@ -91,7 +91,7 @@ $ colyn system-integration
 **用户情况**：首次使用 shell，配置文件还不存在
 
 ```bash
-$ colyn system-integration
+$ colyn setup
 
 检测系统环境...
 ✓ Shell 类型: bash

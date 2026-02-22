@@ -68,7 +68,7 @@ sudo npm install -g colyn
 
 ```bash
 # 1. Configure manually
-colyn system-integration
+colyn setup
 
 # 2. If it fails, check shell type
 echo $SHELL
@@ -182,7 +182,7 @@ colyn add feature/login
 
 ```bash
 # 1. Configure shell integration
-colyn system-integration
+colyn setup
 source ~/.zshrc
 
 # 2. Verify that the shell function is being used
@@ -340,7 +340,7 @@ colyn repair
 
 ```bash
 # Configure shell integration
-colyn system-integration
+colyn setup
 source ~/.zshrc
 
 # Or switch manually

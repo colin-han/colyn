@@ -36,7 +36,7 @@ The script will automatically execute the following steps:
 4. ✅ Copy `package.json` and `shell/colyn.sh`
 5. ✅ Install dependencies in target directory (`npm install --production`)
 6. ✅ Create launcher scripts (`colyn` and `colyn.cmd`)
-7. ✅ Configure shell integration (automatically calls `colyn system-integration`)
+7. ✅ Configure shell integration (automatically calls `colyn setup`)
 
 After installation, shell integration is automatically configured. Reopen terminal to use.
 
@@ -123,7 +123,7 @@ volta install colyn
 After installation, configure shell integration:
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 After configuration, reopen terminal or run `source ~/.zshrc` (or `~/.bashrc`) to use full functionality.
@@ -136,7 +136,7 @@ Shell integration provides the following features:
 
 **Manual Configuration**
 
-If `system-integration` command fails, manually add to shell config file:
+If `setup` command fails, manually add to shell config file:
 
 ```bash
 # Find colyn.sh path
@@ -341,7 +341,7 @@ scripts/install.js
    - **macOS/Linux**: Create `colyn` (executable script)
    - **Windows**: Create `colyn.cmd` (batch script)
 5. **Configure shell integration** (macOS/Linux only):
-   - Automatically call `colyn system-integration` command
+   - Automatically call `colyn setup` command
    - Detect shell type and config file
    - Add `source` command to shell config file
 

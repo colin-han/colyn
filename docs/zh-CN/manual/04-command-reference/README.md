@@ -28,7 +28,7 @@
 - [colyn repair](03-system-config.md#colyn-repair) — 检查并修复项目配置
 - [colyn config](03-system-config.md#colyn-config) — 管理 Colyn 配置
 - [colyn completion](03-system-config.md#colyn-completion) — 生成 shell 自动补全脚本
-- [colyn system-integration](03-system-config.md#colyn-system-integration) — 配置 shell 集成
+- [colyn setup](03-system-config.md#colyn-setup) — 配置 shell 集成
 
 ### 工作流工具
 
@@ -53,6 +53,6 @@
 | `colyn repair` | - | 修复配置 |
 | `colyn config` | - | 管理配置 |
 | `colyn completion` | - | 生成补全脚本 |
-| `colyn system-integration` | - | 配置 shell 集成 |
+| `colyn setup` | - | 配置 shell 集成 |
 | `colyn release` | - | 发布版本 |
 | `colyn todo` | - | 管理待办任务 |

@@ -36,7 +36,7 @@ volta run yarn install-to /path/to/target/directory
 4. ✅ 复制 `package.json` 和 `shell/colyn.sh`
 5. ✅ 在目标目录安装依赖（`npm install --production`）
 6. ✅ 创建启动脚本（`colyn` 和 `colyn.cmd`）
-7. ✅ 配置 shell 集成（自动调用 `colyn system-integration`）
+7. ✅ 配置 shell 集成（自动调用 `colyn setup`）
 
 安装完成后，shell 集成已自动配置，重新打开终端即可使用。
 
@@ -123,7 +123,7 @@ volta install colyn
 安装后需要配置 shell 集成：
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 配置完成后，重新打开终端或运行 `source ~/.zshrc`（或 `~/.bashrc`）即可使用完整功能。
@@ -136,7 +136,7 @@ shell 集成提供以下功能：
 
 **手动配置**
 
-如果 `system-integration` 命令失败，可以手动添加到 shell 配置文件：
+如果 `setup` 命令失败，可以手动添加到 shell 配置文件：
 
 ```bash
 # 找到 colyn.sh 的路径
@@ -341,7 +341,7 @@ scripts/install.js
    - **macOS/Linux**：创建 `colyn`（可执行脚本）
    - **Windows**：创建 `colyn.cmd`（批处理脚本）
 5. **配置 shell 集成**（仅 macOS/Linux）：
-   - 自动调用 `colyn system-integration` 命令
+   - 自动调用 `colyn setup` 命令
    - 检测 shell 类型和配置文件
    - 添加 `source` 命令到 shell 配置文件
 

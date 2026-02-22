@@ -243,25 +243,25 @@ $ echo "source ~/.colyn-completion.zsh" >> ~/.zshrc
 
 ### 提示
 
-- `colyn system-integration` 命令会自动配置补全脚本
+- `colyn setup` 命令会自动配置补全脚本
 - 支持动态补全 worktree ID 和分支名
 - Tab 键可自动完成命令和参数
 
 ---
 
-## colyn system-integration
+## colyn setup
 
 配置 shell 集成（支持自动目录切换和命令补全）。
 
 ### 语法
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 ### 功能说明
 
-`colyn system-integration` 自动完成 shell 集成配置：
+`colyn setup` 自动完成 shell 集成配置：
 
 **检测和配置：**
 1. 检测 shell 类型（bash/zsh）
@@ -280,7 +280,7 @@ colyn system-integration
 ```bash
 # 安装后首次配置
 $ npm install -g colyn
-$ colyn system-integration
+$ colyn setup
 
 检测系统环境...
 ✓ Shell 类型: zsh

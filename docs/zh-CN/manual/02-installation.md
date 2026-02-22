@@ -94,7 +94,7 @@ export PATH="$PATH:$HOME/my-tools/colyn"
 3. 复制必要文件（dist/、package.json、shell/）
 4. 安装生产依赖
 5. 创建启动脚本（colyn 或 colyn.cmd）
-6. **配置 shell 集成**（调用 `colyn system-integration`）
+6. **配置 shell 集成**（调用 `colyn setup`）
 
 安装完成后，shell 集成已自动配置，重新打开终端即可使用。
 
@@ -129,7 +129,7 @@ Shell 集成是 Colyn 的重要功能，提供：
 ### 自动配置（推荐）
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 该命令会：
@@ -337,7 +337,7 @@ volta run yarn install-to ~/my-tools/colyn
 更新后需要重新配置 shell 集成：
 
 ```bash
-colyn system-integration
+colyn setup
 source ~/.zshrc  # 或 ~/.bashrc
 ```
 
@@ -420,7 +420,7 @@ rm -rf /tmp/test-colyn
 ### Q: Shell 集成不工作
 
 **A**: 确保：
-1. 已运行 `colyn system-integration`
+1. 已运行 `colyn setup`
 2. 重新打开终端或运行 `source ~/.zshrc`
 3. 检查配置文件中是否有相关代码
 

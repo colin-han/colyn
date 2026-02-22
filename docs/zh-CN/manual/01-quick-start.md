@@ -31,7 +31,7 @@ volta install colyn
 安装后，配置 shell 集成以启用自动目录切换功能：
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 然后重新打开终端或运行：
@@ -262,7 +262,7 @@ colyn checkout 1 feature/new-feature
 
 常见问题：
 
-- **命令执行后没有自动切换目录** → 确认已运行 `colyn system-integration` 并重启终端
+- **命令执行后没有自动切换目录** → 确认已运行 `colyn setup` 并重启终端
 - **端口冲突** → 检查 .env.local 文件中的 PORT 配置
 - **分支已存在** → 使用 `colyn list` 查看现有 worktree
 

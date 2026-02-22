@@ -94,7 +94,7 @@ The installation script automatically:
 3. Copies the necessary files (dist/, package.json, shell/)
 4. Installs production dependencies
 5. Creates a startup script (colyn or colyn.cmd)
-6. **Configures shell integration** (calls `colyn system-integration`)
+6. **Configures shell integration** (calls `colyn setup`)
 
 After installation, shell integration is already configured. Simply reopen your terminal to start using Colyn.
 
@@ -129,7 +129,7 @@ Shell integration is an important Colyn feature that provides:
 ### Automatic Configuration (Recommended)
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 This command will:
@@ -337,7 +337,7 @@ volta run yarn install-to ~/my-tools/colyn
 After updating, you need to reconfigure shell integration:
 
 ```bash
-colyn system-integration
+colyn setup
 source ~/.zshrc  # or ~/.bashrc
 ```
 
@@ -420,7 +420,7 @@ rm -rf /tmp/test-colyn
 ### Q: Shell integration is not working
 
 **A**: Make sure:
-1. You have run `colyn system-integration`
+1. You have run `colyn setup`
 2. You have reopened the terminal or run `source ~/.zshrc`
 3. The relevant code exists in the configuration file
 
