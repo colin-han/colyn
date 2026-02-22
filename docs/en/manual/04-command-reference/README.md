@@ -28,7 +28,7 @@ This section provides detailed reference documentation for all Colyn commands.
 - [colyn repair](03-system-config.md#colyn-repair) — Check and repair project configuration
 - [colyn config](03-system-config.md#colyn-config) — Manage Colyn configuration
 - [colyn completion](03-system-config.md#colyn-completion) — Generate shell auto-completion script
-- [colyn system-integration](03-system-config.md#colyn-system-integration) — Configure shell integration
+- [colyn setup](03-system-config.md#colyn-setup) — Configure shell integration
 
 ### Workflow Tools
 
@@ -53,6 +53,6 @@ This section provides detailed reference documentation for all Colyn commands.
 | `colyn repair` | - | Repair configuration |
 | `colyn config` | - | Manage configuration |
 | `colyn completion` | - | Generate completion script |
-| `colyn system-integration` | - | Configure shell integration |
+| `colyn setup` | - | Configure shell integration |
 | `colyn release` | - | Publish version |
 | `colyn todo` | - | Manage todo tasks |

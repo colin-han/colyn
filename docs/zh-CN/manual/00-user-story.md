@@ -31,7 +31,7 @@ npm install -g colyn
 安装后配置 Shell 集成，这一步很关键——它让 Colyn 的命令执行后能自动切换到目标目录：
 
 ```bash
-colyn system-integration
+colyn setup
 source ~/.zshrc
 ```
 

@@ -243,25 +243,25 @@ $ echo "source ~/.colyn-completion.zsh" >> ~/.zshrc
 
 ### Tips
 
-- `colyn system-integration` command automatically configures completion scripts
+- `colyn setup` command automatically configures completion scripts
 - Supports dynamic completion of worktree IDs and branch names
 - Tab key auto-completes commands and arguments
 
 ---
 
-## colyn system-integration
+## colyn setup
 
 Configure shell integration (supports automatic directory switching and command completion).
 
 ### Syntax
 
 ```bash
-colyn system-integration
+colyn setup
 ```
 
 ### Description
 
-`colyn system-integration` automatically completes shell integration configuration:
+`colyn setup` automatically completes shell integration configuration:
 
 **Detection and configuration:**
 1. Detect shell type (bash/zsh)
@@ -280,7 +280,7 @@ colyn system-integration
 ```bash
 # First-time configuration after installation
 $ npm install -g colyn
-$ colyn system-integration
+$ colyn setup
 
 Detecting system environment...
 ✓ Shell type: zsh

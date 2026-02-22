@@ -2,7 +2,7 @@
 
 **Created**: 2026-01-24
 **Last Updated**: 2026-01-24
-**Command Name**: `colyn system-integration`
+**Command Name**: `colyn setup`
 **Status**: ✅ Implemented (with completion script support)
 
 ---
@@ -42,7 +42,7 @@ Provide a simple command that automatically completes shell integration and comp
 $ npm install -g colyn
 
 # Configure shell integration
-$ colyn system-integration
+$ colyn setup
 
 Detecting system environment...
 ✓ Shell type: zsh
@@ -69,7 +69,7 @@ Features enabled:
 **User situation**: Previously configured, need to update after colyn upgrade
 
 ```bash
-$ colyn system-integration
+$ colyn setup
 
 Detecting system environment...
 ✓ Shell type: zsh
@@ -91,7 +91,7 @@ To apply configuration:
 **User situation**: First time using shell, config file doesn't exist yet
 
 ```bash
-$ colyn system-integration
+$ colyn setup
 
 Detecting system environment...
 ✓ Shell type: bash
@@ -318,7 +318,7 @@ A: Windows shell environments (PowerShell/CMD) are significantly different from 
 
 ### Q2: What if I have multiple shell config files?
 
-A: The command will select the first existing config file by priority. If you use multiple shells, you can run `colyn system-integration` multiple times, or manually add configuration to other files.
+A: The command will select the first existing config file by priority. If you use multiple shells, you can run `colyn setup` multiple times, or manually add configuration to other files.
 
 ### Q3: Will configuration break my existing shell config?
 
@@ -369,7 +369,7 @@ async function updateShellConfig(
 
 ## 11. Summary
 
-`colyn system-integration` command core value:
+`colyn setup` command core value:
 
 ✅ **One-click configuration**: Automatically complete shell integration
 ✅ **Smart detection**: Auto-identify shell type and config file
