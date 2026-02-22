@@ -29,6 +29,8 @@ colyn info [options]
 | `worktree-dir` | Worktree directory name | `task-1` |
 | `worktree-path` | Worktree directory full path | `/Users/me/work/myapp/worktrees/task-1` |
 | `branch` | Current branch name | `feature/login` |
+| `status` | Workflow status (`idle`/`running`/`waiting-confirm`/`finish`) | `running` |
+| `last-updated-at` | Last status update time (ISO 8601 format, empty string if never set) | `2026-02-22T10:00:00.000Z` |
 
 ## Use Cases
 
@@ -72,6 +74,8 @@ $ colyn info
 📁 Worktree Dir:  task-1
 📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1
 🌿 Branch:        feature/login
+⚡ Status:        running
+📅 Last Updated:  2026-02-22 18:00:04
 ```
 
 ### 3. Get Single Field

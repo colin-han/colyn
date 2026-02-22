@@ -29,6 +29,8 @@ colyn info [选项]
 | `worktree-dir` | worktree 目录名 | `task-1` |
 | `worktree-path` | worktree 目录完整路径 | `/Users/me/work/myapp/worktrees/task-1` |
 | `branch` | 当前分支名称 | `feature/login` |
+| `status` | 工作流状态（`idle`/`running`/`waiting-confirm`/`finish`） | `running` |
+| `last-updated-at` | 状态最后更新时间（ISO 8601 格式，未设置时为空字符串） | `2026-02-22T10:00:00.000Z` |
 
 ## 使用场景
 
@@ -72,6 +74,8 @@ $ colyn info
 📁 Worktree Dir:  task-1
 📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1
 🌿 Branch:        feature/login
+⚡ Status:        running
+📅 Last Updated:  2026-02-22 18:00:04
 ```
 
 ### 3. 获取单个字段

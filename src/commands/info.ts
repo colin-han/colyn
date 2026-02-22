@@ -3,6 +3,8 @@ import * as path from 'path';
 import chalk from 'chalk';
 import simpleGit from 'simple-git';
 import { getLocationInfo, type LocationInfo } from '../core/paths.js';
+import { getWorktreeStatus } from '../core/worktree-status.js';
+import type { WorktreeStatus } from '../core/worktree-status.js';
 import { ColynError } from '../types/index.js';
 import { output, formatError } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
@@ -10,13 +12,42 @@ import { t } from '../i18n/index.js';
 /**
  * 可用的字段名
  */
-const VALID_FIELDS = ['project', 'project-path', 'worktree-id', 'worktree-dir', 'worktree-path', 'branch'] as const;
+const VALID_FIELDS = [
+  'project',
+  'project-path',
+  'worktree-id',
+  'worktree-dir',
+  'worktree-path',
+  'branch',
+  'status',
+  'last-updated-at',
+] as const;
 type FieldName = (typeof VALID_FIELDS)[number];
 
 /**
- * 从 LocationInfo 获取字段值
+ * 完整的 info 数据（位置信息 + 工作流状态）
  */
-function getFieldValue(info: LocationInfo, field: FieldName): string {
+interface InfoData extends LocationInfo {
+  worktreeStatus: WorktreeStatus;
+  statusUpdatedAt: string | null;
+}
+
+/**
+ * 格式化 ISO 时间为本地可读格式
+ */
+function formatDate(isoString: string): string {
+  const d = new Date(isoString);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
+
+/**
+ * 从 InfoData 获取字段值
+ */
+function getFieldValue(info: InfoData, field: FieldName): string {
   switch (field) {
     case 'project':
       return info.project;
@@ -30,6 +61,10 @@ function getFieldValue(info: LocationInfo, field: FieldName): string {
       return info.worktreePath;
     case 'branch':
       return info.branch;
+    case 'status':
+      return info.worktreeStatus;
+    case 'last-updated-at':
+      return info.statusUpdatedAt ?? '';
   }
 }
 
@@ -43,7 +78,7 @@ function validateField(field: string): field is FieldName {
 /**
  * 渲染模板字符串
  */
-function renderTemplate(template: string, info: LocationInfo): string {
+function renderTemplate(template: string, info: InfoData): string {
   return template.replace(/\{([^}]+)\}/g, (match, fieldName) => {
     const trimmedField = fieldName.trim();
     if (!validateField(trimmedField)) {
@@ -59,40 +94,55 @@ function renderTemplate(template: string, info: LocationInfo): string {
 /**
  * 输出带颜色的完整信息
  */
-function printFullInfo(info: LocationInfo): void {
+function printFullInfo(info: InfoData): void {
   const labelWidth = 14;
 
   const lines = [
     {
       icon: '📁',
       label: t('commands.info.labelProject'),
-      value: chalk.cyan(info.project)
+      value: chalk.cyan(info.project),
     },
     {
       icon: '📂',
       label: t('commands.info.labelProjectPath'),
-      value: chalk.gray(info.projectPath)
+      value: chalk.gray(info.projectPath),
     },
     {
       icon: '🔢',
       label: t('commands.info.labelWorktreeId'),
-      value: info.worktreeId === 0 ? chalk.yellow(t('commands.info.mainIndicator')) : chalk.green(String(info.worktreeId))
+      value:
+        info.worktreeId === 0
+          ? chalk.yellow(t('commands.info.mainIndicator'))
+          : chalk.green(String(info.worktreeId)),
     },
     {
       icon: '📁',
       label: t('commands.info.labelWorktreeDir'),
-      value: chalk.cyan(info.worktreeDir)
+      value: chalk.cyan(info.worktreeDir),
     },
     {
       icon: '📂',
       label: t('commands.info.labelWorktreePath'),
-      value: chalk.gray(info.worktreePath)
+      value: chalk.gray(info.worktreePath),
     },
     {
       icon: '🌿',
       label: t('commands.info.labelBranch'),
-      value: chalk.magenta(info.branch)
-    }
+      value: chalk.magenta(info.branch),
+    },
+    {
+      icon: '⚡',
+      label: t('commands.info.labelStatus'),
+      value: chalk.cyan(info.worktreeStatus),
+    },
+    {
+      icon: '📅',
+      label: t('commands.info.labelLastUpdatedAt'),
+      value: info.statusUpdatedAt
+        ? formatDate(info.statusUpdatedAt)
+        : chalk.gray(t('commands.info.statusNeverSet')),
+    },
   ];
 
   for (const line of lines) {
@@ -119,18 +169,18 @@ async function printFallbackInfo(): Promise<void> {
         {
           icon: '📁',
           label: t('commands.info.labelRepository'),
-          value: chalk.cyan(repoName)
+          value: chalk.cyan(repoName),
         },
         {
           icon: '📂',
           label: t('commands.info.labelRepositoryPath'),
-          value: chalk.gray(gitRoot)
+          value: chalk.gray(gitRoot),
         },
         {
           icon: '🌿',
           label: t('commands.info.labelBranch'),
-          value: chalk.magenta(branch.current ?? 'unknown')
-        }
+          value: chalk.magenta(branch.current ?? 'unknown'),
+        },
       ];
 
       for (const line of lines) {
@@ -151,13 +201,13 @@ async function printFallbackInfo(): Promise<void> {
     {
       icon: '📁',
       label: t('commands.info.labelDirectory'),
-      value: chalk.cyan(dirName)
+      value: chalk.cyan(dirName),
     },
     {
       icon: '📂',
       label: t('commands.info.labelDirectoryPath'),
-      value: chalk.gray(cwd)
-    }
+      value: chalk.gray(cwd),
+    },
   ];
 
   for (const line of lines) {
@@ -249,9 +299,9 @@ async function infoCommand(options: InfoOptions): Promise<void> {
     }
 
     // 尝试获取当前位置信息
-    let info: LocationInfo | null = null;
+    let locationInfo: LocationInfo | null = null;
     try {
-      info = await getLocationInfo();
+      locationInfo = await getLocationInfo();
     } catch {
       // 如果获取失败，检查是否有需要 colyn 信息的选项
       if (options.format || options.field) {
@@ -262,16 +312,27 @@ async function infoCommand(options: InfoOptions): Promise<void> {
         );
       }
       // 无参数时使用降级显示
-      info = null;
+      locationInfo = null;
     }
 
     // 如果是 colyn 项目，继续处理其他选项
-    if (info) {
+    if (locationInfo) {
+      // 获取工作流状态
+      const configDir = path.join(locationInfo.projectPath, '.colyn');
+      const effectiveDir = locationInfo.isMainBranch ? 'main' : locationInfo.worktreeDir;
+      const statusResult = await getWorktreeStatus(configDir, effectiveDir);
+
+      const info: InfoData = {
+        ...locationInfo,
+        worktreeStatus: statusResult.status,
+        statusUpdatedAt: statusResult.updatedAt,
+      };
+
       // 处理 --format 参数
       if (options.format) {
-        const output = renderTemplate(options.format, info);
+        const rendered = renderTemplate(options.format, info);
         // 直接输出到 stdout，用于脚本使用
-        process.stdout.write(output + '\n');
+        process.stdout.write(rendered + '\n');
         return;
       }
 
@@ -319,9 +380,14 @@ export function register(program: Command): void {
     .command('info')
     .description(t('commands.info.description'))
     .option('-S, --short', t('commands.info.shortOption'))
-    .option('-f, --field <name>', t('commands.info.fieldOption'), (value, previous: string[]) => {
-      return previous.concat([value]);
-    }, [])
+    .option(
+      '-f, --field <name>',
+      t('commands.info.fieldOption'),
+      (value, previous: string[]) => {
+        return previous.concat([value]);
+      },
+      []
+    )
     .option('--format <template>', t('commands.info.formatOption'))
     .option('-s, --separator <char>', t('commands.info.separatorOption'))
     .action(async (options) => {
@@ -329,7 +395,9 @@ export function register(program: Command): void {
     });
 
   // 添加详细的帮助信息
-  cmd.addHelpText('after', `
+  cmd.addHelpText(
+    'after',
+    `
 
 可用字段：
   project         项目名称
@@ -338,6 +406,8 @@ export function register(program: Command): void {
   worktree-dir    Worktree 目录名
   worktree-path   Worktree 目录完整路径
   branch          当前分支名
+  status          工作流状态（idle/running/waiting-confirm/finish）
+  last-updated-at 状态最后更新时间（ISO 8601 格式，未设置时为空）
 
 使用示例：
   # 在 colyn 项目中显示完整信息（默认）
@@ -347,56 +417,24 @@ export function register(program: Command): void {
   🔢 Worktree ID:   1
   📁 Worktree Dir:  task-1
   🌿 Branch:        feature/login
-
-  # 在非 colyn 项目的 git 仓库中优雅降级
-  $ colyn info
-  📁 Repository:    my-repo
-  📂 Repo Path:     /path/to/my-repo
-  🌿 Branch:        main
-
-  # 在非 git 目录中降级显示目录信息
-  $ colyn info
-  📁 Directory:     my-folder
-  📂 Path:          /path/to/my-folder
+  ⚡ Status:        running
+  📅 Last Updated:  2026-02-22 13:22:04
 
   # 输出简短标识符（带分支信息）
   $ colyn info --short
   my-project/task-1 (⎇ feature/login)
 
-  # 使用缩写
-  $ colyn info -S
-  my-project/task-1 (⎇ feature/login)
+  # 获取状态字段
+  $ colyn info -f status
+  running
 
-  # --short 也支持降级
-  $ colyn info --short  # 在 git 仓库中
-  my-repo (⎇ main)
-
-  $ colyn info --short  # 在非 git 目录中
-  my-folder
-
-  # 输出单个字段
-  $ colyn info -f branch
-  feature/login
-
-  # 输出多个字段（tab 分隔）
-  $ colyn info -f worktree-id -f branch
-  1	feature/login
-
-  # 使用自定义分隔符
-  $ colyn info -f worktree-id -f branch -s ","
-  1,feature/login
+  # 获取多个字段
+  $ colyn info -f worktree-id -f status
+  1	running
 
   # 使用模板格式化输出
-  $ colyn info --format "Worktree {worktree-id}: {branch}"
-  Worktree 1: feature/login
-
-  # 在脚本中使用
-  $ BRANCH=$(colyn info -f branch)
-  $ echo "Current branch: $BRANCH"
-  Current branch: feature/login
-
-  # 在 shell 提示符中使用
-  $ PS1='[$(colyn info -S)] $ '
-  [my-project/task-1 (⎇ feature/login)] $
-`);
+  $ colyn info --format "Worktree {worktree-id}: {branch} [{status}]"
+  Worktree 1: feature/login [running]
+`
+  );
 }

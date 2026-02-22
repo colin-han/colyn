@@ -42,6 +42,7 @@ import {
   validateTmuxConfig
 } from '../core/tmux-config.js';
 import { getRunCommand } from '../core/config.js';
+import { setWorktreeStatus } from '../core/worktree-status.js';
 import chalk from 'chalk';
 import ora from 'ora';
 
@@ -308,6 +309,11 @@ async function addCommand(branchName: string): Promise<void> {
         // install 失败不阻断 add 流程
       }
     }
+
+    // 步骤9.6: 更新 worktree 状态为 idle
+    try {
+      await setWorktreeStatus(paths.configDir, `task-${id}`, paths.rootDir, 'idle');
+    } catch { /* 状态更新失败不影响主流程 */ }
 
     // 步骤10: 计算相对路径并显示成功信息
     const displayPath = path.relative(paths.rootDir, worktreePath);

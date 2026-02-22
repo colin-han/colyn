@@ -31,6 +31,7 @@ import {
   displayBatchUpdateResult
 } from './update.helpers.js';
 import { t } from '../i18n/index.js';
+import { setWorktreeStatus } from '../core/worktree-status.js';
 
 /**
  * Merge 命令选项
@@ -207,6 +208,11 @@ async function mergeCommand(
 
     step2Spinner.succeed(t('commands.merge.worktreeMerged'));
     outputSuccess(t('commands.merge.mergeComplete'));
+
+    // 更新 worktree 状态为 idle
+    try {
+      await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
+    } catch { /* 状态更新失败不影响主流程 */ }
 
     // 步骤8: 推送处理
     let pushed = false;
