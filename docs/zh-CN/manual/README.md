@@ -35,6 +35,7 @@ Colyn 特别适合以下使用场景：
 
 本用户手册包含以下章节：
 
+0. **[用户故事：从一个人到一支 AI 团队](00-user-story.md)** - 通过一个完整的真实场景，了解 Colyn 能做什么
 1. **[快速开始](01-quick-start.md)** - 5 分钟快速上手
 2. **[安装指南](02-installation.md)** - 详细的安装说明
 3. **[核心概念](03-core-concepts.md)** - 理解 Colyn 的工作原理
@@ -55,9 +56,10 @@ Colyn 特别适合以下使用场景：
 
 如果你是第一次使用 Colyn：
 
-1. 阅读 [快速开始](01-quick-start.md) 了解基本用法
-2. 查看 [核心概念](03-core-concepts.md) 理解工作原理
-3. 参考 [命令参考](04-command-reference/README.md) 学习具体命令
+1. 阅读 [用户故事](00-user-story.md) 快速了解 Colyn 能解决什么问题
+2. 阅读 [快速开始](01-quick-start.md) 了解基本用法
+3. 查看 [核心概念](03-core-concepts.md) 理解工作原理
+4. 参考 [命令参考](04-command-reference/README.md) 学习具体命令
 
 ### 已有用户
 
