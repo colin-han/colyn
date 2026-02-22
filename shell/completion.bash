@@ -174,7 +174,7 @@ _colyn_completion() {
             local subcommand="${words[2]}"
             # 第一级：补全子命令
             if [[ $cword -eq 2 ]]; then
-                COMPREPLY=($(compgen -W "add start list ls remove archive uncomplete" -- "$cur"))
+                COMPREPLY=($(compgen -W "add start list ls remove archive uncomplete edit" -- "$cur"))
                 return 0
             fi
             # 第二级：根据子命令补全参数

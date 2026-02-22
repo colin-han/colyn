@@ -2,6 +2,10 @@ import type { Command } from 'commander';
 import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
 import chalk from 'chalk';
+import { spawn } from 'child_process';
+import * as os from 'os';
+import { writeFile, readFile, unlink } from 'fs/promises';
+import * as path from 'path';
 import type { ArchivedTodoItem, TodoItem } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import {
@@ -31,6 +35,30 @@ import {
   selectPendingTodo,
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
+
+/**
+ * 打开编辑器编辑文本内容，返回编辑后的内容
+ */
+async function editWithEditor(initialContent: string): Promise<string> {
+  const tmpFile = path.join(os.tmpdir(), `colyn-todo-edit-${Date.now()}.txt`);
+  try {
+    await writeFile(tmpFile, initialContent, 'utf-8');
+    const editor = process.env.VISUAL || process.env.EDITOR || 'vim';
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(editor, [tmpFile], { stdio: 'inherit' });
+      child.on('close', code => {
+        if (code === 0) resolve();
+        else reject(new ColynError(t('commands.todo.edit.editorFailed')));
+      });
+      child.on('error', () => {
+        reject(new ColynError(t('commands.todo.edit.editorFailed')));
+      });
+    });
+    return await readFile(tmpFile, 'utf-8');
+  } finally {
+    await unlink(tmpFile).catch(() => {});
+  }
+}
 
 /**
  * 获取状态标签映射
@@ -490,6 +518,101 @@ export function register(program: Command): void {
 
         outputSuccess(t('commands.todo.uncomplete.success', { todoId: resolvedTodoId }));
         outputLine();
+      } catch (error) {
+        formatError(error);
+        process.exit(1);
+      }
+    });
+
+  // todo edit [todoId] [message]
+  todo
+    .command('edit [todoId] [message]')
+    .description(t('commands.todo.edit.description'))
+    .action(async (todoId: string | undefined, message: string | undefined) => {
+      try {
+        const paths = await getProjectPaths();
+        await validateProjectInitialized(paths);
+
+        const todoFile = await readTodoFile(paths.configDir);
+        const allTodos = todoFile.todos;
+
+        let resolvedTodoId = todoId;
+
+        // 如果没有指定 todoId，交互式选择
+        if (!resolvedTodoId) {
+          if (allTodos.length === 0) {
+            outputInfo(t('commands.todo.edit.noTodos'));
+            return;
+          }
+
+          const statusLabels = getStatusLabels();
+          const choices = allTodos.map(item => {
+            const id = `${item.type}/${item.name}`;
+            const statusLabel = statusLabels[item.status] ?? item.status;
+            return {
+              name: id,
+              message: `${id}  (${statusLabel}: ${item.message})`,
+            };
+          });
+
+          const response = await prompt<{ todoId: string }>({
+            type: 'select',
+            name: 'todoId',
+            message: t('commands.todo.edit.selectTodo'),
+            choices,
+            stdout: process.stderr,
+          });
+
+          resolvedTodoId = response.todoId;
+        }
+
+        let type: string;
+        let name: string;
+        try {
+          ({ type, name } = parseTodoId(resolvedTodoId));
+        } catch {
+          throw new ColynError(t('commands.todo.add.invalidFormat'));
+        }
+
+        const item = findTodo(allTodos, type, name);
+        if (!item) {
+          throw new ColynError(t('commands.todo.edit.notFound', { todoId: resolvedTodoId }));
+        }
+
+        // 如果 todo 已完成，询问是否改回待办状态
+        if (item.status === 'completed') {
+          const response = await prompt<{ revert: boolean }>({
+            type: 'confirm',
+            name: 'revert',
+            message: t('commands.todo.edit.isCompleted', { todoId: resolvedTodoId }),
+            initial: false,
+            stdout: process.stderr,
+          });
+
+          if (!response.revert) {
+            output(chalk.gray(t('commands.todo.edit.revertCanceled')));
+            process.exit(1);
+          }
+
+          item.status = 'pending';
+          delete item.startedAt;
+          delete item.branch;
+        }
+
+        // 获取新的 message
+        let newMessage = message;
+        if (!newMessage) {
+          newMessage = await editWithEditor(item.message);
+        }
+
+        if (!newMessage || !newMessage.trim()) {
+          throw new ColynError(t('commands.todo.edit.messageEmpty'));
+        }
+
+        item.message = newMessage.trim();
+        await saveTodoFile(paths.configDir, todoFile);
+
+        outputSuccess(t('commands.todo.edit.success', { todoId: resolvedTodoId }));
       } catch (error) {
         formatError(error);
         process.exit(1);

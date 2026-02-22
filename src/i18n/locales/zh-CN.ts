@@ -891,6 +891,17 @@ export const zhCN = {
         success: 'Todo "{{todoId}}" 已回退为待办状态',
         usingCurrentBranch: '使用当前分支名: {{branch}}',
       },
+      edit: {
+        description: '编辑 Todo 任务的描述',
+        notFound: 'Todo "{{todoId}}" 不存在',
+        noTodos: '没有可编辑的 Todo 任务',
+        selectTodo: '请选择要编辑的 Todo 任务',
+        isCompleted: 'Todo "{{todoId}}" 已完成，是否改回待办状态？',
+        revertCanceled: '已取消，Todo 状态未修改',
+        success: 'Todo "{{todoId}}" 的描述已更新',
+        messageEmpty: '描述不能为空',
+        editorFailed: '编辑器异常退出，描述未修改',
+      },
     },
 
     // list-project command

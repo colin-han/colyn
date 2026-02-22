@@ -184,6 +184,21 @@ Revert a `completed` task back to `pending`, clearing `startedAt` and `branch` f
 
 If `todoId` is not specified, the current Worktree's branch name is used automatically (must be executed in a non-main-branch Worktree).
 
+### 5.7 `colyn todo edit [todoId] [message]`
+
+Edit the description of an existing Todo task.
+
+**Arguments**:
+- `todoId` (optional): Format `{type}/{name}`; interactive selection when omitted
+- `message` (optional): New description text; opens editor when omitted
+
+**Interaction logic**:
+- No `todoId`: Interactive selection list showing all pending + completed tasks
+- No `message`: Opens `$VISUAL` / `$EDITOR` / `vim` via temp file
+- Todo is `completed`: Prompts user to revert to `pending` first; declining exits with code 1
+
+**Difference from `uncomplete`**: `uncomplete` handles status reversion only; `edit` primarily updates the message and only reverts status when necessary.
+
 ---
 
 ## 6. Checkout Integration

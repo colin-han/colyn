@@ -183,6 +183,7 @@ _colyn() {
                         'remove:${e(t('commands.todo.remove.description'))}'
                         'archive:${e(t('commands.todo.archive.description'))}'
                         'uncomplete:${e(t('commands.todo.uncomplete.description'))}'
+                        'edit:${e(t('commands.todo.edit.description'))}'
                     )
 
                     _arguments -C \\

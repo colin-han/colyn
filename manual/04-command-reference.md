@@ -1854,11 +1854,16 @@ $ colyn release --no-update
 
 ## colyn todo
 
+<<<<<<< HEAD
 管理项目的 Todo 任务列表，与并行 Vibe Coding 工作流深度集成。
+=======
+管理待办任务（Todo），跟踪计划开发的分支。
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 ### 语法
 
 ```bash
+<<<<<<< HEAD
 colyn todo [子命令] [选项]
 ```
 
@@ -1887,11 +1892,28 @@ document/api-guide
 ```
 
 **支持的类型**：`feature` / `bugfix` / `refactor` / `document`
+=======
+colyn todo <子命令> [参数] [选项]
+```
+
+### 子命令一览
+
+| 子命令 | 说明 |
+|--------|------|
+| `add <todoId> <message>` | 添加 Todo 任务 |
+| `start <todoId>` | 开始执行 Todo（创建对应分支） |
+| `list [选项]` | 列出 Todo 任务 |
+| `remove <todoId> [-y]` | 删除 Todo 任务 |
+| `archive [-y]` | 归档所有已完成的任务 |
+| `uncomplete [todoId]` | 将已完成任务回退为待办状态 |
+| `edit [todoId] [message]` | 编辑 Todo 任务的描述 |
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 ---
 
 ### colyn todo add
 
+<<<<<<< HEAD
 添加新的待办任务。所有参数均为可选，无参数时进入完全交互式模式。
 
 #### 语法
@@ -1924,10 +1946,38 @@ $ colyn todo add feature/login "实现用户登录功能"
 
 无 `message` 参数时，自动打开编辑器（优先使用 `$VISUAL`，其次 `$EDITOR`，默认 `vim`）。编辑器中以 `# ` 开头的行为注释，保存退出后自动过滤。文件格式为 `.md`，支持 Markdown 语法高亮。
 
+=======
+添加新的 Todo 任务。
+
+**语法：**
+
+```bash
+colyn todo add <todoId> <message>
+```
+
+**参数：**
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 是 | 格式为 `{type}/{name}`，例如 `feature/login`、`bug/auth` |
+| `message` | 是 | 任务描述 |
+
+**示例：**
+
+```bash
+$ colyn todo add feature/login "实现用户登录功能"
+✓ 已添加 Todo: feature/login - 实现用户登录功能
+
+$ colyn todo add bug/payment "修复支付接口超时问题"
+✓ 已添加 Todo: bug/payment - 修复支付接口超时问题
+```
+
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 ---
 
 ### colyn todo start
 
+<<<<<<< HEAD
 开始执行待办任务：在当前 Worktree 切换/创建对应分支，并将任务描述复制到剪贴板。
 
 #### 语法
@@ -1988,12 +2038,42 @@ $ colyn todo start feature/login --no-clipboard
 
 **典型工作流**：`todo start` 后直接打开 Claude Code，将剪贴板内容粘贴到输入框，作为本次会话的任务上下文。
 
+=======
+开始执行 Todo 任务，自动创建对应分支并切换到新 Worktree。
+
+**语法：**
+
+```bash
+colyn todo start <todoId>
+```
+
+**参数：**
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 是 | 格式为 `{type}/{name}` |
+
+**行为：**
+- 验证 Todo 存在且状态为 `pending`
+- 调用 `colyn checkout` 创建 `{type}/{name}` 分支
+- 分支创建成功后将 Todo 标记为 `completed`
+- 记录 `startedAt` 时间戳和分支名
+
+**示例：**
+
+```bash
+$ colyn todo start feature/login
+✓ Todo "feature/login" 已标记为完成
+```
+
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 ---
 
 ### colyn todo list
 
 列出 Todo 任务。
 
+<<<<<<< HEAD
 #### 语法
 
 ```bash
@@ -2037,10 +2117,44 @@ bugfix/fix-crash
 - Message 内容超出列宽时自动截断并追加省略号（`…`）
 - 中文等宽字符按实际显示宽度计算，确保对齐准确
 
+=======
+**语法：**
+
+```bash
+colyn todo list [选项]
+```
+
+**选项：**
+
+| 选项 | 说明 |
+|------|------|
+| `--completed` | 显示已完成的任务（已 start 的） |
+| `--archived` | 显示已归档的任务 |
+| （不传）| 显示待办（pending）任务 |
+
+**示例：**
+
+```bash
+# 列出待办任务
+$ colyn todo list
+  Type     Name     Message               Status  Created
+  -------  -------  --------------------  ------  ----------------
+  feature  login    实现用户登录功能       待办    2026/02/22 10:00
+  bug      payment  修复支付接口超时问题  待办    2026/02/22 11:00
+
+# 列出已完成的任务
+$ colyn todo list --completed
+
+# 列出已归档的任务
+$ colyn todo list --archived
+```
+
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 ---
 
 ### colyn todo remove
 
+<<<<<<< HEAD
 删除一个 Todo 任务。
 
 #### 语法
@@ -2056,11 +2170,29 @@ colyn todo remove [todoId] [选项]
 | `todoId` | 否 | 要删除的 Todo ID；省略时交互式选择 |
 
 #### 选项
+=======
+删除 Todo 任务。
+
+**语法：**
+
+```bash
+colyn todo remove <todoId> [选项]
+```
+
+**参数：**
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 是 | 格式为 `{type}/{name}` |
+
+**选项：**
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 | 选项 | 短选项 | 说明 |
 |------|--------|------|
 | `--yes` | `-y` | 跳过确认直接删除 |
 
+<<<<<<< HEAD
 #### 功能说明
 
 省略 `todoId` 时，会列出所有任务（待办 + 已完成）供交互式选择，选项同时显示任务状态。
@@ -2081,6 +2213,16 @@ $ colyn todo remove feature/login
 ✓ 已删除 Todo: feature/login
 
 # 跳过确认直接删除
+=======
+**示例：**
+
+```bash
+$ colyn todo remove feature/login
+? 确认删除 Todo "feature/login"？ (y/N) › Yes
+✓ 已删除 Todo: feature/login
+
+# 跳过确认
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 $ colyn todo remove feature/login -y
 ✓ 已删除 Todo: feature/login
 ```
@@ -2089,20 +2231,31 @@ $ colyn todo remove feature/login -y
 
 ### colyn todo archive
 
+<<<<<<< HEAD
 将所有 `completed` 状态的任务批量归档，移入 `.colyn/archived-todo.json`。
 
 #### 语法
+=======
+将所有已完成（`completed`）的 Todo 任务归档到 `archived-todo.json`。
+
+**语法：**
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 ```bash
 colyn todo archive [选项]
 ```
 
+<<<<<<< HEAD
 #### 选项
+=======
+**选项：**
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 | 选项 | 短选项 | 说明 |
 |------|--------|------|
 | `--yes` | `-y` | 跳过确认直接归档 |
 
+<<<<<<< HEAD
 #### 示例
 
 ```bash
@@ -2113,20 +2266,35 @@ $ colyn todo archive
 # 直接归档（无需确认）
 $ colyn todo archive -y
 ✓ 已归档 3 个任务
+=======
+**示例：**
+
+```bash
+$ colyn todo archive
+? 确认归档 2 个已完成的任务？ (Y/n) › Yes
+✓ 已归档 2 个任务
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 ```
 
 ---
 
 ### colyn todo uncomplete
 
+<<<<<<< HEAD
 将 `completed` 状态的任务回退为 `pending`（清除 `startedAt` 和 `branch` 记录）。省略 `todoId` 时，自动使用当前 Worktree 的分支名。
 
 #### 语法
+=======
+将已完成（`completed`）的 Todo 任务回退为待办（`pending`）状态，清除 `startedAt` 和 `branch` 字段。
+
+**语法：**
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 ```bash
 colyn todo uncomplete [todoId]
 ```
 
+<<<<<<< HEAD
 #### 参数
 
 | 参数 | 必填 | 说明 |
@@ -2137,21 +2305,125 @@ colyn todo uncomplete [todoId]
 
 ```bash
 # 在 feature/login Worktree 中直接执行（自动推断）
+=======
+**参数：**
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 否 | 格式为 `{type}/{name}`；省略时自动使用当前 Worktree 的分支名 |
+
+**示例：**
+
+```bash
+# 在 feature/login worktree 中执行（自动推断）
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 $ colyn todo uncomplete
 ℹ 使用当前分支名: feature/login
 ✓ Todo "feature/login" 已回退为待办状态
 
+<<<<<<< HEAD
 # 显式指定 ID
+=======
+# 指定 todoId
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 $ colyn todo uncomplete feature/login
 ✓ Todo "feature/login" 已回退为待办状态
 ```
 
 ---
 
+<<<<<<< HEAD
+=======
+### colyn todo edit
+
+编辑已有 Todo 任务的描述。
+
+**语法：**
+
+```bash
+colyn todo edit [todoId] [message]
+```
+
+**参数：**
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 否 | 格式为 `{type}/{name}`；省略时交互式选择 |
+| `message` | 否 | 新的描述文本；省略时打开 `$EDITOR`（默认 vim）编辑 |
+
+**行为逻辑：**
+- 无 `todoId`：显示所有 Todo 的交互式选择列表
+- 无 `message`：通过 `$VISUAL` / `$EDITOR` / `vim` 打开编辑器（使用临时文件）
+- Todo 已完成（`completed`）：询问是否改回 `pending`；拒绝则以错误码 1 退出
+
+**示例：**
+
+```bash
+# 直接指定 todoId 和新描述
+$ colyn todo edit feature/login "优化用户登录界面与认证流程"
+✓ Todo "feature/login" 的描述已更新
+
+# 只指定 todoId，用编辑器修改（打开 vim）
+$ colyn todo edit feature/login
+
+# 两者都不指定，交互式选择后再编辑
+$ colyn todo edit
+? 请选择要编辑的 Todo 任务
+  feature/login  (待办: 实现用户登录功能)
+❯ bug/payment    (待办: 修复支付接口超时问题)
+
+# 已完成的 Todo 会询问是否回退
+$ colyn todo edit feature/login "新描述"
+? Todo "feature/login" 已完成，是否改回待办状态？ (y/N) › Yes
+✓ Todo "feature/login" 的描述已更新
+```
+
+---
+
+### 数据存储
+
+| 文件 | 说明 |
+|------|------|
+| `.colyn/todo.json` | 所有活跃 Todo（pending + completed） |
+| `.colyn/archived-todo.json` | 已归档的 Todo |
+
+### TodoId 格式
+
+TodoId 必须使用 `{type}/{name}` 格式，其中 `type` 通常对应分支类型：
+
+```
+feature/login       # 新功能
+bug/payment-timeout # 缺陷修复
+chore/cleanup       # 日常维护
+refactor/auth       # 重构
+```
+
+### 推荐工作流
+
+```bash
+# 1. 规划任务
+colyn todo add feature/login "实现用户登录功能"
+colyn todo add feature/dashboard "实现数据仪表盘"
+
+# 2. 查看待办
+colyn todo list
+
+# 3. 开始任务（自动创建分支和 worktree）
+colyn todo start feature/login
+
+# 4. 开发完成后合并
+colyn merge feature/login
+
+# 5. 归档已完成任务
+colyn todo archive
+```
+
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 ### 常见错误
 
 | 错误场景 | 错误信息 | 解决方法 |
 |---------|---------|---------|
+<<<<<<< HEAD
 | Todo ID 格式错误 | `✗ Todo ID 格式错误，应为 {type}/{name}` | 使用正确格式，如 `feature/login` |
 | Todo 不存在 | `✗ Todo "xxx" 不存在` | 先用 `todo add` 添加，或用 `colyn todo list` 查看 |
 | Todo 不是待办状态 | `✗ Todo "xxx" 不是待办状态` | 使用 `colyn todo uncomplete` 回退后再 start |
@@ -2166,6 +2438,20 @@ $ colyn todo uncomplete feature/login
 - 描述（message）支持完整的 Markdown 语法，有助于在 Claude 会话中提供清晰的上下文
 - 定期执行 `colyn todo archive -y` 可保持待办列表整洁
 - `remove` 命令无参数时的交互式选择会同时显示待办和已完成任务，方便批量清理
+=======
+| TodoId 格式错误 | `Todo ID 格式错误，应为 {type}/{name}` | 使用正确格式，如 `feature/login` |
+| Todo 已存在 | `Todo "xxx" 已存在` | 使用不同的名称 |
+| Todo 不存在 | `Todo "xxx" 不存在` | 运行 `colyn todo list` 查看现有任务 |
+| Todo 不是待办状态 | `Todo "xxx" 不是待办状态` | 使用 `colyn todo uncomplete` 回退状态 |
+| 描述为空 | `描述不能为空` | 提供非空的描述文本 |
+
+### 提示
+
+- `todoId` 对应分支名，`todo start` 会直接以该名称创建分支
+- 已完成的任务通过 `archive` 归档，不影响 `list` 的默认显示
+- `edit` 命令在没有参数时完全交互式，适合键盘快速操作
+- 设置 `$EDITOR` 环境变量可以使用自己喜欢的编辑器
+>>>>>>> 2738e6a (feat: 添加todo edit命令)
 
 ---
 
