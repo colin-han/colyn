@@ -6,7 +6,9 @@ import { formatError, output, outputResult, outputSuccess } from '../utils/logge
 import {
   detectShellConfig,
   getColynShellPath,
+  getColynBinPath,
   updateShellConfig,
+  updateClaudeHooks,
   checkColynShellExists,
   generateAndCacheCompletionScript
 } from './system-integration.helpers.js';
@@ -91,7 +93,22 @@ async function systemIntegrationCommand(): Promise<void> {
       }
     }
 
-    // 步骤 5: 显示完成信息
+    // 步骤 5: 配置 Claude Code hooks
+    output('');
+    output(t('commands.systemIntegration.configuringClaudeHooks'));
+    try {
+      const colynBinPath = getColynBinPath();
+      const claudeResult = await updateClaudeHooks(colynBinPath);
+      if (claudeResult === 'added') {
+        output(chalk.green(t('commands.systemIntegration.claudeHooksAdded')));
+      } else {
+        output(chalk.green(t('commands.systemIntegration.claudeHooksUpdated')));
+      }
+    } catch {
+      output(chalk.yellow(t('commands.systemIntegration.claudeHooksFailed')));
+    }
+
+    // 步骤 6: 显示完成信息
     output('');
     outputSuccess(result === 'added' ? t('commands.systemIntegration.installComplete') : t('commands.systemIntegration.updateComplete'));
     output('');

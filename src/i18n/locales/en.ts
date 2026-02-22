@@ -767,6 +767,10 @@ Solution:
       features: 'Features:',
       featureAutoSwitch: '✓ colyn command supports auto directory switching',
       featureCompletion: '✓ Use Tab key for auto-completion',
+      configuringClaudeHooks: 'Configuring Claude Code hooks...',
+      claudeHooksAdded: '✓ Claude Code status hooks configured',
+      claudeHooksUpdated: '✓ Claude Code status hooks updated',
+      claudeHooksFailed: '⚠ Failed to configure Claude Code hooks (Claude Code may not be installed)',
     },
 
     // tmux command

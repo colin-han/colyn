@@ -9,6 +9,19 @@ import { fileURLToPath } from 'url';
 import { generateZshCompletionScript } from './completion.js';
 
 /**
+ * Claude Code settings.json 中 hooks 的类型定义
+ */
+interface ClaudeHookEntry {
+  type: 'command';
+  command: string;
+}
+
+interface ClaudeHookConfig {
+  matcher?: string;
+  hooks: ClaudeHookEntry[];
+}
+
+/**
  * Shell 配置信息
  */
 export interface ShellConfig {
@@ -219,6 +232,149 @@ export async function checkCompletionScriptExists(completionPath: string): Promi
   } catch {
     return false;
   }
+}
+
+/**
+ * 获取 colyn 二进制文件的绝对路径
+ */
+export function getColynBinPath(): string {
+  const currentModulePath = fileURLToPath(import.meta.url);
+  const distDir = path.dirname(path.dirname(currentModulePath));
+  const rootDir = path.dirname(distDir);
+  return path.join(rootDir, 'bin', 'colyn');
+}
+
+/**
+ * 在 hooks 数组中查找并更新包含 marker 的命令，返回是否找到
+ */
+function findAndUpdateHook(
+  configs: ClaudeHookConfig[],
+  marker: string,
+  newCommand: string
+): boolean {
+  for (const config of configs) {
+    const hook = config.hooks.find(h => h.command.includes(marker));
+    if (hook) {
+      hook.command = newCommand;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 在指定事件下添加或更新 hook（无 matcher）
+ * 返回 true 表示新增，false 表示更新
+ */
+function addOrUpdateSimpleHook(
+  hooksRecord: Record<string, ClaudeHookConfig[]>,
+  event: string,
+  command: string,
+  marker: string
+): boolean {
+  if (!hooksRecord[event]) {
+    hooksRecord[event] = [];
+  }
+  const configs = hooksRecord[event];
+
+  if (findAndUpdateHook(configs, marker, command)) {
+    return false;
+  }
+
+  const configWithoutMatcher = configs.find(c => !c.matcher);
+  if (configWithoutMatcher) {
+    configWithoutMatcher.hooks.push({ type: 'command', command });
+  } else {
+    configs.push({ hooks: [{ type: 'command', command }] });
+  }
+  return true;
+}
+
+/**
+ * 在 PreToolUse 事件的 AskUserQuestion matcher 下添加或更新 hook
+ * 返回 true 表示新增，false 表示更新
+ */
+function addOrUpdatePreToolUseHook(
+  hooksRecord: Record<string, ClaudeHookConfig[]>,
+  command: string,
+  marker: string
+): boolean {
+  if (!hooksRecord['PreToolUse']) {
+    hooksRecord['PreToolUse'] = [];
+  }
+  const configs = hooksRecord['PreToolUse'];
+
+  if (findAndUpdateHook(configs, marker, command)) {
+    return false;
+  }
+
+  const matcherConfig = configs.find(c => c.matcher === 'AskUserQuestion');
+  if (matcherConfig) {
+    matcherConfig.hooks.push({ type: 'command', command });
+  } else {
+    configs.push({ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command }] });
+  }
+  return true;
+}
+
+/**
+ * 在 ~/.claude/settings.json 中添加或更新 colyn status hooks
+ *
+ * 配置三个 hooks：
+ * - UserPromptSubmit: colyn status set running
+ * - PreToolUse (AskUserQuestion): colyn status set waiting-confirm
+ * - Stop: colyn status set finish
+ *
+ * @param colynBinPath - colyn 二进制文件的绝对路径
+ * @returns 'added' | 'updated'
+ */
+export async function updateClaudeHooks(colynBinPath: string): Promise<'added' | 'updated'> {
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+
+  let rawSettings: Record<string, unknown> = {};
+  try {
+    const content = await fs.readFile(settingsPath, 'utf-8');
+    const parsed: unknown = JSON.parse(content);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      rawSettings = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // 文件不存在或 JSON 无效，从空配置开始
+  }
+
+  const rawHooks = rawSettings['hooks'];
+  const hooksRecord: Record<string, ClaudeHookConfig[]> =
+    rawHooks && typeof rawHooks === 'object' && !Array.isArray(rawHooks)
+      ? (rawHooks as Record<string, ClaudeHookConfig[]>)
+      : {};
+
+  const makeCommand = (status: string): string =>
+    `${colynBinPath} status set ${status} 2>/dev/null || true`;
+
+  const runningAdded = addOrUpdateSimpleHook(
+    hooksRecord,
+    'UserPromptSubmit',
+    makeCommand('running'),
+    'status set running'
+  );
+  const waitingAdded = addOrUpdatePreToolUseHook(
+    hooksRecord,
+    makeCommand('waiting-confirm'),
+    'status set waiting-confirm'
+  );
+  const finishAdded = addOrUpdateSimpleHook(
+    hooksRecord,
+    'Stop',
+    makeCommand('finish'),
+    'status set finish'
+  );
+
+  const newSettings: Record<string, unknown> = { ...rawSettings, hooks: hooksRecord };
+
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify(newSettings, null, 2) + '\n', 'utf-8');
+
+  return runningAdded || waitingAdded || finishAdded ? 'added' : 'updated';
 }
 
 /**
