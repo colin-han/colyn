@@ -2,8 +2,9 @@
 
 **Status**: Implemented
 **Created**: 2026-02-22
+**Last Updated**: 2026-02-22 (Adapted for Mono Repo support, removed subdirectory detection)
 **Implementation File**: `src/plugins/builtin/xcode.ts`
-**Related Document**: `docs-en/design-plugin-toolchain.md`
+**Related Document**: `docs/en/develop/design/design-plugin-toolchain.md`
 
 ---
 
@@ -33,41 +34,11 @@ This document records the Xcode plugin design analysis, including:
 
 **Must exclude `project.xcworkspace`**: Every `.xcodeproj` automatically generates an internal `project.xcworkspace` subdirectory (path: `*.xcodeproj/project.xcworkspace/`). This is an Xcode-managed internal file, not a user-created standalone workspace. Misdetecting it as a valid workspace would cause incorrect `-workspace` parameter paths.
 
-### 2.3 Subdirectory Detection
+### 2.3 Detection Scope
 
-Some projects place the Xcode workspace in a subdirectory (e.g., React Native iOS subproject, native macOS companion app):
+The plugin only inspects the `worktreePath` directory itself; it does not scan subdirectories.
 
-```
-my-project/
-├── ios/
-│   └── MyApp.xcodeproj/    ← Xcode project in subdirectory
-├── android/
-└── src/
-```
-
-Detection strategy: **scan root directory first; if nothing found, scan one level of subdirectories** (skipping `node_modules`, `build`, `DerivedData`, `.git`, `worktrees`, `Pods`, etc.).
-
-**Detection Logic (pseudocode)**:
-
-```typescript
-async detect(worktreePath: string): Promise<boolean> {
-  // Scan root directory first
-  const root = await scanXcodeDir(worktreePath);
-  if (root.workspace || root.project || root.hasSPM) return true;
-
-  // Then scan one level of subdirectories
-  const entries = await fs.readdir(worktreePath);
-  for (const entry of entries) {
-    if (entry.startsWith('.') || SKIP_DIRS.has(entry)) continue;
-    if (!(await fs.stat(path.join(worktreePath, entry))).isDirectory()) continue;
-    const sub = await scanXcodeDir(path.join(worktreePath, entry));
-    if (sub.workspace || sub.project || sub.hasSPM) return true;
-  }
-  return false;
-}
-```
-
-When a subdirectory is detected, the `subdir` field (e.g., `"ios"`) is saved to `pluginSettings.xcode` along with `workspace`/`project` for use by subsequent commands.
+For projects that place the Xcode workspace in a subdirectory (e.g., React Native's `ios/`), subdirectory scanning is handled by the upper-level `toolchain-resolver.ts`: in Mono Repo mode, it iterates over first-level subdirectories and calls the plugin's `detect()` on each one. The plugin itself therefore does not need to handle this level.
 
 ---
 
@@ -113,39 +84,33 @@ The responsibility of `repairSettings`: automatically discover deterministic inf
 ### 4.2 Execution Flow
 
 ```
-Step 1: Find project entry point
-  Call findXcodeProject(worktreePath):
-  - Scan root directory first, find .xcworkspace (filter project.xcworkspace) or .xcodeproj
-  - If not found, scan one level of subdirectories (skip SKIP_DIRS)
-  Record workspaceFile / projectFile, and the subdirectory (subdir) where they reside
+Step 1: Scan project files
+  Call scanXcodeDir(worktreePath):
+  - Find .xcworkspace (filter project.xcworkspace) or .xcodeproj or Package.swift
+  Record workspaceFile / projectFile
 
-Step 2: Save subdir
-  If xcodeproj is in a subdirectory (e.g. "macos"), record subdir = "macos"
-  Subsequent steps operate using xcodeDir = path.join(worktreePath, subdir)
-
-Step 3: Discover shared schemes
-  Path: {xcodeDir}/{project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme
+Step 2: Discover shared schemes
+  Path: {worktreePath}/{project}.xcodeproj/xcshareddata/xcschemes/*.xcscheme
   Shared schemes are committed to git and are the most reliable build targets
   Non-shared schemes are stored in user private directories and not committed
 
-Step 4: Infer target platform
-  Read {xcodeDir}/{project}.xcodeproj/project.pbxproj
+Step 3: Infer target platform
+  Read {worktreePath}/{project}.xcodeproj/project.pbxproj
   Find SDKROOT value:
     iphoneos     → iOS
     macosx       → macOS
     appletvos    → tvOS
     watchos      → watchOS
 
-Step 5: Decision and interaction
+Step 4: Decision and interaction
   - Only one shared scheme → use automatically, inform user
   - Multiple shared schemes → let user choose (single select)
   - No shared schemes → prompt user to manually enter scheme name
   - destination can be clearly inferred → use automatically
   - destination unclear → ask user (provide common options)
 
-Step 6: Return result
+Step 5: Return result
   {
-    subdir: "macos",              // subdirectory (omitted for root-level projects)
     workspace: "MyApp.xcworkspace",  // or project: "MyApp.xcodeproj"
     scheme: "MyApp",
     destination: "generic/platform=iOS Simulator"
@@ -158,6 +123,8 @@ When the `repair` command runs again, `context.currentSettings` contains values 
 - Existing values and project structure unchanged → reuse directly, no re-prompting
 - Existing values but corresponding scheme no longer exists → prompt and re-ask
 - User can update configuration by running `colyn repair` (forces re-detection and re-prompting)
+
+`repairSettings` also automatically removes the `subdir` field that may be left over in older configuration files (`delete result.subdir`), ensuring backward compatibility.
 
 ### 4.4 Non-Interactive Mode (nonInteractive = true)
 
@@ -184,30 +151,25 @@ In CI environments, interactive prompts are not possible:
 
 ```
 Detection Logic (by priority):
-1. Call findXcodeProject(worktreePath) to get xcodeDir (with subdirectory support)
+1. If Podfile exists in worktreePath
+   → Execute: pod install (cwd: worktreePath)
 
-2. If Podfile exists in xcodeDir
-   → Execute: pod install (cwd: xcodeDir)
-   → If pod command not found, throw PluginCommandError prompting user to install CocoaPods
+2. If Package.swift exists in worktreePath (and no Podfile)
+   → Execute: swift package resolve (cwd: worktreePath)
 
-3. If Package.swift exists in xcodeDir (and no Podfile)
-   → Execute: swift package resolve (cwd: xcodeDir)
-
-4. Neither exists → silently skip
+3. Neither exists → silently skip
 ```
 
 ### 5.2 lint
 
 ```
 Detection Logic:
-1. Call findXcodeProject(worktreePath) to get xcodeDir (with subdirectory support)
-
-2. If .swiftlint.yml or .swiftlint.yaml exists in xcodeDir
-   → Execute: swiftlint lint (cwd: xcodeDir)
+1. If .swiftlint.yml or .swiftlint.yaml exists in worktreePath
+   → Execute: swiftlint lint (cwd: worktreePath)
    → If swiftlint command not found, silently skip (not an error; tool not installed)
    → On failure, throw PluginCommandError
 
-3. Otherwise → silently skip
+2. Otherwise → silently skip
 ```
 
 ### 5.3 build
@@ -219,18 +181,15 @@ Detection Logic:
 **Recommended build logic**:
 
 ```
-1. Read subdir from pluginSettings.xcode to derive xcodeDir:
-   xcodeDir = subdir ? path.join(worktreePath, subdir) : worktreePath
-
-2. Try to read scheme from pluginSettings.xcode:
+1. Try to read scheme from pluginSettings.xcode:
    - If scheme exists:
      Build xcodebuild command, choose -workspace or -project based on saved config
-     Execute: xcodebuild -workspace {w} -scheme {s} -destination {d} build (cwd: xcodeDir)
-     or:      xcodebuild -project   {p} -scheme {s} -destination {d} build (cwd: xcodeDir)
+     Execute: xcodebuild -workspace {w} -scheme {s} -destination {d} build (cwd: worktreePath)
+     or:      xcodebuild -project   {p} -scheme {s} -destination {d} build (cwd: worktreePath)
 
    - If scheme doesn't exist (repairSettings not run or user skipped):
      Check if Package.swift exists
-       Yes → SPM fallback: swift build (cwd: xcodeDir)
+       Yes → SPM fallback: swift build (cwd: worktreePath)
        No  → silently skip, output hint: "Run colyn repair to configure Xcode build parameters"
 ```
 
@@ -243,7 +202,6 @@ Detection Logic:
 Using Apple's official `agvtool` tool:
 
 ```bash
-# Execute in xcodeDir (with subdirectory support)
 agvtool new-marketing-version {version}
 ```
 
@@ -261,14 +219,14 @@ If `agvtool` is unavailable or project lacks `VERSIONING_SYSTEM`:
 
 After successful configuration save, `.colyn/settings.json` example:
 
-**Root-level project** (xcodeproj at the root of the worktree):
+**Standard Xcode project**:
 
 ```json
 {
-  "version": 3,
-  "plugins": ["xcode"],
-  "pluginSettings": {
-    "xcode": {
+  "version": 4,
+  "toolchain": {
+    "type": "xcode",
+    "settings": {
       "workspace": "MyApp.xcworkspace",
       "scheme": "MyApp",
       "destination": "generic/platform=iOS Simulator"
@@ -277,32 +235,36 @@ After successful configuration save, `.colyn/settings.json` example:
 }
 ```
 
-**Subdirectory project** (xcodeproj in a subdirectory, e.g., `macos/ColynPuppy.xcodeproj`):
+**Pure SPM project** (no scheme configuration):
 
 ```json
 {
-  "version": 3,
-  "plugins": ["xcode"],
-  "pluginSettings": {
-    "xcode": {
-      "subdir": "macos",
-      "project": "ColynPuppy.xcodeproj",
-      "scheme": "ColynPuppy",
-      "destination": "platform=macOS"
-    }
+  "version": 4,
+  "toolchain": {
+    "type": "xcode",
+    "settings": {}
   }
 }
 ```
 
-Pure SPM project (no scheme configuration) example:
+**Mono Repo scenario** (Xcode project as one of the sub-projects):
 
 ```json
 {
-  "version": 3,
-  "plugins": ["xcode"],
-  "pluginSettings": {
-    "xcode": {}
-  }
+  "version": 4,
+  "projects": [
+    {
+      "path": "macos",
+      "toolchain": {
+        "type": "xcode",
+        "settings": {
+          "project": "ColynPuppy.xcodeproj",
+          "scheme": "ColynPuppy",
+          "destination": "platform=macOS"
+        }
+      }
+    }
+  ]
 }
 ```
 
@@ -319,6 +281,7 @@ The following questions were resolved during implementation using the recommende
 | Q3 | Fallback when `agvtool` is unavailable? | **Directly modify `MARKETING_VERSION` in `project.pbxproj`** |
 | Q4 | When `colyn repair` re-runs, force re-asking all parameters? | **No** — only ask for missing or changed parameters (idempotent) |
 | Q5 | In CI (nonInteractive=true) with no scheme available, should `build` error or skip? | **Silently skip** to avoid blocking CI pipeline |
+| Q6 | Should the plugin scan first-level subdirectories to support React Native and similar projects? | **No** — subdirectory scanning is handled by `toolchain-resolver.ts`; the plugin only inspects the directory it receives |
 
 ---
 
@@ -333,17 +296,17 @@ src/plugins/builtin/
 
 ## 9. Implementation Record
 
-✅ Completed:
+✅ Initial implementation:
 
 1. Implemented `src/plugins/builtin/xcode.ts` (all extension points)
 2. Registered in `src/plugins/index.ts`
 3. Added i18n translations (`zh-CN.ts` / `en.ts` under `plugins.xcode` namespace)
-4. Updated `docs-en/design-plugin-toolchain.md` with xcode plugin entry
-5. Updated user manual `manual/11-plugin-system.md`
+4. Updated toolchain plugin design document with xcode plugin entry
+5. Updated user manual plugin system chapter
 
-✅ 2026-02-22 Follow-up:
+✅ 2026-02-22 Adapted for Mono Repo support:
 
-6. Added `XcodeProject.subdir` field for subdirectory detection support
-7. Split `findXcodeProject` into `scanXcodeDir` + `findXcodeProject` (one-level subdirectory scan)
-8. `repairSettings` saves `subdir` and uses `xcodeDir` for scheme/destination detection
-9. `install` / `lint` / `build` / `bumpVersion` all operate using `xcodeDir` (correct subdirectory handling)
+6. Removed subdirectory scanning logic from the plugin (`findXcodeProject` function and `SKIP_DIRS` constant)
+7. Removed `XcodeProject.subdir` field
+8. All extension points now use `worktreePath` directly, no longer deriving `xcodeDir`
+9. `repairSettings` automatically removes legacy `subdir` field from old configurations (backward compatibility)
