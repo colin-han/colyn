@@ -69,6 +69,8 @@ _colyn() {
         'init:${e(t('commands.init.description'))}'
         'add:${e(t('commands.add.description'))}'
         'list:${e(t('commands.list.description'))}'
+        'list-project:${e(t('commands.listProject.description'))}'
+        'lsp:${e(t('commands.listProject.description'))}'
         'merge:${e(t('commands.merge.description'))}'
         'update:${e(t('commands.update.description'))}'
         'remove:${e(t('commands.remove.description'))}'
@@ -83,6 +85,7 @@ _colyn() {
         'tmux:${e(t('commands.tmux.description'))}'
         'release:${e(t('commands.release.description'))}'
         'completion:${e(t('commands.completion.description'))}'
+        'todo:${e(t('commands.todo.description'))}'
     )
 
     local curcontext="$curcontext" state line
@@ -164,9 +167,85 @@ _colyn() {
                         '1: :(bash zsh)' \\
                         '--install[${e(t('commands.completion.installOption'))}]'
                     ;;
+                list-project|lsp)
+                    _arguments \\
+                        '--json[${e(t('commands.listProject.jsonOption'))}]' \\
+                        '(-p --paths)'{-p,--paths}'[${e(t('commands.listProject.pathsOption'))}]'
+                    ;;
+                todo)
+                    local state
+                    local -a subcommands
+                    subcommands=(
+                        'add:${e(t('commands.todo.add.description'))}'
+                        'start:${e(t('commands.todo.start.description'))}'
+                        'list:${e(t('commands.todo.list.description'))}'
+                        'ls:${e(t('commands.todo.list.description'))}'
+                        'remove:${e(t('commands.todo.remove.description'))}'
+                        'archive:${e(t('commands.todo.archive.description'))}'
+                        'uncomplete:${e(t('commands.todo.uncomplete.description'))}'
+                    )
+
+                    _arguments -C \\
+                        '1: :->subcmd' \\
+                        '*::arg:->subargs'
+
+                    case $state in
+                        subcmd)
+                            _describe 'todo subcommands' subcommands
+                            ;;
+                        subargs)
+                            case $line[1] in
+                                add)
+                                    # todoId 类型前缀补全
+                                    local -a types
+                                    types=('feature' 'bugfix' 'refactor' 'document')
+                                    _describe 'todo types' types
+                                    ;;
+                                start)
+                                    _arguments \\
+                                        '1: :_colyn_todo_ids' \\
+                                        '--no-clipboard[${e(t('commands.todo.start.noClipboardOption'))}]'
+                                    ;;
+                                list|ls)
+                                    _arguments \\
+                                        '--completed[${e(t('commands.todo.list.completedOption'))}]' \\
+                                        '--archived[${e(t('commands.todo.list.archivedOption'))}]' \\
+                                        '--id-only[${e(t('commands.todo.list.idOnlyOption'))}]'
+                                    ;;
+                                remove)
+                                    _arguments \\
+                                        '1: :_colyn_todo_ids' \\
+                                        '(-y --yes)'{-y,--yes}'[${e(t('commands.todo.remove.yesOption'))}]'
+                                    ;;
+                                archive)
+                                    _arguments \\
+                                        '(-y --yes)'{-y,--yes}'[${e(t('commands.todo.archive.yesOption'))}]'
+                                    ;;
+                                uncomplete)
+                                    _arguments \\
+                                        '1: :_colyn_todo_completed_ids'
+                                    ;;
+                            esac
+                            ;;
+                    esac
+                    ;;
             esac
             ;;
     esac
+}
+
+# Todo ID completion (pending todos)
+_colyn_todo_ids() {
+    local -a todos
+    todos=(\${(f)"$(colyn todo list --id-only 2>/dev/null)"})
+    _describe 'todo IDs' todos
+}
+
+# Todo completed ID completion
+_colyn_todo_completed_ids() {
+    local -a todos
+    todos=(\${(f)"$(colyn todo list --completed --id-only 2>/dev/null)"})
+    _describe 'completed todo IDs' todos
 }
 
 # Git branch completion

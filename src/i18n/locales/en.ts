@@ -854,6 +854,7 @@ Solution:
         description: 'List Todo tasks',
         completedOption: 'Show completed tasks',
         archivedOption: 'Show archived tasks',
+        idOnlyOption: 'Output todo IDs only, one per line (for script integration)',
         empty: 'No tasks',
         headerType: 'Type',
         headerName: 'Name',

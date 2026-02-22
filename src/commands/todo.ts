@@ -245,17 +245,36 @@ export function register(program: Command): void {
       }
     });
 
-  // todo list [--completed] [--archived]
+  // todo list [--completed] [--archived] [--id-only]
   todo
     .command('list')
     .alias('ls')
     .description(t('commands.todo.list.description'))
     .option('--completed', t('commands.todo.list.completedOption'))
     .option('--archived', t('commands.todo.list.archivedOption'))
-    .action(async (options: { completed?: boolean; archived?: boolean }) => {
+    .option('--id-only', t('commands.todo.list.idOnlyOption'))
+    .action(async (options: { completed?: boolean; archived?: boolean; idOnly?: boolean }) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
+
+        if (options.idOnly) {
+          let todos: TodoItem[];
+          if (options.archived) {
+            const archivedFile = await readArchivedTodoFile(paths.configDir);
+            todos = archivedFile.todos.map(item => ({ ...item, status: 'completed' as const }));
+          } else if (options.completed) {
+            const todoFile = await readTodoFile(paths.configDir);
+            todos = todoFile.todos.filter(item => item.status === 'completed');
+          } else {
+            const todoFile = await readTodoFile(paths.configDir);
+            todos = todoFile.todos.filter(item => item.status === 'pending');
+          }
+          for (const todo of todos) {
+            process.stdout.write(`${todo.type}/${todo.name}\n`);
+          }
+          return;
+        }
 
         const statusLabels = getStatusLabels();
 
@@ -266,7 +285,7 @@ export function register(program: Command): void {
             return;
           }
           // ArchivedTodoItem extends TodoItem, display as TodoItem
-          const todoItems: TodoItem[] = archivedFile.todos.map(t => ({ ...t, status: 'completed' as const }));
+          const todoItems: TodoItem[] = archivedFile.todos.map(item => ({ ...item, status: 'completed' as const }));
           output(formatTodoTable(todoItems, { ...statusLabels, completed: statusLabels.archived }));
         } else if (options.completed) {
           const todoFile = await readTodoFile(paths.configDir);
