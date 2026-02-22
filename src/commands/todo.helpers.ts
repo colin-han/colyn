@@ -2,6 +2,8 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
+import Enquirer from 'enquirer';
+import chalk from 'chalk';
 import type { TodoFile, ArchivedTodoFile, TodoItem } from '../types/index.js';
 
 const TODO_FILE_NAME = 'todo.json';
@@ -194,6 +196,80 @@ function truncWidth(s: string, maxW: number): string {
     w += cw;
   }
   return padWidth(result + '…', maxW);
+}
+
+/** 截断字符串到指定显示宽度，超出时末尾加省略号（不补空格） */
+function truncStr(s: string, maxW: number): string {
+  if (strWidth(s) <= maxW) return s;
+  let w = 0;
+  let result = '';
+  for (const ch of s) {
+    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    if (w + cw + 1 > maxW) break;
+    result += ch;
+    w += cw;
+  }
+  return result + '…';
+}
+
+// enquirer Select 类的构造函数类型（enquirer 未导出内部类型）
+type SelectCtor = new (options: Record<string, unknown>) => {
+  run(): Promise<string>;
+  choices: Array<{ name?: string; message?: string }>;
+  index: number;
+  footer(): string | Promise<string>;
+};
+
+/**
+ * 交互式选择 pending 任务
+ * - 每行仅显示 message 首行，按终端宽度截断
+ * - 选中项下方显示 message 前 4 行预览
+ */
+export async function selectPendingTodo(
+  pendingTodos: TodoItem[],
+  selectMessage: string,
+): Promise<string> {
+  const termW = process.stderr.columns ?? process.stdout.columns ?? 80;
+
+  const todoMap = new Map<string, string>(
+    pendingTodos.map(item => [`${item.type}/${item.name}`, item.message]),
+  );
+
+  const maxIdW = Math.max(...pendingTodos.map(item => strWidth(`${item.type}/${item.name}`)));
+  // enquirer select 左侧渲染"❯ "前缀加内边距，保守估计占用 6 列
+  const msgAvail = Math.max(10, termW - maxIdW - 2 - 6);
+
+  const choices = pendingTodos.map(item => {
+    const id = `${item.type}/${item.name}`;
+    const firstLine = item.message.split('\n')[0];
+    return {
+      name: id,
+      message: `${padWidth(id, maxIdW)}  ${chalk.gray(truncStr(firstLine, msgAvail))}`,
+    };
+  });
+
+  const EnquirerSelect = (Enquirer as unknown as { Select: SelectCtor }).Select;
+
+  class TodoSelect extends EnquirerSelect {
+    async footer(): Promise<string> {
+      if (this.index >= this.choices.length) return '';
+      const choice = this.choices[this.index];
+      const id = choice.name ?? '';
+      const msg = todoMap.get(id) ?? '';
+      if (!msg) return '';
+      const lines = msg.split('\n').slice(0, 4);
+      return '\n' + lines.map(line => `  ${chalk.gray(line)}`).join('\n');
+    }
+  }
+
+  const select = new TodoSelect({
+    name: 'todoId',
+    message: selectMessage,
+    choices,
+    stdout: process.stderr,
+  });
+
+  return select.run();
 }
 
 /**

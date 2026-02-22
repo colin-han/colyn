@@ -27,7 +27,8 @@ import {
   findTodo,
   formatTodoTable,
   editMessageWithEditor,
-  copyToClipboard
+  copyToClipboard,
+  selectPendingTodo,
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
 
@@ -184,19 +185,7 @@ export function register(program: Command): void {
             return;
           }
 
-          const choices = pendingTodos.map(item => ({
-            name: `${item.type}/${item.name}`,
-            message: `${item.type}/${item.name}  ${chalk.gray(item.message.split('\n')[0])}`,
-          }));
-
-          const response = await prompt<{ todoId: string }>({
-            type: 'select',
-            name: 'todoId',
-            message: t('commands.todo.start.selectTodo'),
-            choices,
-            stdout: process.stderr,
-          });
-          resolvedTodoId = response.todoId;
+          resolvedTodoId = await selectPendingTodo(pendingTodos, t('commands.todo.start.selectTodo'));
         } else {
           resolvedTodoId = todoId;
         }
