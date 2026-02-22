@@ -257,14 +257,14 @@ async function updateMainBranch(
 /**
  * Checkout 命令选项
  */
-interface CheckoutOptions {
+export interface CheckoutOptions {
   fetch?: boolean;
 }
 
 /**
  * Checkout 命令：在 worktree 中切换分支
  */
-async function checkoutCommand(
+export async function checkoutCommand(
   target: string | undefined,
   branch: string,
   options: CheckoutOptions = {}

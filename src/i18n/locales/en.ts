@@ -822,6 +822,62 @@ Solution:
       passthroughRerunHint: 'After reloading, run colyn tmux start again',
     },
 
+    // todo command
+    todo: {
+      description: 'Manage Todo tasks',
+      add: {
+        description: 'Add a Todo task',
+        invalidFormat: 'Invalid Todo ID format, expected {type}/{name}',
+        alreadyExists: 'Todo "{{todoId}}" already exists',
+        success: 'Added Todo: {{todoId}} - {{message}}',
+      },
+      start: {
+        description: 'Start a Todo task (create corresponding branch)',
+        notFound: 'Todo "{{todoId}}" not found',
+        notPending: 'Todo "{{todoId}}" is not in pending status',
+        checkoutFailed: 'Failed to create branch, Todo status unchanged',
+        success: 'Todo "{{todoId}}" marked as completed',
+      },
+      list: {
+        description: 'List Todo tasks',
+        completedOption: 'Show completed tasks',
+        archivedOption: 'Show archived tasks',
+        empty: 'No tasks',
+        headerType: 'Type',
+        headerName: 'Name',
+        headerMessage: 'Message',
+        headerStatus: 'Status',
+        headerCreatedAt: 'Created',
+        statusPending: 'Pending',
+        statusCompleted: 'Completed',
+        statusArchived: 'Archived',
+      },
+      remove: {
+        description: 'Remove a Todo task',
+        yesOption: 'Skip confirmation and remove directly',
+        notFound: 'Todo "{{todoId}}" not found',
+        confirm: 'Confirm remove Todo "{{todoId}}"?',
+        success: 'Removed Todo: {{todoId}}',
+        canceled: 'Remove canceled',
+      },
+      archive: {
+        description: 'Archive all completed Todo tasks',
+        yesOption: 'Skip confirmation and archive directly',
+        noCompleted: 'No completed tasks to archive',
+        confirm: 'Confirm archive {{count}} completed task(s)?',
+        success: 'Archived {{count}} task(s)',
+        canceled: 'Archive canceled',
+      },
+      uncomplete: {
+        description: 'Revert a completed Todo task back to pending',
+        notFound: 'Todo "{{todoId}}" not found',
+        notCompleted: 'Todo "{{todoId}}" is not in completed status',
+        noBranch: 'Not in a worktree branch, please specify a Todo ID',
+        success: 'Todo "{{todoId}}" reverted to pending',
+        usingCurrentBranch: 'Using current branch name: {{branch}}',
+      },
+    },
+
     // list-project command
     listProject: {
       description: 'List all projects in tmux sessions',

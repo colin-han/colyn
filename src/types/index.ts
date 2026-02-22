@@ -70,3 +70,50 @@ export interface CommandModule {
   /** 注册命令到 program */
   register: (program: Command) => void;
 }
+
+/**
+ * Todo 状态
+ */
+export type TodoStatus = 'pending' | 'completed';
+
+/**
+ * Todo 条目
+ */
+export interface TodoItem {
+  /** 类型，例如 "feature", "bug", "chore" */
+  type: string;
+  /** 名称，例如 "login", "fix-auth" */
+  name: string;
+  /** 任务描述 */
+  message: string;
+  /** 状态 */
+  status: TodoStatus;
+  /** 创建时间（ISO 时间戳） */
+  createdAt: string;
+  /** 开始时间（todo start 执行时间） */
+  startedAt?: string;
+  /** 创建的分支名 */
+  branch?: string;
+}
+
+/**
+ * Todo 文件结构
+ */
+export interface TodoFile {
+  todos: TodoItem[];
+}
+
+/**
+ * 归档的 Todo 条目
+ */
+export interface ArchivedTodoItem extends TodoItem {
+  /** 归档时间（ISO 时间戳） */
+  archivedAt: string;
+}
+
+/**
+ * 归档 Todo 文件结构
+ */
+export interface ArchivedTodoFile {
+  todos: ArchivedTodoItem[];
+}
