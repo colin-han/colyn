@@ -221,7 +221,7 @@ function outputTable(projects: ProjectInfo[]): void {
         chalk.bold(t('commands.list.tableId')),
         chalk.bold(t('commands.list.tableBranch')),
         chalk.bold(t('commands.list.tablePort')),
-        chalk.bold(t('commands.list.tableStatus')),
+        chalk.bold(t('commands.list.tableGit')),
         chalk.bold(t('commands.list.tableDiff')),
         chalk.bold(t('commands.list.tablePath'))
       ],

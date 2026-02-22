@@ -19,9 +19,12 @@ import {
   formatStatus,
   formatStatusSimple,
   formatDiff,
+  formatWorktreeStatus,
+  formatWorktreeStatusEmoji,
   type GitStatus,
   type GitDiff
 } from './list.helpers.js';
+import { getWorktreeStatus, type WorktreeStatus } from '../core/worktree-status.js';
 import { isInTmux, isTmuxAvailable } from '../core/tmux.js';
 
 /**
@@ -46,6 +49,7 @@ interface ListItem {
   isCurrent: boolean;
   status: GitStatus;
   diff: GitDiff;
+  worktreeStatus: WorktreeStatus;
 }
 
 /**
@@ -61,8 +65,10 @@ function isCurrentDirectory(targetPath: string): boolean {
 
 /**
  * 显示模式
+ * 列优先级（从高到低，即空间不足时从后向前移除/压缩）：
+ * ID/Branch > WTStatus(emoji) > Diff > Git(simple) > Git(full) > Path > Port > WTStatus(full→emoji)
  */
-type DisplayMode = 'full' | 'no-port' | 'no-path' | 'simple-status' | 'no-status' | 'minimal';
+type DisplayMode = 'full' | 'no-port' | 'no-path' | 'compress-wt' | 'simple-git' | 'no-git' | 'no-diff' | 'minimal';
 
 /**
  * 计算列的最大宽度
@@ -71,18 +77,22 @@ function getColumnWidths(items: ListItem[]): {
   id: number;
   branch: number;
   port: number;
-  status: number;
-  statusSimple: number;
+  gitStatus: number;
+  gitStatusSimple: number;
   diff: number;
   path: number;
+  wtStatus: number;
+  wtStatusEmoji: number;
 } {
   let maxId = 6; // "0-main" 或 "→ 1"
   let maxBranch = 6; // "Branch"
   let maxPort = 5; // "Port" + 1
-  let maxStatus = 6; // "Status"
-  const maxStatusSimple = 1; // "●"
+  let maxGitStatus = 3; // "Git"
+  const maxGitStatusSimple = 1; // "●"
   let maxDiff = 4; // "Diff"
   let maxPath = 4; // "Path"
+  let maxWtStatus = 6; // "Status"
+  const maxWtStatusEmoji = 3; // "st."
 
   for (const item of items) {
     // 主分支显示 "0-main"，worktree 显示数字 ID
@@ -91,19 +101,22 @@ function getColumnWidths(items: ListItem[]): {
     maxId = Math.max(maxId, idDisplay.length);
     maxBranch = Math.max(maxBranch, item.branch.length);
     maxPort = Math.max(maxPort, String(item.port).length);
-    maxStatus = Math.max(maxStatus, formatStatus(item.status).length);
+    maxGitStatus = Math.max(maxGitStatus, formatStatus(item.status).length);
     maxDiff = Math.max(maxDiff, formatDiff(item.diff, item.isMain).length);
     maxPath = Math.max(maxPath, item.path.length);
+    maxWtStatus = Math.max(maxWtStatus, formatWorktreeStatus(item.worktreeStatus).length);
   }
 
   return {
     id: maxId,
     branch: maxBranch,
     port: maxPort,
-    status: maxStatus,
-    statusSimple: maxStatusSimple,
+    gitStatus: maxGitStatus,
+    gitStatusSimple: maxGitStatusSimple,
     diff: maxDiff,
-    path: maxPath
+    path: maxPath,
+    wtStatus: maxWtStatus,
+    wtStatusEmoji: maxWtStatusEmoji
   };
 }
 
@@ -122,25 +135,38 @@ function calculateTableWidth(widths: ReturnType<typeof getColumnWidths>, mode: D
   switch (mode) {
     case 'full':
       totalWidth += widths.port + borderOverhead;
-      totalWidth += widths.status + borderOverhead;
+      totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
       totalWidth += widths.path + borderOverhead;
+      totalWidth += widths.wtStatus + borderOverhead;
       break;
     case 'no-port':
-      totalWidth += widths.status + borderOverhead;
+      totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
       totalWidth += widths.path + borderOverhead;
+      totalWidth += widths.wtStatus + borderOverhead;
       break;
     case 'no-path':
-      totalWidth += widths.status + borderOverhead;
+      totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.wtStatus + borderOverhead;
       break;
-    case 'simple-status':
-      totalWidth += widths.statusSimple + borderOverhead;
+    case 'compress-wt':
+      totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.wtStatusEmoji + borderOverhead;
       break;
-    case 'no-status':
+    case 'simple-git':
+      totalWidth += widths.gitStatusSimple + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.wtStatusEmoji + borderOverhead;
+      break;
+    case 'no-git':
+      totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.wtStatusEmoji + borderOverhead;
+      break;
+    case 'no-diff':
+      totalWidth += widths.wtStatusEmoji + borderOverhead;
       break;
     case 'minimal':
       // 只有 ID 和 Branch
@@ -154,7 +180,7 @@ function calculateTableWidth(widths: ReturnType<typeof getColumnWidths>, mode: D
  * 选择最佳显示模式
  */
 function selectDisplayMode(widths: ReturnType<typeof getColumnWidths>, terminalWidth: number): DisplayMode {
-  const modes: DisplayMode[] = ['full', 'no-port', 'no-path', 'simple-status', 'no-status', 'minimal'];
+  const modes: DisplayMode[] = ['full', 'no-port', 'no-path', 'compress-wt', 'simple-git', 'no-git', 'no-diff', 'minimal'];
 
   for (const mode of modes) {
     if (calculateTableWidth(widths, mode) <= terminalWidth) {
@@ -163,6 +189,36 @@ function selectDisplayMode(widths: ReturnType<typeof getColumnWidths>, terminalW
   }
 
   return 'minimal';
+}
+
+/**
+ * 返回指定模式下有自身颜色（不被行色覆盖）的列索引集合
+ */
+function getColoredCellIndices(mode: DisplayMode): number[] {
+  switch (mode) {
+    case 'full':        return [3, 4, 6]; // git, diff, wtStatus
+    case 'no-port':     return [2, 3, 5]; // git, diff, wtStatus
+    case 'no-path':     return [2, 3, 4]; // git, diff, wtStatus
+    case 'compress-wt': return [2, 3, 4]; // git, diff, wtEmoji
+    case 'simple-git':  return [2, 3, 4]; // gitSimple, diff, wtEmoji
+    case 'no-git':      return [2, 3];    // diff, wtEmoji
+    case 'no-diff':     return [2];       // wtEmoji
+    case 'minimal':     return [];
+  }
+}
+
+/**
+ * 根据 worktree 状态返回带颜色的字符串
+ */
+function coloredWtStatus(status: WorktreeStatus, isEmoji: boolean): string {
+  const str = isEmoji ? formatWorktreeStatusEmoji(status) : formatWorktreeStatus(status);
+  if (!str) return '';
+  switch (status) {
+    case 'running':         return chalk.cyan(str);
+    case 'waiting-confirm': return chalk.yellow(str);
+    case 'finish':          return chalk.green(str);
+    default:                return str;
+  }
 }
 
 /**
@@ -186,18 +242,58 @@ function outputTable(items: ListItem[]): void {
 
   // 构建表头
   const headers: string[] = [chalk.bold(t('commands.list.tableId')), chalk.bold(t('commands.list.tableBranch'))];
-  if (mode === 'full') {
-    headers.push(chalk.bold(t('commands.list.tablePort')), chalk.bold(t('commands.list.tableStatus')), chalk.bold(t('commands.list.tableDiff')), chalk.bold(t('commands.list.tablePath')));
-  } else if (mode === 'no-port') {
-    headers.push(chalk.bold(t('commands.list.tableStatus')), chalk.bold(t('commands.list.tableDiff')), chalk.bold(t('commands.list.tablePath')));
-  } else if (mode === 'no-path') {
-    headers.push(chalk.bold(t('commands.list.tableStatus')), chalk.bold(t('commands.list.tableDiff')));
-  } else if (mode === 'simple-status') {
-    headers.push(chalk.bold('S'), chalk.bold(t('commands.list.tableDiff')));
-  } else if (mode === 'no-status') {
-    headers.push(chalk.bold(t('commands.list.tableDiff')));
+  switch (mode) {
+    case 'full':
+      headers.push(
+        chalk.bold(t('commands.list.tablePort')),
+        chalk.bold(t('commands.list.tableGit')),
+        chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tablePath')),
+        chalk.bold(t('commands.list.tableWtStatus'))
+      );
+      break;
+    case 'no-port':
+      headers.push(
+        chalk.bold(t('commands.list.tableGit')),
+        chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tablePath')),
+        chalk.bold(t('commands.list.tableWtStatus'))
+      );
+      break;
+    case 'no-path':
+      headers.push(
+        chalk.bold(t('commands.list.tableGit')),
+        chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableWtStatus'))
+      );
+      break;
+    case 'compress-wt':
+      headers.push(
+        chalk.bold(t('commands.list.tableGit')),
+        chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableWtStatusShort'))
+      );
+      break;
+    case 'simple-git':
+      headers.push(
+        chalk.bold('S'),
+        chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableWtStatusShort'))
+      );
+      break;
+    case 'no-git':
+      headers.push(
+        chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableWtStatusShort'))
+      );
+      break;
+    case 'no-diff':
+      headers.push(chalk.bold(t('commands.list.tableWtStatusShort')));
+      break;
+    case 'minimal':
+      // 只有 ID 和 Branch
+      break;
   }
-  // minimal 模式只有 ID 和 Branch
 
   const table = new Table({
     head: headers,
@@ -215,71 +311,54 @@ function outputTable(items: ListItem[]): void {
     // 构建行数据
     const row: string[] = [idDisplay, item.branch];
 
-    // 根据模式添加列
-    if (mode === 'full') {
-      const statusStr = formatStatus(item.status);
-      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
-      const diffStr = formatDiff(item.diff, item.isMain);
-      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
-        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
-      row.push(String(item.port), coloredStatus, coloredDiff, item.path);
-    } else if (mode === 'no-port') {
-      const statusStr = formatStatus(item.status);
-      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
-      const diffStr = formatDiff(item.diff, item.isMain);
-      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
-        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
-      row.push(coloredStatus, coloredDiff, item.path);
-    } else if (mode === 'no-path') {
-      const statusStr = formatStatus(item.status);
-      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
-      const diffStr = formatDiff(item.diff, item.isMain);
-      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
-        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
-      row.push(coloredStatus, coloredDiff);
-    } else if (mode === 'simple-status') {
-      const statusStr = formatStatusSimple(item.status);
-      const coloredStatus = statusStr ? chalk.yellow(statusStr) : '';
-      const diffStr = formatDiff(item.diff, item.isMain);
-      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
-        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
-      row.push(coloredStatus, coloredDiff);
-    } else if (mode === 'no-status') {
-      const diffStr = formatDiff(item.diff, item.isMain);
-      const coloredDiff = item.isMain ? chalk.dim(diffStr) :
-        (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
-      row.push(coloredDiff);
-    }
-    // minimal 模式只有 ID 和 Branch
+    // 构建各列数据的辅助值
+    const gitStr = formatStatus(item.status);
+    const coloredGit = gitStr ? chalk.yellow(gitStr) : '';
+    const gitSimpleStr = formatStatusSimple(item.status);
+    const coloredGitSimple = gitSimpleStr ? chalk.yellow(gitSimpleStr) : '';
+    const diffStr = formatDiff(item.diff, item.isMain);
+    const coloredDiff = item.isMain
+      ? chalk.dim(diffStr)
+      : (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
 
-    // 应用行样式
+    // 根据模式追加列
+    switch (mode) {
+      case 'full':
+        row.push(String(item.port), coloredGit, coloredDiff, item.path, coloredWtStatus(item.worktreeStatus, false));
+        break;
+      case 'no-port':
+        row.push(coloredGit, coloredDiff, item.path, coloredWtStatus(item.worktreeStatus, false));
+        break;
+      case 'no-path':
+        row.push(coloredGit, coloredDiff, coloredWtStatus(item.worktreeStatus, false));
+        break;
+      case 'compress-wt':
+        row.push(coloredGit, coloredDiff, coloredWtStatus(item.worktreeStatus, true));
+        break;
+      case 'simple-git':
+        row.push(coloredGitSimple, coloredDiff, coloredWtStatus(item.worktreeStatus, true));
+        break;
+      case 'no-git':
+        row.push(coloredDiff, coloredWtStatus(item.worktreeStatus, true));
+        break;
+      case 'no-diff':
+        row.push(coloredWtStatus(item.worktreeStatus, true));
+        break;
+      case 'minimal':
+        // 只有 ID 和 Branch
+        break;
+    }
+
+    // 应用行样式（当前行青色，主分支灰色）
+    const coloredIndices = new Set(getColoredCellIndices(mode));
     if (item.isCurrent) {
-      // 当前行用青色高亮显示
-      table.push(row.map((cell, index) => {
-        // 保留状态和差异列的颜色（索引根据模式不同而变化）
-        const statusIndex = mode === 'full' ? 3 : (mode === 'no-port' ? 2 : 2);
-        const diffIndex = mode === 'full' ? 4 : (mode === 'no-port' ? 3 : 3);
-        if (mode !== 'minimal' && mode !== 'no-status' && (index === statusIndex || index === diffIndex)) {
-          return cell;
-        }
-        if (mode === 'no-status' && index === 2) {
-          return cell; // diff 列
-        }
-        return chalk.cyan(cell);
-      }));
+      table.push(row.map((cell, index) =>
+        coloredIndices.has(index) ? cell : chalk.cyan(cell)
+      ));
     } else if (item.isMain) {
-      // 主分支用灰色显示
-      table.push(row.map((cell, index) => {
-        const statusIndex = mode === 'full' ? 3 : (mode === 'no-port' ? 2 : 2);
-        const diffIndex = mode === 'full' ? 4 : (mode === 'no-port' ? 3 : 3);
-        if (mode !== 'minimal' && mode !== 'no-status' && (index === statusIndex || index === diffIndex)) {
-          return cell;
-        }
-        if (mode === 'no-status' && index === 2) {
-          return cell;
-        }
-        return chalk.dim(cell);
-      }));
+      table.push(row.map((cell, index) =>
+        coloredIndices.has(index) ? cell : chalk.dim(cell)
+      ));
     } else {
       table.push(row);
     }
@@ -348,6 +427,7 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
 
   // 添加主分支（如果不排除）
   if (options.main !== false) {
+    const { status: mainWtStatus } = await getWorktreeStatus(paths.configDir, 'main');
     items.push({
       id: null,
       branch: mainBranch,
@@ -356,13 +436,15 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
       isMain: true,
       isCurrent: isCurrentDirectory(paths.mainDir),
       status: getGitStatus(paths.mainDir),
-      diff: { ahead: 0, behind: 0 }  // 主分支没有差异
+      diff: { ahead: 0, behind: 0 },  // 主分支没有差异
+      worktreeStatus: mainWtStatus
     });
   }
 
-  // 添加任务 worktree
-  for (const wt of projectInfo.worktrees) {
-    items.push({
+  // 添加任务 worktree（并行获取 worktree 状态）
+  const wtItems = await Promise.all(projectInfo.worktrees.map(async (wt) => {
+    const { status: wtStatus } = await getWorktreeStatus(paths.configDir, `task-${wt.id}`);
+    return {
       id: wt.id,
       branch: wt.branch,
       port: wt.port,
@@ -370,9 +452,11 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
       isMain: false,
       isCurrent: isCurrentDirectory(wt.path),
       status: getGitStatus(wt.path),
-      diff: getGitDiff(wt.path, mainBranch)
-    });
-  }
+      diff: getGitDiff(wt.path, mainBranch),
+      worktreeStatus: wtStatus
+    };
+  }));
+  items.push(...wtItems);
 
   return items;
 }
@@ -533,6 +617,7 @@ async function listCommand(options: ListOptions): Promise<void> {
 
     // 添加主分支（如果不排除）
     if (options.main !== false) {
+      const { status: mainWtStatus } = await getWorktreeStatus(paths.configDir, 'main');
       items.push({
         id: null,
         branch: mainBranch,
@@ -541,13 +626,15 @@ async function listCommand(options: ListOptions): Promise<void> {
         isMain: true,
         isCurrent: isCurrentDirectory(paths.mainDir),
         status: getGitStatus(paths.mainDir),
-        diff: { ahead: 0, behind: 0 }  // 主分支没有差异
+        diff: { ahead: 0, behind: 0 },  // 主分支没有差异
+        worktreeStatus: mainWtStatus
       });
     }
 
-    // 添加任务 worktree
-    for (const wt of projectInfo.worktrees) {
-      items.push({
+    // 添加任务 worktree（并行获取 worktree 状态）
+    const wtItems = await Promise.all(projectInfo.worktrees.map(async (wt) => {
+      const { status: wtStatus } = await getWorktreeStatus(paths.configDir, `task-${wt.id}`);
+      return {
         id: wt.id,
         branch: wt.branch,
         port: wt.port,
@@ -555,9 +642,11 @@ async function listCommand(options: ListOptions): Promise<void> {
         isMain: false,
         isCurrent: isCurrentDirectory(wt.path),
         status: getGitStatus(wt.path),
-        diff: getGitDiff(wt.path, mainBranch)
-      });
-    }
+        diff: getGitDiff(wt.path, mainBranch),
+        worktreeStatus: wtStatus
+      };
+    }));
+    items.push(...wtItems);
 
     // 根据选项输出
     if (options.json) {
@@ -586,7 +675,7 @@ export function register(program: Command): void {
     .option('-p, --paths', t('commands.list.pathsOption'))
     .option('--no-main', t('commands.list.noMainOption'))
     .option('-r, --refresh', t('commands.list.refreshOption'))
-    .addHelpText('after', `\n${t('commands.list.statusColumnHelp')}`)
+    .addHelpText('after', `\n${t('commands.list.gitColumnHelp')}`)
     .action(async (options) => {
       await listCommand(options);
     });
