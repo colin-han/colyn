@@ -1,7 +1,9 @@
 import * as fs from 'fs/promises';
+import { openSync, closeSync } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
+import type { StdioOptions } from 'child_process';
 import Enquirer from 'enquirer';
 import chalk from 'chalk';
 import type { TodoFile, ArchivedTodoFile, TodoItem } from '../types/index.js';
@@ -105,7 +107,22 @@ export async function editMessageWithEditor(todoId: string): Promise<string | nu
   await fs.writeFile(tmpFile, template, 'utf-8');
 
   const editor = process.env.VISUAL ?? process.env.EDITOR ?? 'vim';
-  const result = spawnSync(editor, [tmpFile], { stdio: 'inherit' });
+
+  // shell wrapper 会用 $(...) 捕获 stdout，导致 stdout 变成管道而非 TTY。
+  // 直接打开 /dev/tty 确保编辑器始终连接到真实终端。
+  let ttyFd: number | undefined;
+  let stdio: StdioOptions = 'inherit';
+  if (process.platform !== 'win32') {
+    try {
+      ttyFd = openSync('/dev/tty', 'r+');
+      stdio = [ttyFd, ttyFd, ttyFd];
+    } catch {
+      // /dev/tty 不可用时回退到 inherit
+    }
+  }
+
+  const result = spawnSync(editor, [tmpFile], { stdio });
+  if (ttyFd !== undefined) closeSync(ttyFd);
 
   let content: string;
   try {

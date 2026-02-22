@@ -3,6 +3,8 @@ import Enquirer from 'enquirer';
 const { prompt } = Enquirer;
 import chalk from 'chalk';
 import { spawn } from 'child_process';
+import type { StdioOptions } from 'child_process';
+import { openSync, closeSync } from 'fs';
 import * as os from 'os';
 import { writeFile, readFile, unlink } from 'fs/promises';
 import * as path from 'path';
@@ -44,16 +46,32 @@ async function editWithEditor(initialContent: string): Promise<string> {
   try {
     await writeFile(tmpFile, initialContent, 'utf-8');
     const editor = process.env.VISUAL || process.env.EDITOR || 'vim';
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(editor, [tmpFile], { stdio: 'inherit' });
-      child.on('close', code => {
-        if (code === 0) resolve();
-        else reject(new ColynError(t('commands.todo.edit.editorFailed')));
+
+    let ttyFd: number | undefined;
+    let stdio: StdioOptions = 'inherit';
+    if (process.platform !== 'win32') {
+      try {
+        ttyFd = openSync('/dev/tty', 'r+');
+        stdio = [ttyFd, ttyFd, ttyFd];
+      } catch {
+        // /dev/tty 不可用时回退到 inherit
+      }
+    }
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn(editor, [tmpFile], { stdio });
+        child.on('close', code => {
+          if (code === 0) resolve();
+          else reject(new ColynError(t('commands.todo.edit.editorFailed')));
+        });
+        child.on('error', () => {
+          reject(new ColynError(t('commands.todo.edit.editorFailed')));
+        });
       });
-      child.on('error', () => {
-        reject(new ColynError(t('commands.todo.edit.editorFailed')));
-      });
-    });
+    } finally {
+      if (ttyFd !== undefined) closeSync(ttyFd);
+    }
     return await readFile(tmpFile, 'utf-8');
   } finally {
     await unlink(tmpFile).catch(() => {});
