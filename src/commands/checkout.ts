@@ -222,6 +222,7 @@ async function updateMainBranch(
     if (currentBranch !== mainBranch) {
       // 不在主分支上，不更新
       return { updated: false };
+    }
 
     // 检查是否有上游分支
     try {
@@ -229,7 +230,6 @@ async function updateMainBranch(
     } catch {
       // 没有上游分支，跳过 pull
       return { updated: false };
-    }
     }
 
     // 检查是否落后于远程
@@ -412,7 +412,9 @@ export async function checkoutCommand(
         await git.checkout(['-b', branch, '--track', branchInfo.remoteBranch!]);
         switchSpinner.succeed(t('commands.checkout.switchedToTrack', { branch, remote: branchInfo.remoteBranch ?? '' }));
       } else {
-        await git.checkout(['-b', branch]);
+        // 基于最新的主分支创建新分支：fetch 成功时用 origin/{mainBranch}，否则用本地 mainBranch
+        const base = branchInfo.fetched ? `origin/${mainBranch}` : mainBranch;
+        await git.checkout(['-b', branch, base]);
         switchSpinner.succeed(t('commands.checkout.switchedToNew', { branch }));
       }
     } catch (error) {
