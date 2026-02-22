@@ -194,6 +194,17 @@ export interface ToolchainPlugin {
   build?(worktreePath: string): Promise<void>;
 
   /**
+   * 读取项目当前版本号
+   *
+   * 在 `colyn release` 时调用，用于确定基础版本以计算 major/minor/patch 增量。
+   * 未实现则视为版本不可读（用户需提供完整版本号）。
+   *
+   * @param worktreePath 执行读取的目录路径
+   * @returns 版本号字符串（如 "1.2.0"），或 null 表示无法读取
+   */
+  readVersion?(worktreePath: string): Promise<string | null>;
+
+  /**
    * 更新项目版本号
    *
    * 在 `colyn release` 时调用。

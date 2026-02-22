@@ -1,6 +1,3 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { execSync } from 'child_process';
 import simpleGit from 'simple-git';
 import { ColynError } from '../types/index.js';
 import {
@@ -11,7 +8,6 @@ import {
   outputInfo
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
-import { getRunCommand, getNpmCommand } from '../core/config.js';
 import { pluginManager } from '../plugins/index.js';
 
 /**
@@ -48,25 +44,24 @@ export function parseVersion(version: string): ParsedVersion {
 
 /**
  * 增加版本号
+ * @param currentVersion 当前版本，explicit version 时可为 null
  */
 export function bumpVersion(
-  currentVersion: string,
+  currentVersion: string | null,
   type: VersionType | string
 ): string {
-  const ver = parseVersion(currentVersion);
-
-  switch (type) {
-    case 'major':
-      return `${ver.major + 1}.0.0`;
-    case 'minor':
-      return `${ver.major}.${ver.minor + 1}.0`;
-    case 'patch':
-      return `${ver.major}.${ver.minor}.${ver.patch + 1}`;
-    default:
-      // 直接指定版本号
-      parseVersion(type); // 验证格式
-      return type;
+  if (type === 'major' || type === 'minor' || type === 'patch') {
+    if (!currentVersion) {
+      return '1.0.0';
+    }
+    const ver = parseVersion(currentVersion);
+    if (type === 'major') return `${ver.major + 1}.0.0`;
+    if (type === 'minor') return `${ver.major}.${ver.minor + 1}.0`;
+    return `${ver.major}.${ver.minor}.${ver.patch + 1}`;
   }
+  // 直接指定版本号
+  parseVersion(type); // 验证格式
+  return type;
 }
 
 /**
@@ -91,94 +86,24 @@ export async function getCurrentBranch(dir: string): Promise<string> {
 }
 
 /**
- * 读取 package.json 版本号
- */
-export async function readPackageVersion(dir: string): Promise<string> {
-  const packageJsonPath = path.join(dir, 'package.json');
-  const content = await fs.readFile(packageJsonPath, 'utf-8');
-  const pkg = JSON.parse(content);
-  return pkg.version;
-}
-
-/**
- * 更新 package.json 版本号
- */
-export async function updatePackageVersion(
-  dir: string,
-  newVersion: string
-): Promise<{ oldVersion: string; newVersion: string }> {
-  const packageJsonPath = path.join(dir, 'package.json');
-  const content = await fs.readFile(packageJsonPath, 'utf-8');
-  const pkg = JSON.parse(content);
-  const oldVersion = pkg.version;
-
-  pkg.version = newVersion;
-
-  await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
-
-  return { oldVersion, newVersion };
-}
-
-/**
- * 运行 install
- */
-export async function runInstall(dir: string): Promise<void> {
-  try {
-    const npmCommand = await getNpmCommand(dir);
-    execSync(`${npmCommand} install`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new ColynError(
-      t('commands.release.installFailed'),
-      t('commands.release.installFailedHint', { error: errorMessage })
-    );
-  }
-}
-
-/**
- * 运行 lint
- */
-export async function runLint(dir: string): Promise<void> {
-  try {
-    const runCommand = await getRunCommand(dir);
-    execSync(`${runCommand} lint`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new ColynError(
-      t('commands.release.lintFailed'),
-      t('commands.release.lintFailedHint', { error: errorMessage })
-    );
-  }
-}
-
-/**
- * 运行 build
- */
-export async function runBuild(dir: string): Promise<void> {
-  try {
-    const runCommand = await getRunCommand(dir);
-    execSync(`${runCommand} build`, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new ColynError(
-      t('commands.release.buildFailed'),
-      t('commands.release.buildFailedHint', { error: errorMessage })
-    );
-  }
-}
-
-/**
  * 创建 git commit
+ * 暂存所有已修改文件（由 bumpVersion 写入），如无变更则跳过
+ * @returns true 表示已创建提交，false 表示无变更跳过
  */
 export async function createCommit(
   dir: string,
   message: string
-): Promise<void> {
+): Promise<boolean> {
   const git = simpleGit(dir);
 
   try {
-    await git.add('package.json');
+    await git.add('.');
+    const status = await git.status();
+    if (status.staged.length === 0) {
+      return false;
+    }
     await git.commit(message);
+    return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new ColynError(
@@ -265,75 +190,68 @@ export async function executeRelease(
   const currentBranch = await getCurrentBranch(dir);
   outputInfo(t('commands.release.currentBranch', { branch: currentBranch }));
 
-  // 步骤 2: 确定新版本号
+  // 步骤 2: 确定新版本号（通过插件读取当前版本）
   outputLine();
   outputBold(t('commands.release.step2'));
-  const currentVersion = await readPackageVersion(dir);
-  outputInfo(t('commands.release.currentVersion', { version: currentVersion }));
+  const currentVersion = activePlugins.length > 0
+    ? await pluginManager.runReadVersion(dir, activePlugins)
+    : null;
   const newVersion = bumpVersion(currentVersion, versionType);
-  outputSuccess(t('commands.release.newVersion', {
-    old: currentVersion,
-    new: newVersion
-  }));
+  if (currentVersion !== null) {
+    outputInfo(t('commands.release.currentVersion', { version: currentVersion }));
+    outputSuccess(t('commands.release.newVersion', { old: currentVersion, new: newVersion }));
+  } else {
+    outputSuccess(t('commands.release.targetVersion', { version: newVersion }));
+  }
 
   // 步骤 3: 安装依赖（通过插件）
-  outputLine();
-  outputBold(t('commands.release.step3'));
-  outputInfo(t('commands.release.runningInstall'));
   if (activePlugins.length > 0) {
+    outputLine();
+    outputBold(t('commands.release.step3'));
+    outputInfo(t('commands.release.runningInstall'));
     await pluginManager.runInstall(dir, activePlugins, verbose);
-  } else {
-    await runInstall(dir);
+    outputSuccess(t('commands.release.installSucceeded'));
   }
-  outputSuccess(t('commands.release.installSucceeded'));
 
   // 步骤 4: 运行 lint（通过插件）
-  outputLine();
-  outputBold(t('commands.release.step4'));
-  outputInfo(t('commands.release.runningLint'));
   if (activePlugins.length > 0) {
+    outputLine();
+    outputBold(t('commands.release.step4'));
+    outputInfo(t('commands.release.runningLint'));
     await pluginManager.runLint(dir, activePlugins, verbose);
-  } else {
-    await runLint(dir);
+    outputSuccess(t('commands.release.lintPassed'));
   }
-  outputSuccess(t('commands.release.lintPassed'));
 
   // 步骤 5: 运行 build（通过插件）
-  outputLine();
-  outputBold(t('commands.release.step5'));
-  outputInfo(t('commands.release.runningBuild'));
   if (activePlugins.length > 0) {
+    outputLine();
+    outputBold(t('commands.release.step5'));
+    outputInfo(t('commands.release.runningBuild'));
     await pluginManager.runBuild(dir, activePlugins, verbose);
-  } else {
-    await runBuild(dir);
+    outputSuccess(t('commands.release.buildSucceeded'));
   }
-  outputSuccess(t('commands.release.buildSucceeded'));
 
   // 步骤 6: 更新版本号（通过插件）
-  outputLine();
-  outputBold(t('commands.release.step6'));
   if (activePlugins.length > 0) {
-    // 读取当前版本用于显示
-    const oldVersion = await readPackageVersion(dir);
+    outputLine();
+    outputBold(t('commands.release.step6'));
     await pluginManager.runBumpVersion(dir, newVersion, activePlugins);
     outputSuccess(t('commands.release.versionUpdated', {
-      old: oldVersion,
+      old: currentVersion ?? newVersion,
       new: newVersion
-    }));
-  } else {
-    const versionInfo = await updatePackageVersion(dir, newVersion);
-    outputSuccess(t('commands.release.versionUpdated', {
-      old: versionInfo.oldVersion,
-      new: versionInfo.newVersion
     }));
   }
 
-  // 步骤 7: 创建 commit
+  // 步骤 7: 创建 commit（如有版本文件变更）
   outputLine();
   outputBold(t('commands.release.step7'));
   const commitMessage = `chore: release v${newVersion}`;
-  await createCommit(dir, commitMessage);
-  outputSuccess(t('commands.release.commitCreated', { message: commitMessage }));
+  const committed = await createCommit(dir, commitMessage);
+  if (committed) {
+    outputSuccess(t('commands.release.commitCreated', { message: commitMessage }));
+  } else {
+    outputInfo(t('commands.release.commitSkipped'));
+  }
 
   // 步骤 8: 创建 tag
   outputLine();
@@ -389,35 +307,4 @@ export function displayRollbackCommands(version: string): void {
   outputStep(`  git tag -d v${version}`);
   outputStep(`  git reset --hard HEAD~1`);
   outputLine();
-}
-
-/**
- * 检查依赖是否已安装（检查 .pnp.cjs 或 node_modules 是否存在）
- */
-export async function checkDependenciesInstalled(dir: string): Promise<void> {
-  const pnpFile = path.join(dir, '.pnp.cjs');
-  const pnpMjsFile = path.join(dir, '.pnp.mjs');
-  const nodeModulesDir = path.join(dir, 'node_modules');
-  const npmCommand = await getNpmCommand(dir);
-
-  try {
-    const pnpExists = await fs.access(pnpFile).then(() => true).catch(() => false);
-    const pnpMjsExists = await fs.access(pnpMjsFile).then(() => true).catch(() => false);
-    const nodeModulesExists = await fs.access(nodeModulesDir).then(() => true).catch(() => false);
-
-    if (!pnpExists && !pnpMjsExists && !nodeModulesExists) {
-      throw new ColynError(
-        t('commands.release.depsNotInstalled'),
-        t('commands.release.depsNotInstalledHint', { path: dir, npmCommand })
-      );
-    }
-  } catch (error) {
-    if (error instanceof ColynError) {
-      throw error;
-    }
-    throw new ColynError(
-      t('commands.release.depsNotInstalled'),
-      t('commands.release.depsNotInstalledHint', { path: dir, npmCommand })
-    );
-  }
 }
