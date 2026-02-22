@@ -145,11 +145,13 @@ export const zhCN = {
       tableId: 'ID',
       tableBranch: 'Branch',
       tablePort: 'Port',
-      tableStatus: 'Status',
+      tableGit: 'Git',
       tableDiff: 'Diff',
       tablePath: 'Path',
+      tableWtStatus: 'Status',
+      tableWtStatusShort: 'st.',
       tmuxSwitchHint: '使用 Ctrl-b 0-9 切换到对应 Window',
-      statusColumnHelp: `Status 列缩写说明:
+      gitColumnHelp: `Git 列缩写说明:
   M - Modified (已修改未提交的更改)
   S - Staged (已暂存到索引的更改)
   ? - Untracked (未被 git 跟踪的新文件)`,

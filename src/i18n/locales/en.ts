@@ -145,11 +145,13 @@ Hints:
       tableId: 'ID',
       tableBranch: 'Branch',
       tablePort: 'Port',
-      tableStatus: 'Status',
+      tableGit: 'Git',
       tableDiff: 'Diff',
       tablePath: 'Path',
+      tableWtStatus: 'Status',
+      tableWtStatusShort: 'st.',
       tmuxSwitchHint: 'Use Ctrl-b 0-9 to switch to the corresponding Window',
-      statusColumnHelp: `Status column abbreviations:
+      gitColumnHelp: `Git column abbreviations:
   M - Modified (uncommitted changes)
   S - Staged (changes added to index)
   ? - Untracked (new files not in git)`,

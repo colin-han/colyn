@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import type { WorktreeStatus } from '../core/worktree-status.js';
 
 /**
  * Git 工作目录状态
@@ -131,6 +132,28 @@ export function formatStatus(status: GitStatus): string {
 export function formatStatusSimple(status: GitStatus): string {
   const total = status.modified + status.staged + status.untracked;
   return total > 0 ? '●' : '';
+}
+
+/**
+ * 格式化 worktree 状态显示（完整文字版）
+ * idle 时返回空字符串，其余返回状态名
+ */
+export function formatWorktreeStatus(status: WorktreeStatus): string {
+  if (status === 'idle') return '';
+  return status;
+}
+
+/**
+ * 格式化 worktree 状态显示（emoji 压缩版）
+ * idle 时返回空字符串，其余返回单字符符号
+ */
+export function formatWorktreeStatusEmoji(status: WorktreeStatus): string {
+  switch (status) {
+    case 'idle': return '';
+    case 'running': return '▶';
+    case 'waiting-confirm': return '?';
+    case 'finish': return '✓';
+  }
 }
 
 /**
