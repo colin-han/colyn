@@ -830,6 +830,12 @@ export const zhCN = {
         invalidFormat: 'Todo ID 格式错误，应为 {type}/{name}',
         alreadyExists: 'Todo "{{todoId}}" 已存在',
         success: '已添加 Todo: {{todoId}} - {{message}}',
+        emptyMessage: '任务描述不能为空',
+        emptyName: '名称不能为空',
+        editorCanceled: '已取消编辑，任务未添加',
+        editorFailed: '无法打开编辑器：{{editor}}',
+        selectType: '选择任务类型',
+        inputName: '输入任务名称（如 login、fix-crash）',
       },
       start: {
         description: '开始执行 Todo 任务（创建对应分支）',
@@ -837,6 +843,10 @@ export const zhCN = {
         notPending: 'Todo "{{todoId}}" 不是待办状态',
         checkoutFailed: '创建分支失败，Todo 状态未更改',
         success: 'Todo "{{todoId}}" 已标记为完成',
+        noClipboardOption: '跳过复制 message 到剪贴板',
+        messageTitle: '任务描述：',
+        clipboardCopied: '已复制到剪贴板',
+        clipboardFailed: '复制到剪贴板失败',
       },
       list: {
         description: '列出 Todo 任务',

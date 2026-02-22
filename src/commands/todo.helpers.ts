@@ -1,5 +1,7 @@
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
+import { spawnSync } from 'child_process';
 import type { TodoFile, ArchivedTodoFile, TodoItem } from '../types/index.js';
 
 const TODO_FILE_NAME = 'todo.json';
@@ -82,6 +84,71 @@ function formatDate(isoDate: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/**
+ * 使用编辑器交互式编辑 message，返回内容；用户取消返回 null
+ */
+export async function editMessageWithEditor(todoId: string): Promise<string | null> {
+  const tmpFile = path.join(os.tmpdir(), `colyn-todo-${Date.now()}.md`);
+
+  const template = [
+    '',
+    '',
+    `# Todo: ${todoId}`,
+    '# 请在上方输入任务描述，完成后保存退出（:wq）',
+    '# 支持 Markdown 格式，以 "# " 开头的行为注释会被忽略',
+  ].join('\n');
+
+  await fs.writeFile(tmpFile, template, 'utf-8');
+
+  const editor = process.env.VISUAL ?? process.env.EDITOR ?? 'vim';
+  const result = spawnSync(editor, [tmpFile], { stdio: 'inherit' });
+
+  let content: string;
+  try {
+    content = await fs.readFile(tmpFile, 'utf-8');
+  } finally {
+    await fs.unlink(tmpFile).catch(() => undefined);
+  }
+
+  if (result.error) {
+    throw new Error(editor);
+  }
+
+  // 过滤注释行（以 "# " 开头），保留其余内容
+  const message = content
+    .split('\n')
+    .filter(line => !line.startsWith('# '))
+    .join('\n')
+    .trim();
+
+  return message || null;
+}
+
+/**
+ * 复制文本到系统剪贴板，返回是否成功
+ */
+export function copyToClipboard(text: string): boolean {
+  const platform = process.platform;
+  let cmd: string;
+  let args: string[];
+
+  if (platform === 'darwin') {
+    cmd = 'pbcopy';
+    args = [];
+  } else if (platform === 'linux') {
+    cmd = 'xclip';
+    args = ['-selection', 'clipboard'];
+  } else if (platform === 'win32') {
+    cmd = 'clip';
+    args = [];
+  } else {
+    return false;
+  }
+
+  const result = spawnSync(cmd, args, { input: text, encoding: 'utf-8' });
+  return result.status === 0;
 }
 
 /**

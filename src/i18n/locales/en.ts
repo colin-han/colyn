@@ -830,6 +830,12 @@ Solution:
         invalidFormat: 'Invalid Todo ID format, expected {type}/{name}',
         alreadyExists: 'Todo "{{todoId}}" already exists',
         success: 'Added Todo: {{todoId}} - {{message}}',
+        emptyMessage: 'Task message cannot be empty',
+        emptyName: 'Name cannot be empty',
+        editorCanceled: 'Edit canceled, todo not added',
+        editorFailed: 'Cannot open editor: {{editor}}',
+        selectType: 'Select task type',
+        inputName: 'Enter task name (e.g. login, fix-crash)',
       },
       start: {
         description: 'Start a Todo task (create corresponding branch)',
@@ -837,6 +843,10 @@ Solution:
         notPending: 'Todo "{{todoId}}" is not in pending status',
         checkoutFailed: 'Failed to create branch, Todo status unchanged',
         success: 'Todo "{{todoId}}" marked as completed',
+        noClipboardOption: 'Skip copying message to clipboard',
+        messageTitle: 'Task message:',
+        clipboardCopied: 'Copied to clipboard',
+        clipboardFailed: 'Failed to copy to clipboard',
       },
       list: {
         description: 'List Todo tasks',

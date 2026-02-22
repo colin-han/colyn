@@ -4,6 +4,88 @@
 
 ---
 
+## Todo 驱动的 Vibe Coding 工作流
+
+将 `colyn todo` 与 Claude Code 结合，形成高效的并行开发循环。
+
+### 推荐工作流程
+
+```
+规划阶段（Planning）
+  │
+  ▼
+colyn todo add               # 记录所有待完成的任务
+colyn todo add               # 可以一次性添加多个
+  │
+  ▼
+执行阶段（Execution）
+  │
+  ├─► colyn todo start feature/login   # 切换分支 + 复制描述到剪贴板
+  │         │
+  │         ▼
+  │   打开 Claude Code，粘贴描述作为任务上下文
+  │         │
+  │         ▼
+  │   完成开发 → colyn merge → colyn todo 查看下一个任务
+  │
+  └─► （在其他 Worktree 中并行进行另一个任务）
+  │
+  ▼
+整理阶段（Cleanup）
+  │
+  ▼
+colyn todo archive -y        # 归档所有已完成任务
+```
+
+### 任务描述的最佳写法
+
+任务描述（message）会在 `todo start` 时复制到剪贴板，粘贴给 Claude 作为上下文。建议遵循以下格式：
+
+```markdown
+实现用户登录功能
+
+## 任务说明
+- 添加邮箱/密码登录表单
+- 后端 API：POST /api/auth/login
+- 验证用户凭据，返回 JWT token
+
+## 验收标准
+- 登录成功后跳转到首页
+- 登录失败显示友好错误提示
+- 支持"记住我"选项（7天 token 有效期）
+
+## 参考
+- 设计稿：Figma 链接
+- API 文档：docs/api.md
+```
+
+**建议包含的内容**：
+- 一句话说明任务目标（第一行）
+- 具体的实现要点
+- 明确的验收标准
+- 相关的参考资料链接
+
+### 利用 Todo 类型组织工作
+
+```bash
+# 功能开发
+colyn todo add feature/login "实现用户登录"
+colyn todo add feature/signup "实现用户注册"
+
+# Bug 修复
+colyn todo add bugfix/fix-logout "修复登出后 token 未清除的问题"
+
+# 重构
+colyn todo add refactor/auth-module "重构 auth 模块，拆分职责"
+
+# 文档
+colyn todo add document/api-guide "编写 API 使用文档"
+```
+
+类型前缀使得分支名具有语义，在 `git log` 和 `colyn list` 中一目了然。
+
+---
+
 ## 项目初始化
 
 ### 选择合适的 Base Port
