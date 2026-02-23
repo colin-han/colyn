@@ -260,7 +260,7 @@ colyn list [选项]
 | `--json` | - | 以 JSON 格式输出 | 否 |
 | `--paths` | `-p` | 只输出路径（每行一个） | 否 |
 | `--no-main` | - | 不显示主分支 | 否（显示主分支） |
-| `--refresh [interval]` | `-r` | 监听文件变化自动刷新（可选：刷新间隔秒数） | 否 |
+| `--refresh` | `-r` | 监听文件变化自动刷新 | 否 |
 
 ### 功能说明
 
@@ -270,12 +270,12 @@ colyn list [选项]
 - 彩色输出，美观易读
 - 当前所在 worktree 用 `→` 箭头标识
 - 主分支 ID 显示为 `0-main`
-- 显示 git 状态和与主分支的差异
+- 显示 `Git`（工作区变更）、`Diff`（与主分支差异）、`Status`（工作流状态）
 - 响应式布局：根据终端宽度自动调整显示列
 
 #### 2. JSON 格式（`--json`）
 - 机器可读，便于脚本处理
-- 包含完整信息
+- 包含完整信息（含 `worktreeStatus`）
 - 数组格式
 
 #### 3. 路径格式（`--paths`）
@@ -285,7 +285,7 @@ colyn list [选项]
 #### 4. 自动刷新（`--refresh`）
 - 自动监听文件变化并刷新表格
 - 仅支持表格输出，不能与 `--json` 或 `--paths` 同时使用
-- 默认按文件事件刷新；可选传入秒数参数作为刷新间隔（正整数）
+- 基于文件变化事件触发（含防抖）
 
 ### 示例
 
@@ -294,16 +294,18 @@ colyn list [选项]
 ```bash
 $ colyn list
 
-ID    Branch            Port   Status      Diff   Path
-  0-main   main         10000              -      my-app
-  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
-→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
+ID      Branch            Port   Git       Diff    Path              Status
+  0-main main             10000            -       my-app
+  1      feature/login    10001  M:3 S:1   ↑2 ↓1   worktrees/task-1  running
+→ 2      feature/ui       10002            ✓       worktrees/task-2
 ```
 
 **说明：**
 - `→` 箭头标识当前所在的 worktree，整行青色高亮
-- `Status`: 未提交修改统计（M:已修改 S:已暂存 ?:未跟踪）
+- `Git`: 未提交修改统计（`M` 已修改，`S` 已暂存，`?` 未跟踪）
 - `Diff`: 与主分支的提交差异（↑领先 ↓落后 ✓已同步）
+- `Status`: 工作流状态（`idle` 时为空，其他为 `running` / `waiting-confirm` / `finish`）
+- 窄屏时 `Status` 会压缩为 `st.` 列，符号为 `▶ / ? / ✓`
 
 **JSON 格式：**
 
@@ -321,7 +323,8 @@ $ colyn list --json
     "isMain": true,
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
-    "diff": { "ahead": 0, "behind": 0 }
+    "diff": { "ahead": 0, "behind": 0 },
+    "worktreeStatus": "idle"
   },
   {
     "id": 1,
@@ -331,7 +334,8 @@ $ colyn list --json
     "isMain": false,
     "isCurrent": false,
     "status": { "modified": 3, "staged": 1, "untracked": 2 },
-    "diff": { "ahead": 2, "behind": 1 }
+    "diff": { "ahead": 2, "behind": 1 },
+    "worktreeStatus": "running"
   }
 ]
 ```
@@ -355,9 +359,6 @@ worktrees/task-2
 ```bash
 # 监听文件变化自动刷新
 $ colyn list -r
-
-# 每 2 秒刷新一次
-$ colyn list --refresh 2
 ```
 
 ### 脚本使用示例
@@ -386,7 +387,7 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 - 可以在项目的任意位置运行
 - 路径输出为相对于项目根目录的相对路径
 - 主分支的 ID 显示为 `0-main`
-- 终端窄时表格会自动隐藏不重要的列
+- 终端窄时表格会按实现自动切换显示模式（`full` → `no-port` → `no-path` → `compress-wt` → `simple-git` → `no-git` → `no-diff` → `minimal`）
 
 ---
 
