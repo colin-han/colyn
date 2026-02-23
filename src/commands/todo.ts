@@ -581,7 +581,9 @@ export function register(program: Command): void {
             outputInfo(t('commands.todo.complete.noPending'));
             return;
           }
-          resolvedTodoId = await selectPendingTodo(pendingTodos, t('commands.todo.complete.selectTodo'));
+          resolvedTodoId = await selectTodo(pendingTodos, {
+            selectMessage: t('commands.todo.complete.selectTodo'),
+          });
         } else {
           resolvedTodoId = todoId;
         }
