@@ -9,7 +9,6 @@ import {
 } from '../core/paths.js';
 import {
   discoverProjectInfo,
-  discoverWorktrees,
   findWorktreeByBranch,
   getMainBranch,
 } from '../core/discovery.js';
@@ -55,7 +54,6 @@ import { getRunCommand } from '../core/config.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
 import chalk from 'chalk';
 import ora from 'ora';
-import simpleGit from 'simple-git';
 import {
   copyToClipboard,
   findTodo,
@@ -63,6 +61,7 @@ import {
   readTodoFile,
   saveTodoFile,
 } from './todo.helpers.js';
+import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 const { prompt } = Enquirer;
 
 /**
@@ -321,27 +320,13 @@ async function selectBranchForAdd(
     items[items.length - 1]!.labelDisplay = todoLabel.display;
   }
 
-  const git = simpleGit(mainDir);
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
-  const worktreeBranchSet = new Set(
-    worktrees
-      .map(worktree => worktree.branch)
-      .filter(branch => branch.trim().length > 0),
-  );
-  const localBranches = (await git.branchLocal()).all
-    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch && !worktreeBranchSet.has(b))
-    .sort((a, b) => a.localeCompare(b));
-
-  const parsedLocalBranches = localBranches.map(branch => {
-    const lastSlash = branch.lastIndexOf('/');
-    if (lastSlash === -1) {
-      return { branch, type: '', name: branch };
-    }
-    return {
-      branch,
-      type: branch.slice(0, lastSlash),
-      name: branch.slice(lastSlash + 1) || branch,
-    };
+  const parsedLocalBranches = await listSelectableLocalBranches({
+    gitDir: mainDir,
+    mainDir,
+    worktreesDir,
+    mainBranch,
+    worktreeBranchScope: 'all',
+    excludeBranches: pendingBranchSet,
   });
 
   const maxLocalTypeW = parsedLocalBranches.length > 0
@@ -350,7 +335,6 @@ async function selectBranchForAdd(
 
   for (const local of parsedLocalBranches) {
     const { branch } = local;
-    if (pendingBranchSet.has(branch)) continue;
     const branchLabel = formatBranchLabel(local.type, local.name, maxLocalTypeW);
     pushChoice(
       { type: 'branch', branch },

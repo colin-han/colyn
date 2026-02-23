@@ -41,6 +41,7 @@ import {
   saveTodoFile,
   selectWithPreview,
 } from './todo.helpers.js';
+import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -311,6 +312,7 @@ async function selectBranchForCheckout(
   configDir: string,
   worktreePath: string,
   mainBranch: string,
+  currentBranch: string,
   mainDir: string,
   worktreesDir: string,
   currentWorktreeId: number,
@@ -369,27 +371,15 @@ async function selectBranchForCheckout(
   }
 
   // 3) 未删除本地分支（去重：和 pending todo 同名时保留 todo 条目）
-  const git = simpleGit(worktreePath);
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
-  const usedByOtherWorktrees = new Set(
-    worktrees
-      .filter(worktree => worktree.id !== currentWorktreeId)
-      .map(worktree => worktree.branch)
-      .filter(branch => branch.trim().length > 0),
-  );
-  const localBranches = (await git.branchLocal()).all
-    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch && !usedByOtherWorktrees.has(b))
-    .sort((a, b) => a.localeCompare(b));
-
-  const parsedLocalBranches = localBranches.map(branch => {
-    const lastSlash = branch.lastIndexOf('/');
-    if (lastSlash === -1) {
-      return { branch, type: '', name: branch };
-    }
-
-    const type = branch.slice(0, lastSlash);
-    const name = branch.slice(lastSlash + 1) || branch;
-    return { branch, type, name };
+  const parsedLocalBranches = await listSelectableLocalBranches({
+    gitDir: worktreePath,
+    mainDir,
+    worktreesDir,
+    mainBranch,
+    currentBranch,
+    currentWorktreeId,
+    worktreeBranchScope: 'others',
+    excludeBranches: pendingBranchSet,
   });
 
   const maxLocalTypeW = parsedLocalBranches.length > 0
@@ -398,7 +388,6 @@ async function selectBranchForCheckout(
 
   for (const local of parsedLocalBranches) {
     const { branch } = local;
-    if (pendingBranchSet.has(branch)) continue;
     const branchLabel = formatTodoIdLabel(local.type, local.name, maxLocalTypeW);
     pushChoice(
       { type: 'branch', branch },
@@ -502,6 +491,7 @@ export async function checkoutCommand(
         paths.configDir,
         worktree.path,
         mainBranch,
+        worktree.branch,
         paths.mainDir,
         paths.worktreesDir,
         worktree.id,
