@@ -34,7 +34,7 @@ import {
   formatTodoTable,
   editMessageWithEditor,
   copyToClipboard,
-  selectPendingTodo,
+  selectTodo,
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
 
@@ -231,7 +231,9 @@ export function register(program: Command): void {
             return;
           }
 
-          resolvedTodoId = await selectPendingTodo(pendingTodos, t('commands.todo.start.selectTodo'));
+          resolvedTodoId = await selectTodo(pendingTodos, {
+            selectMessage: t('commands.todo.start.selectTodo'),
+          });
         } else {
           resolvedTodoId = todoId;
         }
@@ -584,25 +586,11 @@ export function register(program: Command): void {
             return;
           }
 
-          const statusLabels = getStatusLabels();
-          const choices = allTodos.map(item => {
-            const id = `${item.type}/${item.name}`;
-            const statusLabel = statusLabels[item.status] ?? item.status;
-            return {
-              name: id,
-              message: `${id}  (${statusLabel}: ${item.message})`,
-            };
+          resolvedTodoId = await selectTodo(allTodos, {
+            selectMessage: t('commands.todo.edit.selectTodo'),
+            showStatus: true,
+            statusLabels: getStatusLabels(),
           });
-
-          const response = await prompt<{ todoId: string }>({
-            type: 'select',
-            name: 'todoId',
-            message: t('commands.todo.edit.selectTodo'),
-            choices,
-            stdout: process.stderr,
-          });
-
-          resolvedTodoId = response.todoId;
         }
 
         let type: string;

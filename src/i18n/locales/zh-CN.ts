@@ -583,8 +583,15 @@ export const zhCN = {
       statusBranch: '分支: {{branch}}',
       statusPath: '路径: {{path}}',
       argError: '参数错误',
-      argErrorHint: '用法: colyn checkout [worktree-id] <branch>',
+      argErrorHint: '用法: colyn checkout [worktree-id] [branch]',
       tmuxWindowRenamed: 'tmux window 名称已更新为: {{windowName}}',
+      selectBranchPrompt: '选择目标分支（或新建分支）',
+      selectCreateBranchLabel: '[新建分支]',
+      selectCreateBranchSummary: '按 type/name 创建新分支',
+      selectCreateBranchPreview: '将先选择 type，再输入 name，最终生成分支名 type/name。',
+      selectTodoSummaryPrefix: 'Todo',
+      selectLocalBranchSummary: '本地分支',
+      selectLocalBranchPreview: '已存在本地分支：{{branch}}',
     },
 
     // info command

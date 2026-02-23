@@ -583,8 +583,15 @@ Or force delete:
       statusBranch: 'Branch: {{branch}}',
       statusPath: 'Path: {{path}}',
       argError: 'Argument error',
-      argErrorHint: 'Usage: colyn checkout [worktree-id] <branch>',
+      argErrorHint: 'Usage: colyn checkout [worktree-id] [branch]',
       tmuxWindowRenamed: 'tmux window name updated to: {{windowName}}',
+      selectBranchPrompt: 'Select target branch (or create a new branch)',
+      selectCreateBranchLabel: '[Create new branch]',
+      selectCreateBranchSummary: 'Create a new branch using type/name',
+      selectCreateBranchPreview: 'You will select a type first, then input a name to form type/name.',
+      selectTodoSummaryPrefix: 'Todo',
+      selectLocalBranchSummary: 'Local branch',
+      selectLocalBranchPreview: 'Existing local branch: {{branch}}',
     },
 
     // info command

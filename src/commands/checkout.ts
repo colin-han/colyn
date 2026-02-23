@@ -30,6 +30,8 @@ import {
   checkGitWorkingDirectory
 } from './merge.helpers.js';
 import { t } from '../i18n/index.js';
+import { isValidBranchName } from './add.helpers.js';
+import { formatTodoIdLabel, readTodoFile, selectWithPreview } from './todo.helpers.js';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -255,6 +257,130 @@ async function updateMainBranch(
     return { updated: false };
   }
 }
+
+/**
+ * 交互式创建分支名（type/name）
+ */
+async function promptCreateBranchName(): Promise<string> {
+  const typeResponse = await prompt<{ type: string }>({
+    type: 'select',
+    name: 'type',
+    message: t('commands.todo.add.selectType'),
+    choices: ['feature', 'bugfix', 'refactor', 'document'],
+    stdout: process.stderr,
+  });
+
+  const nameResponse = await prompt<{ name: string }>({
+    type: 'input',
+    name: 'name',
+    message: t('commands.todo.add.inputName'),
+    stdout: process.stderr,
+  });
+
+  const name = nameResponse.name.trim();
+  if (!name) {
+    throw new ColynError(t('commands.todo.add.emptyName'));
+  }
+
+  const branch = `${typeResponse.type}/${name}`;
+  if (!isValidBranchName(branch)) {
+    throw new ColynError(
+      t('commands.add.invalidBranchName'),
+      t('commands.add.invalidBranchNameHint')
+    );
+  }
+
+  return branch;
+}
+
+/**
+ * 在未提供 branch 参数时，交互式选择目标分支
+ * 顺序：新建分支 -> pending todo -> 本地分支
+ */
+async function selectBranchForCheckout(configDir: string, worktreePath: string): Promise<string> {
+  type Choice = { type: 'branch'; branch: string } | { type: 'create' };
+  const options = new Map<string, Choice>();
+  const items: Array<{
+    value: string;
+    label: string;
+    labelDisplay?: string;
+    summary: string;
+    preview?: string;
+  }> = [];
+  let seq = 0;
+
+  const pushChoice = (
+    choice: Choice,
+    label: string,
+    summary: string,
+    preview?: string,
+  ): void => {
+    const value = `opt-${seq++}`;
+    options.set(value, choice);
+    items.push({ value, label, summary, preview });
+  };
+
+  // 1) 新建分支（默认项）
+  pushChoice(
+    { type: 'create' },
+    t('commands.checkout.selectCreateBranchLabel'),
+    t('commands.checkout.selectCreateBranchSummary'),
+    t('commands.checkout.selectCreateBranchPreview'),
+  );
+
+  // 2) pending todo
+  const todoFile = await readTodoFile(configDir);
+  const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+  const maxTodoTypeW = pendingTodos.length > 0
+    ? Math.max(...pendingTodos.map(item => item.type.length))
+    : 0;
+  const pendingBranchSet = new Set<string>();
+  for (const todo of pendingTodos) {
+    const branch = `${todo.type}/${todo.name}`;
+    const todoLabel = formatTodoIdLabel(todo.type, todo.name, maxTodoTypeW);
+    pendingBranchSet.add(branch);
+    pushChoice(
+      { type: 'branch', branch },
+      todoLabel.plain,
+      `${t('commands.checkout.selectTodoSummaryPrefix')}: ${todo.message.split('\n')[0]}`,
+      todo.message,
+    );
+    items[items.length - 1]!.labelDisplay = todoLabel.display;
+  }
+
+  // 3) 未删除本地分支（去重：和 pending todo 同名时保留 todo 条目）
+  const git = simpleGit(worktreePath);
+  const localBranches = (await git.branchLocal()).all
+    .filter(b => b.trim().length > 0 && b !== 'HEAD')
+    .sort((a, b) => a.localeCompare(b));
+
+  for (const branch of localBranches) {
+    if (pendingBranchSet.has(branch)) continue;
+    pushChoice(
+      { type: 'branch', branch },
+      branch,
+      t('commands.checkout.selectLocalBranchSummary'),
+      t('commands.checkout.selectLocalBranchPreview', { branch }),
+    );
+  }
+
+  const selectedValue = await selectWithPreview(items, {
+    selectMessage: t('commands.checkout.selectBranchPrompt'),
+    previewLineCount: 4,
+    initial: 0,
+  });
+
+  const selectedChoice = options.get(selectedValue);
+  if (!selectedChoice) {
+    throw new ColynError(t('commands.checkout.argError'));
+  }
+
+  if (selectedChoice.type === 'create') {
+    return promptCreateBranchName();
+  }
+
+  return selectedChoice.branch;
+}
 /**
  * Checkout 命令选项
  */
@@ -267,7 +393,7 @@ export interface CheckoutOptions {
  */
 export async function checkoutCommand(
   target: string | undefined,
-  branch: string,
+  branch: string | undefined,
   options: CheckoutOptions = {}
 ): Promise<void> {
   const skipFetch = options.fetch === false;
@@ -311,6 +437,10 @@ export async function checkoutCommand(
         paths.mainDir,
         paths.worktreesDir
       );
+    }
+
+    if (!branch) {
+      branch = await selectBranchForCheckout(paths.configDir, worktree.path);
     }
 
     const currentBranch = worktree.branch;
@@ -519,15 +649,17 @@ export async function checkoutCommand(
 export function register(program: Command): void {
   // 主命令 - 使用 variadic 参数处理
   program
-    .command('checkout <args...>')
-    .usage('<branch> | <worktree-id> <branch>')
+    .command('checkout [args...]')
+    .usage('[branch] | <worktree-id> [branch]')
     .description(t('commands.checkout.description'))
     .option('--no-fetch', t('commands.checkout.noFetchOption'))
     .action(async (args: string[], options: CheckoutOptions) => {
       let target: string | undefined;
-      let branch: string;
+      let branch: string | undefined;
 
-      if (args.length === 1) {
+      if (args.length === 0) {
+        branch = undefined;
+      } else if (args.length === 1) {
         // 只有分支名
         branch = args[0];
       } else if (args.length === 2) {
@@ -546,15 +678,17 @@ export function register(program: Command): void {
 
   // 别名 co
   program
-    .command('co <args...>')
-    .usage('<branch> | <worktree-id> <branch>')
+    .command('co [args...]')
+    .usage('[branch] | <worktree-id> [branch]')
     .description(t('commands.checkout.coDescription'))
     .option('--no-fetch', t('commands.checkout.noFetchOption'))
     .action(async (args: string[], options: CheckoutOptions) => {
       let target: string | undefined;
-      let branch: string;
+      let branch: string | undefined;
 
-      if (args.length === 1) {
+      if (args.length === 0) {
+        branch = undefined;
+      } else if (args.length === 1) {
         branch = args[0];
       } else if (args.length === 2) {
         target = args[0];
