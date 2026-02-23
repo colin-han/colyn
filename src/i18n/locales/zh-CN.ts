@@ -579,7 +579,7 @@ export const zhCN = {
       branchDeleted: '已删除分支 {{branch}}',
       branchDeleteFailed: '删除分支失败',
       branchDeleteHint: '提示: {{error}}',
-      branchDeleteManual: '可稍后手动删除: git branch -d {{branch}}',
+      branchDeleteManual: '可稍后手动删除: git branch -D {{branch}}',
       successTitle: '已切换到分支 {{branch}}',
       logsArchived: '日志已归档到: .claude/logs/archived/{{branch}}/ ({{count}} 项)',
       oldBranchDeleted: '旧分支 {{branch}} 已删除',

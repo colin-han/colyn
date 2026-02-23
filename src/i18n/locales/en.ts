@@ -579,7 +579,7 @@ Or force delete:
       branchDeleted: 'Deleted branch {{branch}}',
       branchDeleteFailed: 'Failed to delete branch',
       branchDeleteHint: 'Hint: {{error}}',
-      branchDeleteManual: 'You can delete later manually: git branch -d {{branch}}',
+      branchDeleteManual: 'You can delete later manually: git branch -D {{branch}}',
       successTitle: 'Switched to branch {{branch}}',
       logsArchived: 'Logs archived to: .claude/logs/archived/{{branch}}/ ({{count}} items)',
       oldBranchDeleted: 'Old branch {{branch}} deleted',

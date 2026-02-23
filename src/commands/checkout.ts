@@ -61,14 +61,15 @@ async function isBranchMerged(
 ): Promise<boolean> {
   try {
     const git = simpleGit(worktreePath);
-    // 获取已合并到主分支的分支列表
-    const result = await git.raw(['branch', '--merged', mainBranch]);
-    const mergedBranches = result
-      .split('\n')
-      .map(b => b.trim().replace(/^\*\s*/, ''))
-      .filter(b => b.length > 0);
-
-    return mergedBranches.includes(branch);
+    // 精确判断 branch 是否为 mainBranch 的祖先提交
+    // exit code 0 = 已合并；非 0 = 未合并或检查失败
+    await git.raw([
+      'merge-base',
+      '--is-ancestor',
+      `refs/heads/${branch}`,
+      `refs/heads/${mainBranch}`
+    ]);
+    return true;
   } catch {
     // 如果检查失败，假设未合并
     return false;
@@ -643,7 +644,8 @@ export async function checkoutCommand(
       if (deleteResponse.deleteOldBranch) {
         const deleteSpinner = ora({ text: t('commands.checkout.deletingBranch', { branch: currentBranch }), stream: process.stderr }).start();
         try {
-          await git.branch(['-d', currentBranch]);
+          // 已通过 merged 检查确认可删，这里用 -D 避免 -d 受当前 HEAD 影响误判
+          await git.branch(['-D', currentBranch]);
           deleteSpinner.succeed(t('commands.checkout.branchDeleted', { branch: currentBranch }));
           oldBranchDeleted = true;
         } catch (error) {
