@@ -52,6 +52,11 @@ colyn co [worktree-id] [branch]
 | 目标分支是主分支 | **拒绝切换**，避免误操作 |
 | 目标分支已在其他 worktree 使用 | **拒绝切换**，每个分支应只有一个工作目录 |
 
+合并判定实现采用：
+
+- `git merge-base --is-ancestor refs/heads/<currentBranch> refs/heads/<mainBranch>`
+- 返回 0 视为“已合并到主分支”
+
 ### 分支处理
 
 | 场景 | 行为 |
@@ -97,6 +102,11 @@ colyn co [worktree-id] [branch]
 ✓ 分支 feature/old 已合并到主分支
 ? 是否删除旧分支 feature/old？ (Y/n)
 ```
+
+删除执行策略：
+
+- 已确认“旧分支已合并到主分支”后，使用 `git branch -D <old-branch>` 删除
+- 这样可避免 `git branch -d` 按“当前 HEAD”判定导致的误报失败
 
 ### 执行后行为
 
