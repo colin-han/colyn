@@ -911,6 +911,14 @@ export const zhCN = {
         success: 'Todo "{{todoId}}" 已回退为待办状态',
         usingCurrentBranch: '使用当前分支名: {{branch}}',
       },
+      complete: {
+        description: '将待办 Todo 任务标记为已完成',
+        notFound: 'Todo "{{todoId}}" 不存在',
+        notPending: 'Todo "{{todoId}}" 不是待办状态',
+        noPending: '没有待办任务',
+        selectTodo: '选择要完成的任务',
+        success: 'Todo "{{todoId}}" 已标记为完成',
+      },
       edit: {
         description: '编辑 Todo 任务的描述',
         notFound: 'Todo "{{todoId}}" 不存在',

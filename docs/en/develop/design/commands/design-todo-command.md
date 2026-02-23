@@ -1,7 +1,7 @@
 # Todo Command Design Document
 
 **Created**: 2026-02-22
-**Last Updated**: 2026-02-23 (updated: align add/checkout todo-selection behavior with todo start)
+**Last Updated**: 2026-02-23 (updated: add/checkout alignment + new todo complete subcommand)
 **Command Name**: `colyn todo`
 **Status**: ✅ Implemented
 
@@ -17,6 +17,7 @@ In parallel Vibe Coding workflows, users need to track current-phase todo tasks 
 
 - Record the next features to implement during the planning phase
 - Use `todo start` to create the corresponding branch and retrieve the task description (auto-copied to clipboard for pasting into Claude's input box)
+- Use `todo complete` to mark tasks done without switching branches
 - Archive completed tasks with `todo archive` to keep the list clean
 
 ### 1.3 Storage Location
@@ -77,7 +78,7 @@ Todo ID uses the `{type}/{name}` format, consistent with branch names:
 
 ```
 pending ──────────────────────────────► completed
-   ▲    (todo start: create branch,        │
+   ▲    (todo start/todo complete:         │
    │     mark as completed)                │
    │                                       │
    └─────────── (todo uncomplete) ─────────┘
@@ -88,7 +89,7 @@ pending ────────────────────────
 ```
 
 - `pending`: Tasks waiting to be started
-- `completed`: Tasks whose branch has been created via `todo start` (branch in development)
+- `completed`: Tasks marked completed via `todo start` or `todo complete`
 - `archived`: Archived tasks, removed from the active list
 
 ---
@@ -188,13 +189,29 @@ Remove a task from the active list. `-y` skips the confirmation prompt.
 
 Batch archive all `completed` tasks to `archived-todo.json` and remove them from `todo.json`. `-y` skips the confirmation prompt.
 
-### 5.6 `colyn todo uncomplete [todoId]`
+### 5.6 `colyn todo complete [todoId]`
+
+Mark a `pending` task as `completed`. `todoId` is optional:
+
+- Without `todoId`: show an interactive list of pending tasks
+- With `todoId`: execute directly on the specified task
+
+On success:
+1. Set status to `completed`
+2. Record `startedAt`
+3. Write `branch` as `{type}/{name}`
+
+**Difference from `todo start`**:
+- `todo complete` only updates task state; it does not switch branch or copy clipboard
+- `todo start` also performs checkout and outputs/copies the message
+
+### 5.7 `colyn todo uncomplete [todoId]`
 
 Revert a `completed` task back to `pending`, clearing `startedAt` and `branch` fields.
 
 If `todoId` is not specified, the current Worktree's branch name is used automatically (must be executed in a non-main-branch Worktree).
 
-### 5.7 `colyn todo edit [todoId] [message]`
+### 5.8 `colyn todo edit [todoId] [message]`
 
 Edit the description of an existing Todo task.
 

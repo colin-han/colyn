@@ -186,6 +186,7 @@ _colyn() {
                         'ls:${e(t('commands.todo.list.description'))}'
                         'remove:${e(t('commands.todo.remove.description'))}'
                         'archive:${e(t('commands.todo.archive.description'))}'
+                        'complete:${e(t('commands.todo.complete.description'))}'
                         'uncomplete:${e(t('commands.todo.uncomplete.description'))}'
                         'edit:${e(t('commands.todo.edit.description'))}'
                     )
@@ -225,6 +226,10 @@ _colyn() {
                                 archive)
                                     _arguments \\
                                         '(-y --yes)'{-y,--yes}'[${e(t('commands.todo.archive.yesOption'))}]'
+                                    ;;
+                                complete)
+                                    _arguments \\
+                                        '1: :_colyn_todo_ids'
                                     ;;
                                 uncomplete)
                                     _arguments \\

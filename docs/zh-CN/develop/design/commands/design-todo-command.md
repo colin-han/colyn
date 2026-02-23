@@ -1,7 +1,7 @@
 # Todo 命令设计文档
 
 **创建时间**：2026-02-22
-**最后更新**：2026-02-23（更新：add/checkout 选择 Todo 时与 todo start 行为对齐）
+**最后更新**：2026-02-23（更新：add/checkout 联动 + 新增 todo complete 子命令）
 **命令名称**：`colyn todo`
 **状态**：✅ 已实现
 
@@ -17,6 +17,7 @@
 
 - 在规划阶段记录下一步要实现的功能
 - 通过 `todo start` 创建对应分支并获取任务描述（自动复制到剪贴板，方便粘贴到 Claude 输入框）
+- 通过 `todo complete` 在不切换分支的情况下直接标记任务完成
 - 完成任务后通过 `todo archive` 归档，保持列表整洁
 
 ### 1.3 存储位置
@@ -77,7 +78,7 @@ Todo ID 采用 `{type}/{name}` 格式，与分支名保持一致：
 
 ```
 pending ──────────────────────────────► completed
-   ▲    (todo start：创建分支，标记完成)     │
+   ▲    (todo start/todo complete：标记完成)  │
    │                                         │
    └─────────── (todo uncomplete) ───────────┘
                                              │
@@ -87,7 +88,7 @@ pending ────────────────────────
 ```
 
 - `pending`：等待开始的任务
-- `completed`：已通过 `todo start` 创建分支的任务（分支开发中）
+- `completed`：已通过 `todo start` 或 `todo complete` 标记完成的任务
 - `archived`：已归档，移出活跃列表
 
 ---
@@ -187,13 +188,29 @@ pending ────────────────────────
 
 将所有 `completed` 状态的任务批量归档到 `archived-todo.json`，并从 `todo.json` 中删除。`-y` 跳过确认提示。
 
-### 5.6 `colyn todo uncomplete [todoId]`
+### 5.6 `colyn todo complete [todoId]`
+
+将 `pending` 任务标记为 `completed`。`todoId` 为可选参数：
+
+- 无 `todoId`：展示 pending 任务交互式选择列表
+- 有 `todoId`：直接执行指定任务
+
+执行成功后：
+1. 更新状态为 `completed`
+2. 记录 `startedAt`
+3. 写入 `branch`（`{type}/{name}`）
+
+**与 `todo start` 的区别**：
+- `todo complete` 仅更新任务状态，不做分支切换，不复制剪贴板
+- `todo start` 还会执行 checkout 流程并输出/复制 message
+
+### 5.7 `colyn todo uncomplete [todoId]`
 
 将 `completed` 任务回退为 `pending`，清除 `startedAt` 和 `branch` 字段。
 
 若未指定 `todoId`，自动使用当前所在 Worktree 的分支名（需在非主分支的 Worktree 中执行）。
 
-### 5.7 `colyn todo edit [todoId] [message]`
+### 5.8 `colyn todo edit [todoId] [message]`
 
 编辑已有 Todo 任务的描述。
 

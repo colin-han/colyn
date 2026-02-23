@@ -111,6 +111,7 @@ Without a subcommand, equivalent to `colyn todo list`, showing all pending tasks
 | `edit [todoId] [message]` | Edit a Todo task's description |
 | `remove [todoId]` | Delete a task (interactive selection if omitted) |
 | `archive` | Archive all completed tasks |
+| `complete [todoId]` | Mark a pending task as completed |
 | `uncomplete [todoId]` | Revert a completed task to pending |
 
 ### Todo ID Format
@@ -428,6 +429,39 @@ $ colyn todo uncomplete feature/login
 
 ---
 
+### colyn todo complete
+
+Mark a task in `pending` status as `completed`. If `todoId` is omitted, select a pending task interactively.
+
+#### Syntax
+
+```bash
+colyn todo complete [todoId]
+```
+
+#### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `todoId` | No | Todo ID to mark as completed; interactive selection if omitted |
+
+#### Examples
+
+```bash
+# Interactively select a pending task
+$ colyn todo complete
+? Select a task to complete
+❯ feature/login
+  bugfix/fix-crash
+✓ Todo "feature/login" marked as completed
+
+# Explicitly specify ID
+$ colyn todo complete feature/login
+✓ Todo "feature/login" marked as completed
+```
+
+---
+
 ### Data Storage
 
 | File | Description |
@@ -474,6 +508,7 @@ colyn todo archive -y
 - For creating a new worktree, use `colyn add [branch]`; without `branch`, you can choose interactively (new branch / todo branch / local branch)
 - For reusing an existing worktree, use `colyn checkout [branch]`; without `branch`, you can also choose interactively (new branch / todo branch / local branch)
 - When selecting a todo branch via `add/checkout` interactive mode, it behaves like `todo start`: prints message, copies to clipboard, and marks the todo completed
+- `todo complete` only updates task status and does not trigger branch switching or clipboard copy
 - Descriptions (message) support full Markdown syntax, which helps provide clear context in Claude sessions
 - Regularly run `colyn todo archive -y` to keep the pending list clean
 - Set the `$EDITOR` environment variable to use your preferred editor for editing descriptions
