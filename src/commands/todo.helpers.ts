@@ -429,7 +429,7 @@ export async function selectPendingTodo(
  * - 其他列按内容自适应宽度，message 列填满终端剩余空间
  * - message 过长时自动截断并加省略号
  */
-export function formatTodoTable(todos: TodoItem[], statusLabel: Record<string, string>): string {
+export function formatTodoTable(todos: TodoItem[]): string {
   if (todos.length === 0) return '';
 
   const INDENT = 2;
@@ -439,25 +439,22 @@ export function formatTodoTable(todos: TodoItem[], statusLabel: Record<string, s
     type: item.type,
     name: item.name,
     message: item.message.split('\n')[0],
-    status: statusLabel[item.status] ?? item.status,
     createdAt: formatDate(item.createdAt),
   }));
 
   const typeW = Math.max(strWidth('Type'), ...rows.map(r => strWidth(r.type)));
   const nameW = Math.max(strWidth('Name'), ...rows.map(r => strWidth(r.name)));
-  const statusW = Math.max(strWidth('Status'), ...rows.map(r => strWidth(r.status)));
   const createdW = Math.max(strWidth('Created'), ...rows.map(r => strWidth(r.createdAt)));
 
   const termW = process.stdout.columns ?? process.stderr.columns ?? 80;
-  // INDENT + typeW + GAP + nameW + GAP + msgW + GAP + statusW + GAP + createdW = termW
-  const msgW = Math.max(strWidth('Message'), termW - INDENT - typeW - nameW - statusW - createdW - GAP * 4);
+  // INDENT + typeW + GAP + nameW + GAP + msgW + GAP + createdW = termW
+  const msgW = Math.max(strWidth('Message'), termW - INDENT - typeW - nameW - createdW - GAP * 3);
 
-  const mkRow = (type: string, name: string, msg: string, status: string, created: string): string =>
+  const mkRow = (type: string, name: string, msg: string, created: string): string =>
     ' '.repeat(INDENT) +
     padWidth(type, typeW) + ' '.repeat(GAP) +
     padWidth(name, nameW) + ' '.repeat(GAP) +
     truncWidth(msg, msgW) + ' '.repeat(GAP) +
-    padWidth(status, statusW) + ' '.repeat(GAP) +
     created;
 
   const sepRow =
@@ -465,12 +462,11 @@ export function formatTodoTable(todos: TodoItem[], statusLabel: Record<string, s
     '-'.repeat(typeW) + '-'.repeat(GAP) +
     '-'.repeat(nameW) + '-'.repeat(GAP) +
     '-'.repeat(msgW) + '-'.repeat(GAP) +
-    '-'.repeat(statusW) + '-'.repeat(GAP) +
     '-'.repeat(createdW);
 
   return [
-    mkRow('Type', 'Name', 'Message', 'Status', 'Created'),
+    mkRow('Type', 'Name', 'Message', 'Created'),
     sepRow,
-    ...rows.map(r => mkRow(r.type, r.name, r.message, r.status, r.createdAt)),
+    ...rows.map(r => mkRow(r.type, r.name, r.message, r.createdAt)),
   ].join('\n');
 }
