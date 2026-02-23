@@ -29,7 +29,15 @@
     "cli",
     "development"
   ],
-  "author": "",
+  "author": "Colin Han",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/colin-han/colyn.git"
+  },
+  "homepage": "https://github.com/colin-han/colyn#readme",
+  "bugs": {
+    "url": "https://github.com/colin-han/colyn/issues"
+  },
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
