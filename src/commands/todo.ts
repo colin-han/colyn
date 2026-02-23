@@ -93,14 +93,13 @@ function getStatusLabels(): Record<string, string> {
  * 列出待办任务（默认行为）
  */
 async function listPendingTodos(configDir: string): Promise<void> {
-  const statusLabels = getStatusLabels();
   const todoFile = await readTodoFile(configDir);
   const pending = todoFile.todos.filter(item => item.status === 'pending');
   if (pending.length === 0) {
     outputInfo(t('commands.todo.list.empty'));
     return;
   }
-  output(formatTodoTable(pending, statusLabels));
+  output(formatTodoTable(pending));
 }
 
 /**
@@ -345,8 +344,6 @@ export function register(program: Command): void {
           return;
         }
 
-        const statusLabels = getStatusLabels();
-
         if (options.archived) {
           const archivedFile = await readArchivedTodoFile(paths.configDir);
           if (archivedFile.todos.length === 0) {
@@ -355,7 +352,7 @@ export function register(program: Command): void {
           }
           // ArchivedTodoItem extends TodoItem, display as TodoItem
           const todoItems: TodoItem[] = archivedFile.todos.map(item => ({ ...item, status: 'completed' as const }));
-          output(formatTodoTable(todoItems, { ...statusLabels, completed: statusLabels.archived }));
+          output(formatTodoTable(todoItems));
         } else if (options.completed) {
           const todoFile = await readTodoFile(paths.configDir);
           const completed = todoFile.todos.filter(item => item.status === 'completed');
@@ -363,7 +360,7 @@ export function register(program: Command): void {
             outputInfo(t('commands.todo.list.empty'));
             return;
           }
-          output(formatTodoTable(completed, statusLabels));
+          output(formatTodoTable(completed));
         } else {
           await listPendingTodos(paths.configDir);
         }
