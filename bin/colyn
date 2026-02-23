@@ -18,8 +18,8 @@ if [[ ! -f "${COLYN_CORE}" ]]; then
   exit 1
 fi
 
-# 切换到项目目录（yarn PnP 需要）
+# 切换到项目目录
 cd "$PROJECT_DIR" || exit 1
 
 # 执行 Node.js 核心
-COLYN_USER_CWD="$USER_CWD" yarn node "${COLYN_CORE}" "$@"
+COLYN_USER_CWD="$USER_CWD" node "${COLYN_CORE}" "$@"
