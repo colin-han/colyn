@@ -143,6 +143,11 @@ colyn add [branch]
 
 When creating a branch interactively, it first asks for `type`, then `name`, and combines them as `type/name`.
 
+If you select a branch from a `pending` todo in the interactive list, `add` runs the same post-actions as `todo start` after success:
+- Mark that todo as `completed`
+- Print the todo message in the terminal
+- Copy the message to the system clipboard
+
 `colyn add` handles branches intelligently:
 
 1. **Local branch exists** - Creates Worktree directly from the local branch
@@ -233,6 +238,7 @@ my-project/
 - Can be run from anywhere in the project
 - Branch name automatically strips `origin/` prefix
 - Local branches in the selector automatically exclude the current branch in the main-branch directory
+- Selecting a todo branch in the selector will auto-complete the todo and copy its message
 - After execution, automatically switches to the newly created worktree directory
 
 ---

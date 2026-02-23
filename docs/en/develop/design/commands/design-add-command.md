@@ -1,7 +1,7 @@
 # Add Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-14
-**Last Updated**: 2026-02-23 (updated: support no-arg interactive branch selection)
+**Last Updated**: 2026-02-23 (updated: no-arg interactive branch selection + auto-complete todo after selection)
 **Command Name**: `colyn add`
 **Status**: Implemented
 
@@ -169,6 +169,14 @@ $ colyn add
 4. For local branches:
    - if branch contains `/`: `type` = prefix before last `/`, `name` = last segment
    - if branch does not contain `/`: `type` is empty, full branch name is used as `name`
+
+**Post-actions when selecting a Todo branch**:
+
+If the selected item comes from a `pending` todo, `add` performs the same post-actions as `todo start` after success:
+1. Update the todo status from `pending` to `completed`
+2. Record `startedAt` and `branch`
+3. Print the todo message in terminal
+4. Copy the message to system clipboard
 
 ---
 

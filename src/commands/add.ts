@@ -14,7 +14,14 @@ import {
 } from '../core/discovery.js';
 import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
-import { formatError, outputResult, output, outputSuccess } from '../utils/logger.js';
+import {
+  formatError,
+  outputResult,
+  output,
+  outputSuccess,
+  outputInfo,
+  outputLine,
+} from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import {
   isValidBranchName,
@@ -48,7 +55,13 @@ import { setWorktreeStatus } from '../core/worktree-status.js';
 import chalk from 'chalk';
 import ora from 'ora';
 import simpleGit from 'simple-git';
-import { readTodoFile } from './todo.helpers.js';
+import {
+  copyToClipboard,
+  findTodo,
+  parseTodoId,
+  readTodoFile,
+  saveTodoFile,
+} from './todo.helpers.js';
 const { prompt } = Enquirer;
 
 /**
@@ -236,8 +249,25 @@ async function promptCreateBranchNameForAdd(): Promise<string> {
  * add 无参数时：交互式选择目标分支
  * 顺序：新建分支 -> pending todo -> 本地分支（忽略主分支）
  */
-async function selectBranchForAdd(configDir: string, mainDir: string, mainBranch: string): Promise<string> {
-  type Choice = { type: 'branch'; branch: string } | { type: 'create' };
+interface SelectedTodoMeta {
+  todoId: string;
+  message: string;
+}
+
+interface AddBranchSelectionResult {
+  branch: string;
+  selectedTodo?: SelectedTodoMeta;
+}
+
+async function selectBranchForAdd(
+  configDir: string,
+  mainDir: string,
+  mainBranch: string,
+): Promise<AddBranchSelectionResult> {
+  type Choice =
+    | { type: 'branch'; branch: string }
+    | { type: 'create' }
+    | { type: 'todo'; branch: string; todoId: string; message: string };
   const options = new Map<string, Choice>();
   const items: Array<{
     value: string;
@@ -282,7 +312,7 @@ async function selectBranchForAdd(configDir: string, mainDir: string, mainBranch
     const todoLabel = formatBranchLabel(todo.type, todo.name, maxTodoTypeW);
     pendingBranchSet.add(branch);
     pushChoice(
-      { type: 'branch', branch },
+      { type: 'todo', branch, todoId: branch, message: todo.message },
       todoLabel.plain,
       `${t('commands.add.selectTodoSummaryPrefix')}: ${todo.message.split('\n')[0]}`,
     );
@@ -342,10 +372,20 @@ async function selectBranchForAdd(configDir: string, mainDir: string, mainBranch
   }
 
   if (selectedChoice.type === 'create') {
-    return promptCreateBranchNameForAdd();
+    return { branch: await promptCreateBranchNameForAdd() };
   }
 
-  return selectedChoice.branch;
+  if (selectedChoice.type === 'todo') {
+    return {
+      branch: selectedChoice.branch,
+      selectedTodo: {
+        todoId: selectedChoice.todoId,
+        message: selectedChoice.message,
+      },
+    };
+  }
+
+  return { branch: selectedChoice.branch };
 }
 
 /**
@@ -367,8 +407,11 @@ async function addCommand(branchName?: string): Promise<void> {
     // 步骤3: 解析主分支名；无参时进入交互式分支选择
     const mainBranch = await getMainBranch(paths.mainDir);
     let resolvedBranchName = branchName;
+    let selectedTodoMeta: SelectedTodoMeta | undefined;
     if (!resolvedBranchName) {
-      resolvedBranchName = await selectBranchForAdd(paths.configDir, paths.mainDir, mainBranch);
+      const selected = await selectBranchForAdd(paths.configDir, paths.mainDir, mainBranch);
+      resolvedBranchName = selected.branch;
+      selectedTodoMeta = selected.selectedTodo;
     }
 
     // 步骤4: 验证和清理分支名称
@@ -479,6 +522,32 @@ async function addCommand(branchName?: string): Promise<void> {
     const displayPath = path.relative(paths.rootDir, worktreePath);
     const runCommand = await getRunCommand(paths.configDir);
     displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath, runCommand);
+
+    // 由 Todo 入口创建分支时：同步标记完成，并输出 message + 复制剪贴板
+    if (selectedTodoMeta) {
+      const { type, name } = parseTodoId(selectedTodoMeta.todoId);
+      const todoFile = await readTodoFile(paths.configDir);
+      const todoItem = findTodo(todoFile.todos, type, name);
+      if (todoItem && todoItem.status === 'pending') {
+        todoItem.status = 'completed';
+        todoItem.startedAt = new Date().toISOString();
+        todoItem.branch = cleanBranchName;
+        await saveTodoFile(paths.configDir, todoFile);
+        outputSuccess(t('commands.todo.start.success', { todoId: selectedTodoMeta.todoId }));
+      }
+
+      outputLine();
+      output(chalk.bold(t('commands.todo.start.messageTitle')));
+      output(selectedTodoMeta.message);
+      outputLine();
+
+      const copied = copyToClipboard(selectedTodoMeta.message);
+      if (copied) {
+        outputInfo(t('commands.todo.start.clipboardCopied'));
+      } else {
+        outputInfo(t('commands.todo.start.clipboardFailed'));
+      }
+    }
 
     // 步骤12: 设置 tmux window（如果可用）
     const projectName = paths.mainDirName;
