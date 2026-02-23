@@ -269,20 +269,39 @@ export interface ToolchainPlugin {
    * @param version New version string (e.g., "1.2.0")
    */
   bumpVersion?(worktreePath: string, version: string): Promise<void>;
+
+  /**
+   * Publish to package registry
+   *
+   * Called after git push in `colyn release`.
+   * If not implemented, this step is silently skipped.
+   *
+   * @param worktreePath Directory path to run publish in
+   * @throws {PluginCommandError} on publish failure, with output containing command output
+   */
+  publish?(worktreePath: string): Promise<void>;
+
+  /**
+   * Check whether the current project is publishable
+   *
+   * Called before the publish stage in `colyn release`.
+   * If false, publish is skipped for this toolchain context.
+   */
+  checkPublishable?(worktreePath: string): Promise<boolean>;
 }
 ```
 
 ### 2.2 Design Principles
 
-1. **Direct execution**: Operation methods (`install`, `lint`, `build`, `bumpVersion`) are executed directly by the plugin, throwing exceptions on failure
+1. **Direct execution**: Operation methods (`install`, `lint`, `build`, `bumpVersion`, `publish`) are executed directly by the plugin, throwing exceptions on failure
 2. **Optional extension points**: All methods are optional; plugins only implement what they need
 3. **Plugin owns path resolution**: Both `readRuntimeConfig` and `writeRuntimeConfig` receive `worktreePath`; the plugin decides which config file to read/write (e.g., npm uses `.env.local`, maven uses `application-local.properties`)
-4. **Phase failure semantics**: lint failure, build failure all block subsequent steps
+4. **Phase failure semantics**: lint failure, build failure, and publish failure all block subsequent steps
 5. **Silent skip for missing lint/build**: If no corresponding script exists, plugin skips internally without throwing
 6. **Error on missing bumpVersion**: If the active plugin doesn't implement `bumpVersion`, PluginManager throws — version bump is mandatory for release
 7. **Plugin reads own config**: Methods needing npm/yarn/pnpm read `.colyn/settings.json` directly — no need to pass it as parameter
 8. **Toolchain info separation**: `devServerCommand` only returns the command array — execution is terminal session plugin's responsibility
-9. **Structured failure info**: lint / build failures throw `PluginCommandError` carrying the full command output in `output`; all colyn commands support `-v` / `--verbose` to display failure details
+9. **Structured failure info**: lint / build / publish failures throw `PluginCommandError` carrying the full command output in `output`; all colyn commands support `-v` / `--verbose` to display failure details
 10. **gitignore managed by caller**: Plugins declare their runtime config filename via `getRuntimeConfigFileName()`; `PluginManager.ensureRuntimeConfigIgnored()` handles adding it to `.gitignore` — plugins do not touch the filesystem for this
 11. **Toolchain-specific config persistence**: Some plugins (e.g., Xcode) require build parameters that cannot be auto-inferred. Plugins use `repairSettings(context)` to identify and interactively collect these settings; the caller (`toolchain-resolver.saveRepairSettingsResult()`) saves them to `settings.json` under `toolchain.settings` (single-project) or `projects[i].toolchain.settings` (Mono Repo). Subsequent commands (e.g., `build`) read from `currentSettings` without prompting again
 
@@ -306,6 +325,8 @@ export interface ToolchainPlugin {
 | `lint` | Check `package.json` for `scripts.lint`; if present execute, else silently skip |
 | `build` | Check `package.json` for `scripts.build`; if present execute, else silently skip |
 | `bumpVersion` | Update `version` field in `package.json` |
+| `publish` | Run `npm publish` (or yarn/pnpm equivalent publish command) |
+| `checkPublishable` | Check `private`, `name`, and `version`; skip publish if not satisfied |
 
 > **Note**: `install` reads `.colyn/settings.json` (searching up from worktreePath) to get `systemCommands.npm`, determining whether to use npm / yarn / pnpm.
 
@@ -325,6 +346,8 @@ export interface ToolchainPlugin {
 | `lint` | Check if checkstyle is configured in pom.xml; if yes run `mvn checkstyle:check`, else silently skip |
 | `build` | Run `mvn package -DskipTests`; silently skip if target not applicable |
 | `bumpVersion` | Run `mvn versions:set -DnewVersion={version} -DgenerateBackupPoms=false` |
+| `publish` | Run `mvn deploy -DskipTests` |
+| `checkPublishable` | Check whether `pom.xml` contains `<distributionManagement>` |
 
 > **Local profile**: Spring Boot overlays `application-local.properties` on top of the main `application.properties` when `spring.profiles.active=local` is set. This file holds dev-only config (ports, DB credentials, etc.) and must not be committed to the repository.
 
@@ -344,6 +367,8 @@ export interface ToolchainPlugin {
 | `lint` | Check if checkstyle plugin is configured; if yes run `./gradlew checkstyleMain`, else silently skip |
 | `build` | Run `./gradlew build`; silently skip if target not present |
 | `bumpVersion` | Modify `version` property in `build.gradle` / `build.gradle.kts` |
+| `publish` | Run `./gradlew publish` |
+| `checkPublishable` | Check for `maven-publish` or `publishing {}` configuration |
 
 ### 3.4 pip Plugin
 
@@ -361,6 +386,8 @@ export interface ToolchainPlugin {
 | `lint` | `ruff` configured → `ruff check .`; else try `flake8`; neither found → silently skip |
 | `build` | Not implemented (Python typically doesn't need a build step) |
 | `bumpVersion` | `pyproject.toml` present → update `version` field; else update `version=` in `setup.py` |
+| `publish` | Poetry project: `poetry publish --build`; otherwise: `python -m build && twine upload dist/*` |
+| `checkPublishable` | Check publish metadata (`[tool.poetry]` / `[project]` / `setup.py`) |
 
 ---
 
@@ -467,6 +494,18 @@ class PluginManager {
     version: string,
     activePluginNames: string[]
   ): Promise<void>;
+
+  /**
+   * Call publish on all active plugins
+   * @param verbose When true, display PluginCommandError.output on failure
+   */
+  async runPublish(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
+
+  /**
+   * Check whether active plugins are publishable
+   * If any plugin returns false, that context is treated as non-publishable.
+   */
+  async runCheckPublishable(worktreePath: string, activePluginNames: string[]): Promise<boolean>;
 
   /** Return port config from the first active plugin that provides one, or null */
   getPortConfig(activePluginNames: string[]): PortConfig | null;
@@ -703,6 +742,16 @@ for (const ctx of contexts) {
 for (const ctx of contexts) {
   await pluginManager.runBumpVersion(ctx.absolutePath, newVersion, [ctx.toolchainName]);
 }
+const publishableContexts: ToolchainContext[] = [];
+for (const ctx of contexts) {
+  const publishable = await pluginManager.runCheckPublishable(ctx.absolutePath, [ctx.toolchainName]);
+  if (publishable) {
+    publishableContexts.push(ctx);
+  }
+}
+for (const ctx of publishableContexts) {
+  await pluginManager.runPublish(ctx.absolutePath, [ctx.toolchainName], verbose);
+}
 ```
 
 ### 6.5 `colyn repair` Command
@@ -721,7 +770,7 @@ for (const ctx of contexts) {
 
 > **Two install scenarios**:
 > - `colyn add` (worktree dir): install deps for new worktree, ready for development
-> - `colyn release` (main branch dir): ensure main branch deps are current before lint/build
+> - `colyn release` (main branch dir): ensure main branch deps are current before lint/build, then run publish
 
 ---
 
@@ -772,7 +821,7 @@ export const ConfigSchema = z.union([
 When `resolveToolchains` fails to detect any toolchain:
 - Saves `toolchain: null` to settings.json
 - Returns empty array (`[]`)
-- Command continues, skipping all toolchain-related steps (no install, lint, or bumpVersion)
+- Command continues, skipping all toolchain-related steps (no install, lint, bumpVersion, or publish)
 
 ---
 
@@ -825,7 +874,7 @@ src/
 5. Integrate into `colyn init` (via toolchain-resolver detection + config write)
 6. Integrate into `colyn add` (config copy + install, Mono Repo support)
 7. Integrate into `colyn merge` (lint/build pre-check)
-8. Integrate into `colyn release` (install + lint + build + bumpVersion)
+8. Integrate into `colyn release` (install + lint + build + bumpVersion + publish)
 9. Implement V3→V4 Zod transform migration
 
 ### Phase 3: More Plugins (Complete)

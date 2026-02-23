@@ -406,12 +406,13 @@ colyn release minor
 ✓ Version bumped: 0.0.0 → 0.1.0
 ✓ Tag created: v0.1.0
 ✓ Pushed to remote
+✓ Published to package registry
 Updating all worktrees...
 ✓ All worktrees updated
 ✓ Released v0.1.0
 ```
 
-One command completes the full release pipeline: lint, build, version bump, tag, push, sync all worktrees. No matter which directory Xiao Ming runs it from, Colyn always executes the release from the main branch.
+One command completes the full release pipeline: lint, build, version bump, tag, push, publish to package registry, and sync all worktrees. No matter which directory Xiao Ming runs it from, Colyn always executes the release from the main branch.
 
 ### Daily Work Rhythm
 

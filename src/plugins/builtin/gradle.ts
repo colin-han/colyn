@@ -166,4 +166,29 @@ export const gradlePlugin: ToolchainPlugin = {
 
     await fs.writeFile(buildFile.filePath, updated, 'utf-8');
   },
+
+  async publish(worktreePath: string): Promise<void> {
+    try {
+      execSync('./gradlew publish', {
+        cwd: worktreePath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (error) {
+      throw new PluginCommandError('./gradlew publish failed', extractOutput(error));
+    }
+  },
+
+  async checkPublishable(worktreePath: string): Promise<boolean> {
+    const buildFile = findBuildFile(worktreePath);
+    if (!buildFile) {
+      return false;
+    }
+
+    try {
+      const content = await fs.readFile(buildFile.filePath, 'utf-8');
+      return content.includes('maven-publish') || content.includes('publishing {');
+    } catch {
+      return false;
+    }
+  },
 };

@@ -21,7 +21,7 @@ export interface RepairSettingsContext {
 /**
  * 插件命令执行失败时抛出的异常
  *
- * lint / build / install / init 失败时插件必须抛出此类型，
+ * lint / build / install / publish / init 失败时插件必须抛出此类型，
  * 以便 PluginManager 在 verbose 模式下将命令输出展示给用户。
  */
 export class PluginCommandError extends Error {
@@ -215,4 +215,33 @@ export interface ToolchainPlugin {
    * @param version 新版本号（如 "1.2.0"）
    */
   bumpVersion?(worktreePath: string, version: string): Promise<void>;
+
+  /**
+   * 发布到包管理服务
+   *
+   * 在 `colyn release` 完成 push 后调用。
+   * 由各插件执行对应的发布命令：
+   * - npm: publish 到 npmjs.com
+   * - maven/gradle: publish 到配置的仓库
+   * - pip: publish 到配置的 Python 包仓库
+   * - xcode: 视项目类型执行对应发布动作（或静默跳过）
+   *
+   * **缺失处理**：未实现则跳过。
+   *
+   * @param worktreePath 执行发布的目录路径
+   * @throws {PluginCommandError} 发布失败时，output 包含命令输出
+   */
+  publish?(worktreePath: string): Promise<void>;
+
+  /**
+   * 检查当前项目是否满足发布条件
+   *
+   * 在 `colyn release` 的发布阶段前调用。
+   * 返回 false 表示当前工具链在该目录下不应执行发布（例如 npm private 包）。
+   *
+   * **缺失处理**：未实现时，默认视为可发布。
+   *
+   * @param worktreePath 执行检查的目录路径
+   */
+  checkPublishable?(worktreePath: string): Promise<boolean>;
 }

@@ -1,7 +1,7 @@
 # Release Command Design (User Interaction)
 
 **Created**: 2026-02-09
-**Last updated**: 2026-02-21
+**Last updated**: 2026-02-23
 **Command**: `colyn release`  
 **Status**: ✅ Implemented
 
@@ -11,7 +11,7 @@
 
 ### 1.1 Background
 
-The current release flow relies on `yarn release:patch/minor/major` or `node scripts/release.js <type>`. This flow includes git status checks, version bump, build, commit, tag, and push.
+The current release flow relies on `yarn release:patch/minor/major` or `node scripts/release.js <type>`. This flow includes git status checks, version bump, build, commit, tag, push, and publish to a package registry.
 
 In a Worktree setup, users may not be in the Main Branch directory, which increases the chance of mistakes. We need a single entry that **always runs release in the Main Branch directory**.
 
@@ -20,12 +20,14 @@ In a Worktree setup, users may not be in the Main Branch directory, which increa
 - Run the existing release flow via `colyn release`
 - No manual directory switching to Main Branch
 - Behavior consistent with `yarn release:xxx`
+- Automatically publish to the corresponding package registry (e.g., npmjs.com)
 
 ### 1.3 Core Value
 
 - ✅ **Single entry**: A facade for `yarn release:xxx`
 - ✅ **Main Branch enforced**: Always execute in Main Branch directory
 - ✅ **Consistent flow**: Reuse existing release script
+- ✅ **Unified publish stage**: Publish via toolchain plugins to package registries
 - ✅ **Auto sync**: Sync the latest release to all Worktrees after release (skip with `--no-update`)
 
 ---
@@ -105,8 +107,10 @@ $ colyn release major
 4. **Check current directory for uncommitted changes — error and exit if any**
 5. **Check if current branch has been merged to main (only when running from a Worktree) — error and exit if not**
 6. Execute release flow in Main Branch directory
-7. **After successful release, auto-update all Worktrees (unless `--no-update` is specified)**
-8. Return release result
+7. After git push in Main Branch, run the publishability check
+8. Execute "publish to package registry" only for publishable toolchain contexts
+9. **After successful release, auto-update all Worktrees (unless `--no-update` is specified)**
+10. Return release result
 
 ---
 
@@ -134,6 +138,8 @@ The release flow is driven by toolchain plugins (`PluginManager`) based on the `
 | Version bump | `bumpVersion()` | Updates `package.json` | `mvn versions:set` |
 | Create commit and tag | (common logic) | tool-agnostic | tool-agnostic |
 | Push to remote | (common logic) | tool-agnostic | tool-agnostic |
+| Publishability check | `runCheckPublishable()` | Skip publish when `private: true` or missing name/version | Skip publish when publish repo config is missing |
+| Publish to package registry | `runPublish()` | `npm publish` (or yarn/pnpm equivalent) | `mvn deploy` / `./gradlew publish` |
 
 > **Note**: If no plugins are configured (`plugins: []`), the command falls back to the original `yarn install/lint/build` logic (backward compatible).
 
@@ -164,6 +170,8 @@ The release flow is driven by toolchain plugins (`PluginManager`) based on the `
 - Project not initialized: prompt to run `colyn init`
 - Current directory has uncommitted changes: error and exit, prompt to commit first
 - Current branch not merged (in Worktree): error and exit, prompt to merge branch first
+- Publishability conditions not met: skip publish for that toolchain and show warning
+- Package publish stage failed: error and exit, prompt to check auth and registry configuration
 - Any release step failure: show clear error and rollback hints
 
 ---

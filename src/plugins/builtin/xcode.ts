@@ -487,4 +487,19 @@ export const xcodePlugin: ToolchainPlugin = {
       throw new PluginCommandError('Failed to write project.pbxproj', output);
     }
   },
+
+  async publish(worktreePath: string): Promise<void> {
+    const xcProject = await scanXcodeDir(worktreePath);
+
+    // Swift Package 通常通过 Git tag 分发，release 的 push 阶段已完成该动作。
+    // 原生 App 的发布通常走 CI/CD + App Store Connect，不在此处执行。
+    if (xcProject.hasSPM) {
+      return;
+    }
+  },
+
+  async checkPublishable(_worktreePath: string): Promise<boolean> {
+    // 原生应用发布通常走 CI/CD + App Store Connect，默认不在 colyn release 内执行
+    return false;
+  },
 };
