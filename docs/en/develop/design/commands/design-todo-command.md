@@ -229,6 +229,8 @@ await checkoutCommand(undefined, branch, {});
 
 This means `todo start` performs the full checkout flow: check for uncommitted changes, fetch remote, archive old logs, rename tmux window, etc.
 
+Additional note: when you need a new worktree, use `colyn add [branch]`. In no-argument mode, `add` can directly choose from todo branches and local branches, reducing manual input.
+
 ---
 
 ## 7. Output Convention

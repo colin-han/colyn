@@ -228,6 +228,8 @@ await checkoutCommand(undefined, branch, {});
 
 这意味着 `todo start` 会执行完整的 checkout 流程：检查未提交更改、fetch 远程、归档旧日志、重命名 tmux window 等。
 
+补充说明：当需要新增 worktree 时，建议使用 `colyn add [branch]`。其中 `add` 无参数模式可直接从 Todo 分支和本地分支中选择，减少手动输入。
+
 ---
 
 ## 7. 输出规范

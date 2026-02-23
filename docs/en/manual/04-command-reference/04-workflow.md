@@ -471,6 +471,7 @@ colyn todo archive -y
 
 - `colyn todo` without any arguments shows the pending list — the most common usage
 - `todo start` executes the full `colyn checkout` flow, including uncommitted check, remote fetch, log archiving, etc.
+- For creating a new worktree, use `colyn add [branch]`; without `branch`, you can choose interactively (new branch / todo branch / local branch)
 - Descriptions (message) support full Markdown syntax, which helps provide clear context in Claude sessions
 - Regularly run `colyn todo archive -y` to keep the pending list clean
 - Set the `$EDITOR` environment variable to use your preferred editor for editing descriptions

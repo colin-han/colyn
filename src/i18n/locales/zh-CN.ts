@@ -123,6 +123,11 @@ export const zhCN = {
       installingDeps: '安装项目依赖...',
       depsInstalled: '依赖安装完成',
       depsInstallFailed: '依赖安装失败（可手动运行安装命令）',
+      selectBranchPrompt: '选择目标分支（或新建分支）',
+      selectCreateBranchLabel: '[新建分支]',
+      selectCreateBranchSummary: '按 type/name 创建新分支',
+      selectTodoSummaryPrefix: 'Todo',
+      selectLocalBranchSummary: '本地分支',
     },
 
     // list command

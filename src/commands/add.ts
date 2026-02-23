@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import type { Command } from 'commander';
+import Enquirer from 'enquirer';
 import {
   getProjectPaths,
   validateProjectInitialized,
@@ -8,7 +9,8 @@ import {
 } from '../core/paths.js';
 import {
   discoverProjectInfo,
-  findWorktreeByBranch
+  findWorktreeByBranch,
+  getMainBranch,
 } from '../core/discovery.js';
 import type { CommandResult } from '../types/index.js';
 import { ColynError } from '../types/index.js';
@@ -45,6 +47,9 @@ import { getRunCommand } from '../core/config.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
 import chalk from 'chalk';
 import ora from 'ora';
+import simpleGit from 'simple-git';
+import { readTodoFile } from './todo.helpers.js';
+const { prompt } = Enquirer;
 
 /**
  * tmux 提示文件路径
@@ -194,17 +199,183 @@ function displayFirstTimeTmuxHint(projectName: string): void {
 }
 
 /**
+ * add 无参数时：交互式创建分支名（type/name）
+ */
+async function promptCreateBranchNameForAdd(): Promise<string> {
+  const typeResponse = await prompt<{ type: string }>({
+    type: 'select',
+    name: 'type',
+    message: t('commands.todo.add.selectType'),
+    choices: ['feature', 'bugfix', 'refactor', 'document'],
+    stdout: process.stderr,
+  });
+
+  const nameResponse = await prompt<{ name: string }>({
+    type: 'input',
+    name: 'name',
+    message: t('commands.todo.add.inputName'),
+    stdout: process.stderr,
+  });
+
+  const name = nameResponse.name.trim();
+  if (!name) {
+    throw new ColynError(t('commands.todo.add.emptyName'));
+  }
+
+  const branch = `${typeResponse.type}/${name}`;
+  if (!isValidBranchName(branch)) {
+    throw new ColynError(
+      t('commands.add.invalidBranchName'),
+      t('commands.add.invalidBranchNameHint')
+    );
+  }
+  return branch;
+}
+
+/**
+ * add 无参数时：交互式选择目标分支
+ * 顺序：新建分支 -> pending todo -> 本地分支（忽略主分支）
+ */
+async function selectBranchForAdd(configDir: string, mainDir: string, mainBranch: string): Promise<string> {
+  type Choice = { type: 'branch'; branch: string } | { type: 'create' };
+  const options = new Map<string, Choice>();
+  const items: Array<{
+    value: string;
+    label: string;
+    labelDisplay?: string;
+    summary: string;
+  }> = [];
+  let seq = 0;
+
+  const formatBranchLabel = (type: string, name: string, typeWidth: number): { plain: string; display: string } => {
+    const paddedType = type + ' '.repeat(Math.max(0, typeWidth - type.length));
+    const plain = `${paddedType}  ${name}`;
+    const display = `${chalk.gray(paddedType)}  ${chalk.bold(name)}`;
+    return { plain, display };
+  };
+
+  const pushChoice = (
+    choice: Choice,
+    label: string,
+    summary: string,
+  ): void => {
+    const value = `opt-${seq++}`;
+    options.set(value, choice);
+    items.push({ value, label, summary });
+  };
+
+  pushChoice(
+    { type: 'create' },
+    t('commands.add.selectCreateBranchLabel'),
+    t('commands.add.selectCreateBranchSummary'),
+  );
+
+  const todoFile = await readTodoFile(configDir);
+  const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+  const maxTodoTypeW = pendingTodos.length > 0
+    ? Math.max(...pendingTodos.map(item => item.type.length))
+    : 0;
+  const pendingBranchSet = new Set<string>();
+
+  for (const todo of pendingTodos) {
+    const branch = `${todo.type}/${todo.name}`;
+    const todoLabel = formatBranchLabel(todo.type, todo.name, maxTodoTypeW);
+    pendingBranchSet.add(branch);
+    pushChoice(
+      { type: 'branch', branch },
+      todoLabel.plain,
+      `${t('commands.add.selectTodoSummaryPrefix')}: ${todo.message.split('\n')[0]}`,
+    );
+    items[items.length - 1]!.labelDisplay = todoLabel.display;
+  }
+
+  const git = simpleGit(mainDir);
+  const localBranches = (await git.branchLocal()).all
+    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch)
+    .sort((a, b) => a.localeCompare(b));
+
+  const parsedLocalBranches = localBranches.map(branch => {
+    const lastSlash = branch.lastIndexOf('/');
+    if (lastSlash === -1) {
+      return { branch, type: '', name: branch };
+    }
+    return {
+      branch,
+      type: branch.slice(0, lastSlash),
+      name: branch.slice(lastSlash + 1) || branch,
+    };
+  });
+
+  const maxLocalTypeW = parsedLocalBranches.length > 0
+    ? Math.max(...parsedLocalBranches.map(item => item.type.length))
+    : 0;
+
+  for (const local of parsedLocalBranches) {
+    const { branch } = local;
+    if (pendingBranchSet.has(branch)) continue;
+    const branchLabel = formatBranchLabel(local.type, local.name, maxLocalTypeW);
+    pushChoice(
+      { type: 'branch', branch },
+      branchLabel.plain,
+      t('commands.add.selectLocalBranchSummary'),
+    );
+    items[items.length - 1]!.labelDisplay = branchLabel.display;
+  }
+
+  const maxLabelWidth = Math.max(...items.map(item => item.label.length));
+  const choices = items.map(item => ({
+    name: item.value,
+    message: `${item.labelDisplay ?? item.label}${' '.repeat(Math.max(0, maxLabelWidth - item.label.length))}  ${chalk.gray(item.summary)}`,
+  }));
+  const response = await prompt<{ selected: string }>({
+    type: 'select',
+    name: 'selected',
+    message: t('commands.add.selectBranchPrompt'),
+    choices,
+    stdout: process.stderr,
+  });
+  const selectedValue = response.selected;
+
+  const selectedChoice = options.get(selectedValue);
+  if (!selectedChoice) {
+    throw new ColynError(t('commands.add.branchNameEmpty'));
+  }
+
+  if (selectedChoice.type === 'create') {
+    return promptCreateBranchNameForAdd();
+  }
+
+  return selectedChoice.branch;
+}
+
+/**
  * Add 命令：创建新的 worktree
  */
-async function addCommand(branchName: string): Promise<void> {
+async function addCommand(branchName?: string): Promise<void> {
   try {
-    // 步骤1: 验证和清理分支名称
-    if (!branchName || branchName.trim() === '') {
-      throw new ColynError(t('commands.add.branchNameEmpty'), t('commands.add.branchNameEmptyHint'));
+    // 步骤1: 获取项目路径并验证
+    const paths = await getProjectPaths();
+    await validateProjectInitialized(paths);
+
+    // 步骤2: 在主分支目录中检查 git 仓库
+    await executeInDirectory(paths.mainDir, async () => {
+      await checkIsGitRepo();
+    });
+
+    await checkMainEnvFile(paths.rootDir, paths.mainDirName);
+
+    // 步骤3: 解析主分支名；无参时进入交互式分支选择
+    const mainBranch = await getMainBranch(paths.mainDir);
+    let resolvedBranchName = branchName;
+    if (!resolvedBranchName) {
+      resolvedBranchName = await selectBranchForAdd(paths.configDir, paths.mainDir, mainBranch);
     }
 
-    const cleanBranchName = branchName.replace(/^origin\//, '');
-
+    // 步骤4: 验证和清理分支名称
+    if (!resolvedBranchName || resolvedBranchName.trim() === '') {
+      throw new ColynError(t('commands.add.branchNameEmpty'), t('commands.add.branchNameEmptyHint'));
+    }
+    const cleanBranchName = resolvedBranchName.replace(/^origin\//, '');
     if (!isValidBranchName(cleanBranchName)) {
       throw new ColynError(
         t('commands.add.invalidBranchName'),
@@ -212,21 +383,10 @@ async function addCommand(branchName: string): Promise<void> {
       );
     }
 
-    // 步骤2: 获取项目路径并验证
-    const paths = await getProjectPaths();
-    await validateProjectInitialized(paths);
-
-    // 步骤3: 在主分支目录中检查 git 仓库
-    await executeInDirectory(paths.mainDir, async () => {
-      await checkIsGitRepo();
-    });
-
-    await checkMainEnvFile(paths.rootDir, paths.mainDirName);
-
-    // 步骤4: 从文件系统发现项目信息（替代 loadConfig）
+    // 步骤5: 从文件系统发现项目信息（替代 loadConfig）
     const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
 
-    // 步骤5: 检查分支是否已有 worktree
+    // 步骤6: 检查分支是否已有 worktree
     const existingWorktree = await findWorktreeByBranch(
       paths.mainDir,
       paths.worktreesDir,
@@ -239,21 +399,21 @@ async function addCommand(branchName: string): Promise<void> {
       );
     }
 
-    // 步骤6: 在主分支目录中处理分支（本地/远程/新建）
+    // 步骤7: 在主分支目录中处理分支（本地/远程/新建）
     await executeInDirectory(paths.mainDir, async () => {
       await handleBranch(cleanBranchName, projectInfo.mainBranch);
     });
 
-    // 步骤7: 分配 ID 和端口（从发现的信息中获取）
+    // 步骤8: 分配 ID 和端口（从发现的信息中获取）
     const id = projectInfo.nextWorktreeId;
     const port = projectInfo.mainPort + id;
 
-    // 步骤8: 在主分支目录创建 worktree（git 仓库所在地）
+    // 步骤9: 在主分支目录创建 worktree（git 仓库所在地）
     const worktreePath = await executeInDirectory(paths.mainDir, async () => {
       return await createWorktree(paths.rootDir, cleanBranchName, id, projectInfo.worktrees);
     });
 
-    // 步骤9: 配置环境变量（通过工具链解析器）
+    // 步骤10: 配置环境变量（通过工具链解析器）
     const contexts = await resolveToolchains(paths.rootDir, paths.mainDir);
 
     if (contexts.length > 0) {
@@ -288,7 +448,7 @@ async function addCommand(branchName: string): Promise<void> {
       await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
     }
 
-    // 步骤9.5: 安装依赖
+    // 步骤10.5: 安装依赖
     if (contexts.length > 0) {
       const installSpinner = ora({ text: t('commands.add.installingDeps'), stream: process.stderr }).start();
       try {
@@ -310,17 +470,17 @@ async function addCommand(branchName: string): Promise<void> {
       }
     }
 
-    // 步骤9.6: 更新 worktree 状态为 idle
+    // 步骤10.6: 更新 worktree 状态为 idle
     try {
       await setWorktreeStatus(paths.configDir, `task-${id}`, paths.rootDir, 'idle');
     } catch { /* 状态更新失败不影响主流程 */ }
 
-    // 步骤10: 计算相对路径并显示成功信息
+    // 步骤11: 计算相对路径并显示成功信息
     const displayPath = path.relative(paths.rootDir, worktreePath);
     const runCommand = await getRunCommand(paths.configDir);
     displayAddSuccess(id, cleanBranchName, worktreePath, port, displayPath, runCommand);
 
-    // 步骤11: 设置 tmux window（如果可用）
+    // 步骤12: 设置 tmux window（如果可用）
     const projectName = paths.mainDirName;
     const tmuxResult = await setupTmuxWindow(projectName, paths.rootDir, id, cleanBranchName, worktreePath);
 
@@ -336,7 +496,7 @@ async function addCommand(branchName: string): Promise<void> {
       }
     }
 
-    // 步骤12: 输出 JSON 结果到 stdout（供 bash 解析）
+    // 步骤13: 输出 JSON 结果到 stdout（供 bash 解析）
     const result: CommandResult = {
       success: true,
       targetDir: worktreePath,
@@ -357,9 +517,9 @@ async function addCommand(branchName: string): Promise<void> {
  */
 export function register(program: Command): void {
   program
-    .command('add <branch>')
+    .command('add [branch]')
     .description(t('commands.add.description'))
-    .action(async (branch: string) => {
+    .action(async (branch: string | undefined) => {
       await addCommand(branch);
     });
 }
