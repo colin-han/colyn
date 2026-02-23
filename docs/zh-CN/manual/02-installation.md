@@ -27,10 +27,10 @@
 
 ```bash
 # 使用 npm
-npm install -g colyn
+npm install -g colyn-cli
 
 # 或使用 volta（推荐）
-volta install colyn
+volta install colyn-cli
 ```
 
 **优点**：
@@ -298,7 +298,7 @@ sudo yum install tmux
 # 访问 https://volta.sh/ 下载 Windows 安装程序
 
 # 全局安装 Colyn
-npm install -g colyn
+npm install -g colyn-cli
 ```
 
 **注意**：
@@ -314,13 +314,13 @@ npm install -g colyn
 
 ```bash
 # 检查最新版本
-npm outdated -g colyn
+npm outdated -g colyn-cli
 
 # 更新到最新版本
-npm update -g colyn
+npm update -g colyn-cli
 
 # 或使用 volta
-volta install colyn
+volta install colyn-cli
 ```
 
 ### 安装脚本安装的更新
@@ -348,10 +348,10 @@ source ~/.zshrc  # 或 ~/.bashrc
 ### npm 安装的卸载
 
 ```bash
-npm uninstall -g colyn
+npm uninstall -g colyn-cli
 
 # 或使用 volta
-volta uninstall colyn
+volta uninstall colyn-cli
 ```
 
 ### 安装脚本安装的卸载
@@ -430,7 +430,7 @@ rm -rf /tmp/test-colyn
 ```bash
 # 使用 volta（推荐）
 curl https://get.volta.sh | bash
-volta install colyn
+volta install colyn-cli
 
 # 或修复 npm 权限
 mkdir ~/.npm-global
@@ -449,7 +449,7 @@ wsl --install
 # 在 WSL2 中安装
 wsl
 curl https://get.volta.sh | bash
-volta install colyn
+volta install colyn-cli
 ```
 
 ---

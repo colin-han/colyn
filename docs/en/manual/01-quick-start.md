@@ -20,10 +20,10 @@ Before you begin, make sure you have installed:
 
 ```bash
 # Global installation
-npm install -g colyn
+npm install -g colyn-cli
 
 # Or using volta (recommended)
-volta install colyn
+volta install colyn-cli
 ```
 
 ### Configure Shell Integration

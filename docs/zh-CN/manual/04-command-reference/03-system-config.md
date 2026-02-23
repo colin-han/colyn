@@ -279,7 +279,7 @@ colyn setup
 
 ```bash
 # 安装后首次配置
-$ npm install -g colyn
+$ npm install -g colyn-cli
 $ colyn setup
 
 检测系统环境...

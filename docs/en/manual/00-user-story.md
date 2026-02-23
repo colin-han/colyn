@@ -25,7 +25,7 @@ Git worktrees could theoretically solve the parallelism problem, but `git worktr
 Xiao Ming discovers Colyn. Installation is quick:
 
 ```bash
-npm install -g colyn
+npm install -g colyn-cli
 ```
 
 Then configure shell integration — this is what allows Colyn to automatically switch directories after commands run:

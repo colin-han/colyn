@@ -27,10 +27,10 @@ This is the simplest installation method, suitable for most users.
 
 ```bash
 # Using npm
-npm install -g colyn
+npm install -g colyn-cli
 
 # Or using volta (recommended)
-volta install colyn
+volta install colyn-cli
 ```
 
 **Advantages**:
@@ -298,7 +298,7 @@ sudo yum install tmux
 # Visit https://volta.sh/ to download the Windows installer
 
 # Global installation of Colyn
-npm install -g colyn
+npm install -g colyn-cli
 ```
 
 **Notes**:
@@ -314,13 +314,13 @@ npm install -g colyn
 
 ```bash
 # Check for the latest version
-npm outdated -g colyn
+npm outdated -g colyn-cli
 
 # Update to the latest version
-npm update -g colyn
+npm update -g colyn-cli
 
 # Or use volta
-volta install colyn
+volta install colyn-cli
 ```
 
 ### Updating a Script Installation
@@ -348,10 +348,10 @@ source ~/.zshrc  # or ~/.bashrc
 ### Uninstalling an npm Installation
 
 ```bash
-npm uninstall -g colyn
+npm uninstall -g colyn-cli
 
 # Or use volta
-volta uninstall colyn
+volta uninstall colyn-cli
 ```
 
 ### Uninstalling a Script Installation
@@ -430,7 +430,7 @@ rm -rf /tmp/test-colyn
 ```bash
 # Use volta (recommended)
 curl https://get.volta.sh | bash
-volta install colyn
+volta install colyn-cli
 
 # Or fix npm permissions
 mkdir ~/.npm-global
@@ -449,7 +449,7 @@ wsl --install
 # Install inside WSL2
 wsl
 curl https://get.volta.sh | bash
-volta install colyn
+volta install colyn-cli
 ```
 
 ---

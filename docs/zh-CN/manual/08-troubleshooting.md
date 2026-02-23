@@ -25,7 +25,7 @@ which colyn
 npm list -g colyn
 
 # 如果未安装，重新安装
-npm install -g colyn
+npm install -g colyn-cli
 
 # 3. 如果已安装但找不到，检查 PATH
 echo $PATH
@@ -49,17 +49,17 @@ EACCES: permission denied
 ```bash
 # 方法 1: 使用 volta（推荐）
 curl https://get.volta.sh | bash
-volta install colyn
+volta install colyn-cli
 
 # 方法 2: 修复 npm 权限
 mkdir ~/.npm-global
 npm config set prefix '~/.npm-global'
 echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.zshrc
 source ~/.zshrc
-npm install -g colyn
+npm install -g colyn-cli
 
 # 方法 3: 使用 sudo（不推荐）
-sudo npm install -g colyn
+sudo npm install -g colyn-cli
 ```
 
 ### Q: Shell 集成配置失败

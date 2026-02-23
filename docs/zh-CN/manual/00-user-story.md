@@ -25,7 +25,7 @@ Git worktree 本可以解决并行的问题，但 `git worktree add ../my-projec
 小明发现了 Colyn。安装很快：
 
 ```bash
-npm install -g colyn
+npm install -g colyn-cli
 ```
 
 安装后配置 Shell 集成，这一步很关键——它让 Colyn 的命令执行后能自动切换到目标目录：
