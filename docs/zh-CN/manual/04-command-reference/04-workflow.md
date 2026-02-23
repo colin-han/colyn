@@ -111,6 +111,7 @@ colyn todo [子命令] [选项]
 | `edit [todoId] [message]` | 编辑 Todo 任务的描述 |
 | `remove [todoId]` | 删除任务（省略时交互式选择） |
 | `archive` | 归档所有已完成任务 |
+| `complete [todoId]` | 将待办任务标记为已完成 |
 | `uncomplete [todoId]` | 将已完成任务回退为待办 |
 
 ### Todo ID 格式
@@ -428,6 +429,39 @@ $ colyn todo uncomplete feature/login
 
 ---
 
+### colyn todo complete
+
+将 `pending` 状态的任务标记为 `completed`。省略 `todoId` 时，交互式选择待办任务。
+
+#### 语法
+
+```bash
+colyn todo complete [todoId]
+```
+
+#### 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `todoId` | 否 | 要标记完成的 Todo ID；省略时交互式选择 |
+
+#### 示例
+
+```bash
+# 交互式选择待办任务
+$ colyn todo complete
+? 选择要完成的任务
+❯ feature/login
+  bugfix/fix-crash
+✓ Todo "feature/login" 已标记为完成
+
+# 显式指定 ID
+$ colyn todo complete feature/login
+✓ Todo "feature/login" 已标记为完成
+```
+
+---
+
 ### 数据存储
 
 | 文件 | 说明 |
@@ -474,6 +508,7 @@ colyn todo archive -y
 - 需要新建 worktree 时，使用 `colyn add [branch]`；不传 `branch` 可交互选择（新建分支 / Todo 分支 / 本地分支）
 - 复用现有 worktree 时，使用 `colyn checkout [branch]`；不传 `branch` 同样可交互选择（新建分支 / Todo 分支 / 本地分支）
 - 在 `add/checkout` 交互列表中选择 Todo 分支时，也会像 `todo start` 一样输出 message、复制到剪贴板，并将 Todo 标记为完成
+- `todo complete` 只更新任务状态，不会触发分支切换与剪贴板复制
 - 描述（message）支持完整的 Markdown 语法，有助于在 Claude 会话中提供清晰的上下文
 - 定期执行 `colyn todo archive -y` 可保持待办列表整洁
 - 设置 `$EDITOR` 环境变量可以使用自己喜欢的编辑器编辑描述

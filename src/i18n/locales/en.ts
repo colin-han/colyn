@@ -911,6 +911,14 @@ Solution:
         success: 'Todo "{{todoId}}" reverted to pending',
         usingCurrentBranch: 'Using current branch name: {{branch}}',
       },
+      complete: {
+        description: 'Mark a pending Todo task as completed',
+        notFound: 'Todo "{{todoId}}" not found',
+        notPending: 'Todo "{{todoId}}" is not in pending status',
+        noPending: 'No pending tasks',
+        selectTodo: 'Select a task to complete',
+        success: 'Todo "{{todoId}}" marked as completed',
+      },
       edit: {
         description: 'Edit the message of a Todo task',
         notFound: 'Todo "{{todoId}}" not found',

@@ -562,6 +562,62 @@ export function register(program: Command): void {
       }
     });
 
+  // todo complete [todoId]
+  todo
+    .command('complete [todoId]')
+    .description(t('commands.todo.complete.description'))
+    .action(async (todoId: string | undefined) => {
+      try {
+        const paths = await getProjectPaths();
+        await validateProjectInitialized(paths);
+
+        const todoFile = await readTodoFile(paths.configDir);
+        const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+
+        let resolvedTodoId: string;
+
+        if (!todoId) {
+          if (pendingTodos.length === 0) {
+            outputInfo(t('commands.todo.complete.noPending'));
+            return;
+          }
+          resolvedTodoId = await selectTodo(pendingTodos, {
+            selectMessage: t('commands.todo.complete.selectTodo'),
+          });
+        } else {
+          resolvedTodoId = todoId;
+        }
+
+        let type: string;
+        let name: string;
+        try {
+          ({ type, name } = parseTodoId(resolvedTodoId));
+        } catch {
+          throw new ColynError(t('commands.todo.add.invalidFormat'));
+        }
+
+        const item = findTodo(todoFile.todos, type, name);
+        if (!item) {
+          throw new ColynError(t('commands.todo.complete.notFound', { todoId: resolvedTodoId }));
+        }
+
+        if (item.status !== 'pending') {
+          throw new ColynError(t('commands.todo.complete.notPending', { todoId: resolvedTodoId }));
+        }
+
+        item.status = 'completed';
+        item.startedAt = new Date().toISOString();
+        item.branch = `${type}/${name}`;
+        await saveTodoFile(paths.configDir, todoFile);
+
+        outputSuccess(t('commands.todo.complete.success', { todoId: resolvedTodoId }));
+        outputLine();
+      } catch (error) {
+        formatError(error);
+        process.exit(1);
+      }
+    });
+
   // todo edit [todoId] [message]
   todo
     .command('edit [todoId] [message]')

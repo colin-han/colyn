@@ -49,9 +49,9 @@ _colyn_completion() {
             ;;
 
         merge)
-            # merge [id|branch] [--push|--no-push]
+            # merge [id|branch] [options]
             if [[ $cur == -* ]]; then
-                local merge_opts="--push --no-push"
+                local merge_opts="--no-rebase --no-update --update-all --no-fetch --skip-build -v --verbose"
                 COMPREPLY=($(compgen -W "$merge_opts" -- "$cur"))
             elif [[ $cword -eq 2 ]]; then
                 # 补全 worktree ID 和分支名
@@ -174,7 +174,7 @@ _colyn_completion() {
             local subcommand="${words[2]}"
             # 第一级：补全子命令
             if [[ $cword -eq 2 ]]; then
-                COMPREPLY=($(compgen -W "add start list ls remove archive uncomplete edit" -- "$cur"))
+                COMPREPLY=($(compgen -W "add start list ls remove archive complete uncomplete edit" -- "$cur"))
                 return 0
             fi
             # 第二级：根据子命令补全参数
@@ -207,6 +207,11 @@ _colyn_completion() {
                 archive)
                     if [[ $cur == -* ]]; then
                         COMPREPLY=($(compgen -W "-y --yes" -- "$cur"))
+                    fi
+                    ;;
+                complete)
+                    if [[ $cword -eq 3 ]]; then
+                        _colyn_todo_ids
                     fi
                     ;;
                 uncomplete)
