@@ -242,57 +242,6 @@ export class PluginManager {
   }
 
   /**
-   * 运行所有激活插件的 publish
-   */
-  async runPublish(
-    worktreePath: string,
-    activePluginNames: string[],
-    verbose?: boolean
-  ): Promise<void> {
-    for (const plugin of this.getActivePlugins(activePluginNames)) {
-      if (!plugin.publish) continue;
-      try {
-        await plugin.publish(worktreePath);
-      } catch (error) {
-        if (error instanceof PluginCommandError) {
-          if (verbose) {
-            outputError(error.output);
-          }
-          throw error;
-        }
-        throw error;
-      }
-    }
-  }
-
-  /**
-   * 检查激活插件是否满足发布条件
-   */
-  async runCheckPublishable(
-    worktreePath: string,
-    activePluginNames: string[]
-  ): Promise<boolean> {
-    const activePlugins = this.getActivePlugins(activePluginNames);
-    for (const plugin of activePlugins) {
-      // 插件未实现 publish，则视为不可发布
-      if (!plugin.publish) {
-        return false;
-      }
-
-      if (!plugin.checkPublishable) {
-        continue;
-      }
-
-      const publishable = await plugin.checkPublishable(worktreePath);
-      if (!publishable) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
    * 读取当前版本号 — 返回第一个非 null 的结果
    */
   async runReadVersion(

@@ -317,7 +317,6 @@ colyn merge -v
 步骤 0b: Lint 检查
 步骤 0c: Build 检查
 步骤 3:  更新版本号
-步骤 4:  发布到包管理服务
 ```
 
 #### 1. 安装依赖
@@ -346,29 +345,13 @@ colyn merge -v
 
 > **注意**：如果激活的插件没有实现版本更新功能，`colyn release` 会报错终止，因为版本号更新是发布的必要步骤。
 
-#### 5. 发布到包管理服务
-
-发布前会先执行“可发布性检查”：
-- 检查结果为 **可发布**：执行 publish 命令
-- 检查结果为 **不可发布**：跳过该工具链并显示警告
-
-各插件执行对应的发布命令：
-
-| 插件 | 发布目标 | 命令 |
-|------|---------|------|
-| npm | npmjs.com | `npm publish`（或 yarn/pnpm 对应 publish 命令） |
-| maven | Maven 仓库（按 pom 配置） | `mvn deploy -DskipTests` |
-| gradle | Maven/Gradle 仓库（按项目配置） | `./gradlew publish` |
-| pip | Python 包仓库（按项目配置） | `poetry publish --build` 或 `python -m build && twine upload dist/*` |
-| xcode | Swift Package / 原生 App | Swift Package 依赖 git tag 分发（此阶段静默跳过） |
-
 #### 查看失败详情：`-v / --verbose`
 
 ```bash
 colyn release -v
 ```
 
-同 `colyn merge -v`，在 lint/build/publish 失败时显示完整输出。
+同 `colyn merge -v`，在 lint/build 失败时显示完整输出。
 
 ---
 

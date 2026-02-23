@@ -12,8 +12,6 @@ Automated version release process, including:
 6. ✅ Create git commit
 7. ✅ Create git tag
 8. ✅ Push to remote repository
-9. ✅ Check toolchain publishability (auto-skip when conditions are not met)
-10. ✅ Publish to package registry (via toolchain plugin)
 
 ## Usage
 
@@ -111,11 +109,6 @@ Step 8: Create git tag
 Step 9: Push to remote repository
   Pushing...
 ✓ Pushed to remote repository
-
-Step 10: Publish to package registry
-  Checking toolchain publishability...
-  Publishing to package registry...
-✓ Published to package registry
 
 === Release Complete! ===
 
@@ -218,25 +211,6 @@ git tag -d v1.2.1
 git reset --hard HEAD~1
 
 # Re-run release script after fixing the issue
-```
-
-### Package Publish Failed
-
-**Error message**:
-```
-✗ Failed to publish to package registry
-```
-
-**Solution**:
-```bash
-# 1. Check login status (npm example)
-npm whoami
-
-# 2. Check publish configuration (registry, credentials, permissions)
-npm config get registry
-
-# 3. Retry publish command manually after fixing (npm example)
-npm publish
 ```
 
 ## Rollback Release

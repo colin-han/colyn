@@ -1,7 +1,7 @@
 # Release 命令设计文档（用户交互视角）
 
 **创建时间**：2026-02-09
-**最后更新**：2026-02-23
+**最后更新**：2026-02-10
 **命令名称**：`colyn release`
 **状态**：✅ 已实现
 
@@ -11,7 +11,7 @@
 
 ### 1.1 背景
 
-当前发布流程依赖 `yarn release:patch/minor/major` 或 `node scripts/release.js <type>`。该流程包含 git 状态校验、版本号更新、编译、提交、打 tag、推送与发布到包管理服务等步骤。
+当前发布流程依赖 `yarn release:patch/minor/major` 或 `node scripts/release.js <type>`。该流程包含 git 状态校验、版本号更新、编译、提交、打 tag 与推送等步骤。
 
 在 Worktree 场景中，用户可能不在 Main Branch 目录，导致发布操作分散或误操作。需要提供统一入口，**无论从哪个目录执行，始终在 Main Branch 中完成发布**。
 
@@ -20,7 +20,6 @@
 - 使用一条 `colyn release` 命令完成现有发布流程
 - 不必手动切换到 Main Branch 目录
 - 行为与现有 `yarn release:xxx` 保持一致
-- 自动发布到对应的包管理服务（如 npmjs.com）
 - 发布后自动将最新代码同步到所有 Worktree
 
 ### 1.3 核心价值
@@ -28,7 +27,6 @@
 - ✅ **统一入口**：替代 `yarn release:xxx` 的命令门面
 - ✅ **强制主分支**：永远在 Main Branch 目录执行发布
 - ✅ **流程一致**：复用现有发布脚本逻辑
-- ✅ **统一发布**：通过工具链插件发布到对应包管理服务
 - ✅ **自动同步**：发布后自动更新所有 Worktree（可通过 `--no-update` 跳过）
 
 ---
@@ -108,10 +106,8 @@ $ colyn release major
 4. **检查当前目录是否有未提交的代码 - 如果有，报错退出**
 5. **检查当前分支是否已合并到主分支（仅在 worktree 中执行时）- 如果未合并，报错退出**
 6. 进入 Main Branch 目录执行发布流程
-7. 在 Main Branch 目录完成 git push 后，先执行“可发布性检查”
-8. 对满足发布条件的工具链执行“发布到包管理服务”阶段
-9. **发布成功后，自动更新所有 Worktree（除非指定 `--no-update`）**
-10. 返回发布结果
+7. **发布成功后，自动更新所有 Worktree（除非指定 `--no-update`）**
+8. 返回发布结果
 
 ---
 
@@ -139,8 +135,6 @@ $ colyn release major
 | 更新版本号 | `bumpVersion()` | 更新 `package.json` | `mvn versions:set` |
 | 创建提交与 tag | （通用逻辑） | 与工具链无关 | 与工具链无关 |
 | 推送到远程 | （通用逻辑） | 与工具链无关 | 与工具链无关 |
-| 发布可行性检查 | `runCheckPublishable()` | `private: true`、缺少 name/version 时跳过发布 | 缺少发布仓库配置时跳过发布 |
-| 发布到包管理服务 | `runPublish()` | `npm publish`（或 yarn/pnpm 对应命令） | `mvn deploy` / `./gradlew publish` |
 
 > **注意**：若项目未配置任何插件（`plugins: []`），则回退到原有的 `yarn install/lint/build` 逻辑（向后兼容）。
 
@@ -172,8 +166,6 @@ $ colyn release major
 - 项目未初始化：提示先执行 `colyn init`
 - 当前目录有未提交代码：报错退出，提示先提交代码
 - 当前分支未合并（在 worktree 中）：报错退出，提示先合并分支
-- 不满足发布条件：跳过对应工具链的发布，并给出提示
-- 发布到包管理服务失败：报错退出，提示检查认证信息与仓库配置
 - 发布脚本任一步骤失败：输出明确错误与回滚建议
 
 ---

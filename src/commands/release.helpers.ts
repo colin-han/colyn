@@ -5,8 +5,7 @@ import {
   outputSuccess,
   outputBold,
   outputStep,
-  outputInfo,
-  outputWarning
+  outputInfo
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
 import { pluginManager } from '../plugins/index.js';
@@ -280,41 +279,6 @@ export async function executeRelease(
   outputInfo(t('commands.release.pushing'));
   await pushToRemote(dir, currentBranch, tagName);
   outputSuccess(t('commands.release.pushSucceeded'));
-
-  // 步骤 10: 发布到包管理服务（通过工具链插件）
-  if (contexts.length > 0) {
-    outputLine();
-    outputBold(t('commands.release.step10'));
-    outputInfo(t('commands.release.runningPublish'));
-    outputInfo(t('commands.release.checkingPublishable'));
-
-    let publishedCount = 0;
-    let skippedCount = 0;
-
-    for (const ctx of contexts) {
-      const publishable = await pluginManager.runCheckPublishable(ctx.absolutePath, [ctx.toolchainName]);
-      if (!publishable) {
-        skippedCount += 1;
-        outputWarning(t('commands.release.publishSkippedForToolchain', {
-          toolchain: ctx.toolchainName,
-          path: ctx.subPath
-        }));
-        continue;
-      }
-
-      await pluginManager.runPublish(ctx.absolutePath, [ctx.toolchainName], verbose);
-      publishedCount += 1;
-    }
-
-    if (publishedCount === 0) {
-      outputWarning(t('commands.release.publishSkippedAll'));
-    } else {
-      outputSuccess(t('commands.release.publishSucceeded'));
-      if (skippedCount > 0) {
-        outputWarning(t('commands.release.publishSkippedSummary', { count: skippedCount }));
-      }
-    }
-  }
 
   return newVersion;
 }

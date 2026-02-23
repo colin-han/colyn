@@ -269,39 +269,20 @@ export interface ToolchainPlugin {
    * @param version 新版本号（如 "1.2.0"）
    */
   bumpVersion?(worktreePath: string, version: string): Promise<void>;
-
-  /**
-   * 发布到包管理服务
-   *
-   * 在 `colyn release` 完成 push 后调用。
-   * 未实现则静默跳过。
-   *
-   * @param worktreePath 执行发布的目录路径
-   * @throws {PluginCommandError} 发布失败时，output 包含命令输出
-   */
-  publish?(worktreePath: string): Promise<void>;
-
-  /**
-   * 检查当前项目是否满足发布条件
-   *
-   * 在 `colyn release` 的发布阶段前调用。
-   * 返回 false 时跳过该工具链的 publish。
-   */
-  checkPublishable?(worktreePath: string): Promise<boolean>;
 }
 ```
 
 ### 2.2 设计原则
 
-1. **直接执行**：操作类方法（`install`、`lint`、`build`、`bumpVersion`、`publish`）由插件自行执行，失败时抛出异常，colyn 捕获后显示错误并终止当前命令
+1. **直接执行**：操作类方法（`install`、`lint`、`build`、`bumpVersion`）由插件自行执行，失败时抛出异常，colyn 捕获后显示错误并终止当前命令
 2. **可选扩展点**：所有方法均为可选，插件只需实现关心的部分
 3. **路径由插件决定**：`readRuntimeConfig` 和 `writeRuntimeConfig` 均接收 `worktreePath`，由插件自行推断应读写哪个配置文件（npm 插件用 `.env.local`，maven 插件用 `application-local.properties`）
-4. **阶段失败语义**：lint 失败、build 失败、publish 失败均会阻止后续步骤
+4. **阶段失败语义**：lint 失败、build 失败均会阻止后续步骤
 5. **缺失静默跳过（lint/build）**：若工具链没有对应脚本，插件内部静默跳过，不视为失败
 6. **缺失报错（bumpVersion）**：已激活插件若未实现 `bumpVersion`，PluginManager 报错终止 release
 7. **插件自主读配置**：`install` 等需要 npm/yarn/pnpm 命令的方法，由插件自行读取 `.colyn/settings.json` 获取 `systemCommands.npm` 配置
 8. **工具链信息分离**：`devServerCommand` 只返回命令数组，不执行——执行职责留给 terminal session 插件
-9. **结构化失败信息**：lint / build / publish 失败时抛出 `PluginCommandError`，`output` 字段携带命令的完整输出；所有 colyn 命令支持 `-v` / `--verbose` 选项，开启后在失败时展示详情
+9. **结构化失败信息**：lint / build 失败时抛出 `PluginCommandError`，`output` 字段携带命令的完整输出；所有 colyn 命令支持 `-v` / `--verbose` 选项，开启后在失败时展示详情
 10. **gitignore 由调用方统一管理**：插件通过 `getRuntimeConfigFileName()` 声明运行时配置文件名，由 `PluginManager.ensureRuntimeConfigIgnored()` 统一负责将其加入 `.gitignore`，插件无需自行操作文件系统
 11. **插件专属配置持久化**：部分插件（如 Xcode）需要构建参数等无法自动推断的配置。插件通过 `repairSettings(context)` 方法识别并交互式获取这些配置，由调用方（toolchain-resolver）保存到 `settings.json` 的 `toolchain.settings`（单项目）或 `projects[i].toolchain.settings`（Mono Repo）字段；后续命令（如 `build`）从 `currentSettings` 读取，无需重复询问
 
@@ -325,8 +306,6 @@ export interface ToolchainPlugin {
 | `lint` | 检查 `package.json` 有无 `scripts.lint`，有则执行，无则静默跳过 |
 | `build` | 检查 `package.json` 有无 `scripts.build`，有则执行，无则静默跳过 |
 | `bumpVersion` | 更新 `package.json` 的 `version` 字段 |
-| `publish` | 执行 `npm publish`（或 yarn/pnpm 对应 publish 命令） |
-| `checkPublishable` | 检查 `private`、`name`、`version`，不满足则跳过 publish |
 
 > **说明**：`install` 通过读取 `.colyn/settings.json`（从 worktreePath 向上查找）获取 `systemCommands.npm`，决定使用 npm / yarn / pnpm。
 
@@ -346,8 +325,6 @@ export interface ToolchainPlugin {
 | `lint` | 检查 `pom.xml` 是否配置 checkstyle，有则执行 `mvn checkstyle:check`，无则静默跳过 |
 | `build` | 执行 `mvn package -DskipTests`，失败则静默跳过（如无 package 目标） |
 | `bumpVersion` | 执行 `mvn versions:set -DnewVersion={version} -DgenerateBackupPoms=false` |
-| `publish` | 执行 `mvn deploy -DskipTests` |
-| `checkPublishable` | 检查 `pom.xml` 是否包含 `<distributionManagement>` |
 
 > **本地 profile 说明**：Spring Boot 会在主配置（`application.properties`）之上叠加激活 profile 的配置文件。`application-local.properties` 通过 `spring.profiles.active=local` 激活，包含仅供本地开发使用的端口、数据库等配置，不应提交到 git 仓库。
 
@@ -367,8 +344,6 @@ export interface ToolchainPlugin {
 | `lint` | 检查是否配置 checkstyle plugin，有则执行 `./gradlew checkstyleMain`，无则静默跳过 |
 | `build` | 执行 `./gradlew build`，静默跳过如构建目标不存在 |
 | `bumpVersion` | 修改 `build.gradle` / `build.gradle.kts` 中的 `version` 属性 |
-| `publish` | 执行 `./gradlew publish` |
-| `checkPublishable` | 检查是否配置 `maven-publish` 或 `publishing {}` |
 
 ### 3.4 pip 插件
 
@@ -386,8 +361,6 @@ export interface ToolchainPlugin {
 | `lint` | 检测到 `ruff.toml` 或 `ruff` 配置则执行 `ruff check .`，否则尝试 `flake8`，均无则静默跳过 |
 | `build` | 不实现（Python 通常无需构建步骤） |
 | `bumpVersion` | 检测到 `pyproject.toml` 则更新其 `version` 字段，否则更新 `setup.py` 的 `version=` |
-| `publish` | Poetry 项目执行 `poetry publish --build`，其他项目执行 `python -m build && twine upload dist/*` |
-| `checkPublishable` | 检查是否存在可发布元数据（`[tool.poetry]` / `[project]` / `setup.py`） |
 
 ---
 
@@ -503,19 +476,6 @@ class PluginManager {
     version: string,
     activePluginNames: string[]
   ): Promise<void>;
-
-  /**
-   * 调用所有激活插件的 publish（任一插件抛出异常则整体失败）
-   *
-   * @param verbose 为 true 时，捕获 PluginCommandError 后将 output 展示给用户
-   */
-  async runPublish(worktreePath: string, activePluginNames: string[], verbose?: boolean): Promise<void>;
-
-  /**
-   * 检查激活插件是否满足发布条件
-   * 任一插件返回 false，则该 context 视为不可发布
-   */
-  async runCheckPublishable(worktreePath: string, activePluginNames: string[]): Promise<boolean>;
 
   /**
    * 返回第一个激活插件中 portConfig() 不为 null 的配置
@@ -765,16 +725,6 @@ for (const ctx of contexts) {
 for (const ctx of contexts) {
   await pluginManager.runBumpVersion(ctx.absolutePath, newVersion, [ctx.toolchainName]);
 }
-const publishableContexts: ToolchainContext[] = [];
-for (const ctx of contexts) {
-  const publishable = await pluginManager.runCheckPublishable(ctx.absolutePath, [ctx.toolchainName]);
-  if (publishable) {
-    publishableContexts.push(ctx);
-  }
-}
-for (const ctx of publishableContexts) {
-  await pluginManager.runPublish(ctx.absolutePath, [ctx.toolchainName], verbose);
-}
 ```
 
 ### 6.5 `colyn repair` 命令
@@ -793,7 +743,7 @@ for (const ctx of contexts) {
 
 > **install 的两个触发场景**：
 > - `colyn add`（worktree 目录）：为新 worktree 安装依赖，便于立即开始开发
-> - `colyn release`（主分支目录）：release 前在主分支确保依赖最新，避免因依赖缺失导致 lint/build 失败；release 后执行 publish
+> - `colyn release`（主分支目录）：release 前在主分支确保依赖最新，避免因依赖缺失导致 lint/build 失败
 
 ---
 
@@ -844,7 +794,7 @@ export const ConfigSchema = z.union([
 `resolveToolchains` 检测失败（所有目录均无工具链匹配）时：
 - 保存 `toolchain: null` 到 settings.json
 - 返回空数组（`[]`）
-- 命令继续执行，跳过所有工具链相关步骤（不 install、不 lint、不 bumpVersion、不 publish）
+- 命令继续执行，跳过所有工具链相关步骤（不 install、不 lint、不 bumpVersion）
 
 ---
 
@@ -897,7 +847,7 @@ src/
 5. 集成到 `colyn init`（通过 toolchain-resolver 检测 + 配置写入）
 6. 集成到 `colyn add`（配置复制 + 依赖安装，支持 Mono Repo）
 7. 集成到 `colyn merge`（lint/build 预检）
-8. 集成到 `colyn release`（lint + build + bumpVersion + publish）
+8. 集成到 `colyn release`（lint + build + bumpVersion）
 9. 实现 V3→V4 Zod transform 迁移
 
 ### 阶段三：更多插件（已完成）

@@ -40,9 +40,7 @@ colyn release [version-type] [options]
 6. Update package.json version
 7. Create commit and tag
 8. Push to remote
-9. Check whether each toolchain context is publishable (skip with warning when not)
-10. Publish to package registry (via toolchain plugin)
-11. **Auto-update all worktrees (unless `--no-update` is used)**
+9. **Auto-update all worktrees (unless `--no-update` is used)**
 
 ### Location Rules
 

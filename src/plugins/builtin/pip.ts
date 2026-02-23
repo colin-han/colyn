@@ -216,33 +216,4 @@ export const pipPlugin: ToolchainPlugin = {
       );
     }
   },
-
-  async publish(worktreePath: string): Promise<void> {
-    const pyprojectContent = await readPyprojectToml(worktreePath);
-    const hasPoetry = pyprojectContent !== null && pyprojectContent.includes('[tool.poetry]');
-    const publishCmd = hasPoetry
-      ? 'poetry publish --build'
-      : 'python -m build && twine upload dist/*';
-
-    try {
-      execSync(publishCmd, {
-        cwd: worktreePath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    } catch (error) {
-      throw new PluginCommandError(`${publishCmd} failed`, extractOutput(error));
-    }
-  },
-
-  async checkPublishable(worktreePath: string): Promise<boolean> {
-    const pyprojectContent = await readPyprojectToml(worktreePath);
-    if (pyprojectContent !== null) {
-      return (
-        pyprojectContent.includes('[tool.poetry]') ||
-        pyprojectContent.includes('[project]')
-      );
-    }
-
-    return fsSync.existsSync(path.join(worktreePath, 'setup.py'));
-  },
 };

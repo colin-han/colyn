@@ -317,7 +317,6 @@ Step 0a: Install dependencies (ensure dependencies are up to date)
 Step 0b: Lint check
 Step 0c: Build check
 Step 3:  Bump version number
-Step 4:  Publish to package registry
 ```
 
 #### 1. Install Dependencies
@@ -346,29 +345,13 @@ Each plugin updates its own version file:
 
 > **Note**: If the active plugin does not implement version bumping, `colyn release` will report an error and stop, because updating the version number is a required step for a release.
 
-#### 5. Publish to Package Registry
-
-Before publishing, Colyn runs a publishability check:
-- **Publishable**: execute the publish command
-- **Not publishable**: skip that toolchain context and show a warning
-
-Each plugin executes its corresponding publish command:
-
-| Plugin | Publish target | Command |
-|--------|----------------|---------|
-| npm | npmjs.com | `npm publish` (or yarn/pnpm equivalent publish command) |
-| maven | Maven repository (from pom config) | `mvn deploy -DskipTests` |
-| gradle | Maven/Gradle repository (from project config) | `./gradlew publish` |
-| pip | Python package repository (from project config) | `poetry publish --build` or `python -m build && twine upload dist/*` |
-| xcode | Swift Package / native app | Swift Package is distributed via git tags (silently skipped in this stage) |
-
 #### View Failure Details: `-v / --verbose`
 
 ```bash
 colyn release -v
 ```
 
-Same as `colyn merge -v`; shows full output when lint/build/publish fails.
+Same as `colyn merge -v`; shows full output when lint/build fails.
 
 ---
 

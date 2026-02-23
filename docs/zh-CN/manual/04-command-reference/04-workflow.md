@@ -40,9 +40,7 @@ colyn release [version-type] [选项]
 6. 更新 package.json 版本
 7. 创建提交与 tag
 8. 推送到远程
-9. 检查工具链是否满足发布条件（不满足则跳过并提示）
-10. 发布到包管理服务（由工具链插件执行）
-11. **自动更新所有 worktree（除非使用 `--no-update`）**
+9. **自动更新所有 worktree（除非使用 `--no-update`）**
 
 ### 运行位置规则
 
