@@ -229,6 +229,36 @@ function truncStr(s: string, maxW: number): string {
   return result + '…';
 }
 
+/** 按显示宽度软换行，返回每一行（不包含换行符） */
+function wrapByWidth(s: string, maxW: number): string[] {
+  if (maxW <= 0) return [''];
+  if (s.length === 0) return [''];
+
+  const lines: string[] = [];
+  let current = '';
+  let width = 0;
+
+  for (const ch of s) {
+    const chWidth = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+
+    if (width > 0 && width + chWidth > maxW) {
+      lines.push(current);
+      current = ch;
+      width = chWidth;
+      continue;
+    }
+
+    current += ch;
+    width += chWidth;
+  }
+
+  if (current.length > 0) {
+    lines.push(current);
+  }
+
+  return lines.length > 0 ? lines : [''];
+}
+
 // enquirer Select 类的构造函数类型（enquirer 未导出内部类型）
 type SelectCtor = new (options: Record<string, unknown>) => {
   run(): Promise<string>;
@@ -238,55 +268,159 @@ type SelectCtor = new (options: Record<string, unknown>) => {
 };
 
 /**
- * 交互式选择 pending 任务
+ * Todo 交互式选择参数
+ */
+export interface TodoSelectOptions {
+  selectMessage: string;
+  showStatus?: boolean;
+  statusLabels?: Record<string, string>;
+  previewLineCount?: number;
+  initial?: number;
+}
+
+/**
+ * 带预览区域的通用选择项
+ */
+export interface PreviewSelectItem {
+  value: string;
+  label: string;
+  labelDisplay?: string;
+  summary: string;
+  preview?: string;
+}
+
+/**
+ * 带预览区域的通用选择参数
+ */
+export interface PreviewSelectOptions {
+  selectMessage: string;
+  previewLineCount?: number;
+  initial?: number;
+}
+
+/**
+ * 生成 Todo ID 双列标签：
+ * - type 列固定宽度（灰色）
+ * - name 列突出显示
+ */
+export function formatTodoIdLabel(
+  type: string,
+  name: string,
+  typeWidth: number,
+): { plain: string; display: string } {
+  const paddedType = padWidth(type, typeWidth);
+  const gap = '  ';
+  return {
+    plain: `${paddedType}${gap}${name}`,
+    display: `${chalk.gray(paddedType)}${gap}${chalk.bold(name)}`,
+  };
+}
+
+/**
+ * 带预览区域的通用交互式选择器
+ * - 左侧显示 label，右侧显示 summary 首行并按终端宽度截断
+ * - 下方固定预留 previewLineCount 行显示 preview
+ */
+export async function selectWithPreview(
+  items: PreviewSelectItem[],
+  options: PreviewSelectOptions,
+): Promise<string> {
+  if (items.length === 0) {
+    throw new Error('No selectable items provided');
+  }
+
+  const { selectMessage, previewLineCount = 4, initial = 0 } = options;
+  const termW = process.stderr.columns ?? process.stdout.columns ?? 80;
+  const previewMap = new Map<string, string>(items.map(item => [item.value, item.preview ?? '']));
+
+  const maxLabelW = Math.max(...items.map(item => strWidth(item.label)));
+  // enquirer select 左侧渲染"❯ "前缀加内边距，保守估计占用 6 列
+  const msgAvail = Math.max(1, termW - maxLabelW - 2 - 6);
+  const previewWidth = Math.max(1, termW - 2);
+
+  const choices = items.map(item => ({
+    name: item.value,
+    message: `${item.labelDisplay ?? item.label}${' '.repeat(Math.max(0, maxLabelW - strWidth(item.label)))}  ${chalk.gray(truncStr(item.summary, msgAvail))}`,
+  }));
+
+  const EnquirerSelect = (Enquirer as unknown as { Select: SelectCtor }).Select;
+
+  class PreviewSelect extends EnquirerSelect {
+    async footer(): Promise<string> {
+      if (this.index >= this.choices.length) {
+        return '\n' + Array.from({ length: previewLineCount }, () => '  ').join('\n');
+      }
+      const choice = this.choices[this.index];
+      const msg = previewMap.get(choice.name ?? '') ?? '';
+      const displayLines = msg
+        ? msg.split('\n').flatMap(line => wrapByWidth(line, previewWidth)).slice(0, previewLineCount)
+        : [];
+
+      while (displayLines.length < previewLineCount) {
+        displayLines.push('');
+      }
+
+      return '\n' + displayLines
+        .map(line => `  ${chalk.gray(padWidth(line, previewWidth))}`)
+        .join('\n');
+    }
+  }
+
+  const select = new PreviewSelect({
+    name: 'value',
+    message: selectMessage,
+    choices,
+    initial,
+    stdout: process.stderr,
+  });
+
+  return select.run();
+}
+
+/**
+ * 交互式选择任务
  * - 每行仅显示 message 首行，按终端宽度截断
  * - 选中项下方显示 message 前 4 行预览
+ */
+export async function selectTodo(todos: TodoItem[], options: TodoSelectOptions): Promise<string> {
+  const {
+    selectMessage,
+    showStatus = false,
+    statusLabels = {},
+    previewLineCount = 4,
+    initial = 0,
+  } = options;
+  const maxTypeW = Math.max(...todos.map(item => strWidth(item.type)));
+
+  const items: PreviewSelectItem[] = todos.map(item => {
+    const id = `${item.type}/${item.name}`;
+    const firstLine = item.message.split('\n')[0];
+    const statusPrefix = showStatus ? `${statusLabels[item.status] ?? item.status}: ` : '';
+    const todoLabel = formatTodoIdLabel(item.type, item.name, maxTypeW);
+    return {
+      value: id,
+      label: todoLabel.plain,
+      labelDisplay: todoLabel.display,
+      summary: `${statusPrefix}${firstLine}`,
+      preview: item.message,
+    };
+  });
+
+  return selectWithPreview(items, {
+    selectMessage,
+    previewLineCount,
+    initial,
+  });
+}
+
+/**
+ * 兼容旧调用：仅选择 pending 任务
  */
 export async function selectPendingTodo(
   pendingTodos: TodoItem[],
   selectMessage: string,
 ): Promise<string> {
-  const termW = process.stderr.columns ?? process.stdout.columns ?? 80;
-
-  const todoMap = new Map<string, string>(
-    pendingTodos.map(item => [`${item.type}/${item.name}`, item.message]),
-  );
-
-  const maxIdW = Math.max(...pendingTodos.map(item => strWidth(`${item.type}/${item.name}`)));
-  // enquirer select 左侧渲染"❯ "前缀加内边距，保守估计占用 6 列
-  const msgAvail = Math.max(10, termW - maxIdW - 2 - 6);
-
-  const choices = pendingTodos.map(item => {
-    const id = `${item.type}/${item.name}`;
-    const firstLine = item.message.split('\n')[0];
-    return {
-      name: id,
-      message: `${padWidth(id, maxIdW)}  ${chalk.gray(truncStr(firstLine, msgAvail))}`,
-    };
-  });
-
-  const EnquirerSelect = (Enquirer as unknown as { Select: SelectCtor }).Select;
-
-  class TodoSelect extends EnquirerSelect {
-    async footer(): Promise<string> {
-      if (this.index >= this.choices.length) return '';
-      const choice = this.choices[this.index];
-      const id = choice.name ?? '';
-      const msg = todoMap.get(id) ?? '';
-      if (!msg) return '';
-      const lines = msg.split('\n').slice(0, 4);
-      return '\n' + lines.map(line => `  ${chalk.gray(line)}`).join('\n');
-    }
-  }
-
-  const select = new TodoSelect({
-    name: 'todoId',
-    message: selectMessage,
-    choices,
-    stdout: process.stderr,
-  });
-
-  return select.run();
+  return selectTodo(pendingTodos, { selectMessage });
 }
 
 /**
