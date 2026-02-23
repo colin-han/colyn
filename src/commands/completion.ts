@@ -117,8 +117,12 @@ _colyn() {
                 merge)
                     _arguments \\
                         '1: :_colyn_worktrees' \\
-                        '--push[${e(t('commands.merge.pushOption'))}]' \\
-                        '--no-push[${e(t('commands.merge.noPushOption'))}]'
+                        '--no-rebase[${e(t('commands.merge.noRebaseOption'))}]' \\
+                        '--no-update[${e(t('commands.merge.noUpdateOption'))}]' \\
+                        '--update-all[${e(t('commands.merge.updateAllOption'))}]' \\
+                        '--no-fetch[${e(t('commands.merge.noFetchOption'))}]' \\
+                        '--skip-build[${e(t('commands.merge.skipBuildOption'))}]' \\
+                        '(-v --verbose)'{-v,--verbose}'[${e(t('commands.merge.verboseOption'))}]'
                     ;;
                 update)
                     _arguments \\

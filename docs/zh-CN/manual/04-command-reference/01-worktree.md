@@ -504,8 +504,6 @@ colyn merge [target] [选项]
 
 | 选项 | 说明 |
 |------|------|
-| `--push` | 合并后自动推送到远程 |
-| `--no-push` | 合并后不推送（跳过询问） |
 | `--no-rebase` | 使用 merge 而非 rebase 更新 worktree |
 | `--no-update` | 合并后不自动更新当前 worktree |
 | `--update-all` | 合并后更新所有 worktrees |
@@ -542,9 +540,6 @@ $ colyn merge 1
 
 # 通过分支名合并
 $ colyn merge feature/login
-
-# 合并后自动推送
-$ colyn merge 1 --push
 ```
 
 ### 处理合并冲突

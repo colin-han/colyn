@@ -1,7 +1,7 @@
 # Merge Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-15
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-02-23 (updated: removed remote push stage from merge command)
 **Command**: `colyn merge`
 **Status**: ✅ Implemented
 
@@ -15,8 +15,7 @@ After completing feature development in a worktree, users need to merge their co
 1. Manually switching to the main branch directory
 2. Executing git merge command
 3. Handling potential conflicts
-4. Pushing to the remote repository
-5. Manually cleaning up the worktree
+4. Manually cleaning up the worktree
 
 This process is cumbersome and error-prone.
 
@@ -32,7 +31,7 @@ Provide a simple command that automatically completes all steps of the worktree 
 - ✅ **Code Quality Checks**: Automatically run lint and build before merging to ensure code quality
 - ✅ **Linear History**: Use rebase by default to produce linear commit history
 - ✅ **Clear History**: Use --no-ff to maintain clear branch history
-- ✅ **Flexible Push**: Optional auto-push or manual push
+- ✅ **Remote Decoupling**: Merge command handles local merge only, no push execution
 - ✅ **Preserve Worktree**: Retain after merge, let user decide on deletion
 
 ---
@@ -64,11 +63,7 @@ sequenceDiagram
         G->>C: Rebase successful
         C->>G: Step 2: git merge --no-ff feature/login (in main branch)
         G->>C: Merge successful
-        C->>U: ✓ Merge successful!<br/>? Push to remote repository? (y/N)
-        U->>C: y
-        C->>G: git push origin main
-        G->>C: Push successful
-        C->>U: ✓ Merge complete and pushed to remote!
+        C->>U: ✓ Merge successful!
     else Working directory dirty or code quality check failed
         C->>U: ✗ Main branch/Worktree has uncommitted changes or Lint/Build failed<br/>Please fix and retry
     end
@@ -104,10 +99,6 @@ Merge info:
   Main branch: main
   Merged branch: feature/login
   Commit: a1b2c3d Merge branch 'feature/login'
-
-? Push to remote repository? (y/N) › Yes
-
-✓ Merge complete and pushed to remote!
 
 Next steps:
   1. View merged code:
@@ -147,15 +138,15 @@ Detected worktree:
 
 ---
 
-### 2.3 Scenario 3: Quick Merge and Push
+### 2.3 Scenario 3: Quick Merge (Local Only)
 
-**User Situation**: Certain about pushing, don't want to be prompted
+**User Situation**: Wants to complete local merge quickly and push later manually
 
 ```bash
-$ colyn merge feature/login --push
+$ colyn merge feature/login
 
-# Auto-push after merge, no prompt
-✓ Merge complete and pushed to remote!
+# Command only performs local merge, it does not run git push
+✓ Merge complete!
 ```
 
 ---
@@ -372,39 +363,23 @@ git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 
 ---
 
-### 3.4 Push Strategy
+### 3.4 Remote Push Strategy
 
 ```mermaid
 graph TD
-    MergeSuccess[Merge successful] --> CheckFlag{Push parameter?}
+    MergeSuccess[Merge successful] --> Done[✓ Merge complete]
+    Done --> Hint[User runs git push manually when needed]
 
-    CheckFlag -->|--push| AutoPush[Auto push]
-    CheckFlag -->|--no-push| SkipPush[Skip push]
-    CheckFlag -->|No parameter| AskUser[? Push to remote repository?<br/>Y/n]
-
-    AskUser -->|Yes| ManualPush[Execute push]
-    AskUser -->|No| SkipPush
-
-    AutoPush --> PushResult{Push successful?}
-    ManualPush --> PushResult
-
-    PushResult -->|Yes| Success[✓ Merge complete and pushed]
-    PushResult -->|No| Error[✗ Push failed<br/>Display error message]
-
-    SkipPush --> Done[✓ Merge complete<br/>Prompt to push manually later]
-
-    style Success fill:#ccffcc
     style Done fill:#ccffcc
-    style Error fill:#ffcccc
+    style Hint fill:#ccffcc
 ```
 
-**Three modes**:
+**Design rule**:
 
-| Mode | Command | Behavior |
-|------|---------|----------|
-| Auto push | `colyn merge <target> --push` | Auto push after merge, no prompt |
-| Skip push | `colyn merge <target> --no-push` | Don't push after merge, no prompt |
-| Ask user | `colyn merge <target>` | Prompt user whether to push (default) |
+| Rule | Behavior |
+|------|----------|
+| `colyn merge` | Performs local merge only |
+| Remote push | User executes `git push` manually from main directory |
 
 ---
 
@@ -432,8 +407,10 @@ Worktree is **not deleted** after successful merge:
 | Input | Required | Description | Validation |
 |-------|----------|-------------|------------|
 | ID or branch name | No | Specify worktree to merge<br/>Auto-detect if no parameter | - Numbers treated as ID<br/>- Contains `/` treated as branch name |
-| `--push` | No | Auto push after merge | Mutually exclusive with `--no-push` |
-| `--no-push` | No | Don't push after merge (skip prompt) | Mutually exclusive with `--push` |
+| `--no-rebase` | No | Use merge instead of rebase to update worktree | Rebase by default |
+| `--no-update` | No | Do not auto-update current worktree after merge | Auto-update by default |
+| `--update-all` | No | Update all worktrees after merge | Mutually exclusive with `--no-update` |
+| `--no-fetch` | No | Skip pulling latest main branch from remote | Useful for offline or no-upstream scenarios |
 | `--skip-build` | No | Skip lint and build checks | Use for urgent merges or when code is already verified |
 | `--verbose` / `-v` | No | Show full command output when lint/build fails | Use when debugging lint/build errors |
 
@@ -454,7 +431,7 @@ Executing merge: git merge --no-ff ...
 
 **Success info**:
 ```
-✓ Merge complete and pushed to remote!
+✓ Merge successful!
 
 Next steps:
   1. View merged code: cd my-project
@@ -477,7 +454,6 @@ Next steps:
 | **Lint check failed** | ✗ Lint check failed<br/>Error: ... | Fix lint errors and retry<br/>cd worktrees/task-1 && yarn lint |
 | **Build failed** | ✗ Build failed<br/>Error: ... | Fix build errors and retry<br/>cd worktrees/task-1 && yarn build |
 | **Merge conflict** | ✗ Conflict during merge<br/>Conflict files: ...<br/>Resolution steps: ... | Manually resolve conflicts<br/>Won't auto-rollback |
-| **Push failed** | ✗ Failed to push to remote repository<br/>Error message: ...<br/>Local merge complete, can push manually later | Check network and permissions<br/>Manual push: cd my-project && git push |
 
 ---
 
@@ -520,12 +496,11 @@ Next steps:
 - [x] Run lint check, refuse merge on failure and display error details
 - [x] Run build check, refuse merge on failure and display error details
 
-### 7.3 Push Functionality
+### 7.3 Remote Push Responsibility
 
-- [x] `--push` parameter: auto push after merge
-- [x] `--no-push` parameter: don't push after merge (skip prompt)
-- [x] No parameter: prompt user whether to push (default behavior)
-- [x] Provide clear error message on push failure
+- [x] `colyn merge` does not execute `git push`
+- [x] No `--push` / `--no-push` options
+- [x] After merge, users can push manually when needed
 
 ### 7.4 Conflict Handling
 
@@ -585,25 +560,18 @@ A: System detects and refuses merge, prompting:
 ### Q4: How to continue after merge conflict?
 
 A: System preserves conflict state, user needs to:
-1. Enter main branch directory
+1. Enter the conflicted worktree directory
 2. Manually resolve conflict files
 3. `git add <file>`
-4. `git commit`
-5. Optional: `git push`
+4. If using default rebase: run `git rebase --continue`
+5. If you need to abort: run `git rebase --abort`
+6. Return to Colyn flow and re-run `colyn merge`
 
-### Q5: Can I merge without pushing?
+### Q5: Does merge auto-push to remote?
 
-A: Yes. Two ways:
-1. Use `--no-push` parameter to skip prompt and complete merge without pushing
-2. Don't specify parameter, select No when prompted
-
-Local merge is complete, can push manually later.
-
-### Q6: What if push fails?
-
-A: Local merge is already complete, system prompts to push manually later:
+A: No. `colyn merge` only handles local merge flow. Push manually from main directory when needed:
 ```bash
-cd my-project && git push origin main
+git push origin <main-branch>
 ```
 
 ---
@@ -628,7 +596,7 @@ Related commands (to be implemented):
 ✅ **Safety Checks**: Prevent erroneous operations
 ✅ **Code Quality**: Automatically run lint and build checks before merging
 ✅ **Clear History**: Use --no-ff to maintain branch history
-✅ **Flexible Push**: Support three push modes
+✅ **Remote Decoupling**: Merge flow does not include remote push
 ✅ **Preserve Worktree**: User decides deletion timing
 ✅ **Friendly Messages**: Clear error messages and resolution suggestions
 

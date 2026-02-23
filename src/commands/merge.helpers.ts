@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import ora from 'ora';
 import simpleGit from 'simple-git';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
@@ -262,28 +261,6 @@ export async function executeMerge(
 }
 
 /**
- * 推送到远程仓库
- */
-export async function pushToRemote(
-  mainDir: string,
-  mainBranch: string
-): Promise<{ success: boolean; error?: string }> {
-  const spinner = ora({ text: t('commands.merge.pushToRemote'), stream: process.stderr }).start();
-
-  try {
-    const git = simpleGit(mainDir);
-    await git.push('origin', mainBranch);
-
-    spinner.succeed(t('commands.merge.pushed'));
-    return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    spinner.fail(t('commands.merge.pushFailed'));
-    return { success: false, error: errorMessage };
-  }
-}
-
-/**
  * 显示检测到的 worktree 信息
  */
 export function displayWorktreeInfo(worktree: WorktreeInfo): void {
@@ -315,15 +292,10 @@ export function displayMergeSuccess(
   mainDir: string,
   worktreePath: string,
   worktreeId: number,
-  pushed: boolean,
   verbose: boolean = false
 ): void {
   outputLine();
   outputSuccess(t('commands.merge.mergeSuccess'));
-
-  if (pushed) {
-    output(chalk.gray(t('commands.merge.mergeAndPushed')));
-  }
 
   if (verbose) {
     outputLine();
@@ -333,12 +305,6 @@ export function displayMergeSuccess(
     output(`  ${t('commands.merge.mergeBranchLabel', { branch })}`);
     output(`  ${t('commands.merge.commitLabel', { hash: commitHash, branch })}`);
     outputLine();
-
-    if (!pushed) {
-      output(chalk.gray(t('commands.merge.pushLaterHint')));
-      output(chalk.gray(`  cd "${mainDir}" && git push`));
-      outputLine();
-    }
 
     outputBold(t('commands.merge.nextSteps'));
     outputStep(`  ${t('commands.merge.step1ViewCode')}`);
@@ -399,22 +365,5 @@ export function displayMergeConflict(
   outputLine();
   outputStep(`  ${t('commands.merge.resolveStep5')}`);
   output(`     colyn merge ${worktreeBranch}`);
-  outputLine();
-}
-
-/**
- * 显示推送失败信息
- */
-export function displayPushFailed(
-  error: string,
-  mainDir: string,
-  mainBranch: string
-): void {
-  outputLine();
-  outputError(t('commands.merge.pushFailedTitle'));
-  output(chalk.gray(t('commands.merge.pushFailedError', { error })));
-  outputLine();
-  output(t('commands.merge.pushFailedHint'));
-  output(`  cd "${mainDir}" && git push origin ${mainBranch}`);
   outputLine();
 }
