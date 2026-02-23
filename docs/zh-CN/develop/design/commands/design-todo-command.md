@@ -1,7 +1,7 @@
 # Todo 命令设计文档
 
 **创建时间**：2026-02-22
-**最后更新**：2026-02-23（更新：add/checkout 联动 + 新增 todo complete 子命令）
+**最后更新**：2026-02-23（更新：add/checkout 联动、todo complete 子命令、列表输出移除状态列、交互式选择优化）
 **命令名称**：`colyn todo`
 **状态**：✅ 已实现
 
@@ -174,9 +174,9 @@ pending ────────────────────────
 
 **表格输出格式**（不带 `--json`）：
 
-- 列：Type / Name / Message / Status / Created
+- 列：Type / Name / Message / Created
 - Message 列仅显示 message 的**首行**内容
-- Type、Name、Status、Created 列按内容自适应宽度；Message 列填满终端剩余空间
+- Type、Name、Created 列按内容自适应宽度；Message 列填满终端剩余空间
 - Message 内容超出列宽时自动截断并追加省略号（`…`）
 - 所有列宽计算均采用 CJK 感知的显示宽度（中文字符宽度为 2）
 
