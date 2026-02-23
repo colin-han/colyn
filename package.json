@@ -1,6 +1,6 @@
 {
   "name": "colyn-cli",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "专为并行 Vibe Coding 设计的 Git Worktree 管理工具",
   "type": "module",
   "bin": "./bin/colyn",
