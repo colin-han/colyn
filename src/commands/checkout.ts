@@ -311,6 +311,9 @@ async function selectBranchForCheckout(
   configDir: string,
   worktreePath: string,
   mainBranch: string,
+  mainDir: string,
+  worktreesDir: string,
+  currentWorktreeId: number,
 ): Promise<{ branch: string; selectedTodo?: { todoId: string; message: string } }> {
   type Choice =
     | { type: 'branch'; branch: string }
@@ -367,8 +370,15 @@ async function selectBranchForCheckout(
 
   // 3) 未删除本地分支（去重：和 pending todo 同名时保留 todo 条目）
   const git = simpleGit(worktreePath);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const usedByOtherWorktrees = new Set(
+    worktrees
+      .filter(worktree => worktree.id !== currentWorktreeId)
+      .map(worktree => worktree.branch)
+      .filter(branch => branch.trim().length > 0),
+  );
   const localBranches = (await git.branchLocal()).all
-    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch)
+    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch && !usedByOtherWorktrees.has(b))
     .sort((a, b) => a.localeCompare(b));
 
   const parsedLocalBranches = localBranches.map(branch => {
@@ -488,7 +498,14 @@ export async function checkoutCommand(
     let selectedTodoMeta: { todoId: string; message: string } | undefined;
 
     if (!branch) {
-      const selected = await selectBranchForCheckout(paths.configDir, worktree.path, mainBranch);
+      const selected = await selectBranchForCheckout(
+        paths.configDir,
+        worktree.path,
+        mainBranch,
+        paths.mainDir,
+        paths.worktreesDir,
+        worktree.id,
+      );
       branch = selected.branch;
       selectedTodoMeta = selected.selectedTodo;
     }

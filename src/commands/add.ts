@@ -9,6 +9,7 @@ import {
 } from '../core/paths.js';
 import {
   discoverProjectInfo,
+  discoverWorktrees,
   findWorktreeByBranch,
   getMainBranch,
 } from '../core/discovery.js';
@@ -262,6 +263,7 @@ interface AddBranchSelectionResult {
 async function selectBranchForAdd(
   configDir: string,
   mainDir: string,
+  worktreesDir: string,
   mainBranch: string,
 ): Promise<AddBranchSelectionResult> {
   type Choice =
@@ -320,8 +322,14 @@ async function selectBranchForAdd(
   }
 
   const git = simpleGit(mainDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktreeBranchSet = new Set(
+    worktrees
+      .map(worktree => worktree.branch)
+      .filter(branch => branch.trim().length > 0),
+  );
   const localBranches = (await git.branchLocal()).all
-    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch)
+    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch && !worktreeBranchSet.has(b))
     .sort((a, b) => a.localeCompare(b));
 
   const parsedLocalBranches = localBranches.map(branch => {
@@ -409,7 +417,7 @@ async function addCommand(branchName?: string): Promise<void> {
     let resolvedBranchName = branchName;
     let selectedTodoMeta: SelectedTodoMeta | undefined;
     if (!resolvedBranchName) {
-      const selected = await selectBranchForAdd(paths.configDir, paths.mainDir, mainBranch);
+      const selected = await selectBranchForAdd(paths.configDir, paths.mainDir, paths.worktreesDir, mainBranch);
       resolvedBranchName = selected.branch;
       selectedTodoMeta = selected.selectedTodo;
     }
