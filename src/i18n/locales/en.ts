@@ -123,6 +123,11 @@ Hints:
       installingDeps: 'Installing project dependencies...',
       depsInstalled: 'Dependencies installed',
       depsInstallFailed: 'Failed to install dependencies (you can run install manually)',
+      selectBranchPrompt: 'Select target branch (or create a new branch)',
+      selectCreateBranchLabel: '[Create new branch]',
+      selectCreateBranchSummary: 'Create a new branch using type/name',
+      selectTodoSummaryPrefix: 'Todo',
+      selectLocalBranchSummary: 'Local branch',
     },
 
     // list command

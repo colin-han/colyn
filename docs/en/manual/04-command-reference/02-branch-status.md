@@ -34,6 +34,8 @@ colyn co [worktree-id] <branch> [options]
 
 `colyn checkout` allows switching branches within a worktree, reusing existing worktrees for development on different branches.
 
+If you need a new worktree, use `colyn add [branch]` (`branch` can be omitted for interactive selection).
+
 **Pre-checks:**
 - Has uncommitted changes → Reject switch
 - Current branch not merged to main branch → Warn and require confirmation

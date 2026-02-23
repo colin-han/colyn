@@ -471,6 +471,7 @@ colyn todo archive -y
 
 - `colyn todo` 不带任何参数即可查看待办列表，是最常用的调用方式
 - `todo start` 执行的是完整的 `colyn checkout` 流程，包括未提交检查、fetch 远程、归档旧日志等
+- 需要新建 worktree 时，使用 `colyn add [branch]`；不传 `branch` 可交互选择（新建分支 / Todo 分支 / 本地分支）
 - 描述（message）支持完整的 Markdown 语法，有助于在 Claude 会话中提供清晰的上下文
 - 定期执行 `colyn todo archive -y` 可保持待办列表整洁
 - 设置 `$EDITOR` 环境变量可以使用自己喜欢的编辑器编辑描述

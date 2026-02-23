@@ -117,21 +117,31 @@ my-project/                 # 项目根目录
 
 ## colyn add
 
-为指定分支创建新的 Worktree。
+为指定分支创建新的 Worktree。`branch` 参数可选，省略时进入交互式分支选择。
 
 ### 语法
 
 ```bash
-colyn add <branch>
+colyn add [branch]
 ```
 
 ### 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `branch` | 是 | 分支名称（支持本地分支、远程分支或新建分支） |
+| `branch` | 否 | 分支名称（支持本地分支、远程分支或新建分支） |
 
 ### 功能说明
+
+`colyn add` 有两种入口：
+
+1. **带 `branch` 参数**：直接按参数执行
+2. **不带 `branch` 参数**：进入交互式选择器，按以下顺序展示
+   - `[新建分支]`（默认选中）
+   - `pending` Todo 对应分支
+   - 本地已有分支（已排除主分支）
+
+交互式创建分支时，会先选择 `type`，再输入 `name`，最终拼接为 `type/name`。
 
 `colyn add` 会智能处理分支：
 
@@ -154,6 +164,9 @@ colyn add <branch>
 ### 示例
 
 ```bash
+# 不带参数：交互式选择（默认选中 [新建分支]）
+$ colyn add
+
 # 创建新分支的 worktree
 $ colyn add feature/login
 
@@ -219,6 +232,7 @@ my-project/
 - ID 不会重用，即使删除了某个 worktree
 - 可以在项目的任意位置运行此命令
 - 分支名会自动去除 `origin/` 前缀
+- 交互选择器中的本地分支会自动忽略主分支目录当前分支
 - 命令执行后会自动切换到新创建的 worktree 目录
 
 ---

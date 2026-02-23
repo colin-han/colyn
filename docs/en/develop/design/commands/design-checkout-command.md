@@ -4,6 +4,10 @@
 
 The `colyn checkout` command is used to switch or create branches within a worktree, allowing reuse of existing worktrees for different branch development.
 
+Relationship with `colyn add [branch]`:
+- `add` creates a new worktree (can run without `branch` and choose interactively)
+- `checkout` reuses an existing worktree to switch branch (still requires a target branch)
+
 ## Command Syntax
 
 ```bash

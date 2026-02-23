@@ -4,6 +4,10 @@
 
 `colyn checkout` 命令用于在 worktree 中切换或创建分支，允许复用已有 worktree 进行不同分支的开发。
 
+与 `colyn add [branch]` 的关系：
+- `add` 用于创建新 worktree（可无参交互选择分支）
+- `checkout` 用于复用现有 worktree 切换分支（仍需提供目标分支）
+
 ## 命令语法
 
 ```bash

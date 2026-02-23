@@ -1,7 +1,7 @@
 # Add Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-14
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-02-23 (updated: support no-arg interactive branch selection)
 **Command Name**: `colyn add`
 **Status**: Implemented
 
@@ -19,6 +19,9 @@ Users want to create an independent development environment (worktree) for a spe
 ### 1.2 Command Usage
 
 ```bash
+# Interactive branch selection (no argument)
+colyn add
+
 # Create worktree for new branch
 colyn add feature/login
 
@@ -137,13 +140,49 @@ $ colyn add feature/new-feature
 
 ---
 
+### 2.4 Scenario 4: No-argument Interactive Branch Selection
+
+**User Need**: choose or create a branch from a list instead of typing branch name manually.
+
+**Workflow**:
+
+```bash
+$ colyn add
+? Select target branch (or create a new branch) ›
+❯ [Create new branch]      Create a new branch using type/name
+  feature/login            Todo: implement login flow
+  bugfix/fix-crash         Todo: fix app crash
+  refactor/auth-module     Local branch
+
+# After selecting [Create new branch]
+? Select task type › feature
+? Enter task name › user-profile
+
+# Final branch: feature/user-profile
+```
+
+**Order and rules**:
+
+1. The first item is always `[Create new branch]` and is selected by default
+2. Then branches from `pending` todos
+3. Then existing local branches (excluding the current branch in the main-branch directory)
+4. For local branches:
+   - if branch contains `/`: `type` = prefix before last `/`, `name` = last segment
+   - if branch does not contain `/`: `type` is empty, full branch name is used as `name`
+
+---
+
 ## 3. User Interaction Flow
 
 ### 3.1 Overall Flow Diagram
 
 ```mermaid
 graph TD
-    Start([User runs colyn add branch]) --> Validate[Validate branch name]
+    Start([User runs colyn add [branch]]) --> Choose{branch argument provided?}
+
+    Choose -->|No| Select[Interactive branch selector<br/>default: create new branch]
+    Select --> Validate
+    Choose -->|Yes| Validate[Validate branch name]
 
     Validate --> Valid{Branch name valid?}
     Valid -->|No| ErrorInvalid[✗ Invalid branch name]

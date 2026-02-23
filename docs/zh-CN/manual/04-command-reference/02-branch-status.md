@@ -34,6 +34,8 @@ colyn co [worktree-id] <branch> [选项]
 
 `colyn checkout` 允许在 worktree 中切换分支，复用已有 worktree 进行不同分支的开发。
 
+如果需要创建新的 worktree，请使用 `colyn add [branch]`（省略 `branch` 可交互式选择）。
+
 **前置检查：**
 - 有未提交更改 → 拒绝切换
 - 当前分支未合并到主分支 → 警告并要求确认

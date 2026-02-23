@@ -1,7 +1,7 @@
 # Add 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-14
-**最后更新**：2026-02-21
+**最后更新**：2026-02-23（更新：支持无参交互式分支选择）
 **命令名称**：`colyn add`
 **状态**：✅ 已实现
 
@@ -19,6 +19,9 @@
 ### 1.2 命令使用
 
 ```bash
+# 交互式选择分支（无参数）
+colyn add
+
 # 创建新分支的 worktree
 colyn add feature/login
 
@@ -137,13 +140,47 @@ $ colyn add feature/new-feature
 
 ---
 
+### 2.4 场景 4：无参数交互式选择分支
+
+**用户需求**：不手动输入分支名，通过列表快速选择或创建分支。
+
+**操作流程**：
+
+```bash
+$ colyn add
+? 选择目标分支（或新建分支） ›
+❯ [新建分支]             按 type/name 创建新分支
+  feature/login          Todo: 实现用户登录功能
+  bugfix/fix-crash       Todo: 修复应用崩溃问题
+  refactor/auth-module   本地分支
+
+# 选择 [新建分支] 后，进入两步输入
+? 选择任务类型 › feature
+? 输入任务名称 › user-profile
+
+# 最终分支名：feature/user-profile
+```
+
+**列表顺序与规则**：
+
+1. 第一项固定为 `[新建分支]`，且默认选中
+2. 第二组为 `pending` 状态 Todo 对应分支
+3. 第三组为本地已存在分支（过滤主分支目录当前分支）
+4. 本地分支若包含 `/`：最后一段为 `name`，前缀为 `type`；不包含 `/`：`type` 为空，全部为 `name`
+
+---
+
 ## 3. 用户交互流程
 
 ### 3.1 整体流程图
 
 ```mermaid
 graph TD
-    Start([用户运行 colyn add branch]) --> Validate[验证分支名称]
+    Start([用户运行 colyn add [branch]]) --> Choose{提供 branch 参数?}
+
+    Choose -->|否| Select[交互式选择分支<br/>默认新建分支]
+    Select --> Validate
+    Choose -->|是| Validate[验证分支名称]
 
     Validate --> Valid{分支名有效?}
     Valid -->|否| ErrorInvalid[✗ 无效的分支名称]

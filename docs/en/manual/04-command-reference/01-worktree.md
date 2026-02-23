@@ -117,21 +117,31 @@ my-project/                 # Project root directory
 
 ## colyn add
 
-Create a new Worktree for the specified branch.
+Create a new Worktree for the specified branch. The `branch` parameter is optional; if omitted, an interactive selector is shown.
 
 ### Syntax
 
 ```bash
-colyn add <branch>
+colyn add [branch]
 ```
 
 ### Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `branch` | Yes | Branch name (supports local branch, remote branch, or new branch) |
+| `branch` | No | Branch name (supports local branch, remote branch, or new branch) |
 
 ### Description
+
+`colyn add` has two entry modes:
+
+1. **With `branch` argument**: execute directly with the provided branch
+2. **Without `branch` argument**: open interactive selector in this order
+   - `[Create new branch]` (default selected)
+   - Branches from `pending` todos
+   - Existing local branches (main branch excluded)
+
+When creating a branch interactively, it first asks for `type`, then `name`, and combines them as `type/name`.
 
 `colyn add` handles branches intelligently:
 
@@ -154,6 +164,9 @@ The created Worktree will:
 ### Examples
 
 ```bash
+# No argument: interactive selector (default is [Create new branch])
+$ colyn add
+
 # Create worktree for a new branch
 $ colyn add feature/login
 
@@ -219,6 +232,7 @@ my-project/
 - IDs are not reused, even after deleting a worktree
 - Can be run from anywhere in the project
 - Branch name automatically strips `origin/` prefix
+- Local branches in the selector automatically exclude the current branch in the main-branch directory
 - After execution, automatically switches to the newly created worktree directory
 
 ---
