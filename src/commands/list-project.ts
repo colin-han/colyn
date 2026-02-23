@@ -1,18 +1,15 @@
 /**
  * list-project 命令
  *
- * 通过 tmux sessions 列出所有项目
+ * 通过全局状态索引列出所有项目
  */
 
 import type { Command } from 'commander';
 import Table from 'cli-table3';
 import chalk from 'chalk';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { t } from '../i18n/index.js';
-import {
-  isTmuxAvailable,
-  listSessions,
-  getPaneCurrentPath
-} from '../core/tmux.js';
 import {
   output,
   outputWarning,
@@ -20,8 +17,8 @@ import {
   outputResult
 } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
-import { getLocationInfo } from '../core/paths.js';
 import { discoverProjectInfo, getMainBranch, getMainPort } from '../core/discovery.js';
+import { listGlobalStatusProjects } from '../core/worktree-status.js';
 import {
   getGitStatus,
   getGitDiff,
@@ -30,7 +27,6 @@ import {
   type GitStatus,
   type GitDiff
 } from './list.helpers.js';
-import * as path from 'path';
 
 /**
  * 列表项信息（复用 list 命令的数据结构）
@@ -50,14 +46,14 @@ interface ListItem {
  * 项目信息
  */
 interface ProjectInfo {
-  /** session 名称 */
-  sessionName: string;
   /** 项目路径 */
   projectPath: string;
   /** 项目名称 */
   projectName: string;
   /** 主分支路径 */
   mainBranchPath: string;
+  /** 最近状态更新时间（来自 ~/.colyn-status.json） */
+  updatedAt: string;
   /** worktrees 列表（使用 list 命令的数据结构）*/
   worktrees: ListItem[];
 }
@@ -123,48 +119,86 @@ async function getProjectWorktrees(projectPath: string, mainBranchPath: string):
 }
 
 /**
- * 获取所有项目信息
+ * 检查路径是否存在且为目录
+ */
+async function isDirectory(dirPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.stat(dirPath);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 根据 projectPath 推导主分支路径，并验证是否是有效的 colyn 项目目录结构
+ */
+async function resolveProjectLayout(projectPath: string): Promise<{
+  projectName: string;
+  mainBranchPath: string;
+} | null> {
+  const projectName = path.basename(projectPath);
+  const mainBranchPath = path.join(projectPath, projectName);
+  const worktreesPath = path.join(projectPath, 'worktrees');
+  const configPath = path.join(projectPath, '.colyn');
+
+  const [mainExists, worktreesExists, configExists] = await Promise.all([
+    isDirectory(mainBranchPath),
+    isDirectory(worktreesPath),
+    isDirectory(configPath)
+  ]);
+
+  if (!mainExists || !worktreesExists || !configExists) {
+    return null;
+  }
+
+  return { projectName, mainBranchPath };
+}
+
+/**
+ * 格式化更新时间
+ */
+function formatUpdatedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return date.toLocaleString();
+}
+
+/**
+ * 获取所有项目信息（来自 ~/.colyn-status.json）
  */
 async function getAllProjects(): Promise<ProjectInfo[]> {
-  const sessions = listSessions();
+  const globalProjects = await listGlobalStatusProjects();
   const projects: ProjectInfo[] = [];
   const seenPaths = new Set<string>();
 
-  for (const sessionName of sessions) {
-    // 获取 window 0 pane 0 的当前目录
-    const panePath = getPaneCurrentPath(sessionName, 0, 0);
-
-    if (!panePath) {
+  for (const entry of globalProjects) {
+    const projectPath = path.resolve(entry.projectPath);
+    if (seenPaths.has(projectPath)) {
       continue;
     }
+    seenPaths.add(projectPath);
 
-    // 尝试获取该目录的项目信息（复用 info 命令的逻辑）
     try {
-      const locationInfo = await getLocationInfo(panePath);
-
-      // 使用 projectPath（与 info -f project-path 一致）
-      const projectPath = locationInfo.projectPath;
-
-      // 避免重复添加相同的项目
-      if (seenPaths.has(projectPath)) {
+      const layout = await resolveProjectLayout(projectPath);
+      if (!layout) {
         continue;
       }
 
-      seenPaths.add(projectPath);
-
       // 获取项目的 worktree 信息（复用 list 命令的逻辑）
-      const mainBranchPath = locationInfo.mainBranchPath;
-      const worktrees = await getProjectWorktrees(projectPath, mainBranchPath);
+      const worktrees = await getProjectWorktrees(projectPath, layout.mainBranchPath);
 
       projects.push({
-        sessionName,
         projectPath,
-        projectName: locationInfo.project,  // 与 info -f project 一致
-        mainBranchPath,
+        projectName: layout.projectName,
+        mainBranchPath: layout.mainBranchPath,
+        updatedAt: entry.updatedAt,
         worktrees
       });
     } catch {
-      // 不是 colyn 项目，跳过
+      // 路径失效或不是 colyn 项目，跳过
       continue;
     }
   }
@@ -185,10 +219,10 @@ function outputTable(projects: ProjectInfo[]): void {
   // 主表格：项目概览
   const mainTable = new Table({
     head: [
-      chalk.bold(t('commands.listProject.tableSession')),
       chalk.bold(t('commands.listProject.tableProject')),
       chalk.bold(t('commands.listProject.tablePath')),
-      chalk.bold(t('commands.listProject.tableWorktrees'))
+      chalk.bold(t('commands.listProject.tableWorktrees')),
+      chalk.bold(t('commands.listProject.tableUpdatedAt'))
     ],
     style: {
       head: [],
@@ -198,10 +232,10 @@ function outputTable(projects: ProjectInfo[]): void {
 
   for (const project of projects) {
     mainTable.push([
-      project.sessionName,
       project.projectName,
       project.projectPath,
-      String(project.worktrees.length)
+      String(project.worktrees.length),
+      formatUpdatedAt(project.updatedAt)
     ]);
   }
 
@@ -295,14 +329,6 @@ function outputPaths(projects: ProjectInfo[]): void {
  */
 async function listProjectCommand(options: ListProjectOptions): Promise<void> {
   try {
-    // 检查 tmux 是否可用
-    if (!isTmuxAvailable()) {
-      throw new ColynError(
-        t('commands.listProject.tmuxNotInstalled'),
-        t('commands.listProject.tmuxInstallHint')
-      );
-    }
-
     // 检查选项冲突
     if (options.json && options.paths) {
       throw new ColynError(

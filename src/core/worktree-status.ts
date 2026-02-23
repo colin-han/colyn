@@ -40,6 +40,11 @@ interface GlobalStatusFile {
   [projectPath: string]: { updatedAt: string };
 }
 
+export interface GlobalStatusProject {
+  projectPath: string;
+  updatedAt: string;
+}
+
 async function readGlobalStatusFile(): Promise<GlobalStatusFile> {
   const filePath = path.join(os.homedir(), '.colyn-status.json');
   try {
@@ -53,6 +58,20 @@ async function readGlobalStatusFile(): Promise<GlobalStatusFile> {
 async function writeGlobalStatusFile(data: GlobalStatusFile): Promise<void> {
   const filePath = path.join(os.homedir(), '.colyn-status.json');
   await fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+}
+
+/**
+ * 获取全局状态索引中的项目列表（按 updatedAt 倒序）
+ */
+export async function listGlobalStatusProjects(): Promise<GlobalStatusProject[]> {
+  const globalData = await readGlobalStatusFile();
+
+  return Object.entries(globalData)
+    .map(([projectPath, value]) => ({
+      projectPath,
+      updatedAt: value.updatedAt
+    }))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 // ─── 公开 API ──────────────────────────────────────────────────────────────

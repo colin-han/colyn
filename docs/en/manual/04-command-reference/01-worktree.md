@@ -392,7 +392,7 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 
 ## colyn list-project
 
-List projects and Worktrees across all tmux sessions.
+List projects and Worktrees from the global status index (`~/.colyn-status.json`).
 
 **Alias:** `lsp`
 
@@ -412,21 +412,20 @@ colyn lsp [options]        # Using alias
 
 ### Description
 
-`colyn list-project` retrieves all running projects via the tmux API and shows worktree information for each project.
+`colyn list-project` retrieves project paths from the global status index file `~/.colyn-status.json` and shows worktree information for each project.
 
 **Key features:**
-- Cross-project view: see all colyn projects in all tmux sessions at once
+- Cross-project view: see all colyn projects in the global status index at once
 - Fully reuses data structure and output format from `list` command
 - Supports three output modes: table, JSON, paths
 
 **Difference from `list` command:**
 - `list` - View all worktrees of the **current project**
-- `list-project` - View all worktrees of **all projects in tmux sessions**
+- `list-project` - View all worktrees of **all projects in the global status index**
 
 **Requirements:**
-- tmux must be installed
-- At least one tmux session must be running
-- Session's window 0 pane 0 must be in a project directory
+- `~/.colyn-status.json` must contain project entries
+- Project directory structure must be valid (`.colyn/`, `{project}/{project}` main dir, `worktrees/`)
 
 ### Examples
 
@@ -435,12 +434,12 @@ colyn lsp [options]        # Using alias
 ```bash
 $ colyn list-project
 
-┌─────────┬─────────┬──────────────────┬───────────┐
-│ Session │ Project │ Path             │ Worktrees │
-├─────────┼─────────┼──────────────────┼───────────┤
-│ backend │ backend │ /path/to/backend │ 2         │
-│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
-└─────────┴─────────┴──────────────────┴───────────┘
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 backend Worktrees:
 ┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
@@ -478,8 +477,7 @@ $ colyn list-project --json | jq '.[] | select(.projectName == "colyn")'
 
 | Error Scenario | Error Message | Solution |
 |---------------|---------------|----------|
-| tmux not installed | `✗ tmux not installed` | Install tmux: `brew install tmux` (macOS) or `apt install tmux` (Linux) |
-| No tmux session | `No projects found` | Create tmux session: `colyn tmux` |
+| Global status index is empty | `No projects found` | Run `colyn status set running` (or another status) inside a project to write index |
 | Option conflict | `✗ --json and --paths cannot be used together` | Choose one output format |
 
 ---

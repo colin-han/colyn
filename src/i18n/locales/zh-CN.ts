@@ -934,20 +934,18 @@ export const zhCN = {
 
     // list-project command
     listProject: {
-      description: '列出所有 tmux session 中的项目',
+      description: '列出全局状态索引中的所有项目',
       jsonOption: '以 JSON 格式输出',
       pathsOption: '只输出路径（每行一个）',
       optionConflict: '选项冲突：--json 和 --paths 不能同时使用',
       optionConflictHint: '请选择其中一种输出格式',
-      tmuxNotInstalled: 'tmux 未安装',
-      tmuxInstallHint: '请先安装 tmux：brew install tmux (macOS) 或 apt install tmux (Linux)',
       noProjects: '暂无项目',
-      noProjectsHint: '提示：使用 colyn init 初始化项目，并使用 colyn tmux 创建 tmux session',
+      noProjectsHint: '提示：先在项目内使用 colyn status set 更新状态，项目才会进入 ~/.colyn-status.json',
       noProjectsFound: '未找到任何项目',
-      tableSession: 'Session',
       tableProject: 'Project',
       tablePath: 'Path',
       tableWorktrees: 'Worktrees',
+      tableUpdatedAt: 'Updated',
       projectWorktrees: '{{project}} 的 Worktrees',
     },
   },
