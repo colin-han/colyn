@@ -261,7 +261,21 @@ _colyn_todo_completed_ids() {
 # Git branch completion
 _colyn_branches() {
     local -a branches
+    local -a worktree_branches
     branches=(\${(f)"$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's/remotes\\/origin\\///' | sort -u)"})
+    worktree_branches=(\${(f)"$(colyn list --json --no-main 2>/dev/null | grep -o '"branch":"[^"]*"' | cut -d'"' -f4)"})
+
+    if (( \${#worktree_branches[@]} > 0 )); then
+        local -a filtered
+        local b
+        for b in \${branches[@]}; do
+            if (( \${worktree_branches[(Ie)$b]} == 0 )); then
+                filtered+=("$b")
+            fi
+        done
+        branches=(\${filtered[@]})
+    fi
+
     _describe 'branches' branches
 }
 

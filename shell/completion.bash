@@ -32,9 +32,7 @@ _colyn_completion() {
         add)
             # add <branch> - 补全 git 分支名
             if [[ $cword -eq 2 ]]; then
-                # 获取所有本地和远程分支
-                local branches=$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's/remotes\/origin\///' | sort -u)
-                COMPREPLY=($(compgen -W "$branches" -- "$cur"))
+                _colyn_complete_available_branches
             fi
             return 0
             ;;
@@ -90,8 +88,7 @@ _colyn_completion() {
                 _colyn_complete_worktree_ids
             elif [[ $cword -eq 3 ]]; then
                 # 第二个参数是分支名
-                local branches=$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's/remotes\/origin\///' | sort -u)
-                COMPREPLY=($(compgen -W "$branches" -- "$cur"))
+                _colyn_complete_available_branches
             fi
             return 0
             ;;
@@ -228,6 +225,21 @@ _colyn_completion() {
             return 0
             ;;
     esac
+}
+
+# 补全可用分支（排除已被任何 worktree 关联的分支）
+_colyn_complete_available_branches() {
+    local branches worktree_branches filtered
+    branches=$(git branch -a 2>/dev/null | sed 's/^[* ]*//' | sed 's/remotes\/origin\///' | sort -u)
+    worktree_branches=$(colyn list --json --no-main 2>/dev/null | grep -o '"branch":"[^"]*"' | cut -d'"' -f4)
+
+    if [[ -n "$worktree_branches" ]]; then
+        filtered=$(printf '%s\n' "$branches" | grep -vxF -f <(printf '%s\n' "$worktree_branches"))
+    else
+        filtered="$branches"
+    fi
+
+    COMPREPLY=($(compgen -W "$filtered" -- "$cur"))
 }
 
 # 补全 worktree ID 和分支名
