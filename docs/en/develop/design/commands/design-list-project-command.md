@@ -11,7 +11,7 @@
 
 ### 1.1 User Goals
 
-Users want to quickly view all colyn projects and their worktrees across tmux sessions to:
+Users want to quickly view all colyn projects and their worktrees from the global status index to:
 - See which colyn projects are currently running
 - View all worktrees (including main branch) for each project
 - Check git status and diff with main branch for each worktree
@@ -20,7 +20,7 @@ Users want to quickly view all colyn projects and their worktrees across tmux se
 ### 1.2 Command Usage
 
 ```bash
-# Basic usage: show all projects and worktrees in tmux sessions
+# Basic usage: show all projects and worktrees in global status index
 colyn list-project
 colyn lsp    # Using alias
 
@@ -39,19 +39,19 @@ colyn lsp -p
 
 ### 1.3 Execution Result
 
-Shows all colyn projects in tmux sessions, each project includes:
-- Project overview (Session, Project, Path, Worktree count)
+Shows all colyn projects in global status index, each project includes:
+- Project overview (Project, Path, Worktree count, Updated)
 - Detailed worktree list (reuses `colyn list` format)
 
 **Example Output** (default table format):
 
 ```
-┌─────────┬─────────┬──────────────────┬───────────┐
-│ Session │ Project │ Path             │ Worktrees │
-├─────────┼─────────┼──────────────────┼───────────┤
-│ backend │ backend │ /path/to/backend │ 2         │
-│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
-└─────────┴─────────┴──────────────────┴───────────┘
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 Worktrees for backend:
 ┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
@@ -97,12 +97,12 @@ Worktrees for colyn:
 - High code quality, reduced duplication
 - Automatically sync bug fixes and new features from list command
 
-### 2.2 Tmux Integration
+### 2.2 Global Status Index Integration
 
-Get project information through tmux API:
-1. `tmux list-sessions` - get all sessions
-2. `tmux display-message -p "#{pane_current_path}"` - get pane current directory
-3. Find project root by searching upward for `.colyn` directory from window 0 pane 0
+Get project information through `~/.colyn-status.json`:
+1. Read projectPath entries from global index
+2. Validate project directory layout (`.colyn/`, `{project}/{project}`, `worktrees/`)
+3. Skip stale paths and keep valid projects
 
 ### 2.3 Data Consistency
 
@@ -124,13 +124,13 @@ Ensure data consistency with other commands:
 ```bash
 $ colyn list-project
 
-┌─────────┬─────────┬──────────────────┬───────────┐
-│ Session │ Project │ Path             │ Worktrees │
-├─────────┼─────────┼──────────────────┼───────────┤
-│ backend │ backend │ /path/to/backend │ 2         │
-│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
-│ website │ website │ /path/to/website │ 1         │
-└─────────┴─────────┴──────────────────┴───────────┘
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+│ website │ /path/to/website │ 1         │ 2026/02/23 19:59:02 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 ...
 ```
 
@@ -204,10 +204,10 @@ $ colyn list-project --json | jq '.'
 ```json
 [
   {
-    "sessionName": "colyn",
     "projectPath": "/path/to/colyn",
     "projectName": "colyn",
     "mainBranchPath": "/path/to/colyn/colyn",
+    "updatedAt": "2026-02-23T12:28:11.000Z",
     "worktrees": [
       {
         "id": null,
@@ -298,10 +298,10 @@ $ colyn list-project --json | jq '.'
 **ProjectInfo Fields**:
 | Field | Type | Description |
 |-------|------|-------------|
-| `sessionName` | `string` | tmux session name |
 | `projectPath` | `string` | Project root path (consistent with `info -f project-path`) |
 | `projectName` | `string` | Project name (consistent with `info -f project`) |
 | `mainBranchPath` | `string` | Main branch directory path |
+| `updatedAt` | `string` | Last status update time in global index (ISO 8601) |
 | `worktrees` | `ListItem[]` | Worktree list (identical structure as `list --json`) |
 
 **ListItem Fields** (identical to `list --json`):
@@ -346,15 +346,11 @@ colyn list-project --paths | xargs -I {} sh -c '[ -f {}/package.json ] && echo {
 ### 5.1 Core Functions
 
 ```typescript
-// Get all tmux session list
-export function listSessions(): string[]
-
-// Get pane current working directory
-export function getPaneCurrentPath(
-  sessionName: string,
-  windowIndex: number,
-  paneIndex: number
-): string | null
+// Get project list from global status index
+export async function listGlobalStatusProjects(): Promise<{
+  projectPath: string;
+  updatedAt: string;
+}[]>
 
 // Get all worktrees for project (reuses list logic)
 async function getProjectWorktrees(
@@ -369,11 +365,11 @@ async function getAllProjects(): Promise<ProjectInfo[]>
 ### 5.2 Data Flow
 
 ```
-tmux sessions
+~/.colyn-status.json
   ↓
-Get window 0 pane 0 path
+Read projectPath list
   ↓
-Use getLocationInfo() to determine project root
+Validate project directory layout
   ↓
 Use getProjectWorktrees() to get worktree list
   ↓
@@ -382,8 +378,7 @@ Output (table/JSON/paths)
 
 ### 5.3 Dependencies
 
-- `tmux.ts` - tmux API wrapper
-- `paths.ts` - `getLocationInfo()` to get project info
+- `worktree-status.ts` - read global index `~/.colyn-status.json`
 - `discovery.ts` - `discoverProjectInfo()` to get worktrees
 - `list.helpers.ts` - git status and diff handling
 - `list.ts` - reuse data structure and formatting logic
@@ -392,22 +387,15 @@ Output (table/JSON/paths)
 
 ## 6. Error Handling
 
-### 6.1 Tmux Not Installed
-
-```
-✗ tmux is not installed
-  Hint: Please install tmux first: brew install tmux (macOS) or apt install tmux (Linux)
-```
-
-### 6.2 No Colyn Projects
+### 6.1 No Colyn Projects
 
 ```
 No projects found
 
-Hint: Use colyn init to initialize a project, and colyn tmux to create a tmux session
+Hint: Run colyn status set in a project first so it appears in ~/.colyn-status.json
 ```
 
-### 6.3 Option Conflict
+### 6.2 Option Conflict
 
 ```
 ✗ Option conflict: --json and --paths cannot be used together
@@ -420,11 +408,9 @@ Hint: Use colyn init to initialize a project, and colyn tmux to create a tmux se
 
 ```mermaid
 graph LR
-    ListProject[list-project] --> Info[info -f project-path]
+    ListProject[list-project] --> StatusIndex[~/.colyn-status.json]
     ListProject --> List[list]
-    ListProject --> Tmux[tmux API]
-
-    Info -.->|reuses| LocationInfo[getLocationInfo]
+    StatusIndex -.->|project list| ListProject
     List -.->|reuses| ListItem[ListItem structure]
     List -.->|reuses| Helpers[list.helpers]
 
@@ -434,7 +420,7 @@ graph LR
 **Notes**:
 - `list-project` is cross-project `list` command
 - Fully reuses `list` data structure and formatting logic
-- Gets all projects through tmux instead of current project only
+- Gets all projects through global status index instead of current project only
 
 ---
 
@@ -444,7 +430,7 @@ graph LR
 
 A:
 - `list` - View all worktrees in **current project**
-- `list-project` - View all worktrees in **all tmux session projects**
+- `list-project` - View all worktrees in **all projects in global status index**
 
 ### Q2: Why is worktree data structure identical to list --json?
 
@@ -481,11 +467,10 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 
 ## 9. Implementation Notes
 
-### 9.1 Tmux Requirements
+### 9.1 Index Requirements
 
-- Tmux must be installed
-- At least one tmux session must be running
-- Session's window 0 pane 0 must be in project directory
+- `~/.colyn-status.json` must contain project entries
+- Project directory layout must be valid (`.colyn/`, main directory, `worktrees/`)
 
 ### 9.2 Performance Considerations
 
@@ -498,7 +483,7 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Tmux not installed or other errors |
+| 1 | Option conflict or other errors |
 
 ---
 
@@ -506,7 +491,7 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 
 `colyn list-project` command design highlights:
 
-1. **Cross-project View** - Get all project info through tmux
+1. **Cross-project View** - Get all project info through global status index
 2. **Full Reuse** - Reuse `list` command implementation and data structure
 3. **Consistency** - Keep data consistent with `info` and `list` commands
 4. **Multiple Outputs** - Table, JSON, paths for different needs

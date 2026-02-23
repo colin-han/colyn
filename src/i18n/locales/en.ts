@@ -934,20 +934,18 @@ Solution:
 
     // list-project command
     listProject: {
-      description: 'List all projects in tmux sessions',
+      description: 'List all projects from the global status index',
       jsonOption: 'Output in JSON format',
       pathsOption: 'Output paths only (one per line)',
       optionConflict: 'Option conflict: --json and --paths cannot be used together',
       optionConflictHint: 'Please choose one output format',
-      tmuxNotInstalled: 'tmux is not installed',
-      tmuxInstallHint: 'Please install tmux first: brew install tmux (macOS) or apt install tmux (Linux)',
       noProjects: 'No projects found',
-      noProjectsHint: 'Hint: Use colyn init to initialize a project, and colyn tmux to create a tmux session',
+      noProjectsHint: 'Hint: Run colyn status set in a project first so it appears in ~/.colyn-status.json',
       noProjectsFound: 'No projects found',
-      tableSession: 'Session',
       tableProject: 'Project',
       tablePath: 'Path',
       tableWorktrees: 'Worktrees',
+      tableUpdatedAt: 'Updated',
       projectWorktrees: 'Worktrees for {{project}}',
     },
   },

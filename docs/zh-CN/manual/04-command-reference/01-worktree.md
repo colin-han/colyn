@@ -392,7 +392,7 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 
 ## colyn list-project
 
-列出所有 tmux session 中的项目和 Worktree。
+列出全局状态索引（`~/.colyn-status.json`）中的项目和 Worktree。
 
 **别名：** `lsp`
 
@@ -412,21 +412,20 @@ colyn lsp [选项]        # 使用别名
 
 ### 功能说明
 
-`colyn list-project` 通过 tmux API 获取所有正在运行的项目，并显示每个项目的 worktree 信息。
+`colyn list-project` 通过全局状态索引文件 `~/.colyn-status.json` 获取项目列表，并显示每个项目的 worktree 信息。
 
 **核心特性：**
-- 跨项目查看：一次性查看所有 tmux session 中的 colyn 项目
+- 跨项目查看：一次性查看全局状态索引中的 colyn 项目
 - 完全复用 `list` 命令的数据结构和输出格式
 - 支持三种输出模式：表格、JSON、路径
 
 **与 `list` 命令的区别：**
 - `list` - 查看**当前项目**的所有 worktree
-- `list-project` - 查看**所有 tmux session 中项目**的所有 worktree
+- `list-project` - 查看**全局状态索引中项目**的所有 worktree
 
 **要求：**
-- 必须安装 tmux
-- 至少有一个 tmux session 在运行
-- Session 的 window 0 pane 0 必须在项目目录下
+- `~/.colyn-status.json` 中存在项目索引记录
+- 项目目录结构有效（包含 `.colyn/`、`{project}/{project}` 主目录、`worktrees/`）
 
 ### 示例
 
@@ -435,12 +434,12 @@ colyn lsp [选项]        # 使用别名
 ```bash
 $ colyn list-project
 
-┌─────────┬─────────┬──────────────────┬───────────┐
-│ Session │ Project │ Path             │ Worktrees │
-├─────────┼─────────┼──────────────────┼───────────┤
-│ backend │ backend │ /path/to/backend │ 2         │
-│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
-└─────────┴─────────┴──────────────────┴───────────┘
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 backend 的 Worktrees:
 ┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
@@ -478,8 +477,7 @@ $ colyn list-project --json | jq '.[] | select(.projectName == "colyn")'
 
 | 错误场景 | 错误信息 | 解决方法 |
 |---------|---------|---------|
-| tmux 未安装 | `✗ tmux 未安装` | 安装 tmux：`brew install tmux` (macOS) 或 `apt install tmux` (Linux) |
-| 无 tmux session | `暂无项目` | 创建 tmux session：`colyn tmux` |
+| 全局状态索引为空 | `暂无项目` | 在项目内执行 `colyn status set running`（或其他状态）写入索引 |
 | 选项冲突 | `✗ --json 和 --paths 不能同时使用` | 选择其中一种输出格式 |
 
 ---

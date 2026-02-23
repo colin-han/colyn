@@ -11,7 +11,7 @@
 
 ### 1.1 用户目标
 
-用户希望快速查看所有 tmux session 中的 colyn 项目及其 worktree 信息，以便：
+用户希望快速查看全局状态索引中的 colyn 项目及其 worktree 信息，以便：
 - 了解当前有哪些正在运行的 colyn 项目
 - 查看每个项目下的所有 worktree（包括主分支）
 - 了解每个 worktree 的 git 状态和与主分支的差异
@@ -20,7 +20,7 @@
 ### 1.2 命令使用
 
 ```bash
-# 基本用法：显示所有 tmux session 中的项目和 worktree
+# 基本用法：显示全局状态索引中的项目和 worktree
 colyn list-project
 colyn lsp    # 使用别名
 
@@ -39,19 +39,19 @@ colyn lsp -p
 
 ### 1.3 执行结果
 
-显示所有 tmux session 中的 colyn 项目，每个项目包含：
-- 项目概览（Session、Project、Path、Worktree 数量）
+显示全局状态索引中的 colyn 项目，每个项目包含：
+- 项目概览（Project、Path、Worktree 数量、Updated）
 - 详细的 worktree 列表（复用 `colyn list` 的格式）
 
 **示例输出**（默认表格格式）：
 
 ```
-┌─────────┬─────────┬──────────────────┬───────────┐
-│ Session │ Project │ Path             │ Worktrees │
-├─────────┼─────────┼──────────────────┼───────────┤
-│ backend │ backend │ /path/to/backend │ 2         │
-│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
-└─────────┴─────────┴──────────────────┴───────────┘
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 backend 的 Worktrees:
 ┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
@@ -97,12 +97,12 @@ colyn 的 Worktrees:
 - 代码质量高，减少重复
 - 自动同步 list 命令的 bug 修复和新功能
 
-### 2.2 tmux 集成
+### 2.2 全局状态索引集成
 
-通过 tmux API 获取项目信息：
-1. `tmux list-sessions` - 获取所有 session
-2. `tmux display-message -p "#{pane_current_path}"` - 获取 pane 当前目录
-3. 从 window 0 pane 0 的目录向上查找 `.colyn` 目录确定项目根
+通过 `~/.colyn-status.json` 获取项目信息：
+1. 读取全局索引中的 projectPath 列表
+2. 校验项目目录结构（`.colyn/`、`{project}/{project}`、`worktrees/`）
+3. 跳过失效路径，保留有效项目
 
 ### 2.3 数据一致性
 
@@ -124,13 +124,13 @@ colyn 的 Worktrees:
 ```bash
 $ colyn list-project
 
-┌─────────┬─────────┬──────────────────┬───────────┐
-│ Session │ Project │ Path             │ Worktrees │
-├─────────┼─────────┼──────────────────┼───────────┤
-│ backend │ backend │ /path/to/backend │ 2         │
-│ colyn   │ colyn   │ /path/to/colyn   │ 4         │
-│ website │ website │ /path/to/website │ 1         │
-└─────────┴─────────┴──────────────────┴───────────┘
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+│ website │ /path/to/website │ 1         │ 2026/02/23 19:59:02 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 ...
 ```
 
@@ -204,10 +204,10 @@ $ colyn list-project --json | jq '.'
 ```json
 [
   {
-    "sessionName": "colyn",
     "projectPath": "/path/to/colyn",
     "projectName": "colyn",
     "mainBranchPath": "/path/to/colyn/colyn",
+    "updatedAt": "2026-02-23T12:28:11.000Z",
     "worktrees": [
       {
         "id": null,
@@ -298,10 +298,10 @@ $ colyn list-project --json | jq '.'
 **ProjectInfo 字段**：
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `sessionName` | `string` | tmux session 名称 |
 | `projectPath` | `string` | 项目根目录路径（与 `info -f project-path` 一致）|
 | `projectName` | `string` | 项目名称（与 `info -f project` 一致）|
 | `mainBranchPath` | `string` | 主分支目录路径 |
+| `updatedAt` | `string` | 全局索引中的最后状态更新时间（ISO 8601） |
 | `worktrees` | `ListItem[]` | worktree 列表（与 `list --json` 结构一致）|
 
 **ListItem 字段**（与 `list --json` 完全相同）：
@@ -346,15 +346,11 @@ colyn list-project --paths | xargs -I {} sh -c '[ -f {}/package.json ] && echo {
 ### 5.1 核心函数
 
 ```typescript
-// 获取所有 tmux session 列表
-export function listSessions(): string[]
-
-// 获取指定 pane 的当前工作目录
-export function getPaneCurrentPath(
-  sessionName: string,
-  windowIndex: number,
-  paneIndex: number
-): string | null
+// 获取全局状态索引中的项目列表
+export async function listGlobalStatusProjects(): Promise<{
+  projectPath: string;
+  updatedAt: string;
+}[]>
 
 // 获取项目的所有 worktree（复用 list 逻辑）
 async function getProjectWorktrees(
@@ -369,11 +365,11 @@ async function getAllProjects(): Promise<ProjectInfo[]>
 ### 5.2 数据流
 
 ```
-tmux sessions
+~/.colyn-status.json
   ↓
-获取 window 0 pane 0 路径
+读取 projectPath 列表
   ↓
-使用 getLocationInfo() 确定项目根目录
+校验项目目录结构
   ↓
 使用 getProjectWorktrees() 获取 worktree 列表
   ↓
@@ -382,8 +378,7 @@ tmux sessions
 
 ### 5.3 依赖关系
 
-- `tmux.ts` - tmux API 封装
-- `paths.ts` - `getLocationInfo()` 获取项目信息
+- `worktree-status.ts` - 读取全局索引 `~/.colyn-status.json`
 - `discovery.ts` - `discoverProjectInfo()` 获取 worktree
 - `list.helpers.ts` - git 状态和差异处理
 - `list.ts` - 复用数据结构和格式化逻辑
@@ -392,22 +387,15 @@ tmux sessions
 
 ## 6. 错误处理
 
-### 6.1 tmux 未安装
-
-```
-✗ tmux 未安装
-  提示：请先安装 tmux：brew install tmux (macOS) 或 apt install tmux (Linux)
-```
-
-### 6.2 无 colyn 项目
+### 6.1 无 colyn 项目
 
 ```
 暂无项目
 
-提示：使用 colyn init 初始化项目，并使用 colyn tmux 创建 tmux session
+提示：先在项目中执行 colyn status set 更新状态，让项目进入 ~/.colyn-status.json
 ```
 
-### 6.3 选项冲突
+### 6.2 选项冲突
 
 ```
 ✗ 选项冲突：--json 和 --paths 不能同时使用
@@ -420,11 +408,9 @@ tmux sessions
 
 ```mermaid
 graph LR
-    ListProject[list-project] --> Info[info -f project-path]
+    ListProject[list-project] --> StatusIndex[~/.colyn-status.json]
     ListProject --> List[list]
-    ListProject --> Tmux[tmux API]
-
-    Info -.->|复用| LocationInfo[getLocationInfo]
+    StatusIndex -.->|提供项目列表| ListProject
     List -.->|复用| ListItem[ListItem 结构]
     List -.->|复用| Helpers[list.helpers]
 
@@ -434,7 +420,7 @@ graph LR
 **说明**：
 - `list-project` 是跨项目的 `list` 命令
 - 完全复用 `list` 的数据结构和格式化逻辑
-- 通过 tmux 获取所有项目，而不是只查看当前项目
+- 通过全局状态索引获取所有项目，而不是只查看当前项目
 
 ---
 
@@ -444,7 +430,7 @@ graph LR
 
 A:
 - `list` - 查看**当前项目**的所有 worktree
-- `list-project` - 查看**所有 tmux session 中项目**的所有 worktree
+- `list-project` - 查看**全局状态索引中项目**的所有 worktree
 
 ### Q2: 为什么 worktree 数据结构与 list --json 一致？
 
@@ -481,11 +467,10 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 
 ## 9. 实现注意事项
 
-### 9.1 tmux 要求
+### 9.1 索引要求
 
-- 必须安装 tmux
-- 必须有至少一个 tmux session 在运行
-- Session 的 window 0 pane 0 必须在项目目录下
+- `~/.colyn-status.json` 中存在项目记录
+- 项目目录结构有效（`.colyn/`、主分支目录、`worktrees/`）
 
 ### 9.2 性能考虑
 
@@ -498,7 +483,7 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 | 退出码 | 含义 |
 |--------|------|
 | 0 | 成功 |
-| 1 | tmux 未安装或其他错误 |
+| 1 | 选项冲突或其他错误 |
 
 ---
 
@@ -506,7 +491,7 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 
 `colyn list-project` 命令设计重点：
 
-1. **跨项目查看** - 通过 tmux 获取所有项目信息
+1. **跨项目查看** - 通过全局状态索引获取所有项目信息
 2. **完全复用** - 复用 `list` 命令的实现和数据结构
 3. **一致性** - 与 `info` 和 `list` 命令保持数据一致
 4. **多种输出** - 表格、JSON、路径，满足不同需求
