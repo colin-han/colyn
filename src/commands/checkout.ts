@@ -297,7 +297,11 @@ async function promptCreateBranchName(): Promise<string> {
  * 在未提供 branch 参数时，交互式选择目标分支
  * 顺序：新建分支 -> pending todo -> 本地分支
  */
-async function selectBranchForCheckout(configDir: string, worktreePath: string): Promise<string> {
+async function selectBranchForCheckout(
+  configDir: string,
+  worktreePath: string,
+  mainBranch: string,
+): Promise<string> {
   type Choice = { type: 'branch'; branch: string } | { type: 'create' };
   const options = new Map<string, Choice>();
   const items: Array<{
@@ -351,17 +355,35 @@ async function selectBranchForCheckout(configDir: string, worktreePath: string):
   // 3) 未删除本地分支（去重：和 pending todo 同名时保留 todo 条目）
   const git = simpleGit(worktreePath);
   const localBranches = (await git.branchLocal()).all
-    .filter(b => b.trim().length > 0 && b !== 'HEAD')
+    .filter(b => b.trim().length > 0 && b !== 'HEAD' && b !== mainBranch)
     .sort((a, b) => a.localeCompare(b));
 
-  for (const branch of localBranches) {
+  const parsedLocalBranches = localBranches.map(branch => {
+    const lastSlash = branch.lastIndexOf('/');
+    if (lastSlash === -1) {
+      return { branch, type: '', name: branch };
+    }
+
+    const type = branch.slice(0, lastSlash);
+    const name = branch.slice(lastSlash + 1) || branch;
+    return { branch, type, name };
+  });
+
+  const maxLocalTypeW = parsedLocalBranches.length > 0
+    ? Math.max(...parsedLocalBranches.map(item => item.type.length))
+    : 0;
+
+  for (const local of parsedLocalBranches) {
+    const { branch } = local;
     if (pendingBranchSet.has(branch)) continue;
+    const branchLabel = formatTodoIdLabel(local.type, local.name, maxLocalTypeW);
     pushChoice(
       { type: 'branch', branch },
-      branch,
+      branchLabel.plain,
       t('commands.checkout.selectLocalBranchSummary'),
       t('commands.checkout.selectLocalBranchPreview', { branch }),
     );
+    items[items.length - 1]!.labelDisplay = branchLabel.display;
   }
 
   const selectedValue = await selectWithPreview(items, {
@@ -439,8 +461,10 @@ export async function checkoutCommand(
       );
     }
 
+    const mainBranch = await getMainBranch(paths.mainDir);
+
     if (!branch) {
-      branch = await selectBranchForCheckout(paths.configDir, worktree.path);
+      branch = await selectBranchForCheckout(paths.configDir, worktree.path, mainBranch);
     }
 
     const currentBranch = worktree.branch;
@@ -468,7 +492,6 @@ export async function checkoutCommand(
     }
 
     // 步骤4: 检查目标是否为主分支
-    const mainBranch = await getMainBranch(paths.mainDir);
     if (branch === mainBranch || branch === 'main' || branch === 'master') {
       throw new ColynError(
         t('commands.checkout.cannotSwitchToMain'),
