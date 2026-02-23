@@ -30,7 +30,7 @@ Colyn lets you command multiple AIs developing different features in parallel â€
 ## Installation
 
 ```bash
-npm install -g colyn
+npm install -g colyn-cli
 
 # Configure shell integration (enables auto directory switching)
 colyn setup

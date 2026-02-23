@@ -25,7 +25,7 @@ which colyn
 npm list -g colyn
 
 # If not installed, reinstall
-npm install -g colyn
+npm install -g colyn-cli
 
 # 3. If installed but not found, check PATH
 echo $PATH
@@ -49,17 +49,17 @@ EACCES: permission denied
 ```bash
 # Method 1: Use volta (recommended)
 curl https://get.volta.sh | bash
-volta install colyn
+volta install colyn-cli
 
 # Method 2: Fix npm permissions
 mkdir ~/.npm-global
 npm config set prefix '~/.npm-global'
 echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.zshrc
 source ~/.zshrc
-npm install -g colyn
+npm install -g colyn-cli
 
 # Method 3: Use sudo (not recommended)
-sudo npm install -g colyn
+sudo npm install -g colyn-cli
 ```
 
 ### Q: Shell integration configuration failed

@@ -30,7 +30,7 @@ Colyn 让你同时指挥多个 AI 并行开发不同功能——每个 worktree 
 ## 安装
 
 ```bash
-npm install -g colyn
+npm install -g colyn-cli
 
 # 配置 shell 集成（启用自动目录切换）
 colyn setup

@@ -20,10 +20,10 @@
 
 ```bash
 # 全局安装
-npm install -g colyn
+npm install -g colyn-cli
 
 # 或使用 volta（推荐）
-volta install colyn
+volta install colyn-cli
 ```
 
 ### 配置 Shell 集成
