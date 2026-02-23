@@ -124,4 +124,25 @@ export const mavenPlugin: ToolchainPlugin = {
       throw new PluginCommandError('mvn versions:set failed', extractOutput(error));
     }
   },
+
+  async publish(worktreePath: string): Promise<void> {
+    try {
+      execSync('mvn deploy -DskipTests', {
+        cwd: worktreePath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (error) {
+      throw new PluginCommandError('mvn deploy failed', extractOutput(error));
+    }
+  },
+
+  async checkPublishable(worktreePath: string): Promise<boolean> {
+    const pomPath = path.join(worktreePath, 'pom.xml');
+    try {
+      const pomContent = await fs.readFile(pomPath, 'utf-8');
+      return pomContent.includes('<distributionManagement>');
+    } catch {
+      return false;
+    }
+  },
 };

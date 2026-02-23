@@ -27,6 +27,17 @@ async function readPackageJson(worktreePath: string): Promise<Record<string, unk
   }
 }
 
+/**
+ * 获取 publish 命令（发布到 npmjs.com）
+ */
+async function getPublishCommand(): Promise<string> {
+  const npmCmd = await getNpmCommand();
+  if (npmCmd === 'yarn') {
+    return 'yarn npm publish';
+  }
+  return `${npmCmd} publish`;
+}
+
 export const npmPlugin: ToolchainPlugin = {
   name: 'npm',
   displayName: 'Node.js (npm/yarn/pnpm)',
@@ -209,5 +220,38 @@ export const npmPlugin: ToolchainPlugin = {
     const pkg = JSON.parse(content) as Record<string, unknown>;
     pkg.version = version;
     await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+  },
+
+  async publish(worktreePath: string): Promise<void> {
+    const publishCmd = await getPublishCommand();
+    try {
+      execSync(publishCmd, {
+        cwd: worktreePath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (error) {
+      const output = extractOutput(error);
+      throw new PluginCommandError(`${publishCmd} failed`, output);
+    }
+  },
+
+  async checkPublishable(worktreePath: string): Promise<boolean> {
+    const pkg = await readPackageJson(worktreePath);
+    if (!pkg) return false;
+
+    if (pkg.private === true) {
+      return false;
+    }
+
+    const name = pkg.name;
+    const version = pkg.version;
+    if (typeof name !== 'string' || name.trim() === '') {
+      return false;
+    }
+    if (typeof version !== 'string' || version.trim() === '') {
+      return false;
+    }
+
+    return true;
   },
 };
