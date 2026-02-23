@@ -11,10 +11,10 @@ Switch or create branches in a Worktree.
 ### Syntax
 
 ```bash
-colyn checkout [worktree-id] <branch> [options]
+colyn checkout [worktree-id] [branch] [options]
 
 # Alias
-colyn co [worktree-id] <branch> [options]
+colyn co [worktree-id] [branch] [options]
 ```
 
 ### Parameters
@@ -22,7 +22,7 @@ colyn co [worktree-id] <branch> [options]
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `worktree-id` | No | The Worktree ID; uses current worktree if omitted |
-| `branch` | Yes | Target branch name |
+| `branch` | No | Target branch name; interactive selection if omitted |
 
 ### Options
 
@@ -35,6 +35,21 @@ colyn co [worktree-id] <branch> [options]
 `colyn checkout` allows switching branches within a worktree, reusing existing worktrees for development on different branches.
 
 If you need a new worktree, use `colyn add [branch]` (`branch` can be omitted for interactive selection).
+
+`colyn checkout` has two entry modes:
+
+1. **With `branch` argument**: switch directly to the target branch
+2. **Without `branch` argument**: open interactive selector in this order
+   - `[Create new branch]` (default selected)
+   - Branches from `pending` todos
+   - Existing local branches (main branch excluded)
+
+When creating a branch interactively, it first asks for `type`, then `name`, and combines them as `type/name`.
+
+If you select a branch from a `pending` todo in the interactive list, `checkout` runs the same post-actions as `todo start` after success:
+- Mark that todo as `completed`
+- Print the todo message in the terminal
+- Copy the message to the system clipboard
 
 **Pre-checks:**
 - Has uncommitted changes → Reject switch
@@ -58,6 +73,14 @@ If you need a new worktree, use `colyn add [branch]` (`branch` can be omitted fo
 - If using iTerm2, automatically updates tab title
 
 ### Examples
+
+**No argument: interactive branch selection:**
+
+```bash
+$ colyn checkout
+# Or using alias
+$ colyn co
+```
 
 **Switch branch in current worktree:**
 
@@ -106,6 +129,8 @@ Logs archived to: .claude/logs/archived/feature-old/
 ### Tips
 
 - Existing worktrees can be reused for development on different branches
+- Without `branch`, interactive selection is available (new branch / todo branch / local branch)
+- Selecting a todo branch in the selector will auto-complete the todo and copy its message
 - Automatically archives log files under `.claude/logs/` directory before switching
 - After a successful fetch, main branch is auto-updated if it's behind remote
 - Merged old branches can optionally be deleted

@@ -6,18 +6,16 @@ The `colyn checkout` command is used to switch or create branches within a workt
 
 Relationship with `colyn add [branch]`:
 - `add` creates a new worktree (can run without `branch` and choose interactively)
-- `checkout` reuses an existing worktree to switch branch (still requires a target branch)
+- `checkout` reuses an existing worktree to switch branch (supports no-arg interactive selection)
 
 ## Command Syntax
 
 ```bash
 # Full command
-colyn checkout <worktree-id> <branch>
-colyn checkout <branch>
+colyn checkout [worktree-id] [branch]
 
 # Alias
-colyn co <worktree-id> <branch>
-colyn co <branch>
+colyn co [worktree-id] [branch]
 ```
 
 ### Parameters
@@ -25,7 +23,23 @@ colyn co <branch>
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `worktree-id` | Optional | Target worktree ID, uses current worktree if omitted |
-| `branch` | Required | Branch name to switch to |
+| `branch` | Optional | Branch name to switch to; interactive selection if omitted |
+
+### No-argument Interactive Selection
+
+When `branch` is omitted, checkout enters an interactive selector with this order:
+
+1. `[Create new branch]` (default selected)
+2. Branches from `pending` todos
+3. Existing local branches (excluding the current branch in the main-branch directory)
+
+When creating a new branch interactively, it first asks for `type`, then `name`, and combines them as `type/name`.
+
+If the selected item comes from a `pending` todo, `checkout` performs post-actions aligned with `todo start` after success:
+- Mark the todo as `completed`
+- Record `startedAt` and `branch`
+- Print the todo message in terminal
+- Copy the message to system clipboard
 
 ## Core Behavior
 
@@ -87,45 +101,52 @@ After successful switch, if the old branch has been merged to main, prompt user 
 ### Post-execution Behavior
 
 - Automatically switch to target worktree directory (via shell function)
+- If the branch comes from a pending todo selection, automatically complete that todo and print/copy its message
 
 ## Command Flow
 
 ```mermaid
 flowchart TD
-    Start([colyn checkout branch]) --> Parse[1. Parse arguments<br/>Determine target worktree]
-    Parse --> Validate[2. Validate worktree exists]
-    Validate --> CheckClean{3. Uncommitted changes?}
+    Start([colyn checkout [branch]]) --> Parse[1. Parse arguments<br/>Determine target worktree]
+    Parse --> ResolveBranch{2. branch argument provided?}
+    ResolveBranch -->|No| Select[Interactive branch selector<br/>default: create new branch]
+    Select --> Validate
+    ResolveBranch -->|Yes| Validate[3. Validate worktree exists]
+    Validate --> CheckClean{4. Uncommitted changes?}
 
     CheckClean -->|Yes| ErrorDirty[❌ Reject switch<br/>Require commit first]
     ErrorDirty --> Exit1([Exit])
 
-    CheckClean -->|No| CheckMain{4. Target is main branch?}
+    CheckClean -->|No| CheckMain{5. Target is main branch?}
     CheckMain -->|Yes| ErrorMain[❌ Reject switch<br/>Suggest using main directory]
     ErrorMain --> Exit2([Exit])
 
-    CheckMain -->|No| CheckUsed{5. Branch used by<br/>another worktree?}
+    CheckMain -->|No| CheckUsed{6. Branch used by<br/>another worktree?}
     CheckUsed -->|Yes| ErrorUsed[❌ Reject switch<br/>Suggest switching to that worktree]
     ErrorUsed --> Exit3([Exit])
 
-    CheckUsed -->|No| CheckMerged{6. Current branch<br/>merged?}
+    CheckUsed -->|No| CheckMerged{7. Current branch<br/>merged?}
     CheckMerged -->|No| WarnUnmerged[⚠️ Warn unmerged]
     WarnUnmerged --> Confirm{User confirms?}
     Confirm -->|No| Cancel[Cancel operation]
     Cancel --> Exit4([Exit])
     Confirm -->|Yes| ProcessBranch
 
-    CheckMerged -->|Yes| ProcessBranch[7. Process branch<br/>Local/Remote/New]
-    ProcessBranch --> Archive[8. Archive log files]
-    Archive --> Checkout[9. Execute git checkout]
+    CheckMerged -->|Yes| ProcessBranch[8. Process branch<br/>Local/Remote/New]
+    ProcessBranch --> Archive[9. Archive log files]
+    Archive --> Checkout[10. Execute git checkout]
+    Checkout --> TodoPost{11. Selected from todo list?}
+    TodoPost -->|Yes| UpdateTodo[Mark todo completed<br/>print and copy message]
+    TodoPost -->|No| CheckMergedAgain{12. Old branch merged?}
+    UpdateTodo --> CheckMergedAgain
 
-    Checkout --> CheckMergedAgain{10. Old branch merged?}
     CheckMergedAgain -->|Yes| AskDelete{Prompt delete old branch?}
     AskDelete -->|Yes| DeleteBranch[Delete old branch]
     DeleteBranch --> Result
     AskDelete -->|No| Result
 
-    CheckMergedAgain -->|No| Result[11. Display result]
-    Result --> Output[12. Output JSON]
+    CheckMergedAgain -->|No| Result[13. Display result]
+    Result --> Output[14. Output JSON]
     Output --> Success([✓ Complete])
 
     style ErrorDirty fill:#ffcccc

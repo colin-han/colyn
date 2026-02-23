@@ -143,6 +143,11 @@ colyn add [branch]
 
 交互式创建分支时，会先选择 `type`，再输入 `name`，最终拼接为 `type/name`。
 
+如果在交互式列表中选择的是 `pending` Todo 对应分支，`add` 成功后会执行与 `todo start` 一致的后置动作：
+- 将该 Todo 标记为 `completed`
+- 在终端输出该 Todo 的 message
+- 自动复制该 message 到系统剪贴板
+
 `colyn add` 会智能处理分支：
 
 1. **本地分支存在** - 直接使用本地分支创建 Worktree
@@ -233,6 +238,7 @@ my-project/
 - 可以在项目的任意位置运行此命令
 - 分支名会自动去除 `origin/` 前缀
 - 交互选择器中的本地分支会自动忽略主分支目录当前分支
+- 交互选择器中若选择 Todo 分支，会自动完成 Todo 并复制 message 到剪贴板
 - 命令执行后会自动切换到新创建的 worktree 目录
 
 ---

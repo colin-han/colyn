@@ -1,7 +1,7 @@
 # Todo 命令设计文档
 
 **创建时间**：2026-02-22
-**最后更新**：2026-02-22（更新：列表输出格式、交互式选择优化）
+**最后更新**：2026-02-23（更新：add/checkout 选择 Todo 时与 todo start 行为对齐）
 **命令名称**：`colyn todo`
 **状态**：✅ 已实现
 
@@ -228,7 +228,11 @@ await checkoutCommand(undefined, branch, {});
 
 这意味着 `todo start` 会执行完整的 checkout 流程：检查未提交更改、fetch 远程、归档旧日志、重命名 tmux window 等。
 
-补充说明：当需要新增 worktree 时，建议使用 `colyn add [branch]`。其中 `add` 无参数模式可直接从 Todo 分支和本地分支中选择，减少手动输入。
+补充说明：
+
+- 当需要新增 worktree 时，使用 `colyn add [branch]`；不传 `branch` 可交互选择 Todo 分支和本地分支，减少手动输入。
+- 当需要复用现有 worktree 时，使用 `colyn checkout [branch]`；不传 `branch` 同样可交互选择。
+- 在 `add/checkout` 的交互列表中选择 `pending` Todo 分支时，命令成功后会执行与 `todo start` 对齐的后置动作：将 Todo 标记为 `completed`、写入 `startedAt/branch`、输出 message 并复制到剪贴板。
 
 ---
 

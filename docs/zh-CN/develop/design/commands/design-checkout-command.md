@@ -6,18 +6,16 @@
 
 与 `colyn add [branch]` 的关系：
 - `add` 用于创建新 worktree（可无参交互选择分支）
-- `checkout` 用于复用现有 worktree 切换分支（仍需提供目标分支）
+- `checkout` 用于复用现有 worktree 切换分支（支持无参交互选择分支）
 
 ## 命令语法
 
 ```bash
 # 完整命令
-colyn checkout <worktree-id> <branch>
-colyn checkout <branch>
+colyn checkout [worktree-id] [branch]
 
 # 别名
-colyn co <worktree-id> <branch>
-colyn co <branch>
+colyn co [worktree-id] [branch]
 ```
 
 ### 参数说明
@@ -25,7 +23,23 @@ colyn co <branch>
 | 参数 | 必需 | 说明 |
 |------|------|------|
 | `worktree-id` | 可选 | 目标 worktree 的 ID，省略时使用当前 worktree |
-| `branch` | 必需 | 要切换到的分支名 |
+| `branch` | 可选 | 要切换到的分支名；省略时交互式选择 |
+
+### 无参数交互选择
+
+当未提供 `branch` 时，进入交互式选择器，列表顺序如下：
+
+1. `[新建分支]`（默认选中）
+2. `pending` Todo 对应分支
+3. 本地已存在分支（过滤主分支目录当前分支）
+
+交互式创建分支时，会先选择 `type`，再输入 `name`，最终拼接为 `type/name`。
+
+如果在列表中选择的是 `pending` Todo 对应分支，`checkout` 成功后会追加以下动作（与 `todo start` 对齐）：
+- 将该 Todo 标记为 `completed`
+- 写入 `startedAt` 和 `branch`
+- 在终端输出该 Todo 的 message
+- 将 message 复制到系统剪贴板
 
 ## 核心行为
 
@@ -87,45 +101,52 @@ colyn co <branch>
 ### 执行后行为
 
 - 自动切换到目标 worktree 目录（通过 shell 函数）
+- 若分支来自 `pending` Todo 选择项，会自动完成该 Todo，并输出/复制 message
 
 ## 命令流程
 
 ```mermaid
 flowchart TD
-    Start([colyn checkout branch]) --> Parse[1. 解析参数<br/>确定目标 worktree]
-    Parse --> Validate[2. 验证 worktree 存在]
-    Validate --> CheckClean{3. 有未提交更改?}
+    Start([colyn checkout [branch]]) --> Parse[1. 解析参数<br/>确定目标 worktree]
+    Parse --> ResolveBranch{2. 提供 branch 参数?}
+    ResolveBranch -->|否| Select[交互式选择分支<br/>默认新建分支]
+    Select --> Validate
+    ResolveBranch -->|是| Validate[3. 验证 worktree 存在]
+    Validate --> CheckClean{4. 有未提交更改?}
 
     CheckClean -->|是| ErrorDirty[❌ 拒绝切换<br/>要求先提交]
     ErrorDirty --> Exit1([退出])
 
-    CheckClean -->|否| CheckMain{4. 目标是主分支?}
+    CheckClean -->|否| CheckMain{5. 目标是主分支?}
     CheckMain -->|是| ErrorMain[❌ 拒绝切换<br/>提示使用主分支目录]
     ErrorMain --> Exit2([退出])
 
-    CheckMain -->|否| CheckUsed{5. 分支被其他<br/>worktree 使用?}
+    CheckMain -->|否| CheckUsed{6. 分支被其他<br/>worktree 使用?}
     CheckUsed -->|是| ErrorUsed[❌ 拒绝切换<br/>提示切换到对应 worktree]
     ErrorUsed --> Exit3([退出])
 
-    CheckUsed -->|否| CheckMerged{6. 当前分支<br/>已合并?}
+    CheckUsed -->|否| CheckMerged{7. 当前分支<br/>已合并?}
     CheckMerged -->|否| WarnUnmerged[⚠️ 警告未合并]
     WarnUnmerged --> Confirm{用户确认?}
     Confirm -->|否| Cancel[取消操作]
     Cancel --> Exit4([退出])
     Confirm -->|是| ProcessBranch
 
-    CheckMerged -->|是| ProcessBranch[7. 处理分支<br/>本地/远程/新建]
-    ProcessBranch --> Archive[8. 归档日志文件]
-    Archive --> Checkout[9. 执行 git checkout]
+    CheckMerged -->|是| ProcessBranch[8. 处理分支<br/>本地/远程/新建]
+    ProcessBranch --> Archive[9. 归档日志文件]
+    Archive --> Checkout[10. 执行 git checkout]
+    Checkout --> TodoPost{11. 来自 Todo 选择?}
+    TodoPost -->|是| UpdateTodo[标记 Todo 完成<br/>输出并复制 message]
+    TodoPost -->|否| CheckMergedAgain{12. 旧分支已合并?}
+    UpdateTodo --> CheckMergedAgain
 
-    Checkout --> CheckMergedAgain{10. 旧分支已合并?}
     CheckMergedAgain -->|是| AskDelete{提示删除旧分支?}
     AskDelete -->|是| DeleteBranch[删除旧分支]
     DeleteBranch --> Result
     AskDelete -->|否| Result
 
-    CheckMergedAgain -->|否| Result[11. 显示结果]
-    Result --> Output[12. 输出 JSON]
+    CheckMergedAgain -->|否| Result[13. 显示结果]
+    Result --> Output[14. 输出 JSON]
     Output --> Success([✓ 完成])
 
     style ErrorDirty fill:#ffcccc

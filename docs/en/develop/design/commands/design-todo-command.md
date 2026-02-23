@@ -1,7 +1,7 @@
 # Todo Command Design Document
 
 **Created**: 2026-02-22
-**Last Updated**: 2026-02-22 (updated: list output format, interactive select improvements)
+**Last Updated**: 2026-02-23 (updated: align add/checkout todo-selection behavior with todo start)
 **Command Name**: `colyn todo`
 **Status**: ✅ Implemented
 
@@ -229,7 +229,11 @@ await checkoutCommand(undefined, branch, {});
 
 This means `todo start` performs the full checkout flow: check for uncommitted changes, fetch remote, archive old logs, rename tmux window, etc.
 
-Additional note: when you need a new worktree, use `colyn add [branch]`. In no-argument mode, `add` can directly choose from todo branches and local branches, reducing manual input.
+Additional notes:
+
+- When you need a new worktree, use `colyn add [branch]`; no-argument mode can directly select todo branches and local branches.
+- When reusing an existing worktree, use `colyn checkout [branch]`; no-argument mode also supports interactive selection.
+- If a `pending` todo branch is selected in `add/checkout`, the command performs post-actions aligned with `todo start`: marks todo as `completed`, writes `startedAt/branch`, prints the message, and copies it to clipboard.
 
 ---
 

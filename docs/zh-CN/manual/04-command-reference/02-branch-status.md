@@ -11,10 +11,10 @@
 ### 语法
 
 ```bash
-colyn checkout [worktree-id] <branch> [选项]
+colyn checkout [worktree-id] [branch] [选项]
 
 # 别名
-colyn co [worktree-id] <branch> [选项]
+colyn co [worktree-id] [branch] [选项]
 ```
 
 ### 参数
@@ -22,7 +22,7 @@ colyn co [worktree-id] <branch> [选项]
 | 参数 | 必填 | 说明 |
 |------|------|------|
 | `worktree-id` | 否 | Worktree 的 ID，省略时使用当前 worktree |
-| `branch` | 是 | 目标分支名称 |
+| `branch` | 否 | 目标分支名称，省略时交互式选择 |
 
 ### 选项
 
@@ -35,6 +35,21 @@ colyn co [worktree-id] <branch> [选项]
 `colyn checkout` 允许在 worktree 中切换分支，复用已有 worktree 进行不同分支的开发。
 
 如果需要创建新的 worktree，请使用 `colyn add [branch]`（省略 `branch` 可交互式选择）。
+
+`colyn checkout` 有两种入口：
+
+1. **带 `branch` 参数**：直接切换到目标分支
+2. **不带 `branch` 参数**：进入交互式选择器，按以下顺序展示
+   - `[新建分支]`（默认选中）
+   - `pending` Todo 对应分支
+   - 本地已有分支（已排除主分支）
+
+交互式创建分支时，会先选择 `type`，再输入 `name`，最终拼接为 `type/name`。
+
+如果在交互式列表中选择的是 `pending` Todo 对应分支，`checkout` 成功后会执行与 `todo start` 一致的后置动作：
+- 将该 Todo 标记为 `completed`
+- 在终端输出该 Todo 的 message
+- 自动复制该 message 到系统剪贴板
 
 **前置检查：**
 - 有未提交更改 → 拒绝切换
@@ -58,6 +73,14 @@ colyn co [worktree-id] <branch> [选项]
 - 如果使用 iTerm2，自动更新 tab title
 
 ### 示例
+
+**不带参数：交互式选择分支：**
+
+```bash
+$ colyn checkout
+# 或使用别名
+$ colyn co
+```
 
 **在当前 worktree 中切换分支：**
 
@@ -106,6 +129,8 @@ $ colyn checkout feature/test --no-fetch
 ### 提示
 
 - 可以复用已有 worktree 进行不同分支的开发
+- 不传 `branch` 时可交互选择（新建分支 / Todo 分支 / 本地分支）
+- 交互选择器中若选择 Todo 分支，会自动完成 Todo 并复制 message 到剪贴板
 - 切换前会自动归档 `.claude/logs/` 目录下的日志文件
 - fetch 成功后会自动更新主分支（如果主分支落后于远程）
 - 已合并的旧分支可选删除
