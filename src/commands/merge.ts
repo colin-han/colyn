@@ -1,5 +1,4 @@
 import type { Command } from 'commander';
-import Enquirer from 'enquirer';
 import ora from 'ora';
 import {
   getProjectPaths,
@@ -16,12 +15,10 @@ import {
   checkGitWorkingDirectory,
   mergeMainIntoWorktree,
   mergeWorktreeIntoMain,
-  pushToRemote,
   displayWorktreeInfo,
   displayCheckPassed,
   displayMergeSuccess,
-  displayMergeConflict,
-  displayPushFailed
+  displayMergeConflict
 } from './merge.helpers.js';
 import { pluginManager } from '../plugins/index.js';
 import { resolveToolchains } from '../core/toolchain-resolver.js';
@@ -37,7 +34,6 @@ import { setWorktreeStatus } from '../core/worktree-status.js';
  * Merge 命令选项
  */
 interface MergeOptions {
-  push?: boolean;
   noRebase?: boolean;
   noUpdate?: boolean;  // 合并后不自动更新
   updateAll?: boolean;  // 合并后更新所有 worktrees
@@ -54,7 +50,6 @@ interface MergeOptions {
  * 2. 在 worktree 中 rebase 主分支（默认），确保 worktree 包含主分支的所有更改
  * 3. 如果有冲突，提示用户在 worktree 中解决
  * 4. 在主分支中合并 worktree 分支（--no-ff），此时不会有冲突
- * 5. 推送处理
  */
 async function mergeCommand(
   target: string | undefined,
@@ -214,43 +209,7 @@ async function mergeCommand(
       await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
     } catch { /* 状态更新失败不影响主流程 */ }
 
-    // 步骤8: 推送处理
-    let pushed = false;
-
-    // 检查用户是否显式指定了 --push 或 --no-push 参数
-    const explicitPush = process.argv.includes('--push');
-    const explicitNoPush = process.argv.includes('--no-push');
-
-    if (explicitPush) {
-      // --push: 自动推送
-      const pushResult = await pushToRemote(paths.mainDir, mainBranch);
-      if (pushResult.success) {
-        pushed = true;
-      } else {
-        displayPushFailed(pushResult.error || t('common.unknownError'), paths.mainDir, mainBranch);
-      }
-    } else if (!explicitNoPush) {
-      // 没有指定 --no-push：询问用户
-      const enquirer = new Enquirer({ stdout: process.stderr });
-      const response = await enquirer.prompt({
-        type: 'confirm',
-        name: 'shouldPush',
-        message: t('commands.merge.shouldPush'),
-        initial: false
-      }) as { shouldPush: boolean };
-
-      if (response.shouldPush) {
-        const pushResult = await pushToRemote(paths.mainDir, mainBranch);
-        if (pushResult.success) {
-          pushed = true;
-        } else {
-          displayPushFailed(pushResult.error || t('common.unknownError'), paths.mainDir, mainBranch);
-        }
-      }
-    }
-    // 指定了 --no-push: 不推送，不询问
-
-    // 步骤9: 显示成功信息
+    // 步骤8: 显示成功信息
     displayMergeSuccess(
       mainBranch,
       worktree.branch,
@@ -258,21 +217,18 @@ async function mergeCommand(
       paths.mainDir,
       worktree.path,
       worktree.id,
-      pushed,
       options.verbose
     );
 
-    // 步骤10: 自动更新 worktrees
+    // 步骤9: 自动更新 worktrees
     if (!options.noUpdate) {
       output('');
 
-      // 拉取主分支最新代码（如果已经 push，则主分支已经是最新的）
-      if (!pushed) {
-        try {
-          await pullMainBranch(paths.mainDir, options.fetch === false);
-        } catch (error) {
-          // 拉取失败不影响更新流程，因为本地已经有最新代码
-        }
+      // 拉取主分支最新代码（拉取失败不影响后续更新流程）
+      try {
+        await pullMainBranch(paths.mainDir, options.fetch === false);
+      } catch {
+        // 拉取失败不影响更新流程，因为本地已有合并结果
       }
 
       if (options.updateAll) {
@@ -321,7 +277,7 @@ async function mergeCommand(
       }
     }
 
-    // 步骤11: 输出 JSON 结果到 stdout（不设置 targetDir，保持在原目录）
+    // 步骤10: 输出 JSON 结果到 stdout（不设置 targetDir，保持在原目录）
     const result: CommandResult = {
       success: true
     };
@@ -342,8 +298,6 @@ export function register(program: Command): void {
     .command('merge [target]')
     .description(t('commands.merge.description'))
     .option('--no-rebase', t('commands.merge.noRebaseOption'))
-    .option('--push', t('commands.merge.pushOption'))
-    .option('--no-push', t('commands.merge.noPushOption'))
     .option('--no-update', t('commands.merge.noUpdateOption'))
     .option('--update-all', t('commands.merge.updateAllOption'))
     .option('-v, --verbose', t('commands.merge.verboseOption'))

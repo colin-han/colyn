@@ -504,8 +504,6 @@ colyn merge [target] [options]
 
 | Option | Description |
 |--------|-------------|
-| `--push` | Automatically push to remote after merge |
-| `--no-push` | Do not push after merge (skip prompt) |
 | `--no-rebase` | Use merge instead of rebase to update worktree |
 | `--no-update` | Do not automatically update current worktree after merge |
 | `--update-all` | Update all worktrees after merge |
@@ -542,9 +540,6 @@ $ colyn merge 1
 
 # Merge by branch name
 $ colyn merge feature/login
-
-# Merge and auto-push
-$ colyn merge 1 --push
 ```
 
 ### Handling Merge Conflicts

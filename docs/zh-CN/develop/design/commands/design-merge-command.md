@@ -1,7 +1,7 @@
 # Merge 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-15
-**最后更新**：2026-02-21
+**最后更新**：2026-02-23（更新：移除 merge 命令中的远程推送环节）
 **命令名称**：`colyn merge`
 **状态**：✅ 已实现
 
@@ -15,8 +15,7 @@
 1. 手动切换到主分支目录
 2. 执行 git merge 命令
 3. 处理可能的冲突
-4. 推送到远程仓库
-5. 手动清理 worktree
+4. 手动清理 worktree
 
 这个过程繁琐且容易出错。
 
@@ -32,7 +31,7 @@
 - ✅ **代码质量检查**：合并前自动运行 lint 和编译检查，确保代码质量
 - ✅ **线性历史**：默认使用 rebase 产生线性提交历史
 - ✅ **清晰历史**：使用 --no-ff 保持清晰的分支历史
-- ✅ **灵活推送**：可选自动推送或手动推送
+- ✅ **远端解耦**：合并命令只处理本地合并，不触发推送
 - ✅ **保留 worktree**：合并后保留，由用户决定是否删除
 
 ---
@@ -64,11 +63,7 @@ sequenceDiagram
         G->>C: 变基成功
         C->>G: 步骤2: git merge --no-ff feature/login (在主分支中)
         G->>C: 合并成功
-        C->>U: ✓ 合并成功！<br/>? 是否推送到远程仓库？(y/N)
-        U->>C: y
-        C->>G: git push origin main
-        G->>C: 推送成功
-        C->>U: ✓ 合并完成并已推送到远程！
+        C->>U: ✓ 合并成功！
     else 工作目录不干净或代码质量检查失败
         C->>U: ✗ 主分支/Worktree 有未提交更改 或 Lint/Build 失败<br/>请先修复后重试
     end
@@ -104,10 +99,6 @@ $ colyn merge feature/login
   主分支: main
   合并分支: feature/login
   提交: a1b2c3d Merge branch 'feature/login'
-
-? 是否推送到远程仓库？(y/N) › Yes
-
-✓ 合并完成并已推送到远程！
 
 后续操作：
   1. 查看合并后的代码：
@@ -147,15 +138,15 @@ $ colyn merge
 
 ---
 
-### 2.3 场景 3：快速合并并推送
+### 2.3 场景 3：快速合并（仅本地）
 
-**用户情况**：确定要推送，不想被询问
+**用户情况**：希望快速完成本地合并，远端推送稍后手动执行
 
 ```bash
-$ colyn merge feature/login --push
+$ colyn merge feature/login
 
-# 合并后自动推送，不询问用户
-✓ 合并完成并已推送到远程！
+# 命令只执行本地合并，不会触发 git push
+✓ 合并完成！
 ```
 
 ---
@@ -372,39 +363,23 @@ git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 
 ---
 
-### 3.4 推送策略
+### 3.4 远端推送策略
 
 ```mermaid
 graph TD
-    MergeSuccess[合并成功] --> CheckFlag{推送参数?}
+    MergeSuccess[合并成功] --> Done[✓ 合并完成]
+    Done --> Hint[需要时由用户手动执行 git push]
 
-    CheckFlag -->|--push| AutoPush[自动推送]
-    CheckFlag -->|--no-push| SkipPush[跳过推送]
-    CheckFlag -->|无参数| AskUser[? 是否推送到远程仓库？<br/>Y/n]
-
-    AskUser -->|Yes| ManualPush[执行推送]
-    AskUser -->|No| SkipPush
-
-    AutoPush --> PushResult{推送成功?}
-    ManualPush --> PushResult
-
-    PushResult -->|是| Success[✓ 合并完成并已推送]
-    PushResult -->|否| Error[✗ 推送失败<br/>显示错误信息]
-
-    SkipPush --> Done[✓ 合并完成<br/>提示可稍后手动推送]
-
-    style Success fill:#ccffcc
     style Done fill:#ccffcc
-    style Error fill:#ffcccc
+    style Hint fill:#ccffcc
 ```
 
-**三种模式**：
+**设计规则**：
 
-| 模式 | 命令 | 行为 |
-|------|------|------|
-| 自动推送 | `colyn merge <target> --push` | 合并后自动推送，不询问 |
-| 跳过推送 | `colyn merge <target> --no-push` | 合并后不推送，不询问 |
-| 询问用户 | `colyn merge <target>` | 合并后询问用户是否推送（默认） |
+| 规则 | 行为 |
+|------|------|
+| `colyn merge` | 仅执行本地合并 |
+| 远程推送 | 由用户在主分支目录手动执行 `git push` |
 
 ---
 
@@ -432,8 +407,6 @@ graph TD
 | 输入内容 | 必填 | 说明 | 验证规则 |
 |---------|------|------|---------|
 | ID 或分支名 | 否 | 指定要合并的 worktree<br/>无参数时自动识别 | - 数字视为 ID<br/>- 包含 `/` 视为分支名 |
-| `--push` | 否 | 合并后自动推送 | 与 `--no-push` 互斥 |
-| `--no-push` | 否 | 合并后不推送（跳过询问） | 与 `--push` 互斥 |
 | `--no-rebase` | 否 | 使用 merge 而非 rebase 更新 worktree | 默认使用 rebase |
 | `--no-update` | 否 | 合并后不自动更新当前 worktree | 默认会更新 |
 | `--update-all` | 否 | 合并后更新所有 worktrees | 与 `--no-update` 互斥 |
@@ -458,7 +431,7 @@ graph TD
 
 **成功信息**：
 ```
-✓ 合并完成并已推送到远程！
+✓ 合并成功！
 
 后续操作：
   1. 查看合并后的代码：cd my-project
@@ -481,7 +454,6 @@ graph TD
 | **Lint 检查失败** | ✗ Lint 检查失败<br/>错误: ... | 修复 lint 错误后重试<br/>cd worktrees/task-1 && yarn lint |
 | **编译失败** | ✗ 编译失败<br/>错误: ... | 修复编译错误后重试<br/>cd worktrees/task-1 && yarn build |
 | **合并冲突** | ✗ 合并时发生冲突<br/>冲突文件: ...<br/>解决步骤: ... | 手动解决冲突<br/>不会自动回滚 |
-| **推送失败** | ✗ 推送到远程仓库失败<br/>错误信息: ...<br/>本地合并已完成，可稍后手动推送 | 检查网络和权限<br/>手动推送: cd my-project && git push |
 
 ---
 
@@ -524,12 +496,11 @@ graph TD
 - [x] 运行 lint 检查，失败时拒绝合并并显示错误详情
 - [x] 运行编译检查，失败时拒绝合并并显示错误详情
 
-### 7.3 推送功能
+### 7.3 远端推送职责
 
-- [x] `--push` 参数：合并后自动推送
-- [x] `--no-push` 参数：合并后不推送（跳过询问）
-- [x] 无参数：询问用户是否推送（默认行为）
-- [x] 推送失败时给出清晰的错误信息
+- [x] `colyn merge` 不执行 `git push`
+- [x] 不提供 `--push` / `--no-push` 参数
+- [x] 合并成功后提示用户可按需手动推送
 
 ### 7.4 冲突处理
 
@@ -589,25 +560,18 @@ A: 系统会检测并拒绝合并，提示：
 ### Q4: 合并冲突后如何继续？
 
 A: 系统会保留冲突状态，用户需要：
-1. 进入主分支目录
+1. 进入发生冲突的 worktree 目录
 2. 手动解决冲突文件
 3. `git add <file>`
-4. `git commit`
-5. 可选：`git push`
+4. 若使用默认 rebase：执行 `git rebase --continue`
+5. 若需要放弃：执行 `git rebase --abort`
+6. 回到 Colyn 流程，重新运行 `colyn merge`
 
-### Q5: 可以在不推送的情况下合并吗？
+### Q5: merge 会自动推送到远程吗？
 
-A: 可以。有两种方式：
-1. 使用 `--no-push` 参数跳过询问，直接完成合并而不推送
-2. 不指定参数，在询问时选择 No
-
-本地合并完成后，可以稍后手动推送。
-
-### Q6: 如果推送失败了怎么办？
-
-A: 本地合并已经完成，系统会提示可以稍后手动推送：
+A: 不会。`colyn merge` 只负责本地合并流程。需要推送时，请在主分支目录手动执行：
 ```bash
-cd my-project && git push origin main
+git push origin <main-branch>
 ```
 
 ---
@@ -632,7 +596,7 @@ cd my-project && git push origin main
 ✅ **安全检查**：避免错误操作
 ✅ **代码质量**：合并前自动运行 lint 和编译检查
 ✅ **清晰历史**：使用 --no-ff 保持分支历史
-✅ **灵活推送**：支持三种推送模式
+✅ **远端解耦**：合并流程不包含远程推送
 ✅ **保留 worktree**：由用户决定删除时机
 ✅ **友好提示**：清晰的错误信息和解决建议
 
