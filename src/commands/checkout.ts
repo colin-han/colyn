@@ -14,6 +14,7 @@ import {
   outputLine,
   outputResult,
   outputSuccess,
+  outputInfo,
   outputBold
 } from '../utils/logger.js';
 import {
@@ -31,7 +32,15 @@ import {
 } from './merge.helpers.js';
 import { t } from '../i18n/index.js';
 import { isValidBranchName } from './add.helpers.js';
-import { formatTodoIdLabel, readTodoFile, selectWithPreview } from './todo.helpers.js';
+import {
+  copyToClipboard,
+  findTodo,
+  formatTodoIdLabel,
+  parseTodoId,
+  readTodoFile,
+  saveTodoFile,
+  selectWithPreview,
+} from './todo.helpers.js';
 import {
   isTmuxAvailable,
   isInTmux,
@@ -301,8 +310,11 @@ async function selectBranchForCheckout(
   configDir: string,
   worktreePath: string,
   mainBranch: string,
-): Promise<string> {
-  type Choice = { type: 'branch'; branch: string } | { type: 'create' };
+): Promise<{ branch: string; selectedTodo?: { todoId: string; message: string } }> {
+  type Choice =
+    | { type: 'branch'; branch: string }
+    | { type: 'create' }
+    | { type: 'todo'; branch: string; todoId: string; message: string };
   const options = new Map<string, Choice>();
   const items: Array<{
     value: string;
@@ -344,7 +356,7 @@ async function selectBranchForCheckout(
     const todoLabel = formatTodoIdLabel(todo.type, todo.name, maxTodoTypeW);
     pendingBranchSet.add(branch);
     pushChoice(
-      { type: 'branch', branch },
+      { type: 'todo', branch, todoId: branch, message: todo.message },
       todoLabel.plain,
       `${t('commands.checkout.selectTodoSummaryPrefix')}: ${todo.message.split('\n')[0]}`,
       todo.message,
@@ -398,10 +410,20 @@ async function selectBranchForCheckout(
   }
 
   if (selectedChoice.type === 'create') {
-    return promptCreateBranchName();
+    return { branch: await promptCreateBranchName() };
   }
 
-  return selectedChoice.branch;
+  if (selectedChoice.type === 'todo') {
+    return {
+      branch: selectedChoice.branch,
+      selectedTodo: {
+        todoId: selectedChoice.todoId,
+        message: selectedChoice.message,
+      },
+    };
+  }
+
+  return { branch: selectedChoice.branch };
 }
 /**
  * Checkout 命令选项
@@ -462,9 +484,12 @@ export async function checkoutCommand(
     }
 
     const mainBranch = await getMainBranch(paths.mainDir);
+    let selectedTodoMeta: { todoId: string; message: string } | undefined;
 
     if (!branch) {
-      branch = await selectBranchForCheckout(paths.configDir, worktree.path, mainBranch);
+      const selected = await selectBranchForCheckout(paths.configDir, worktree.path, mainBranch);
+      branch = selected.branch;
+      selectedTodoMeta = selected.selectedTodo;
     }
 
     const currentBranch = worktree.branch;
@@ -641,6 +666,32 @@ export async function checkoutCommand(
 
     if (oldBranchDeleted) {
       output(chalk.gray(t('commands.checkout.oldBranchDeleted', { branch: currentBranch })));
+    }
+
+    // 由 Todo 入口切换分支时：同步标记完成，并输出 message + 复制剪贴板
+    if (selectedTodoMeta) {
+      const { type, name } = parseTodoId(selectedTodoMeta.todoId);
+      const todoFile = await readTodoFile(paths.configDir);
+      const todoItem = findTodo(todoFile.todos, type, name);
+      if (todoItem && todoItem.status === 'pending') {
+        todoItem.status = 'completed';
+        todoItem.startedAt = new Date().toISOString();
+        todoItem.branch = branch;
+        await saveTodoFile(paths.configDir, todoFile);
+        outputSuccess(t('commands.todo.start.success', { todoId: selectedTodoMeta.todoId }));
+      }
+
+      outputLine();
+      output(chalk.bold(t('commands.todo.start.messageTitle')));
+      output(selectedTodoMeta.message);
+      outputLine();
+
+      const copied = copyToClipboard(selectedTodoMeta.message);
+      if (copied) {
+        outputInfo(t('commands.todo.start.clipboardCopied'));
+      } else {
+        outputInfo(t('commands.todo.start.clipboardFailed'));
+      }
     }
 
     outputLine();
