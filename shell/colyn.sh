@@ -23,31 +23,46 @@ colyn() {
     return 1
   fi
 
-  # 调用 bin/colyn，捕获 stdout（JSON），stderr 直接显示
+  # 调用 bin/colyn，捕获 stdout（业务输出 + 机器结果），stderr 直接显示
   local result
   result=$(COLYN_OUTPUT_JSON=1 "$COLYN_BIN" "$@")
   local exit_code=$?
 
   # 处理输出
   if [[ -n "$result" ]]; then
-    # 尝试解析 JSON
-    local target_dir display_path attach_session is_json_result
-    target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.targetDir)console.log(r.targetDir)}catch(e){process.exit(1)}" "$result" 2>/dev/null)
-    attach_session=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r.success&&r.attachSession)console.log(r.attachSession)}catch(e){}" "$result" 2>/dev/null)
-    node -e "try{JSON.parse(process.argv[1]);process.exit(0)}catch(e){process.exit(1)}" "$result" 2>/dev/null
-    is_json_result=$?
+    # 截留 stdout 最后一条 JSON 行（控制消息），其余 stdout 原样透传
+    local control_line body_output has_control_result
+    control_line=$(printf '%s\n' "$result" | awk 'NF{line=$0} END{print line}')
+    has_control_result=1
 
-    if [[ $? -eq 0 && -n "$attach_session" ]]; then
-      # 需要连接到 tmux session
-      exec tmux attach-session -t "$attach_session"
-    elif [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
-      # 是 JSON 且有目标目录
-      display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log(r.displayPath||r.targetDir)}catch(e){}" "$result" 2>/dev/null)
-      cd "$target_dir" || return
-      echo "📂 已切换到: $display_path"
-    elif [[ $is_json_result -ne 0 ]]; then
-      # 不是 JSON，原样输出（如 --help）
-      echo "$result"
+    if node -e "try{JSON.parse(process.argv[1]);process.exit(0)}catch(e){process.exit(1)}" "$control_line" 2>/dev/null; then
+      has_control_result=0
+      body_output=$(printf '%s\n' "$result" | awk '{lines[NR]=$0} NF{last=NR} END{for(i=1;i<=NR;i++){if(i==last)continue; print lines[i]}}')
+    else
+      body_output="$result"
+    fi
+
+    if [[ -n "$body_output" ]]; then
+      printf '%s\n' "$body_output"
+    fi
+
+    if [[ $has_control_result -eq 0 ]]; then
+      local target_dir display_path attach_session result_success
+      result_success=$(node -e "try{const r=JSON.parse(process.argv[1]);process.stdout.write((r&&typeof r==='object'&&r.success===true)?'1':'0')}catch(e){process.stdout.write('0')}" "$control_line" 2>/dev/null)
+
+      if [[ "$result_success" == "1" ]]; then
+        attach_session=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.attachSession==='string')process.stdout.write(r.attachSession)}catch(e){}" "$control_line" 2>/dev/null)
+        target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.targetDir==='string')process.stdout.write(r.targetDir)}catch(e){}" "$control_line" 2>/dev/null)
+
+        if [[ -n "$attach_session" ]]; then
+          # 需要连接到 tmux session
+          exec tmux attach-session -t "$attach_session"
+        elif [[ -n "$target_dir" && -d "$target_dir" ]]; then
+          display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'){process.stdout.write(typeof r.displayPath==='string'&&r.displayPath?r.displayPath:(typeof r.targetDir==='string'?r.targetDir:''))}}catch(e){}" "$control_line" 2>/dev/null)
+          cd "$target_dir" || return
+          echo "📂 已切换到: $display_path"
+        fi
+      fi
     fi
   fi
 
