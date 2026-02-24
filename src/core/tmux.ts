@@ -32,10 +32,12 @@ function execTmux(
   options: { silent?: boolean; ignoreError?: boolean } = {}
 ): string {
   try {
-    // 创建一个不包含 COLYN_USER_CWD 的环境变量对象
-    // 防止这个内部环境变量泄漏到 tmux session 中
+    // 创建一个不包含 colyn 内部变量的环境变量对象
+    // 防止这些变量泄漏到 tmux session 中
     const cleanEnv = { ...process.env };
     delete cleanEnv.COLYN_USER_CWD;
+    delete cleanEnv.COLYN_OUTPUT_JSON;
+    delete cleanEnv.COLYN_OUTPUT_CONTROL;
 
     const output = execSync(`tmux ${command}`, {
       encoding: 'utf-8',
@@ -48,6 +50,21 @@ function execTmux(
       return '';
     }
     throw error;
+  }
+}
+
+/**
+ * 清理 tmux 中 colyn 内部环境变量，避免污染后续 shell。
+ */
+function cleanupColynEnvInTmux(sessionName?: string): void {
+  execTmux('set-environment -g -u COLYN_OUTPUT_JSON', { silent: true, ignoreError: true });
+  execTmux('set-environment -g -u COLYN_OUTPUT_CONTROL', { silent: true, ignoreError: true });
+  execTmux('set-environment -g -u COLYN_USER_CWD', { silent: true, ignoreError: true });
+
+  if (sessionName) {
+    execTmux(`set-environment -t "${sessionName}" -u COLYN_OUTPUT_JSON`, { silent: true, ignoreError: true });
+    execTmux(`set-environment -t "${sessionName}" -u COLYN_OUTPUT_CONTROL`, { silent: true, ignoreError: true });
+    execTmux(`set-environment -t "${sessionName}" -u COLYN_USER_CWD`, { silent: true, ignoreError: true });
   }
 }
 
@@ -147,6 +164,7 @@ export function createSession(
   try {
     // 如果 session 已存在，直接返回成功
     if (sessionExists(sessionName)) {
+      cleanupColynEnvInTmux(sessionName);
       return true;
     }
 
@@ -154,6 +172,7 @@ export function createSession(
     execTmux(`new-session -d -s "${sessionName}" -c "${workingDir}"`, {
       silent: true,
     });
+    cleanupColynEnvInTmux(sessionName);
     return true;
   } catch {
     return false;

@@ -2,6 +2,15 @@ import chalk from 'chalk';
 import { ColynError, CommandResult } from '../types/index.js';
 import { t } from '../i18n/index.js';
 
+const shouldOutputMachineResult =
+  process.env.COLYN_OUTPUT_JSON === '1' &&
+  process.env.COLYN_OUTPUT_CONTROL === '1';
+if (shouldOutputMachineResult) {
+  // 避免内部控制变量被后续子进程（如 tmux/new shell）继承，造成环境污染。
+  delete process.env.COLYN_OUTPUT_JSON;
+  delete process.env.COLYN_OUTPUT_CONTROL;
+}
+
 /**
  * 输出到 stderr（彩色，给用户看）
  */
@@ -63,8 +72,8 @@ export function outputStep(message: string): void {
  */
 export function outputResult(result: CommandResult): void {
   // 默认不输出机器结果，避免污染人类可读的终端输出。
-  // 仅 shell 包装器在需要时设置 COLYN_OUTPUT_JSON=1。
-  if (process.env.COLYN_OUTPUT_JSON !== '1') {
+  // 仅 shell 包装器在需要时设置 COLYN_OUTPUT_JSON=1 与 COLYN_OUTPUT_CONTROL=1。
+  if (!shouldOutputMachineResult) {
     return;
   }
   console.log(JSON.stringify(result));
