@@ -37,6 +37,7 @@ function execTmux(
     const cleanEnv = { ...process.env };
     delete cleanEnv.COLYN_USER_CWD;
     delete cleanEnv.COLYN_OUTPUT_JSON;
+    delete cleanEnv.COLYN_OUTPUT_CONTROL;
 
     const output = execSync(`tmux ${command}`, {
       encoding: 'utf-8',
@@ -57,10 +58,12 @@ function execTmux(
  */
 function cleanupColynEnvInTmux(sessionName?: string): void {
   execTmux('set-environment -g -u COLYN_OUTPUT_JSON', { silent: true, ignoreError: true });
+  execTmux('set-environment -g -u COLYN_OUTPUT_CONTROL', { silent: true, ignoreError: true });
   execTmux('set-environment -g -u COLYN_USER_CWD', { silent: true, ignoreError: true });
 
   if (sessionName) {
     execTmux(`set-environment -t "${sessionName}" -u COLYN_OUTPUT_JSON`, { silent: true, ignoreError: true });
+    execTmux(`set-environment -t "${sessionName}" -u COLYN_OUTPUT_CONTROL`, { silent: true, ignoreError: true });
     execTmux(`set-environment -t "${sessionName}" -u COLYN_USER_CWD`, { silent: true, ignoreError: true });
   }
 }

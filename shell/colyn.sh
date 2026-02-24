@@ -25,7 +25,7 @@ colyn() {
 
   # 调用 bin/colyn，捕获 stdout（业务输出 + 机器结果），stderr 直接显示
   local result
-  result=$(COLYN_OUTPUT_JSON=1 "$COLYN_BIN" "$@")
+  result=$(COLYN_OUTPUT_JSON=1 COLYN_OUTPUT_CONTROL=1 "$COLYN_BIN" "$@")
   local exit_code=$?
 
   # 处理输出
