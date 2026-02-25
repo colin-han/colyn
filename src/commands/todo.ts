@@ -24,6 +24,7 @@ import {
   getLocationInfo
 } from '../core/paths.js';
 import { t } from '../i18n/index.js';
+import { getBranchCategories, resolveAbbr } from '../core/config.js';
 import {
   readTodoFile,
   saveTodoFile,
@@ -99,7 +100,9 @@ async function listPendingTodos(configDir: string): Promise<void> {
     outputInfo(t('commands.todo.list.empty'));
     return;
   }
-  output(formatTodoTable(pending));
+  const categories = await getBranchCategories(configDir);
+  const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
+  output(formatTodoTable(pending, abbrMap));
 }
 
 /**
@@ -141,11 +144,12 @@ export function register(program: Command): void {
           }
         } else {
           // 交互式选择 type 和输入 name
+          const categories = await getBranchCategories(paths.configDir);
           const typeResponse = await prompt<{ type: string }>({
             type: 'select',
             name: 'type',
             message: t('commands.todo.add.selectType'),
-            choices: ['feature', 'bugfix', 'refactor', 'document'],
+            choices: categories.map(c => ({ name: resolveAbbr(c), value: c.name })),
             stdout: process.stderr,
           });
           type = typeResponse.type;
@@ -353,7 +357,9 @@ export function register(program: Command): void {
           }
           // ArchivedTodoItem extends TodoItem, display as TodoItem
           const todoItems: TodoItem[] = archivedFile.todos.map(item => ({ ...item, status: 'completed' as const }));
-          output(formatTodoTable(todoItems));
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
+          output(formatTodoTable(todoItems, abbrMap));
         } else if (options.completed) {
           const todoFile = await readTodoFile(paths.configDir);
           const completed = todoFile.todos.filter(item => item.status === 'completed');
@@ -361,7 +367,9 @@ export function register(program: Command): void {
             outputInfo(t('commands.todo.list.empty'));
             return;
           }
-          output(formatTodoTable(completed));
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
+          output(formatTodoTable(completed, abbrMap));
         } else {
           await listPendingTodos(paths.configDir);
         }

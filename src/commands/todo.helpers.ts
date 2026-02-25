@@ -428,15 +428,16 @@ export async function selectPendingTodo(
  * - message 仅显示首行
  * - 其他列按内容自适应宽度，message 列填满终端剩余空间
  * - message 过长时自动截断并加省略号
+ * @param abbrMap type name → 显示用 abbr 的映射（可选，不传则直接显示 type name）
  */
-export function formatTodoTable(todos: TodoItem[]): string {
+export function formatTodoTable(todos: TodoItem[], abbrMap?: Map<string, string>): string {
   if (todos.length === 0) return '';
 
   const INDENT = 2;
   const GAP = 2;
 
   const rows = todos.map(item => ({
-    type: item.type,
+    type: abbrMap?.get(item.type) ?? item.type,
     name: item.name,
     message: item.message.split('\n')[0],
     createdAt: formatDate(item.createdAt),

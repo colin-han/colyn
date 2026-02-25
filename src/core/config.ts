@@ -11,6 +11,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
+import { loadUserConfig, loadConfigFromDir } from './config-loader.js';
+import type { BranchCategory } from './config-schema.js';
 
 /**
  * Colyn 配置接口
@@ -166,6 +168,48 @@ export async function getRunCommand(configDir?: string): Promise<string> {
 export function clearConfigCache(): void {
   cachedConfig = null;
   cachedConfigDir = null;
+}
+
+/**
+ * 默认分支类型列表
+ */
+export const DEFAULT_BRANCH_CATEGORIES: BranchCategory[] = [
+  { name: 'feature', abbr: '✨feat' },
+  { name: 'bugfix',  abbr: '🐛fix'  },
+  { name: 'refactor', abbr: '♻️ref' },
+  { name: 'document', abbr: '📝doc' },
+];
+
+/**
+ * 获取 abbr 的显示值：有 abbr 用 abbr，否则截取 name 前4字母
+ */
+export function resolveAbbr(category: BranchCategory): string {
+  return category.abbr ?? category.name.slice(0, 4);
+}
+
+/**
+ * 获取合并后的分支类型列表（用户自定义排前，去重，保留默认类型）
+ * @param configDir .colyn 目录路径（可选）
+ */
+export async function getBranchCategories(configDir?: string): Promise<BranchCategory[]> {
+  // 读取项目配置和用户配置中的 branchCategories
+  const [projectCategories, userCategories] = await Promise.all([
+    configDir
+      ? loadConfigFromDir(configDir).then((s: { branchCategories?: BranchCategory[] } | null) => s?.branchCategories ?? [])
+      : Promise.resolve([]),
+    loadUserConfig().then((s: { branchCategories?: BranchCategory[] } | null) => s?.branchCategories ?? []),
+  ]);
+
+  // 合并：项目配置 > 用户配置 > 默认值，按 name 去重（保留第一次出现的）
+  const seen = new Set<string>();
+  const merged: BranchCategory[] = [];
+  for (const cat of [...projectCategories, ...userCategories, ...DEFAULT_BRANCH_CATEGORIES]) {
+    if (!seen.has(cat.name)) {
+      seen.add(cat.name);
+      merged.push(cat);
+    }
+  }
+  return merged;
 }
 
 /**
