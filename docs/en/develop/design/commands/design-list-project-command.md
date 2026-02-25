@@ -20,15 +20,22 @@ Users want to quickly view all colyn projects and their worktrees from the globa
 ### 1.2 Command Usage
 
 ```bash
-# Basic usage: show all projects and worktrees in global status index
+# Basic usage: show project overview (without worktree details)
 colyn list-project
 colyn lsp    # Using alias
 
-# JSON format output (for scripting)
+# Show worktree details for each project
+colyn list-project --details
+colyn lsp -d
+
+# JSON format output (without worktree details by default)
 colyn list-project --json
 colyn lsp --json
 
-# Output paths only (for piping)
+# JSON format with worktree details
+colyn list-project --json --details
+
+# Output paths only (for piping, includes worktree details automatically)
 colyn list-project --paths
 colyn lsp -p
 ```
@@ -39,11 +46,20 @@ colyn lsp -p
 
 ### 1.3 Execution Result
 
-Shows all colyn projects in global status index, each project includes:
-- Project overview (Project, Path, Worktree count, Updated)
-- Detailed worktree list (reuses `colyn list` format)
+Shows all colyn projects in global status index:
 
-**Example Output** (default table format):
+**Default mode** (without worktree details):
+
+```
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
+```
+
+**`--details` mode** (with worktree details per project, reuses `colyn list` format):
 
 ```
 ┌─────────┬──────────────────┬───────────┬─────────────────────┐
@@ -131,7 +147,6 @@ $ colyn list-project
 │ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
 │ website │ /path/to/website │ 1         │ 2026/02/23 19:59:02 │
 └─────────┴──────────────────┴───────────┴─────────────────────┘
-...
 ```
 
 **Result**: User can see all projects and their worktree counts at a glance.
@@ -140,12 +155,19 @@ $ colyn list-project
 
 ### 3.2 Scenario 2: View Detailed Worktree Information
 
-**User Need**: See all worktree status for a specific project
+**User Need**: See all worktree status for projects
 
 **Workflow**:
 
 ```bash
-$ colyn list-project | grep -A 10 "Worktrees for colyn"
+$ colyn list-project --details
+
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────┼──────────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 Worktrees for colyn:
 ┌──────────┬────────────────┬───────┬─────────┬──────┬──────────────────┐
@@ -196,10 +218,14 @@ $ colyn list-project --paths | xargs -I {} sh -c 'cd {} && npm install'
 **Workflow**:
 
 ```bash
-$ colyn list-project --json | jq '.'
+# Default JSON (project overview only)
+$ colyn list-project --json | jq '.[] | .projectName'
+
+# JSON with worktree details
+$ colyn list-project --json --details | jq '.'
 ```
 
-**Output**:
+**`--json` output example**:
 
 ```json
 [
@@ -208,6 +234,21 @@ $ colyn list-project --json | jq '.'
     "projectName": "colyn",
     "mainBranchPath": "/path/to/colyn/colyn",
     "updatedAt": "2026-02-23T12:28:11.000Z",
+    "worktreeCount": 4
+  }
+]
+```
+
+**`--json --details` output example**:
+
+```json
+[
+  {
+    "projectPath": "/path/to/colyn",
+    "projectName": "colyn",
+    "mainBranchPath": "/path/to/colyn/colyn",
+    "updatedAt": "2026-02-23T12:28:11.000Z",
+    "worktreeCount": 4,
     "worktrees": [
       {
         "id": null,
@@ -216,39 +257,15 @@ $ colyn list-project --json | jq '.'
         "path": "colyn",
         "isMain": true,
         "isCurrent": false,
-        "status": {
-          "modified": 0,
-          "staged": 0,
-          "untracked": 0
-        },
-        "diff": {
-          "ahead": 0,
-          "behind": 0
-        }
-      },
-      {
-        "id": 1,
-        "branch": "feature/login",
-        "port": 10001,
-        "path": "worktrees/task-1",
-        "isMain": false,
-        "isCurrent": false,
-        "status": {
-          "modified": 0,
-          "staged": 0,
-          "untracked": 0
-        },
-        "diff": {
-          "ahead": 0,
-          "behind": 0
-        }
+        "status": { "modified": 0, "staged": 0, "untracked": 0 },
+        "diff": { "ahead": 0, "behind": 0 }
       }
     ]
   }
 ]
 ```
 
-**Result**: JSON format for easy parsing, worktrees array structure identical to `list --json`.
+**Result**: JSON format for easy parsing, choose worktree details on demand.
 
 ---
 
@@ -260,18 +277,23 @@ $ colyn list-project --json | jq '.'
 |--------|-------|-------------|---------|
 | `--json` | - | Output in JSON format | No |
 | `--paths` | `-p` | Output paths only (one per line) | No |
+| `--details` | `-d` | Show worktree details for each project | No |
 
-**Option Exclusivity**:
+**Option Rules**:
 - `--json` and `--paths` are mutually exclusive
+- `--details` can be combined with `--json` (`--json --details` outputs full JSON with worktrees)
 
 ### 4.2 Output Formats
 
 #### 4.2.1 Table Format (Default)
 
 **Features**:
-- Main table shows project overview
-- Detailed tables show worktrees for each project (reuses list format)
+- Main table shows project overview (Project, Path, Worktree count, Updated)
+- **Does not** show worktree details by default, keeping output clean
 - Colored output, visually appealing
+
+**`--details` mode**:
+- Shows worktree details per project in addition to overview (reuses list format)
 - Current worktree marked with `→` arrow and highlighted
 - Main branch displayed in gray
 
@@ -290,19 +312,24 @@ $ colyn list-project --json | jq '.'
 
 **Features**:
 - Machine-readable for scripting
-- worktrees array uses identical structure as `list --json`
-- Includes complete git status and diff information
+- **Default**: only includes project summary (projectPath, projectName, mainBranchPath, updatedAt, worktreeCount)
+- `--json --details`: includes full worktrees array (identical structure to `list --json`)
 
-**Field Descriptions**:
+**Default fields (`--json`)**:
 
-**ProjectInfo Fields**:
 | Field | Type | Description |
 |-------|------|-------------|
-| `projectPath` | `string` | Project root path (consistent with `info -f project-path`) |
-| `projectName` | `string` | Project name (consistent with `info -f project`) |
+| `projectPath` | `string` | Project root path |
+| `projectName` | `string` | Project name |
 | `mainBranchPath` | `string` | Main branch directory path |
-| `updatedAt` | `string` | Last status update time in global index (ISO 8601) |
-| `worktrees` | `ListItem[]` | Worktree list (identical structure as `list --json`) |
+| `updatedAt` | `string` | Last status update time (ISO 8601) |
+| `worktreeCount` | `number` | Number of worktrees |
+
+**`--json --details` additional field**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `worktrees` | `ListItem[]` | Worktree list (identical structure to `list --json`) |
 
 **ListItem Fields** (identical to `list --json`):
 | Field | Type | Description |
@@ -430,25 +457,22 @@ graph LR
 
 A:
 - `list` - View all worktrees in **current project**
-- `list-project` - View all worktrees in **all projects in global status index**
+- `list-project` - View project overview for **all projects in global status index** (worktree details hidden by default)
 
-### Q2: Why is worktree data structure identical to list --json?
+### Q2: Why are worktree details hidden by default?
 
-A: This is intentional design to ensure:
-- Consistent user experience
-- Scripts can handle both commands uniformly
-- Automatically sync improvements from list command
+A: Default mode focuses on quick overview:
+- Getting worktree details (git status, diff) requires more I/O
+- Users usually browse project list first, then check worktree details as needed
+- Use `--details` anytime to get full information
 
 ### Q3: How to view worktrees for a specific project only?
 
-A: Use grep or jq to filter:
+A: Use jq to filter (requires `--details`):
 
 ```bash
-# Table format
-colyn list-project | grep -A 10 "Worktrees for colyn"
-
 # JSON format
-colyn list-project --json | jq '.[] | select(.projectName == "colyn")'
+colyn list-project --json --details | jq '.[] | select(.projectName == "colyn")'
 ```
 
 ### Q4: Does path output include main branch?
@@ -462,6 +486,10 @@ A: Use `--paths` with xargs:
 ```bash
 colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 ```
+
+### Q6: Is `--json --details` worktrees structure identical to `list --json`?
+
+A: Yes, the `worktrees` array structure is identical to `list --json`, so scripts can handle both commands uniformly.
 
 ---
 
@@ -492,7 +520,9 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 `colyn list-project` command design highlights:
 
 1. **Cross-project View** - Get all project info through global status index
-2. **Full Reuse** - Reuse `list` command implementation and data structure
-3. **Consistency** - Keep data consistent with `info` and `list` commands
-4. **Multiple Outputs** - Table, JSON, paths for different needs
-5. **Script Friendly** - Easy to batch process multiple projects
+2. **Clean by Default** - Show project overview only, no worktree details (faster, cleaner)
+3. **On-demand Details** - `--details` flag controls whether worktree details are shown
+4. **`--json` follows same convention** - No worktrees by default, `--json --details` includes them
+5. **Full Reuse** - Worktree details reuse `list` command's implementation and data structure
+6. **Multiple Outputs** - Table, JSON, paths for different needs
+7. **Script Friendly** - Easy to batch process multiple projects

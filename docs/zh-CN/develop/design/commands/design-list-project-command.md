@@ -20,15 +20,22 @@
 ### 1.2 命令使用
 
 ```bash
-# 基本用法：显示全局状态索引中的项目和 worktree
+# 基本用法：显示全局状态索引中的项目概览（不含 worktree 详情）
 colyn list-project
 colyn lsp    # 使用别名
 
-# JSON 格式输出（便于脚本处理）
+# 显示 worktree 详情
+colyn list-project --details
+colyn lsp -d
+
+# JSON 格式输出（便于脚本处理，默认不含 worktree 详情）
 colyn list-project --json
 colyn lsp --json
 
-# 只输出路径（便于管道操作）
+# JSON 格式输出，含 worktree 详情
+colyn list-project --json --details
+
+# 只输出路径（便于管道操作，自动含 worktree 详情）
 colyn list-project --paths
 colyn lsp -p
 ```
@@ -39,11 +46,20 @@ colyn lsp -p
 
 ### 1.3 执行结果
 
-显示全局状态索引中的 colyn 项目，每个项目包含：
-- 项目概览（Project、Path、Worktree 数量、Updated）
-- 详细的 worktree 列表（复用 `colyn list` 的格式）
+显示全局状态索引中的 colyn 项目：
 
-**示例输出**（默认表格格式）：
+**默认模式**（不含 worktree 详情）：
+
+```
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
+```
+
+**`--details` 模式**（含各项目的 worktree 详情，复用 `colyn list` 的格式）：
 
 ```
 ┌─────────┬──────────────────┬───────────┬─────────────────────┐
@@ -131,7 +147,6 @@ $ colyn list-project
 │ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
 │ website │ /path/to/website │ 1         │ 2026/02/23 19:59:02 │
 └─────────┴──────────────────┴───────────┴─────────────────────┘
-...
 ```
 
 **结果**：用户可以一目了然地看到所有项目及其 worktree 数量。
@@ -145,7 +160,14 @@ $ colyn list-project
 **操作流程**：
 
 ```bash
-$ colyn list-project | grep -A 10 "colyn 的 Worktrees"
+$ colyn list-project --details
+
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 colyn 的 Worktrees:
 ┌──────────┬────────────────┬───────┬─────────┬──────┬──────────────────┐
@@ -158,7 +180,7 @@ colyn 的 Worktrees:
 └──────────┴────────────────┴───────┴─────────┴──────┴──────────────────┘
 ```
 
-**结果**：用户可以看到该项目所有 worktree 的详细信息，包括 git 状态。
+**结果**：用户可以看到所有项目所有 worktree 的详细信息，包括 git 状态。
 
 ---
 
@@ -196,10 +218,14 @@ $ colyn list-project --paths | xargs -I {} sh -c 'cd {} && npm install'
 **操作流程**：
 
 ```bash
-$ colyn list-project --json | jq '.'
+# 默认 JSON（只含项目概览）
+$ colyn list-project --json | jq '.[] | .projectName'
+
+# 含 worktree 详情的 JSON
+$ colyn list-project --json --details | jq '.'
 ```
 
-**输出**：
+**`--json` 输出示例**：
 
 ```json
 [
@@ -208,6 +234,21 @@ $ colyn list-project --json | jq '.'
     "projectName": "colyn",
     "mainBranchPath": "/path/to/colyn/colyn",
     "updatedAt": "2026-02-23T12:28:11.000Z",
+    "worktreeCount": 4
+  }
+]
+```
+
+**`--json --details` 输出示例**：
+
+```json
+[
+  {
+    "projectPath": "/path/to/colyn",
+    "projectName": "colyn",
+    "mainBranchPath": "/path/to/colyn/colyn",
+    "updatedAt": "2026-02-23T12:28:11.000Z",
+    "worktreeCount": 4,
     "worktrees": [
       {
         "id": null,
@@ -216,39 +257,15 @@ $ colyn list-project --json | jq '.'
         "path": "colyn",
         "isMain": true,
         "isCurrent": false,
-        "status": {
-          "modified": 0,
-          "staged": 0,
-          "untracked": 0
-        },
-        "diff": {
-          "ahead": 0,
-          "behind": 0
-        }
-      },
-      {
-        "id": 1,
-        "branch": "feature/login",
-        "port": 10001,
-        "path": "worktrees/task-1",
-        "isMain": false,
-        "isCurrent": false,
-        "status": {
-          "modified": 0,
-          "staged": 0,
-          "untracked": 0
-        },
-        "diff": {
-          "ahead": 0,
-          "behind": 0
-        }
+        "status": { "modified": 0, "staged": 0, "untracked": 0 },
+        "diff": { "ahead": 0, "behind": 0 }
       }
     ]
   }
 ]
 ```
 
-**结果**：JSON 格式便于程序解析，worktrees 数组的结构与 `list --json` 完全一致。
+**结果**：JSON 格式便于程序解析，按需选择 worktree 详情。
 
 ---
 
@@ -260,18 +277,23 @@ $ colyn list-project --json | jq '.'
 |------|--------|------|--------|
 | `--json` | - | 以 JSON 格式输出 | 否 |
 | `--paths` | `-p` | 只输出路径（每行一个） | 否 |
+| `--details` | `-d` | 显示各项目的 worktree 详情 | 否 |
 
 **选项互斥规则**：
 - `--json` 和 `--paths` 互斥，不能同时使用
+- `--details` 可与 `--json` 组合使用（`--json --details` 输出含 worktrees 的完整 JSON）
 
 ### 4.2 输出格式
 
 #### 4.2.1 表格格式（默认）
 
 **特点**：
-- 主表格显示项目概览
-- 详细表格显示每个项目的 worktree（复用 list 命令格式）
+- 主表格显示项目概览（Project、Path、Worktree 数量、Updated）
+- 默认**不**展示 worktree 详情，保持输出简洁
 - 彩色输出，美观易读
+
+**`--details` 模式**：
+- 在主表格基础上，展示每个项目的 worktree 详情（复用 list 命令格式）
 - 当前 worktree 用 `→` 箭头标识，整行高亮
 - 主分支用灰色显示
 
@@ -290,18 +312,23 @@ $ colyn list-project --json | jq '.'
 
 **特点**：
 - 机器可读，便于脚本处理
-- worktrees 数组使用与 `list --json` 完全相同的结构
-- 包含完整的 git 状态和差异信息
+- **默认**只包含项目概览信息（projectPath、projectName、mainBranchPath、updatedAt、worktreeCount）
+- `--json --details` 时，包含完整的 worktrees 数组（与 `list --json` 结构一致）
 
-**字段说明**：
+**默认字段（`--json`）**：
 
-**ProjectInfo 字段**：
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `projectPath` | `string` | 项目根目录路径（与 `info -f project-path` 一致）|
-| `projectName` | `string` | 项目名称（与 `info -f project` 一致）|
+| `projectPath` | `string` | 项目根目录路径 |
+| `projectName` | `string` | 项目名称 |
 | `mainBranchPath` | `string` | 主分支目录路径 |
-| `updatedAt` | `string` | 全局索引中的最后状态更新时间（ISO 8601） |
+| `updatedAt` | `string` | 最后状态更新时间（ISO 8601） |
+| `worktreeCount` | `number` | worktree 数量 |
+
+**`--json --details` 附加字段**：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
 | `worktrees` | `ListItem[]` | worktree 列表（与 `list --json` 结构一致）|
 
 **ListItem 字段**（与 `list --json` 完全相同）：
@@ -430,25 +457,22 @@ graph LR
 
 A:
 - `list` - 查看**当前项目**的所有 worktree
-- `list-project` - 查看**全局状态索引中项目**的所有 worktree
+- `list-project` - 查看**全局状态索引中项目**的概览（默认不含 worktree 详情）
 
-### Q2: 为什么 worktree 数据结构与 list --json 一致？
+### Q2: 为什么默认不显示 worktree 详情？
 
-A: 这是有意设计的，确保：
-- 用户体验一致
-- 脚本可以统一处理两个命令的输出
-- 自动同步 list 命令的改进
+A: 默认模式注重快速概览：
+- 获取 worktree 详情（git status、diff）需要更多 I/O 操作
+- 用户通常先看项目列表，再按需查看 worktree 详情
+- 使用 `--details` 可随时获取完整信息
 
 ### Q3: 如何只查看某个项目的 worktree？
 
-A: 可以使用 grep 或 jq 过滤：
+A: 可以使用 jq 过滤（需要 `--details`）：
 
 ```bash
-# 表格格式
-colyn list-project | grep -A 10 "colyn 的 Worktrees"
-
 # JSON 格式
-colyn list-project --json | jq '.[] | select(.projectName == "colyn")'
+colyn list-project --json --details | jq '.[] | select(.projectName == "colyn")'
 ```
 
 ### Q4: 路径输出包含主分支吗？
@@ -462,6 +486,10 @@ A: 使用 `--paths` 配合 xargs：
 ```bash
 colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 ```
+
+### Q6: `--json --details` 的 worktrees 结构与 `list --json` 一致吗？
+
+A: 是的，`worktrees` 数组的结构与 `list --json` 完全一致，脚本可以统一处理两个命令的输出。
 
 ---
 
@@ -492,7 +520,9 @@ colyn list-project --paths | xargs -I {} sh -c 'cd {} && <your-command>'
 `colyn list-project` 命令设计重点：
 
 1. **跨项目查看** - 通过全局状态索引获取所有项目信息
-2. **完全复用** - 复用 `list` 命令的实现和数据结构
-3. **一致性** - 与 `info` 和 `list` 命令保持数据一致
-4. **多种输出** - 表格、JSON、路径，满足不同需求
-5. **脚本友好** - 便于批量处理多个项目
+2. **默认简洁** - 默认只显示项目概览，不含 worktree 详情（更快、更清晰）
+3. **按需详情** - `--details` 参数控制是否展示 worktree 详情
+4. **`--json` 遵守同一约定** - 默认不含 worktrees，`--json --details` 才含
+5. **完全复用** - worktree 详情复用 `list` 命令的实现和数据结构
+6. **多种输出** - 表格、JSON、路径，满足不同需求
+7. **脚本友好** - 便于批量处理多个项目

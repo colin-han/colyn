@@ -937,6 +937,7 @@ Solution:
       description: 'List all projects from the global status index',
       jsonOption: 'Output in JSON format',
       pathsOption: 'Output paths only (one per line)',
+      detailsOption: 'Show worktree details for each project',
       optionConflict: 'Option conflict: --json and --paths cannot be used together',
       optionConflictHint: 'Please choose one output format',
       noProjects: 'No projects found',
