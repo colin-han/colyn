@@ -9,7 +9,7 @@
 1. [配置文件位置](#配置文件位置)
 2. [配置加载顺序](#配置加载顺序)
 3. [配置文件结构](#配置文件结构)
-4. [全局配置项](#全局配置项)（含 [plugins](#plugins)、[lang](#lang)、[systemCommands](#systemcommands)）
+4. [全局配置项](#全局配置项)（含 [plugins](#plugins)、[lang](#lang)、[systemCommands](#systemcommands)、[branchCategories](#branchcategories)）
 5. [Tmux 配置项](#tmux-配置项)
 6. [分支特定配置](#分支特定配置)
 7. [配置管理命令](#配置管理命令)
@@ -263,6 +263,12 @@ COLYN_LANG=en colyn list
     "verticalSplit": "50%"     // 左右分割线位置
   },
 
+  // 自定义分支类型（用于 add/checkout/todo add 的 type 选择）
+  "branchCategories": [
+    { "name": "feature", "abbr": "✨feat" },
+    { "name": "bugfix",  "abbr": "🐛fix"  }
+  ],
+
   // 分支特定配置覆盖
   "branchOverrides": {
     "main": { /* Settings */ },
@@ -417,6 +423,62 @@ colyn config set npm pnpm
 - 指定 Claude CLI 的自定义路径
 - 添加全局参数(如 `--dangerously-skip-permissions`)
 - 配合内置命令 `continue claude session` 使用
+
+---
+
+### branchCategories
+
+**类型**: `Array<{ name: string; abbr?: string }>`
+**默认值**: `[ { name: "feature", abbr: "✨feat" }, { name: "bugfix", abbr: "🐛fix" }, { name: "refactor", abbr: "♻️ref" }, { name: "document", abbr: "📝doc" } ]`
+**说明**: 自定义分支类型列表，用于 `add`、`checkout`、`todo add` 等操作时的 type 选择。
+
+**字段说明**:
+- `name` - 分支类型名称，用于实际分支名（如 `feature/user-auth`）
+- `abbr` - 显示缩写，可含 emoji（如 `✨feat`）；未设置时截取 `name` 前 4 个字母
+
+**合并策略**:
+- 项目配置中的列表 + 用户配置中的列表 + 默认列表，按 `name` 去重（保留第一次出现的）
+- 自定义类型会显示在默认类型前面
+
+**示例**:
+
+```json
+{
+  "branchCategories": [
+    { "name": "hotfix", "abbr": "🔥fix" },
+    { "name": "chore",  "abbr": "🔧chr" }
+  ]
+}
+```
+
+**效果**: 在 `add`、`checkout`、`todo add` 时，类型选择列表变为：
+
+```
+🔥fix  (hotfix)
+🔧chr  (chore)
+✨feat (feature)
+🐛fix  (bugfix)
+♻️ref  (refactor)
+📝doc  (document)
+```
+
+**查看当前生效的类型列表**:
+
+```bash
+colyn config get branchCategories
+```
+
+输出格式（JSON 数组）：
+```json
+[
+  { "name": "hotfix", "abbr": "🔥fix" },
+  { "name": "chore",  "abbr": "🔧chr" },
+  { "name": "feature", "abbr": "✨feat" },
+  { "name": "bugfix",  "abbr": "🐛fix" },
+  { "name": "refactor", "abbr": "♻️ref" },
+  { "name": "document", "abbr": "📝doc" }
+]
+```
 
 ---
 
@@ -933,6 +995,7 @@ colyn config get <key> --user
 **支持的 key**:
 - `npm` - 包管理器
 - `lang` - 界面语言
+- `branchCategories` - 分支类型列表（返回合并后的完整列表，JSON 格式）
 
 **示例**:
 
@@ -942,6 +1005,9 @@ colyn config get npm
 
 # 查看用户级语言设置
 colyn config get lang --user
+
+# 查看当前生效的分支类型列表（含默认值）
+colyn config get branchCategories
 ```
 
 ### 设置配置值

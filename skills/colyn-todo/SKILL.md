@@ -8,54 +8,44 @@ description: >
 
 Use the `colyn todo` CLI to manage Todo tasks in the current project.
 
-**CRITICAL: Always pass all arguments explicitly. Never run commands without full arguments — interactive prompts are for human users only and will block execution.**
+**CRITICAL: Always pass all arguments explicitly. Interactive prompts are for human users only and will block execution.**
 
-## Key Commands
+## Commands
 
-### View tasks
 ```bash
-colyn todo list              # pending tasks (default)
+# View
+colyn todo list              # pending tasks
 colyn todo list --completed  # completed tasks
-colyn todo list --json       # machine-readable output with ids
+colyn todo list --json       # machine-readable (get exact ids)
+
+# Add — todoId and message are required
+colyn todo add <type/name> "<message>"
+
+# Edit — todoId and message are required
+colyn todo edit <type/name> "<new message>"
+
+# Status
+colyn todo complete <type/name>
+colyn todo uncomplete <type/name>
+
+# Remove
+colyn todo remove <type/name>
+colyn todo archive           # archive all completed tasks
 ```
 
-### Add a task
-Always provide both `todoId` and `message`:
-```bash
-colyn todo add <todoId> "<message>"
-```
-- `todoId` format: `type/name` — type is one of `feature`, `bugfix`, `refactor`, `document`
-- `name`: kebab-case, descriptive
+## todoId format
+
+`type/name` — type is one of `feature`, `bugfix`, `refactor`, `document` (or user-configured via `branchCategories` in settings.json); name is kebab-case.
+
+Run `colyn config get branchCategories` to see the full list of available types.
 
 ```bash
 colyn todo add feature/user-auth "Implement JWT authentication"
 colyn todo add bugfix/login-error "Fix login error on empty password"
-colyn todo add document/api-guide "Write API usage guide"
-```
-
-### Edit a task
-Always provide both `todoId` and `message`:
-```bash
-colyn todo edit <todoId> "<new message>"
-```
-
-```bash
 colyn todo edit feature/user-auth "Implement OAuth2 instead of JWT"
 ```
 
-### Complete / uncomplete
-```bash
-colyn todo complete <todoId>
-colyn todo uncomplete <todoId>
-```
+## Guidelines
 
-### Remove
-```bash
-colyn todo remove <todoId>
-colyn todo archive              # archive all completed tasks
-```
-
-## Workflow Guidelines
-
-1. **Before adding**: run `colyn todo list` to check for duplicates.
-2. **When unsure of todoId**: run `colyn todo list --json` to get exact ids.
+1. Run `colyn todo list` before adding to avoid duplicates.
+2. Run `colyn todo list --json` when unsure of exact todoId.

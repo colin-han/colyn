@@ -151,8 +151,32 @@ _colyn() {
                     # repair: no args
                     ;;
                 config)
-                    _arguments \\
-                        '--json[${e(t('commands.config.jsonOption'))}]'
+                    _arguments -C \\\\
+                        '1: :->subcmd' \\\\
+                        '--json[${e(t('commands.config.jsonOption'))}]' \\\\
+                        '*::arg:->subargs'
+
+                    case $state in
+                        subcmd)
+                            local -a config_subcmds
+                            config_subcmds=('get:${e(t('commands.config.getDescription'))}' 'set:${e(t('commands.config.setDescription'))}')
+                            _describe 'config subcommands' config_subcmds
+                            ;;
+                        subargs)
+                            case $line[1] in
+                                get)
+                                    local -a keys
+                                    keys=('npm' 'lang' 'branchCategories')
+                                    _describe 'config keys' keys
+                                    ;;
+                                set)
+                                    local -a keys
+                                    keys=('npm' 'lang')
+                                    _describe 'config keys' keys
+                                    ;;
+                            esac
+                            ;;
+                    esac
                     ;;
                 setup)
                     # setup: no args

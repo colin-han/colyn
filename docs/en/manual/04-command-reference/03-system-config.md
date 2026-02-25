@@ -117,7 +117,7 @@ colyn config set <key> <value> [options]
 Get the value of a configuration item.
 
 **Parameters:**
-- `key` - Config key name (`npm` or `lang`)
+- `key` - Config key name (`npm`, `lang`, or `branchCategories`)
 
 **Options:**
 - `--user` - Read from user-level config (`~/.config/colyn/settings.json`)
@@ -131,7 +131,18 @@ zh-CN
 # Get user-level language setting
 $ colyn config get lang --user
 en
+
+# Get the current effective branch type list (project + user + defaults, deduplicated by name, JSON format)
+$ colyn config get branchCategories
+[
+  { "name": "feature", "abbr": "✨feat" },
+  { "name": "bugfix", "abbr": "🐛fix" },
+  { "name": "refactor", "abbr": "♻️ref" },
+  { "name": "document", "abbr": "📝doc" }
+]
 ```
+
+> **Note**: `branchCategories` returns a JSON array. It merges the project config, user config, and built-in defaults, deduplicated by `name` (first occurrence wins).
 
 #### `colyn config set <key> <value>`
 

@@ -117,7 +117,7 @@ colyn config set <key> <value> [选项]
 获取配置项的值。
 
 **参数：**
-- `key` - 配置键名（`npm` 或 `lang`）
+- `key` - 配置键名（`npm`、`lang` 或 `branchCategories`）
 
 **选项：**
 - `--user` - 从用户级配置读取（`~/.config/colyn/settings.json`）
@@ -131,7 +131,18 @@ zh-CN
 # 获取用户级语言设置
 $ colyn config get lang --user
 en
+
+# 获取当前生效的分支类型列表（项目+用户+默认，按 name 去重，JSON 格式）
+$ colyn config get branchCategories
+[
+  { "name": "feature", "abbr": "✨feat" },
+  { "name": "bugfix", "abbr": "🐛fix" },
+  { "name": "refactor", "abbr": "♻️ref" },
+  { "name": "document", "abbr": "📝doc" }
+]
 ```
+
+> **说明**：`branchCategories` 返回 JSON 数组格式，合并了项目配置、用户配置和内置默认值，并按 `name` 去重（保留第一次出现的）。
 
 #### `colyn config set <key> <value>`
 
