@@ -75,7 +75,7 @@ _colyn() {
         'update:${e(t('commands.update.description'))}'
         'remove:${e(t('commands.remove.description'))}'
         'checkout:${e(t('commands.checkout.description'))}'
-        'co:${e(t('commands.checkout.coDescription'))}'
+        'co:${e(t('commands.checkout.description'))}'
         'info:${e(t('commands.info.description'))}'
         'status:${e(t('commands.status.description'))}'
         'st:${e(t('commands.status.description'))}'

@@ -730,9 +730,9 @@ export async function checkoutCommand(
  * 注册 checkout 命令
  */
 export function register(program: Command): void {
-  // 主命令 - 使用 variadic 参数处理
   program
     .command('checkout [args...]')
+    .alias('co')
     .usage('[branch] | <worktree-id> [branch]')
     .description(t('commands.checkout.description'))
     .option('--no-fetch', t('commands.checkout.noFetchOption'))
@@ -747,33 +747,6 @@ export function register(program: Command): void {
         branch = args[0];
       } else if (args.length === 2) {
         // worktree-id 和分支名
-        target = args[0];
-        branch = args[1];
-      } else {
-        throw new ColynError(
-          t('commands.checkout.argError'),
-          t('commands.checkout.argErrorHint')
-        );
-      }
-
-      await checkoutCommand(target, branch, options);
-    });
-
-  // 别名 co
-  program
-    .command('co [args...]')
-    .usage('[branch] | <worktree-id> [branch]')
-    .description(t('commands.checkout.coDescription'))
-    .option('--no-fetch', t('commands.checkout.noFetchOption'))
-    .action(async (args: string[], options: CheckoutOptions) => {
-      let target: string | undefined;
-      let branch: string | undefined;
-
-      if (args.length === 0) {
-        branch = undefined;
-      } else if (args.length === 1) {
-        branch = args[0];
-      } else if (args.length === 2) {
         target = args[0];
         branch = args[1];
       } else {
