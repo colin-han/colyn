@@ -88,10 +88,10 @@ async function loadConfigFile(filepath: string): Promise<{
 
 /**
  * 从目录加载配置（尝试多个文件名）
- * @param dir 配置目录路径
+ * @param dir 配置目录路径（.colyn 目录或用户配置目录）
  * @returns 找到的第一个有效配置，如果都不存在则返回 null
  */
-async function loadConfigFromDir(dir: string): Promise<Settings | null> {
+export async function loadConfigFromDir(dir: string): Promise<Settings | null> {
   for (const filename of CONFIG_FILENAMES) {
     const filepath = path.join(dir, filename);
     try {

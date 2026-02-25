@@ -23,6 +23,7 @@ import {
   outputLine,
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
+import { getBranchCategories, resolveAbbr } from '../core/config.js';
 import {
   isValidBranchName,
   checkIsGitRepo,
@@ -214,12 +215,13 @@ function displayFirstTimeTmuxHint(projectName: string): void {
 /**
  * add 无参数时：交互式创建分支名（type/name）
  */
-async function promptCreateBranchNameForAdd(): Promise<string> {
+async function promptCreateBranchNameForAdd(configDir?: string): Promise<string> {
+  const categories = await getBranchCategories(configDir);
   const typeResponse = await prompt<{ type: string }>({
     type: 'select',
     name: 'type',
     message: t('commands.todo.add.selectType'),
-    choices: ['feature', 'bugfix', 'refactor', 'document'],
+    choices: categories.map(c => ({ name: resolveAbbr(c), value: c.name })),
     stdout: process.stderr,
   });
 
@@ -364,7 +366,7 @@ async function selectBranchForAdd(
   }
 
   if (selectedChoice.type === 'create') {
-    return { branch: await promptCreateBranchNameForAdd() };
+    return { branch: await promptCreateBranchNameForAdd(configDir) };
   }
 
   if (selectedChoice.type === 'todo') {

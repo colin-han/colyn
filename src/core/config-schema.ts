@@ -124,6 +124,19 @@ export const SubProjectSchema = z.object({
 export type SubProject = z.infer<typeof SubProjectSchema>;
 
 /**
+ * Branch Category Schema
+ * 定义分支类型（用于 add/checkout/todo add 时的 type 选择）
+ */
+export const BranchCategorySchema = z.object({
+  /** 分支类型名称，用于实际分支名（如 feature/xxx） */
+  name: z.string(),
+  /** 显示缩写，可含 emoji（如 ✨feat），不填时截取 name 前4字母 */
+  abbr: z.string().optional(),
+});
+
+export type BranchCategory = z.infer<typeof BranchCategorySchema>;
+
+/**
  * Settings Schema 基础部分（不包含递归的 branchOverrides）
  */
 const SettingsSchemaBase = z.object({
@@ -148,6 +161,11 @@ const SettingsSchemaBase = z.object({
    * - 数组：已配置的子项目列表
    */
   projects: z.array(SubProjectSchema).optional(),
+  /**
+   * 自定义分支类型列表（排在默认类型前面）
+   * 用于 add/checkout/todo add 的 type 选择
+   */
+  branchCategories: z.array(BranchCategorySchema).optional(),
 });
 
 /**
