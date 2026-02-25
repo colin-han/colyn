@@ -9,7 +9,7 @@ This chapter provides a detailed overview of Colyn's configuration system, inclu
 1. [Configuration File Locations](#configuration-file-locations)
 2. [Configuration Loading Order](#configuration-loading-order)
 3. [Configuration File Structure](#configuration-file-structure)
-4. [Global Configuration Options](#global-configuration-options) (including [plugins](#plugins), [lang](#lang), [systemCommands](#systemcommands))
+4. [Global Configuration Options](#global-configuration-options) (including [plugins](#plugins), [lang](#lang), [systemCommands](#systemcommands), [branchCategories](#branchcategories))
 5. [Tmux Configuration Options](#tmux-configuration-options)
 6. [Branch-Specific Configuration](#branch-specific-configuration)
 7. [Configuration Management Commands](#configuration-management-commands)
@@ -263,6 +263,12 @@ The complete configuration file structure is as follows:
     "verticalSplit": "50%"     // Position of the vertical split line
   },
 
+  // Custom branch types (used for type selection in add/checkout/todo add)
+  "branchCategories": [
+    { "name": "feature", "abbr": "✨feat" },
+    { "name": "bugfix",  "abbr": "🐛fix"  }
+  ],
+
   // Branch-specific configuration overrides
   "branchOverrides": {
     "main": { /* Settings */ },
@@ -417,6 +423,62 @@ colyn config set npm pnpm
 - Specify a custom path for the Claude CLI
 - Add global arguments (e.g., `--dangerously-skip-permissions`)
 - Used together with the built-in command `continue claude session`
+
+---
+
+### branchCategories
+
+**Type**: `Array<{ name: string; abbr?: string }>`
+**Default**: `[ { name: "feature", abbr: "✨feat" }, { name: "bugfix", abbr: "🐛fix" }, { name: "refactor", abbr: "♻️ref" }, { name: "document", abbr: "📝doc" } ]`
+**Description**: Custom branch type list, used for the type selection in `add`, `checkout`, `todo add`, and similar operations.
+
+**Field descriptions**:
+- `name` - Branch type name, used in the actual branch name (e.g., `feature/user-auth`)
+- `abbr` - Display abbreviation, can include emoji (e.g., `✨feat`); if not set, the first 4 characters of `name` are used
+
+**Merge strategy**:
+- Project config list + user config list + built-in defaults, deduplicated by `name` (first occurrence wins)
+- Custom types appear before the default types
+
+**Example**:
+
+```json
+{
+  "branchCategories": [
+    { "name": "hotfix", "abbr": "🔥fix" },
+    { "name": "chore",  "abbr": "🔧chr" }
+  ]
+}
+```
+
+**Effect**: When using `add`, `checkout`, or `todo add`, the type selection list becomes:
+
+```
+🔥fix  (hotfix)
+🔧chr  (chore)
+✨feat (feature)
+🐛fix  (bugfix)
+♻️ref  (refactor)
+📝doc  (document)
+```
+
+**View the current effective type list**:
+
+```bash
+colyn config get branchCategories
+```
+
+Output format (JSON array):
+```json
+[
+  { "name": "hotfix", "abbr": "🔥fix" },
+  { "name": "chore",  "abbr": "🔧chr" },
+  { "name": "feature", "abbr": "✨feat" },
+  { "name": "bugfix",  "abbr": "🐛fix" },
+  { "name": "refactor", "abbr": "♻️ref" },
+  { "name": "document", "abbr": "📝doc" }
+]
+```
 
 ---
 
@@ -933,6 +995,7 @@ colyn config get <key> --user
 **Supported keys**:
 - `npm` - Package manager
 - `lang` - Interface language
+- `branchCategories` - Branch type list (returns the merged complete list, in JSON format)
 
 **Examples**:
 
@@ -942,6 +1005,9 @@ colyn config get npm
 
 # View the user-level language setting
 colyn config get lang --user
+
+# View the current effective branch type list
+colyn config get branchCategories
 ```
 
 ### Set Configuration Value

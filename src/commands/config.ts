@@ -11,6 +11,7 @@ import {
   getConfig,
   saveConfig,
   getGlobalConfigDir,
+  getBranchCategories,
   type ColynConfig,
 } from '../core/config.js';
 import {
@@ -345,11 +346,19 @@ async function getConfigDirectory(isUser: boolean): Promise<string> {
  */
 async function getConfigValue(key: string, options: { user?: boolean }): Promise<void> {
   try {
+    // branchCategories 特殊处理：返回合并后的完整列表（JSON 格式）
+    if (key === 'branchCategories') {
+      const configDir = options.user ? undefined : (await getProjectPaths()).configDir;
+      const categories = await getBranchCategories(configDir);
+      process.stdout.write(JSON.stringify(categories, null, 2) + '\n');
+      return;
+    }
+
     const validKeys: Array<keyof ColynConfig> = ['npm', 'lang'];
 
     if (!validKeys.includes(key as keyof ColynConfig)) {
       throw new ColynError(
-        t('commands.config.invalidKey', { key, validKeys: validKeys.join(', ') })
+        t('commands.config.invalidKey', { key, validKeys: ['branchCategories', ...validKeys].join(', ') })
       );
     }
 
