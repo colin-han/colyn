@@ -378,6 +378,72 @@ export async function updateClaudeHooks(colynBinPath: string): Promise<'added' |
 }
 
 /**
+ * 获取 skills 目录的绝对路径（打包后位于项目根目录 skills/）
+ */
+export function getSkillsSourceDir(): string {
+  const currentModulePath = fileURLToPath(import.meta.url);
+  const distDir = path.dirname(path.dirname(currentModulePath));
+  const rootDir = path.dirname(distDir);
+  return path.join(rootDir, 'skills');
+}
+
+/**
+ * 将 colyn skill 文件安装到 ~/.claude/skills/
+ *
+ * 每个 skill 是 skills/<skill-name>/ 目录，递归复制到目标位置。
+ * 若目标已存在则覆盖更新。
+ *
+ * @returns 安装的 skill 名称列表
+ */
+export async function installClaudeSkills(): Promise<string[]> {
+  const srcDir = getSkillsSourceDir();
+  const destBase = path.join(os.homedir(), '.claude', 'skills');
+
+  // 检查源目录是否存在
+  try {
+    await fs.access(srcDir);
+  } catch {
+    return [];
+  }
+
+  const entries = await fs.readdir(srcDir, { withFileTypes: true });
+  const skillDirs = entries.filter(e => e.isDirectory());
+
+  if (skillDirs.length === 0) {
+    return [];
+  }
+
+  await fs.mkdir(destBase, { recursive: true });
+
+  const installed: string[] = [];
+  for (const dir of skillDirs) {
+    const srcSkill = path.join(srcDir, dir.name);
+    const destSkill = path.join(destBase, dir.name);
+    await copyDirRecursive(srcSkill, destSkill);
+    installed.push(dir.name);
+  }
+
+  return installed;
+}
+
+/**
+ * 递归复制目录
+ */
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+/**
  * 获取补全脚本的缓存路径
  */
 export function getCachedCompletionPath(shellType: string): string {

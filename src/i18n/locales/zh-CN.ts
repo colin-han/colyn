@@ -789,6 +789,10 @@ export const zhCN = {
       claudeHooksAdded: '✓ 已配置 Claude Code status hooks',
       claudeHooksUpdated: '✓ 已更新 Claude Code status hooks',
       claudeHooksFailed: '⚠ 配置 Claude Code hooks 失败（Claude Code 可能未安装）',
+      installingClaudeSkills: '安装 Claude skills...',
+      claudeSkillsInstalled: '✓ 已安装 Claude skills：{{skills}}',
+      claudeSkillsNone: '  无可安装的 skill',
+      claudeSkillsFailed: '⚠ 安装 Claude skills 失败',
     },
 
     // tmux command
