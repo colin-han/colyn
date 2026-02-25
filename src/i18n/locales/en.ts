@@ -789,6 +789,10 @@ Solution:
       claudeHooksAdded: '✓ Claude Code status hooks configured',
       claudeHooksUpdated: '✓ Claude Code status hooks updated',
       claudeHooksFailed: '⚠ Failed to configure Claude Code hooks (Claude Code may not be installed)',
+      installingClaudeSkills: 'Installing Claude skills...',
+      claudeSkillsInstalled: '✓ Claude skills installed: {{skills}}',
+      claudeSkillsNone: '  No skills to install',
+      claudeSkillsFailed: '⚠ Failed to install Claude skills',
     },
 
     // tmux command

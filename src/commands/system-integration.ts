@@ -10,7 +10,8 @@ import {
   updateShellConfig,
   updateClaudeHooks,
   checkColynShellExists,
-  generateAndCacheCompletionScript
+  generateAndCacheCompletionScript,
+  installClaudeSkills
 } from './system-integration.helpers.js';
 import { t } from '../i18n/index.js';
 
@@ -108,7 +109,21 @@ async function systemIntegrationCommand(): Promise<void> {
       output(chalk.yellow(t('commands.systemIntegration.claudeHooksFailed')));
     }
 
-    // 步骤 6: 显示完成信息
+    // 步骤 6: 安装 Claude skills
+    output('');
+    output(t('commands.systemIntegration.installingClaudeSkills'));
+    try {
+      const installedSkills = await installClaudeSkills();
+      if (installedSkills.length > 0) {
+        output(chalk.green(t('commands.systemIntegration.claudeSkillsInstalled', { skills: installedSkills.join(', ') })));
+      } else {
+        output(chalk.gray(t('commands.systemIntegration.claudeSkillsNone')));
+      }
+    } catch {
+      output(chalk.yellow(t('commands.systemIntegration.claudeSkillsFailed')));
+    }
+
+    // 步骤 7: 显示完成信息
     output('');
     outputSuccess(result === 'added' ? t('commands.systemIntegration.installComplete') : t('commands.systemIntegration.updateComplete'));
     output('');
