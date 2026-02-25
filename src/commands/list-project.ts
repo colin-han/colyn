@@ -43,9 +43,9 @@ interface ListItem {
 }
 
 /**
- * 项目信息
+ * 项目简要信息（默认模式）
  */
-interface ProjectInfo {
+interface ProjectSummary {
   /** 项目路径 */
   projectPath: string;
   /** 项目名称 */
@@ -54,6 +54,14 @@ interface ProjectInfo {
   mainBranchPath: string;
   /** 最近状态更新时间（来自 ~/.colyn-status.json） */
   updatedAt: string;
+  /** worktree 数量 */
+  worktreeCount: number;
+}
+
+/**
+ * 项目详细信息（--details 模式）
+ */
+interface ProjectInfo extends ProjectSummary {
   /** worktrees 列表（使用 list 命令的数据结构）*/
   worktrees: ListItem[];
 }
@@ -64,6 +72,7 @@ interface ProjectInfo {
 interface ListProjectOptions {
   json?: boolean;
   paths?: boolean;
+  details?: boolean;
 }
 
 /**
@@ -167,9 +176,56 @@ function formatUpdatedAt(iso: string): string {
 }
 
 /**
- * 获取所有项目信息（来自 ~/.colyn-status.json）
+ * 获取所有项目简要信息（来自 ~/.colyn-status.json），不包含 worktree 详情
  */
-async function getAllProjects(): Promise<ProjectInfo[]> {
+async function getAllProjectSummaries(): Promise<ProjectSummary[]> {
+  const globalProjects = await listGlobalStatusProjects();
+  const summaries: ProjectSummary[] = [];
+  const seenPaths = new Set<string>();
+
+  for (const entry of globalProjects) {
+    const projectPath = path.resolve(entry.projectPath);
+    if (seenPaths.has(projectPath)) {
+      continue;
+    }
+    seenPaths.add(projectPath);
+
+    try {
+      const layout = await resolveProjectLayout(projectPath);
+      if (!layout) {
+        continue;
+      }
+
+      // 快速统计 worktree 数量（不读取详情）
+      const worktreesDir = path.join(projectPath, 'worktrees');
+      let worktreeCount = 1; // 主分支本身
+      try {
+        const entries = await fs.readdir(worktreesDir);
+        worktreeCount += entries.length;
+      } catch {
+        // worktrees 目录不可读，保持 1
+      }
+
+      summaries.push({
+        projectPath,
+        projectName: layout.projectName,
+        mainBranchPath: layout.mainBranchPath,
+        updatedAt: entry.updatedAt,
+        worktreeCount
+      });
+    } catch {
+      // 路径失效或不是 colyn 项目，跳过
+      continue;
+    }
+  }
+
+  return summaries;
+}
+
+/**
+ * 获取所有项目详细信息（来自 ~/.colyn-status.json），包含 worktree 详情
+ */
+async function getAllProjectDetails(): Promise<ProjectInfo[]> {
   const globalProjects = await listGlobalStatusProjects();
   const projects: ProjectInfo[] = [];
   const seenPaths = new Set<string>();
@@ -195,6 +251,7 @@ async function getAllProjects(): Promise<ProjectInfo[]> {
         projectName: layout.projectName,
         mainBranchPath: layout.mainBranchPath,
         updatedAt: entry.updatedAt,
+        worktreeCount: worktrees.length,
         worktrees
       });
     } catch {
@@ -207,9 +264,44 @@ async function getAllProjects(): Promise<ProjectInfo[]> {
 }
 
 /**
- * 输出表格格式
+ * 输出项目概览表格（默认模式，不含 worktree 详情）
  */
-function outputTable(projects: ProjectInfo[]): void {
+function outputSummaryTable(summaries: ProjectSummary[]): void {
+  if (summaries.length === 0) {
+    console.error(chalk.yellow(`\n${t('commands.listProject.noProjects')}\n`));
+    console.error(chalk.dim(t('commands.listProject.noProjectsHint')));
+    return;
+  }
+
+  const mainTable = new Table({
+    head: [
+      chalk.bold(t('commands.listProject.tableProject')),
+      chalk.bold(t('commands.listProject.tablePath')),
+      chalk.bold(t('commands.listProject.tableWorktrees')),
+      chalk.bold(t('commands.listProject.tableUpdatedAt'))
+    ],
+    style: {
+      head: [],
+      border: []
+    }
+  });
+
+  for (const summary of summaries) {
+    mainTable.push([
+      summary.projectName,
+      summary.projectPath,
+      String(summary.worktreeCount),
+      formatUpdatedAt(summary.updatedAt)
+    ]);
+  }
+
+  console.error(mainTable.toString());
+}
+
+/**
+ * 输出项目详细表格（--details 模式，含 worktree 详情）
+ */
+function outputDetailsTable(projects: ProjectInfo[]): void {
   if (projects.length === 0) {
     console.error(chalk.yellow(`\n${t('commands.listProject.noProjects')}\n`));
     console.error(chalk.dim(t('commands.listProject.noProjectsHint')));
@@ -280,7 +372,6 @@ function outputTable(projects: ProjectInfo[]): void {
 
       // 应用行样式
       if (item.isCurrent) {
-        // 当前行用青色高亮显示
         worktreeTable.push(row.map((cell, index) => {
           if (index === 3 || index === 4) {  // 保留 status 和 diff 列的颜色
             return cell;
@@ -288,7 +379,6 @@ function outputTable(projects: ProjectInfo[]): void {
           return chalk.cyan(cell);
         }));
       } else if (item.isMain) {
-        // 主分支用灰色显示
         worktreeTable.push(row.map((cell, index) => {
           if (index === 3 || index === 4) {  // 保留 status 和 diff 列的颜色
             return cell;
@@ -305,10 +395,10 @@ function outputTable(projects: ProjectInfo[]): void {
 }
 
 /**
- * 输出 JSON 格式
+ * 输出 JSON 格式（默认不含 worktrees，--details 时含 worktrees）
  */
-function outputJson(projects: ProjectInfo[]): void {
-  console.log(JSON.stringify(projects, null, 2));
+function outputJson(data: ProjectSummary[] | ProjectInfo[]): void {
+  console.log(JSON.stringify(data, null, 2));
 }
 
 /**
@@ -337,22 +427,38 @@ async function listProjectCommand(options: ListProjectOptions): Promise<void> {
       );
     }
 
-    // 获取所有项目
-    const projects = await getAllProjects();
-
-    // 根据选项输出
-    if (options.json) {
-      outputJson(projects);
-    } else if (options.paths) {
+    if (options.paths) {
+      // --paths 需要 worktree 详情
+      const projects = await getAllProjectDetails();
       outputPaths(projects);
-    } else {
-      outputTable(projects);
+      outputResult({ success: true });
+      return;
     }
 
-    // 如果没有项目，给出提示
-    if (projects.length === 0 && !options.json && !options.paths) {
-      output('');
-      outputWarning(t('commands.listProject.noProjectsFound'));
+    if (options.details) {
+      // --details：获取并展示 worktree 详情
+      const projects = await getAllProjectDetails();
+      if (options.json) {
+        outputJson(projects);
+      } else {
+        outputDetailsTable(projects);
+      }
+      if (projects.length === 0 && !options.json) {
+        output('');
+        outputWarning(t('commands.listProject.noProjectsFound'));
+      }
+    } else {
+      // 默认：只显示项目概览，不含 worktree 详情
+      const summaries = await getAllProjectSummaries();
+      if (options.json) {
+        outputJson(summaries);
+      } else {
+        outputSummaryTable(summaries);
+      }
+      if (summaries.length === 0 && !options.json) {
+        output('');
+        outputWarning(t('commands.listProject.noProjectsFound'));
+      }
     }
 
     outputResult({ success: true });
@@ -373,6 +479,7 @@ export function register(program: Command): void {
     .description(t('commands.listProject.description'))
     .option('--json', t('commands.listProject.jsonOption'))
     .option('-p, --paths', t('commands.listProject.pathsOption'))
+    .option('-d, --details', t('commands.listProject.detailsOption'))
     .action(async (options) => {
       await listProjectCommand(options);
     });

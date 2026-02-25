@@ -937,6 +937,7 @@ export const zhCN = {
       description: '列出全局状态索引中的所有项目',
       jsonOption: '以 JSON 格式输出',
       pathsOption: '只输出路径（每行一个）',
+      detailsOption: '显示各项目的 Worktree 详情',
       optionConflict: '选项冲突：--json 和 --paths 不能同时使用',
       optionConflictHint: '请选择其中一种输出格式',
       noProjects: '暂无项目',
