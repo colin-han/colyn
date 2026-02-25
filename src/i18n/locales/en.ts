@@ -34,6 +34,11 @@ export const en = {
     helpCommandDescription: 'display help for command',
     showHelpHint: '(Run with --help for usage information)',
     missingArgument: 'Missing required argument: {{arg}}',
+    // Command group names
+    groupWorktree: 'Worktree Management:',
+    groupBranchStatus: 'Branch & Status:',
+    groupWorkflow: 'Workflow Tools:',
+    groupSystem: 'System & Config:',
   },
 
   // Logger
@@ -540,7 +545,6 @@ Or force delete:
     // checkout command
     checkout: {
       description: 'Switch branch in worktree',
-      coDescription: 'Alias for checkout',
       noFetchOption: 'Skip fetching remote branch info',
       inMainBranch: 'Currently in main branch directory',
       inMainBranchHint: `Please specify worktree ID, or switch to worktree directory:

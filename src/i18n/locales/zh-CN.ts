@@ -34,6 +34,11 @@ export const zhCN = {
     helpCommandDescription: '显示命令帮助',
     showHelpHint: '(使用 --help 查看用法信息)',
     missingArgument: '缺少必要参数: {{arg}}',
+    // 命令分组名称
+    groupWorktree: 'Worktree 管理:',
+    groupBranchStatus: '分支与状态:',
+    groupWorkflow: '工作流工具:',
+    groupSystem: '系统与配置:',
   },
 
   // Logger
@@ -540,7 +545,6 @@ export const zhCN = {
     // checkout command
     checkout: {
       description: '在 worktree 中切换分支',
-      coDescription: 'checkout 的别名',
       noFetchOption: '跳过从远程获取分支信息',
       inMainBranch: '当前在主分支目录中',
       inMainBranchHint: `请指定 worktree ID，或切换到 worktree 目录后执行：

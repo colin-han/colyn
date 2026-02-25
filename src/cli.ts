@@ -91,11 +91,66 @@ export async function run(): Promise<void> {
       }
 
       // Commands
-      const commandList = helper.visibleCommands(cmd).map((subCmd) => {
-        return formatItem(helper.subcommandTerm(subCmd), helper.subcommandDescription(subCmd));
-      });
-      if (commandList.length > 0) {
-        output = output.concat([t('cli.commands'), formatList(commandList), '']);
+      const allSubCmds = helper.visibleCommands(cmd);
+      if (allSubCmds.length > 0) {
+        // 仅在顶层命令（colyn）时分组显示
+        const isTopLevel = cmd.parent === null;
+
+        if (isTopLevel) {
+          // 定义命令分组（顺序即为显示顺序）
+          const groups: Array<{ key: string; names: string[] }> = [
+            {
+              key: t('cli.groupWorktree'),
+              names: ['init', 'add', 'list', 'list-project', 'merge', 'update', 'remove'],
+            },
+            {
+              key: t('cli.groupBranchStatus'),
+              names: ['checkout', 'info', 'status'],
+            },
+            {
+              key: t('cli.groupWorkflow'),
+              names: ['release', 'todo'],
+            },
+            {
+              key: t('cli.groupSystem'),
+              names: ['repair', 'config', 'tmux', 'system-integration', 'completion'],
+            },
+          ];
+
+          // 建立命令名到命令对象的映射
+          const cmdMap = new Map(allSubCmds.map((c) => [c.name(), c]));
+          // 记录已分组的命令
+          const grouped = new Set<string>();
+
+          for (const group of groups) {
+            const groupItems: string[] = [];
+            for (const name of group.names) {
+              const subCmd = cmdMap.get(name);
+              if (subCmd) {
+                groupItems.push(formatItem(helper.subcommandTerm(subCmd), helper.subcommandDescription(subCmd)));
+                grouped.add(name);
+              }
+            }
+            if (groupItems.length > 0) {
+              output = output.concat([group.key, formatList(groupItems), '']);
+            }
+          }
+
+          // 未分组的命令（如内置 help 等）单独列出
+          const ungrouped = allSubCmds.filter((c) => !grouped.has(c.name()));
+          if (ungrouped.length > 0) {
+            const ungroupedItems = ungrouped.map((c) =>
+              formatItem(helper.subcommandTerm(c), helper.subcommandDescription(c))
+            );
+            output = output.concat([t('cli.commands'), formatList(ungroupedItems), '']);
+          }
+        } else {
+          // 子命令页面：普通列表
+          const commandList = allSubCmds.map((subCmd) => {
+            return formatItem(helper.subcommandTerm(subCmd), helper.subcommandDescription(subCmd));
+          });
+          output = output.concat([t('cli.commands'), formatList(commandList), '']);
+        }
       }
 
       return output.join('\n');
