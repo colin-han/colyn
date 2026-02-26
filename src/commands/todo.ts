@@ -149,7 +149,7 @@ export function register(program: Command): void {
             type: 'select',
             name: 'type',
             message: t('commands.todo.add.selectType'),
-            choices: categories.map(c => ({ name: resolveAbbr(c), value: c.name })),
+            choices: categories.map(c => ({ name: `${resolveAbbr(c)} (${c.name})`, value: c.name })),
             stdout: process.stderr,
           });
           type = typeResponse.type;
@@ -235,8 +235,11 @@ export function register(program: Command): void {
             return;
           }
 
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
           resolvedTodoId = await selectTodo(pendingTodos, {
             selectMessage: t('commands.todo.start.selectTodo'),
+            abbrMap,
           });
         } else {
           resolvedTodoId = todoId;
@@ -590,8 +593,11 @@ export function register(program: Command): void {
             outputInfo(t('commands.todo.complete.noPending'));
             return;
           }
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
           resolvedTodoId = await selectTodo(pendingTodos, {
             selectMessage: t('commands.todo.complete.selectTodo'),
+            abbrMap,
           });
         } else {
           resolvedTodoId = todoId;
@@ -652,6 +658,7 @@ export function register(program: Command): void {
             selectMessage: t('commands.todo.edit.selectTodo'),
             showStatus: true,
             statusLabels: getStatusLabels(),
+            abbrMap: new Map((await getBranchCategories(paths.configDir)).map(c => [c.name, resolveAbbr(c)])),
           });
         }
 

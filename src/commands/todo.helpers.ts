@@ -198,7 +198,7 @@ function isWideCodePoint(code: number): boolean {
 }
 
 /** 计算字符串在终端中的显示宽度 */
-function strWidth(s: string): number {
+export function strWidth(s: string): number {
   let w = 0;
   for (const ch of s) {
     w += isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
@@ -286,6 +286,7 @@ export interface TodoSelectOptions {
   statusLabels?: Record<string, string>;
   previewLineCount?: number;
   initial?: number;
+  abbrMap?: Map<string, string>;
 }
 
 /**
@@ -317,8 +318,10 @@ export function formatTodoIdLabel(
   type: string,
   name: string,
   typeWidth: number,
+  abbr?: string,
 ): { plain: string; display: string } {
-  const paddedType = padWidth(type, typeWidth);
+  const displayType = abbr ?? type;
+  const paddedType = padWidth(displayType, typeWidth);
   const gap = '  ';
   return {
     plain: `${paddedType}${gap}${name}`,
@@ -399,14 +402,16 @@ export async function selectTodo(todos: TodoItem[], options: TodoSelectOptions):
     statusLabels = {},
     previewLineCount = 4,
     initial = 0,
+    abbrMap,
   } = options;
-  const maxTypeW = Math.max(...todos.map(item => strWidth(item.type)));
+  const maxTypeW = Math.max(...todos.map(item => strWidth(abbrMap?.get(item.type) ?? item.type)));
 
   const items: PreviewSelectItem[] = todos.map(item => {
     const id = `${item.type}/${item.name}`;
     const firstLine = item.message.split('\n')[0];
     const statusPrefix = showStatus ? `${statusLabels[item.status] ?? item.status}: ` : '';
-    const todoLabel = formatTodoIdLabel(item.type, item.name, maxTypeW);
+    const abbr = abbrMap?.get(item.type);
+    const todoLabel = formatTodoIdLabel(item.type, item.name, maxTypeW, abbr);
     return {
       value: id,
       label: todoLabel.plain,

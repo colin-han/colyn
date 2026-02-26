@@ -62,6 +62,7 @@ getMainBranch() => execSync('git branch --show-current', { cwd: mainDir })
 - 用于创建 worktree 时指定目标分支
 - 用于生成 tmux window 名称
 - 支持本地分支、远程分支或新建分支
+- 格式为 `{category}/{name}`，其中 category 使用 Category 的 `name` 字段
 
 **命名约定示例**：
 ```
@@ -71,7 +72,7 @@ feature/ui/dark-mode   # UI 功能
 main                   # 主分支
 ```
 
-**相关术语**：[Window Name](#window-name窗口名称)
+**相关术语**：[Branch Category](#branch-category分支类别)、[Window Name](#window-name窗口名称)
 
 ---
 
@@ -222,6 +223,85 @@ colyn add feature/dashboard
 **参考文档**：
 - `CLAUDE.md#配置设计原则`
 - `.claude/logs/minimal-config-principle-20260124.md`
+
+---
+
+### Branch Category（分支类别）
+
+**定义**：描述分支用途的分类标签，是 Colyn Todo 和分支命名系统中的基础概念。
+
+**来源**：Colyn 自定义概念
+
+**数据结构**：
+```typescript
+interface BranchCategory {
+  name: string;   // 类别名，用于 Branch Name 和 Todo ID
+  abbr?: string;  // 显示缩写（可含 emoji），仅用于 UI 展示
+}
+```
+
+**默认值**：
+| name | abbr |
+|------|------|
+| `feature` | `✨feat` |
+| `bugfix` | `🐛fix` |
+| `refactor` | `♻️ref` |
+| `document` | `📝doc` |
+
+**与 Branch Name 和 Todo ID 的关系**：
+- Branch Name 格式：`{category.name}/{taskName}` → `feature/user-auth`
+- Todo ID 格式：`{category.name}/{taskName}` → `feature/user-auth`
+- 两者格式完全相同，一个 Todo 与其对应的分支共享同一标识符
+
+**abbr 的使用范围**（仅 UI 展示，不写入任何数据）：
+- 类型选择列表：显示 `✨feat (feature)`
+- `todo list` 表格：显示 `✨feat`
+
+**配置**：在 `settings.json` 的 `branchCategories` 字段中定义，支持项目级和用户级配置，按 `name` 去重合并。
+
+**查看当前列表**：
+```bash
+colyn config get branchCategories
+```
+
+**相关术语**：[Branch Name](#branch-name分支名)、[Todo ID](#todo-id)
+
+---
+
+### Todo ID
+
+**定义**：Colyn Todo 任务的唯一标识符，格式为 `{category}/{name}`。
+
+**来源**：Colyn 自定义概念
+
+**格式**：
+```
+{category.name}/{taskName}
+
+示例：
+  feature/user-auth
+  bugfix/login-crash
+  refactor/api-layer
+```
+
+**与 Branch Name 的等价性**：
+- Todo ID 与对应的 Branch Name 完全一致
+- `colyn todo start feature/user-auth` 会直接用该 ID 作为分支名创建分支
+- `colyn add` 时选择 pending todo，选中后直接用 Todo ID 作为分支名
+
+**用法示例**：
+```bash
+# 添加 todo（type 使用 category.name）
+colyn todo add feature/user-auth "实现 JWT 认证"
+
+# 通过 Todo ID 启动任务并创建分支
+colyn todo start feature/user-auth
+
+# 通过 Todo ID 标记完成
+colyn todo complete feature/user-auth
+```
+
+**相关术语**：[Branch Category](#branch-category分支类别)、[Branch Name](#branch-name分支名)
 
 ---
 
@@ -560,6 +640,8 @@ if (process.env.WORKTREE === 'main') {
 - Worktree ID
 - Project Name
 - Base Port
+- Branch Category
+- Todo ID
 - 并行 Vibe Coding
 - 最小配置原则
 
@@ -591,6 +673,8 @@ if (process.env.WORKTREE === 'main') {
 | Window index | Worktree ID | 一对一映射 |
 | Window name | Branch name | `branch.split('/').pop()` |
 | Dev command | package.json | `scripts.dev` |
+| Branch Name | Category + task name | `{category.name}/{name}` |
+| Todo ID | Category + task name | `{category.name}/{name}`（与 Branch Name 相同） |
 
 ---
 
@@ -606,5 +690,5 @@ if (process.env.WORKTREE === 'main') {
 
 ---
 
-**文档版本**：1.0
-**最后更新**：2026-01-24
+**文档版本**：1.1
+**最后更新**：2026-02-26
