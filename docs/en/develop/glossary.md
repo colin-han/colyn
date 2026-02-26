@@ -62,6 +62,7 @@ getMainBranch() => execSync('git branch --show-current', { cwd: mainDir })
 - Used to specify target branch when creating worktree
 - Used to generate tmux window name
 - Supports local branches, remote branches, or new branches
+- Format is `{category}/{name}`, where category uses the Category's `name` field
 
 **Naming convention examples**:
 ```
@@ -71,7 +72,7 @@ feature/ui/dark-mode   # UI feature
 main                   # Main branch
 ```
 
-**Related terms**: [Window Name](#window-name)
+**Related terms**: [Branch Category](#branch-category), [Window Name](#window-name)
 
 ---
 
@@ -222,6 +223,85 @@ colyn add feature/dashboard
 **Reference documentation**:
 - `CLAUDE.md#Configuration Design Principles`
 - `.claude/logs/minimal-config-principle-20260124.md`
+
+---
+
+### Branch Category
+
+**Definition**: A classification label describing the purpose of a branch. It is the foundational concept in Colyn's Todo and branch naming system.
+
+**Origin**: Colyn custom concept
+
+**Data structure**:
+```typescript
+interface BranchCategory {
+  name: string;   // Category name, used in Branch Name and Todo ID
+  abbr?: string;  // Display abbreviation (may include emoji), for UI display only
+}
+```
+
+**Default values**:
+| name | abbr |
+|------|------|
+| `feature` | `✨feat` |
+| `bugfix` | `🐛fix` |
+| `refactor` | `♻️ref` |
+| `document` | `📝doc` |
+
+**Relationship with Branch Name and Todo ID**:
+- Branch Name format: `{category.name}/{taskName}` → `feature/user-auth`
+- Todo ID format: `{category.name}/{taskName}` → `feature/user-auth`
+- The two formats are identical — a Todo and its corresponding branch share the same identifier
+
+**Scope of abbr** (UI display only, written to no data):
+- Type selection list: displays `✨feat (feature)`
+- `todo list` table: displays `✨feat`
+
+**Configuration**: Defined in the `branchCategories` field of `settings.json`, supports project-level and user-level configuration, merged and deduplicated by `name`.
+
+**View current list**:
+```bash
+colyn config get branchCategories
+```
+
+**Related terms**: [Branch Name](#branch-name), [Todo ID](#todo-id)
+
+---
+
+### Todo ID
+
+**Definition**: Unique identifier for a Colyn Todo task, with the format `{category}/{name}`.
+
+**Origin**: Colyn custom concept
+
+**Format**:
+```
+{category.name}/{taskName}
+
+Examples:
+  feature/user-auth
+  bugfix/login-crash
+  refactor/api-layer
+```
+
+**Equivalence with Branch Name**:
+- Todo ID and its corresponding Branch Name are identical
+- `colyn todo start feature/user-auth` uses the ID directly as the branch name to create the branch
+- When using `colyn add` to select a pending todo, the Todo ID is used directly as the branch name
+
+**Usage examples**:
+```bash
+# Add todo (type uses category.name)
+colyn todo add feature/user-auth "Implement JWT authentication"
+
+# Start task and create branch via Todo ID
+colyn todo start feature/user-auth
+
+# Mark as complete via Todo ID
+colyn todo complete feature/user-auth
+```
+
+**Related terms**: [Branch Category](#branch-category), [Branch Name](#branch-name)
 
 ---
 
@@ -560,6 +640,8 @@ if (process.env.WORKTREE === 'main') {
 - Worktree ID
 - Project Name
 - Base Port
+- Branch Category
+- Todo ID
 - Parallel Vibe Coding
 - Minimal Configuration Principle
 
@@ -591,6 +673,8 @@ if (process.env.WORKTREE === 'main') {
 | Window index | Worktree ID | One-to-one mapping |
 | Window name | Branch name | `branch.split('/').pop()` |
 | Dev command | package.json | `scripts.dev` |
+| Branch Name | Category + task name | `{category.name}/{name}` |
+| Todo ID | Category + task name | `{category.name}/{name}` (same as Branch Name) |
 
 ---
 
@@ -606,5 +690,5 @@ if (process.env.WORKTREE === 'main') {
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-24
+**Document Version**: 1.1
+**Last Updated**: 2026-02-26
