@@ -41,6 +41,7 @@ import {
   readTodoFile,
   saveTodoFile,
   selectWithPreview,
+  strWidth,
 } from './todo.helpers.js';
 import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 import {
@@ -279,7 +280,7 @@ async function promptCreateBranchName(configDir?: string): Promise<string> {
     type: 'select',
     name: 'type',
     message: t('commands.todo.add.selectType'),
-    choices: categories.map(c => ({ name: resolveAbbr(c), value: c.name })),
+    choices: categories.map(c => ({ name: `${resolveAbbr(c)} (${c.name})`, value: c.name })),
     stdout: process.stderr,
   });
 
@@ -355,13 +356,16 @@ async function selectBranchForCheckout(
   // 2) pending todo
   const todoFile = await readTodoFile(configDir);
   const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+  const categories = await getBranchCategories(configDir);
+  const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
   const maxTodoTypeW = pendingTodos.length > 0
-    ? Math.max(...pendingTodos.map(item => item.type.length))
+    ? Math.max(...pendingTodos.map(item => strWidth(abbrMap.get(item.type) ?? item.type)))
     : 0;
   const pendingBranchSet = new Set<string>();
   for (const todo of pendingTodos) {
     const branch = `${todo.type}/${todo.name}`;
-    const todoLabel = formatTodoIdLabel(todo.type, todo.name, maxTodoTypeW);
+    const abbr = abbrMap.get(todo.type);
+    const todoLabel = formatTodoIdLabel(todo.type, todo.name, maxTodoTypeW, abbr);
     pendingBranchSet.add(branch);
     pushChoice(
       { type: 'todo', branch, todoId: branch, message: todo.message },
@@ -385,12 +389,13 @@ async function selectBranchForCheckout(
   });
 
   const maxLocalTypeW = parsedLocalBranches.length > 0
-    ? Math.max(...parsedLocalBranches.map(item => item.type.length))
+    ? Math.max(...parsedLocalBranches.map(item => strWidth(abbrMap.get(item.type) ?? item.type)))
     : 0;
 
   for (const local of parsedLocalBranches) {
     const { branch } = local;
-    const branchLabel = formatTodoIdLabel(local.type, local.name, maxLocalTypeW);
+    const abbr = abbrMap.get(local.type);
+    const branchLabel = formatTodoIdLabel(local.type, local.name, maxLocalTypeW, abbr);
     pushChoice(
       { type: 'branch', branch },
       branchLabel.plain,
