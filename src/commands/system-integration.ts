@@ -113,7 +113,7 @@ async function systemIntegrationCommand(): Promise<void> {
     output('');
     output(t('commands.systemIntegration.installingClaudeSkills'));
     try {
-      const installedSkills = await installClaudeSkills();
+      const installedSkills = await installClaudeSkills(getColynBinPath());
       if (installedSkills.length > 0) {
         output(chalk.green(t('commands.systemIntegration.claudeSkillsInstalled', { skills: installedSkills.join(', ') })));
       } else {
