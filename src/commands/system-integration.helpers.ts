@@ -392,10 +392,13 @@ export function getSkillsSourceDir(): string {
  *
  * 每个 skill 是 skills/<skill-name>/ 目录，递归复制到目标位置。
  * 若目标已存在则覆盖更新。
+ * SKILL.md 中 bash 代码块里的 `colyn` 命令会被替换为绝对路径，
+ * 确保 Claude 能够正确调用。
  *
+ * @param colynBinPath colyn 可执行文件的绝对路径
  * @returns 安装的 skill 名称列表
  */
-export async function installClaudeSkills(): Promise<string[]> {
+export async function installClaudeSkills(colynBinPath: string): Promise<string[]> {
   const srcDir = getSkillsSourceDir();
   const destBase = path.join(os.homedir(), '.claude', 'skills');
 
@@ -419,7 +422,7 @@ export async function installClaudeSkills(): Promise<string[]> {
   for (const dir of skillDirs) {
     const srcSkill = path.join(srcDir, dir.name);
     const destSkill = path.join(destBase, dir.name);
-    await copyDirRecursive(srcSkill, destSkill);
+    await copySkillDir(srcSkill, destSkill, colynBinPath);
     installed.push(dir.name);
   }
 
@@ -427,20 +430,35 @@ export async function installClaudeSkills(): Promise<string[]> {
 }
 
 /**
- * 递归复制目录
+ * 将 skill 目录复制到目标位置，SKILL.md 中 bash 代码块内的 colyn 命令替换为绝对路径
  */
-async function copyDirRecursive(src: string, dest: string): Promise<void> {
+async function copySkillDir(src: string, dest: string, colynBinPath: string): Promise<void> {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
-      await copyDirRecursive(srcPath, destPath);
+      await copySkillDir(srcPath, destPath, colynBinPath);
+    } else if (entry.name === 'SKILL.md') {
+      const content = await fs.readFile(srcPath, 'utf-8');
+      const rewritten = rewriteSkillMd(content, colynBinPath);
+      await fs.writeFile(destPath, rewritten, 'utf-8');
     } else {
       await fs.copyFile(srcPath, destPath);
     }
   }
+}
+
+/**
+ * 将 SKILL.md 内容中 bash 代码块里行首的 `colyn` 替换为绝对路径
+ */
+function rewriteSkillMd(content: string, colynBinPath: string): string {
+  // 匹配 ```bash ... ``` 代码块，替换块内行首的 colyn 命令
+  return content.replace(/^```bash\n([\s\S]*?)^```/gm, (_, body: string) => {
+    const rewrittenBody = body.replace(/^colyn\b/gm, colynBinPath);
+    return `\`\`\`bash\n${rewrittenBody}\`\`\``;
+  });
 }
 
 /**
