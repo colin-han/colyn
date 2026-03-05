@@ -222,7 +222,7 @@ async function promptCreateBranchNameForAdd(configDir?: string): Promise<string>
     type: 'select',
     name: 'type',
     message: t('commands.todo.add.selectType'),
-    choices: categories.map(c => ({ name: `${resolveAbbr(c)} (${c.name})`, value: c.name })),
+    choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
     stdout: process.stderr,
   });
 
