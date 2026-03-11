@@ -7,6 +7,15 @@ import { registerAllCommands } from './commands/index.js';
 import { t, initI18n } from './i18n/index.js';
 import { getProjectPaths } from './core/paths.js';
 
+// 临时隐藏 i18next 推广消息
+const originalConsoleLog = console.log;
+console.log = (...args) => {
+  const msg = args.join(" ");
+  // 检查是否是 i18next 的推广消息
+  if (!msg.includes("i18next is made possible by our own product, Locize")) {
+    originalConsoleLog(...args);
+  }
+};
 // 获取 package.json 中的版本号
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,6 +43,9 @@ if (userCwd) {
 }
 
 export async function run(): Promise<void> {
+  // 恢复原始 console.log，这样后续的正常日志可以输出
+  console.log = originalConsoleLog;
+
   // 初始化 i18n（尝试读取项目配置）
   // 必须在注册命令之前完成，确保所有 t() 调用使用正确的语言
   let projectPaths: Awaited<ReturnType<typeof getProjectPaths>> | null = null;
