@@ -119,6 +119,7 @@ async function detectLanguage(configDir?: string): Promise<SupportedLanguage> {
 i18next.init({
   lng: 'en',
   fallbackLng: 'en',
+  showSupportNotice: false, // Disable promotional messages
   debug: DEBUG,
   resources: {
     en: { translation: en },
