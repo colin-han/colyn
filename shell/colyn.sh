@@ -47,16 +47,21 @@ colyn() {
     fi
 
     if [[ $has_control_result -eq 0 ]]; then
-      local target_dir display_path attach_session result_success
+      local target_dir display_path attach_session attach_window result_success
       result_success=$(node -e "try{const r=JSON.parse(process.argv[1]);process.stdout.write((r&&typeof r==='object'&&r.success===true)?'1':'0')}catch(e){process.stdout.write('0')}" "$control_line" 2>/dev/null)
 
       if [[ "$result_success" == "1" ]]; then
         attach_session=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.attachSession==='string')process.stdout.write(r.attachSession)}catch(e){}" "$control_line" 2>/dev/null)
+        attach_window=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.attachWindow==='number')process.stdout.write(String(r.attachWindow))}catch(e){}" "$control_line" 2>/dev/null)
         target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.targetDir==='string')process.stdout.write(r.targetDir)}catch(e){}" "$control_line" 2>/dev/null)
 
         if [[ -n "$attach_session" ]]; then
           # 需要连接到 tmux session
-          exec tmux attach-session -t "$attach_session"
+          if [[ -n "$attach_window" ]]; then
+            exec tmux attach-session -t "${attach_session}:${attach_window}"
+          else
+            exec tmux attach-session -t "$attach_session"
+          fi
         elif [[ -n "$target_dir" && -d "$target_dir" ]]; then
           display_path=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'){process.stdout.write(typeof r.displayPath==='string'&&r.displayPath?r.displayPath:(typeof r.targetDir==='string'?r.targetDir:''))}}catch(e){}" "$control_line" 2>/dev/null)
           cd "$target_dir" || return
