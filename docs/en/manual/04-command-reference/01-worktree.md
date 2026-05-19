@@ -243,6 +243,76 @@ my-project/
 
 ---
 
+## colyn \<N\> — Quickly Switch Worktree
+
+Jump to a Worktree by ID. Inside a tmux Session matching the project name, this selects the corresponding Window; otherwise it `cd`s into the directory or attaches the Session.
+
+### Syntax
+
+```bash
+colyn <N>
+```
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `N` | Yes | Target Worktree ID; `0` is the main directory, `N >= 1` is `worktrees/task-N` |
+
+### Description
+
+`colyn <N>` automatically selects the most appropriate switch method based on the current tmux context:
+
+| Current Environment | Target Session+Window | Behavior |
+|--------------------|-----------------------|----------|
+| Inside project tmux Session | Target Window exists | Switch to that Window (includes iTerm2 title update) |
+| Inside project tmux Session | Target Window not found | `cd` to target directory (fallback) |
+| Outside tmux | Session+Window both exist | `exec tmux attach-session` and select target Window |
+| Outside tmux | Session or Window not found | `cd` to target directory |
+| Target Worktree not present | — | Error + list available Worktrees, exit 1 |
+
+### Examples
+
+```bash
+colyn 0   # jump to main directory (Main branch directory)
+colyn 1   # jump to worktrees/task-1
+colyn N   # jump to worktrees/task-N
+```
+
+### Output Examples
+
+**Successful switch (cd mode):**
+
+```
+📂 Switched to: ~/my-project/worktrees/task-1
+```
+
+**Target Worktree does not exist:**
+
+```
+✗ Worktree task-9 does not exist
+Available worktrees:
+  0  main         (main directory)
+  1  task-1       feature/login
+  2  task-2       feature/quick-switch
+```
+
+### Common Errors
+
+| Error Scenario | Error Message | Solution |
+|---------------|---------------|----------|
+| Specified Worktree does not exist | `✗ Worktree task-N does not exist` | Run `colyn list` to see available Worktree IDs |
+| Not inside a colyn project | `✗ Current directory is not inside a colyn project, cannot switch worktree` | Navigate into a colyn project directory first |
+
+### Tips
+
+- `colyn 0` always jumps to the main directory (Main branch directory)
+- Run `colyn list` to see all Worktree IDs and their status
+- Switching is fastest when inside the project's tmux Session
+- If the tmux Window index does not match the Worktree ID (e.g., after manually reordering windows), the command automatically falls back to `cd`
+
+---
+
 ## colyn list
 
 List all Worktrees.
