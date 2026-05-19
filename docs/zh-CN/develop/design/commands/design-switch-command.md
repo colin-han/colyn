@@ -259,6 +259,7 @@ switch: {
   mainDirNotFound: '无法定位主目录',
   worktreeNotExists: 'Worktree task-{{n}} 不存在',
   availableWorktrees: '可用 worktree：',
+  mainDirLabel: '主目录',
 }
 ```
 

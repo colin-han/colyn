@@ -292,9 +292,9 @@ colyn N   # jump to worktrees/task-N
 ```
 ✗ Worktree task-9 does not exist
 Available worktrees:
-  0  main         (main directory)
-  1  task-1       feature/login
-  2  task-2       feature/quick-switch
+   0  main         main  (main directory)
+   1  task-1       feature/login
+   2  task-2       feature/quick-switch
 ```
 
 ### Common Errors

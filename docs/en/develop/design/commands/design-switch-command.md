@@ -258,6 +258,7 @@ switch: {
   mainDirNotFound: 'cannot locate main directory',
   worktreeNotExists: 'Worktree task-{{n}} does not exist',
   availableWorktrees: 'Available worktrees:',
+  mainDirLabel: 'main directory',
 }
 ```
 

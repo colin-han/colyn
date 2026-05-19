@@ -292,9 +292,9 @@ colyn N   # 切换到 worktrees/task-N
 ```
 ✗ Worktree task-9 不存在
 可用 worktree：
-  0  main         (主目录)
-  1  task-1       feature/login
-  2  task-2       feature/quick-switch
+   0  main         main  (主目录)
+   1  task-1       feature/login
+   2  task-2       feature/quick-switch
 ```
 
 ### 常见错误
