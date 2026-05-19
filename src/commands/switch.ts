@@ -6,6 +6,13 @@ import { t } from '../i18n/index.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import { outputResult, outputError } from '../utils/logger.js';
+import {
+  isInTmux,
+  getCurrentSession,
+  sessionExists,
+  windowExists,
+  switchWindow,
+} from '../core/tmux.js';
 
 /**
  * 解析数字字符串到 worktree ID。
@@ -93,11 +100,37 @@ export async function handleSwitch(numberArg: string): Promise<void> {
 
   const displayPath = toDisplayPath(target);
 
-  // cd 模式（tmux 决策在下一个 Task 引入）
+  // 项目名 = 主目录名 = tmux session 名
+  const sessionName = paths.mainDirName;
+
+  const inTmux = isInTmux();
+  const currentSession = inTmux ? getCurrentSession() : null;
+  const hasSession = sessionExists(sessionName);
+  // windowExists 内部执行 select-window，会同时充当"是否存在"探测和"切换"动作；
+  // 同 session 内随后调用 switchWindow 是为了触发 iTerm2 title 更新，两次切到同一 window 结果幂等
+  const hasWindow = hasSession && windowExists(sessionName, id);
+
+  if (!hasWindow) {
+    // session 或 window 不存在，降级为 cd
+    outputResult({ success: true, targetDir: target, displayPath });
+    return;
+  }
+
+  if (inTmux && currentSession === sessionName) {
+    // 同 session 内：Node 端直接调用 switchWindow（含 iTerm2 title 更新）
+    const branchName =
+      id === 0
+        ? await getMainBranch(paths.mainDir).catch(() => 'main')
+        : `task-${id}`;
+    switchWindow(sessionName, id, sessionName, branchName);
+    return;
+  }
+
+  // tmux 外，或在其他 session 中 → 让 shell 执行 attach
   outputResult({
     success: true,
-    targetDir: target,
-    displayPath,
+    attachSession: sessionName,
+    attachWindow: id,
   });
 }
 

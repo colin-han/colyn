@@ -35,6 +35,13 @@ import { handleSwitch } from './switch.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import * as fsp from 'fs/promises';
+import {
+  isInTmux,
+  getCurrentSession,
+  sessionExists,
+  windowExists,
+  switchWindow,
+} from '../core/tmux.js';
 
 const PATHS = {
   rootDir: '/proj',
@@ -124,5 +131,101 @@ describe('handleSwitch — cd 与错误处理', () => {
     expect(stderr).toContain('colyn');
     const stdout = stdoutCalls.join('').trim();
     expect(stdout).toBe('');
+  });
+});
+
+describe('handleSwitch — tmux 智能切换', () => {
+  let stderrCalls: string[];
+  let stdoutCalls: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stderrCalls = [];
+    stdoutCalls = [];
+    vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderrCalls.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      stdoutCalls.push(String(chunk));
+      return true;
+    });
+    process.env.COLYN_OUTPUT_JSON = '1';
+
+    vi.mocked(getProjectPaths).mockResolvedValue(PATHS);
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+  });
+
+  it('tmux 外、session 不存在 → 仅 targetDir（cd）', async () => {
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('1');
+
+    const stdout = stdoutCalls.join('');
+    const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
+    expect(parsed).toMatchObject({ success: true, targetDir: expect.stringContaining('task-1') });
+    expect(parsed.attachSession).toBeUndefined();
+    expect(vi.mocked(switchWindow)).not.toHaveBeenCalled();
+  });
+
+  it('tmux 外、session 存在但 window 不存在 → 降级 targetDir', async () => {
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(true);
+    vi.mocked(windowExists).mockReturnValue(false);
+
+    await handleSwitch('1');
+
+    const stdout = stdoutCalls.join('');
+    const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
+    expect(parsed.targetDir).toContain('task-1');
+    expect(parsed.attachSession).toBeUndefined();
+  });
+
+  it('tmux 外、session+window 都存在 → attachSession + attachWindow', async () => {
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(true);
+    vi.mocked(windowExists).mockReturnValue(true);
+
+    await handleSwitch('2');
+
+    const stdout = stdoutCalls.join('');
+    const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
+    expect(parsed).toMatchObject({
+      success: true,
+      attachSession: 'colyn',
+      attachWindow: 2,
+    });
+    expect(parsed.targetDir).toBeUndefined();
+  });
+
+  it('tmux 内同 session + window 存在 → 调用 switchWindow，stdout 无控制消息', async () => {
+    vi.mocked(isInTmux).mockReturnValue(true);
+    vi.mocked(getCurrentSession).mockReturnValue('colyn');
+    vi.mocked(sessionExists).mockReturnValue(true);
+    vi.mocked(windowExists).mockReturnValue(true);
+
+    await handleSwitch('1');
+
+    expect(vi.mocked(switchWindow)).toHaveBeenCalledWith('colyn', 1, expect.any(String), expect.any(String));
+    const stdout = stdoutCalls.join('').trim();
+    expect(stdout).toBe('');
+  });
+
+  it('tmux 内其他 session + window 存在 → attachSession + attachWindow', async () => {
+    vi.mocked(isInTmux).mockReturnValue(true);
+    vi.mocked(getCurrentSession).mockReturnValue('other');
+    vi.mocked(sessionExists).mockReturnValue(true);
+    vi.mocked(windowExists).mockReturnValue(true);
+
+    await handleSwitch('1');
+
+    const stdout = stdoutCalls.join('');
+    const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
+    expect(parsed.attachSession).toBe('colyn');
+    expect(parsed.attachWindow).toBe(1);
   });
 });
