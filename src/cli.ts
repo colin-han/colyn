@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import { registerAllCommands } from './commands/index.js';
 import { t, initI18n } from './i18n/index.js';
 import { getProjectPaths } from './core/paths.js';
+import { preprocessArgv } from './cli-preprocess.js';
 
 // 临时隐藏 i18next 推广消息
 const originalConsoleLog = console.log;
@@ -203,6 +204,9 @@ export async function run(): Promise<void> {
 
   // 注册所有命令
   registerAllCommands(program);
+
+  // 将 `colyn <N>` 重写为内部 `switch <N>` 子命令
+  process.argv = preprocessArgv(process.argv);
 
   program.parse();
 }
