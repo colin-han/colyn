@@ -243,6 +243,76 @@ my-project/
 
 ---
 
+## colyn \<N\> — 快速切换 Worktree
+
+快速切换到指定 Worktree 目录。在 tmux Session（与项目同名）内时智能切换到对应 Window，在 tmux 外时执行 `cd` 或 attach。
+
+### 语法
+
+```bash
+colyn <N>
+```
+
+### 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `N` | 必填 | 目标 Worktree ID；`0` 表示主目录，`N >= 1` 表示 `worktrees/task-N` |
+
+### 功能说明
+
+`colyn <N>` 根据当前 tmux 上下文自动选择最合适的切换方式：
+
+| 当前环境 | 目标 Session+Window | 行为 |
+|---------|---------------------|------|
+| 在项目 tmux Session 内 | 对应 Window 存在 | 切换到对应 Window（含 iTerm2 title 更新） |
+| 在项目 tmux Session 内 | 对应 Window 不存在 | `cd` 到目标目录（降级） |
+| tmux 外 | Session+Window 都存在 | `exec tmux attach-session` 附加到目标 Session 并选中 Window |
+| tmux 外 | Session 或 Window 不存在 | `cd` 到目标目录 |
+| 目标 Worktree 不存在 | — | 报错并列出可用 Worktree，exit 1 |
+
+### 示例
+
+```bash
+colyn 0   # 切换到主目录（main branch 所在目录）
+colyn 1   # 切换到 worktrees/task-1
+colyn N   # 切换到 worktrees/task-N
+```
+
+### 输出示例
+
+**成功切换（cd 模式）：**
+
+```
+📂 已切换到: ~/my-project/worktrees/task-1
+```
+
+**目标 Worktree 不存在时：**
+
+```
+✗ Worktree task-9 不存在
+可用 worktree：
+   0  main         main  (主目录)
+   1  task-1       feature/login
+   2  task-2       feature/quick-switch
+```
+
+### 常见错误
+
+| 错误场景 | 错误信息 | 解决方法 |
+|---------|---------|---------|
+| 指定的 Worktree 不存在 | `✗ Worktree task-N 不存在` | 运行 `colyn list` 查看可用 Worktree ID |
+| 不在 colyn 项目中 | `✗ 当前目录不在 colyn 项目中，无法切换 worktree` | 进入 colyn 项目目录后再使用 |
+
+### 提示
+
+- `colyn 0` 始终切换到主目录（Main branch 所在目录）
+- 运行 `colyn list` 可以查看所有 Worktree 的 ID 和状态
+- 在 tmux Session 内时，切换到对应 Window 的速度最快
+- 若 tmux Window index 与 Worktree ID 不一致（手动重排后），命令自动降级为 `cd`
+
+---
+
 ## colyn list
 
 列出所有 Worktree。

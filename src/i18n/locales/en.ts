@@ -940,6 +940,16 @@ Solution:
       },
     },
 
+    // switch command
+    switch: {
+      description: 'Quickly switch to a worktree (internal hidden subcommand)',
+      notInProject: 'Current directory is not inside a colyn project, cannot switch worktree',
+      mainDirNotFound: 'Cannot locate main directory',
+      worktreeNotExists: 'Worktree task-{{n}} does not exist',
+      availableWorktrees: 'Available worktrees:',
+      mainDirLabel: 'main directory',
+    },
+
     // list-project command
     listProject: {
       description: 'List all projects from the global status index',

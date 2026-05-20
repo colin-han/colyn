@@ -940,6 +940,16 @@ export const zhCN = {
       },
     },
 
+    // switch command
+    switch: {
+      description: '快速切换到指定 worktree（内部 hidden 子命令）',
+      notInProject: '当前目录不在 colyn 项目中，无法切换 worktree',
+      mainDirNotFound: '无法定位主目录',
+      worktreeNotExists: 'Worktree task-{{n}} 不存在',
+      availableWorktrees: '可用 worktree：',
+      mainDirLabel: '主目录',
+    },
+
     // list-project command
     listProject: {
       description: '列出全局状态索引中的所有项目',

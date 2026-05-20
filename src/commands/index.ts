@@ -22,6 +22,7 @@ import { register as registerConfig } from './config.js';
 import { register as registerTmux } from './tmux.js';
 import { register as registerRelease } from './release.js';
 import { register as registerTodo } from './todo.js';
+import { register as registerSwitch } from './switch.js';
 
 /**
  * 注册所有命令到 program
@@ -44,4 +45,5 @@ export function registerAllCommands(program: Command): void {
   registerTmux(program);
   registerRelease(program);
   registerTodo(program);
+  registerSwitch(program);
 }

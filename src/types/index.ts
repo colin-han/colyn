@@ -60,6 +60,8 @@ export interface CommandResult {
   displayPath?: string;
   /** 需要连接的 tmux session 名称 */
   attachSession?: string;
+  /** attach 到 session 后选中的 window index（与 attachSession 搭配） */
+  attachWindow?: number;
 }
 
 /**
