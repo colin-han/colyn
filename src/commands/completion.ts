@@ -151,7 +151,9 @@ _colyn() {
                 checkout|co)
                     _arguments \\
                         '1: :_colyn_worktree_ids' \\
-                        '2: :_colyn_branches'
+                        '2: :_colyn_branches' \\
+                        '--fetch[${e(t('commands.checkout.fetchOption'))}]' \\
+                        '--no-fetch[${e(t('commands.checkout.noFetchOption'))}]'
                     ;;
                 info)
                     _arguments \\
