@@ -25,6 +25,8 @@ import {
 interface ReleaseOptions {
   noUpdate?: boolean;
   noBuild?: boolean;
+  noVersionUpdate?: boolean;
+  noTag?: boolean;
   verbose?: boolean;
 }
 
@@ -122,14 +124,19 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
     });
 
     // 步骤7: 在主分支目录执行发布流程
-    let newVersion: string;
+    let newVersion: string | null;
     try {
-      newVersion = await executeRelease(paths.rootDir, paths.mainDir, version, options.verbose, options.noBuild);
+      newVersion = await executeRelease(paths.rootDir, paths.mainDir, version, {
+        verbose: options.verbose,
+        noBuild: options.noBuild,
+        noVersionUpdate: options.noVersionUpdate,
+        noTag: options.noTag,
+      });
     } catch (error) {
       // 如果发布失败，尝试回滚
       if (error instanceof ColynError) {
         // 显示回滚提示
-        displayRollbackCommands(version);
+        displayRollbackCommands(options.noVersionUpdate ? null : version);
       }
       throw error;
     }
@@ -166,6 +173,8 @@ export function register(program: Command): void {
     .description(t('commands.release.description'))
     .option('--no-update', t('commands.release.noUpdateOption'))
     .option('--no-build', t('commands.release.noBuildOption'))
+    .option('--no-version-update', t('commands.release.noVersionUpdateOption'))
+    .option('--no-tag', t('commands.release.noTagOption'))
     .option('-v, --verbose', t('commands.release.verboseOption'))
     .action(async (version: string | undefined, options: ReleaseOptions) => {
       await releaseCommand(version, options);
