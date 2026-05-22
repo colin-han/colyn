@@ -29,6 +29,13 @@ import { output, outputBold, outputSuccess, formatError } from '../utils/logger.
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import * as fs from 'fs/promises';
+import {
+  SETTINGS_KEYS,
+  isSettingsKey,
+  getSettingsValueAtPath,
+  setSettingsValueAtPath,
+  unsetSettingsValueAtPath,
+} from '../core/settings-mutator.js';
 
 /**
  * 默认配置（用于显示）
@@ -346,6 +353,19 @@ async function getConfigDirectory(isUser: boolean): Promise<string> {
  */
 async function getConfigValue(key: string, options: { user?: boolean }): Promise<void> {
   try {
+    // 新 key：通过点分路径访问 Settings JSON
+    if (isSettingsKey(key)) {
+      const filePath = options.user
+        ? getUserConfigPath()
+        : getProjectConfigPath((await getProjectPaths()).rootDir);
+      const value = await getSettingsValueAtPath(filePath, key);
+      if (value === undefined) {
+        process.exit(0);
+      }
+      process.stdout.write(String(value) + '\n');
+      return;
+    }
+
     // branchCategories 特殊处理：返回合并后的完整列表（JSON 格式）
     if (key === 'branchCategories') {
       const configDir = options.user ? undefined : (await getProjectPaths()).configDir;
@@ -358,7 +378,7 @@ async function getConfigValue(key: string, options: { user?: boolean }): Promise
 
     if (!validKeys.includes(key as keyof ColynConfig)) {
       throw new ColynError(
-        t('commands.config.invalidKey', { key, validKeys: ['branchCategories', ...validKeys].join(', ') })
+        t('commands.config.invalidKey', { key, validKeys: ['branchCategories', ...validKeys, ...Object.keys(SETTINGS_KEYS)].join(', ') })
       );
     }
 
@@ -386,11 +406,33 @@ async function setConfigValue(
   options: { user?: boolean }
 ): Promise<void> {
   try {
+    // 新 key：通过点分路径写入 Settings JSON
+    if (isSettingsKey(key)) {
+      const filePath = options.user
+        ? getUserConfigPath()
+        : getProjectConfigPath((await getProjectPaths()).rootDir);
+      try {
+        await setSettingsValueAtPath(filePath, key, value);
+      } catch (err) {
+        throw new ColynError(
+          t('commands.config.setFailed', {
+            key,
+            reason: err instanceof Error ? err.message : String(err),
+          })
+        );
+      }
+      const scope = options.user
+        ? t('commands.config.userScope')
+        : t('commands.config.projectScope');
+      outputSuccess(t('commands.config.setSuccess', { key, value, scope }));
+      return;
+    }
+
     const validKeys: Array<keyof ColynConfig> = ['npm', 'lang'];
 
     if (!validKeys.includes(key as keyof ColynConfig)) {
       throw new ColynError(
-        t('commands.config.invalidKey', { key, validKeys: validKeys.join(', ') })
+        t('commands.config.invalidKey', { key, validKeys: [...validKeys, ...Object.keys(SETTINGS_KEYS)].join(', ') })
       );
     }
 
@@ -424,6 +466,40 @@ async function setConfigValue(
 }
 
 /**
+ * 删除配置值（仅支持新 key）
+ */
+async function unsetConfigValue(key: string, options: { user?: boolean }): Promise<void> {
+  try {
+    if (!isSettingsKey(key)) {
+      throw new ColynError(
+        t('commands.config.invalidUnsetKey', {
+          key,
+          validKeys: Object.keys(SETTINGS_KEYS).join(', '),
+        })
+      );
+    }
+    const filePath = options.user
+      ? getUserConfigPath()
+      : getProjectConfigPath((await getProjectPaths()).rootDir);
+    const removed = await unsetSettingsValueAtPath(filePath, key);
+    const scope = options.user
+      ? t('commands.config.userScope')
+      : t('commands.config.projectScope');
+    if (removed) {
+      outputSuccess(t('commands.config.unsetSuccess', { key, scope }));
+    } else {
+      output(t('commands.config.unsetNoop', { key, scope }));
+    }
+  } catch (error) {
+    if (error instanceof ColynError) {
+      formatError(error);
+      process.exit(1);
+    }
+    throw error;
+  }
+}
+
+/**
  * 注册 config 命令
  */
 export function register(program: Command): void {
@@ -447,6 +523,15 @@ export function register(program: Command): void {
     .option('--user', t('commands.config.userOption'))
     .action(async (key: string, value: string, options: { user?: boolean }) => {
       await setConfigValue(key, value, options);
+    });
+
+  // unset 子命令：删除配置值
+  configCmd
+    .command('unset <key>')
+    .description(t('commands.config.unsetDescription'))
+    .option('--user', t('commands.config.userOption'))
+    .action(async (key: string, options: { user?: boolean }) => {
+      await unsetConfigValue(key, options);
     });
 
   // 默认命令：显示 tmux 配置（保持向后兼容）
