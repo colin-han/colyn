@@ -17,6 +17,8 @@ export const en = {
     files_other: '{{count}} files',
     commits: '{{count}} commit',
     commits_other: '{{count}} commits',
+    verboseOption: 'Show detailed step information',
+    noVerboseOption: 'Disable verbose output (overrides verbose=true)',
   },
 
   // CLI
@@ -180,6 +182,10 @@ Hints:
       noVersionUpdateOption: 'Skip version reading/bumping and tagging (push branch only)',
       noTagOption: 'Skip git tag creation (still bumps version and pushes branch)',
       verboseOption: 'Output detailed logs from failed commands',
+      updateOption: 'Update worktrees before release (default)',
+      buildOption: 'Run lint and build before release (default)',
+      tagOption: 'Create git tag on release (default)',
+      versionUpdateOption: 'Bump package.json version on release (default)',
       updatingWorktrees: 'Updating all worktrees...',
       updateFailed: '⚠ Failed to update worktrees, but release completed successfully',
       currentDirNotClean: 'Current directory has uncommitted changes',
@@ -326,6 +332,13 @@ Hints:
       updateAllOption: 'Update all worktrees after merge',
       verboseOption: 'Show detailed step information',
       noFetchOption: 'Skip fetching latest code from remote',
+      buildOption: 'Run build check (default behavior)',
+      noBuildOption: 'Skip lint and build checks (overrides commands.merge.build=true)',
+      rebaseOption: 'Rebase current branch before merge (default)',
+      updateOption: 'Update main branch after merge (default)',
+      fetchOption: 'Fetch remote before operation (default)',
+      allOption: 'Update all worktrees (default, requires update=true)',
+      noAllOption: 'Update only current worktree (overrides commands.merge.all=true)',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>
@@ -428,8 +441,11 @@ Main branch directory: {{path}}`,
     update: {
       description: 'Update worktree with main branch code',
       noRebaseOption: 'Use merge instead of rebase',
-      allOption: 'Update all worktrees',
+      allOption: 'Update all worktrees (default)',
       noFetchOption: 'Skip fetching latest code from remote',
+      rebaseOption: 'Rebase on update (default)',
+      fetchOption: 'Fetch remote before operation (default)',
+      noAllOption: 'Update only current worktree (overrides commands.update.all=true)',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn update <id>
@@ -553,6 +569,7 @@ Or force delete:
     checkout: {
       description: 'Switch branch in worktree',
       noFetchOption: 'Skip fetching remote branch info',
+      fetchOption: 'Fetch remote before operation (default)',
       inMainBranch: 'Currently in main branch directory',
       inMainBranchHint: `Please specify worktree ID, or switch to worktree directory:
   colyn checkout <worktree-id> <branch>

@@ -17,6 +17,8 @@ export const zhCN = {
     files_other: '{{count}} 个文件',
     commits: '{{count}} 个提交',
     commits_other: '{{count}} 个提交',
+    verboseOption: '显示详细的步骤信息',
+    noVerboseOption: '关闭详细输出（覆盖配置中的 verbose=true）',
   },
 
   // CLI
@@ -180,6 +182,10 @@ export const zhCN = {
       noVersionUpdateOption: '跳过读取版本、更新版本和打 tag（仅推送当前分支）',
       noTagOption: '跳过打 tag（仍会更新版本号并推送分支）',
       verboseOption: '输出失败命令的详细日志',
+      updateOption: '发布前更新 worktree（默认行为）',
+      buildOption: '发布前执行 lint 与 build（默认行为）',
+      tagOption: '发布时创建 git tag（默认行为）',
+      versionUpdateOption: '发布时升级 package.json 版本号（默认行为）',
       updatingWorktrees: '正在更新所有 worktree...',
       updateFailed: '⚠ 更新 worktree 失败，但发布已成功完成',
       currentDirNotClean: '当前目录有未提交的更改',
@@ -326,6 +332,13 @@ export const zhCN = {
       updateAllOption: '合并后更新所有 worktrees',
       verboseOption: '显示详细的步骤信息',
       noFetchOption: '跳过从远程拉取主分支最新代码',
+      buildOption: '执行构建检查（默认行为，等价 commands.merge.build=true）',
+      noBuildOption: '跳过 lint 和 build 检查（覆盖配置中的 build=true）',
+      rebaseOption: '合并前 rebase 当前分支（默认行为）',
+      updateOption: '合并后自动更新 main 分支（默认行为）',
+      fetchOption: '操作前 fetch 远端（默认行为）',
+      allOption: '更新所有 worktrees（默认行为，需 update=true 才生效）',
+      noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -428,8 +441,11 @@ export const zhCN = {
     update: {
       description: '将主分支代码更新到 worktree',
       noRebaseOption: '使用 merge 而非 rebase',
-      allOption: '更新所有 worktree',
+      allOption: '更新所有 worktrees（默认行为）',
       noFetchOption: '跳过从远程拉取主分支最新代码',
+      rebaseOption: '更新时 rebase（默认行为）',
+      fetchOption: '操作前 fetch 远端（默认行为）',
+      noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn update <id>
@@ -553,6 +569,7 @@ export const zhCN = {
     checkout: {
       description: '在 worktree 中切换分支',
       noFetchOption: '跳过从远程获取分支信息',
+      fetchOption: '操作前 fetch 远端（默认行为）',
       inMainBranch: '当前在主分支目录中',
       inMainBranchHint: `请指定 worktree ID，或切换到 worktree 目录后执行：
   colyn checkout <worktree-id> <branch>
