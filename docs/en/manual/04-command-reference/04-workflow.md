@@ -25,6 +25,9 @@ colyn release [version-type] [options]
 | Option | Description |
 |--------|-------------|
 | `--no-update` | Skip auto-updating all worktrees after release |
+| `--no-build` | Skip lint and build steps (for releases already validated in CI or hotfixes) |
+| `--no-version-update` | Skip reading/bumping the version, commit, and tag; push the current branch only |
+| `--no-tag` | Skip git tag creation while still bumping the version and pushing the branch |
 | `--verbose` / `-v` | Show full command output for install/lint/build (on failure) |
 
 ### Description
@@ -70,6 +73,15 @@ $ colyn release 1.2.3
 
 # Release without auto-updating worktrees
 $ colyn release --no-update
+
+# Skip lint and build (already validated in CI)
+$ colyn release patch --no-build
+
+# Push the current branch only — no version bump, no tag (e.g. to trigger a deploy pipeline)
+$ colyn release --no-version-update
+
+# Bump version and push branch but skip tag (CI owns tagging)
+$ colyn release patch --no-tag
 ```
 
 ### Common Errors

@@ -24,14 +24,15 @@ import {
   displayWorktreeList
 } from './update.helpers.js';
 import { t } from '../i18n/index.js';
+import { applyCommandDefaults } from '../core/command-defaults.js';
 
 /**
  * Update 命令选项
  */
-export interface UpdateOptions {
-  noRebase?: boolean;
-  all?: boolean;
-  fetch?: boolean;  // 是否 fetch，默认 true
+export interface UpdateOptions extends Record<string, unknown> {
+  rebase?: boolean;  // 使用 rebase（默认 true）
+  fetch?: boolean;   // 是否 fetch（默认 true）
+  all?: boolean;     // 更新所有 worktrees（默认 true）
 }
 
 /**
@@ -60,10 +61,10 @@ async function updateCommand(
     const mainBranch = await getMainBranch(paths.mainDir);
 
     // 确定是否使用 rebase（默认 true）
-    const useRebase = !options.noRebase;
+    const useRebase = options.rebase ?? true;
 
     // 确定是否跳过 fetch/pull（默认 false，即执行 fetch/pull）
-    const skipFetch = options.fetch === false;
+    const skipFetch = !options.fetch;
 
     // 步骤3: 处理批量更新或单个更新
     if (options.all) {
@@ -239,7 +240,7 @@ export async function executeUpdate(
   const mainBranch = await getMainBranch(paths.mainDir);
 
   // 确定是否使用 rebase（默认 true）
-  const useRebase = !options.noRebase;
+  const useRebase = options.rebase ?? true;
 
   // 步骤3: 处理批量更新或单个更新
   if (options.all) {
@@ -258,10 +259,19 @@ export function register(program: Command): void {
   program
     .command('update [target]')
     .description(t('commands.update.description'))
+    .option('--rebase', t('commands.update.rebaseOption'))
     .option('--no-rebase', t('commands.update.noRebaseOption'))
-    .option('--all', t('commands.update.allOption'))
+    .option('--fetch', t('commands.update.fetchOption'))
     .option('--no-fetch', t('commands.update.noFetchOption'))
-    .action(async (target: string | undefined, options: UpdateOptions) => {
-      await updateCommand(target, options);
+    .option('--all', t('commands.update.allOption'))
+    .option('--no-all, --current-only', t('commands.update.noAllOption'))
+    .action(async (target: string | undefined, options: UpdateOptions, command: Command) => {
+      const resolved = await applyCommandDefaults(
+        command,
+        options,
+        ['commands', 'update'] as const,
+        { rebase: true, fetch: true, all: true }
+      );
+      await updateCommand(target, resolved);
     });
 }

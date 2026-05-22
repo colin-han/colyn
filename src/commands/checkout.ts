@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { applyCommandDefaults } from '../core/command-defaults.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import simpleGit from 'simple-git';
@@ -435,7 +436,7 @@ async function selectBranchForCheckout(
 /**
  * Checkout 命令选项
  */
-export interface CheckoutOptions {
+export interface CheckoutOptions extends Record<string, unknown> {
   fetch?: boolean;
 }
 
@@ -742,8 +743,16 @@ export function register(program: Command): void {
     .alias('co')
     .usage('[branch] | <worktree-id> [branch]')
     .description(t('commands.checkout.description'))
+    .option('--fetch', t('commands.checkout.fetchOption'))
     .option('--no-fetch', t('commands.checkout.noFetchOption'))
-    .action(async (args: string[], options: CheckoutOptions) => {
+    .action(async (args: string[], options: CheckoutOptions, command: Command) => {
+      const resolved = await applyCommandDefaults(
+        command,
+        options,
+        ['commands', 'checkout'] as const,
+        { fetch: true }
+      );
+
       let target: string | undefined;
       let branch: string | undefined;
 
@@ -763,6 +772,6 @@ export function register(program: Command): void {
         );
       }
 
-      await checkoutCommand(target, branch, options);
+      await checkoutCommand(target, branch, resolved);
     });
 }

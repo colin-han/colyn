@@ -25,6 +25,9 @@ colyn release [version-type] [选项]
 | 选项 | 说明 |
 |------|------|
 | `--no-update` | 跳过发布后自动更新所有 worktree |
+| `--no-build` | 跳过 lint 和 build 步骤（适用于已在 CI 中验证或紧急发布） |
+| `--no-version-update` | 跳过读取版本、更新版本号、commit 和打 tag，仅推送当前分支 |
+| `--no-tag` | 仅跳过打 tag，版本号仍会更新并推送分支 |
 | `--verbose` / `-v` | 显示 install/lint/build 的完整命令输出（失败时） |
 
 ### 功能说明
@@ -70,6 +73,15 @@ $ colyn release 1.2.3
 
 # 发布但不自动更新 worktree
 $ colyn release --no-update
+
+# 跳过 lint 和 build（已在 CI 中验证过）
+$ colyn release patch --no-build
+
+# 仅推送当前分支，不动版本号也不打 tag（例如只想触发部署流水线）
+$ colyn release --no-version-update
+
+# 更新版本并推送分支，但不创建 tag（由 CI 统一打 tag）
+$ colyn release patch --no-tag
 ```
 
 ### 常见错误

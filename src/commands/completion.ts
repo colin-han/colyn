@@ -117,18 +117,30 @@ _colyn() {
                 merge)
                     _arguments \\
                         '1: :_colyn_worktrees' \\
+                        '--build[${e(t('commands.merge.buildOption'))}]' \\
+                        '--no-build[${e(t('commands.merge.noBuildOption'))}]' \\
+                        '--rebase[${e(t('commands.merge.rebaseOption'))}]' \\
                         '--no-rebase[${e(t('commands.merge.noRebaseOption'))}]' \\
+                        '--update[${e(t('commands.merge.updateOption'))}]' \\
                         '--no-update[${e(t('commands.merge.noUpdateOption'))}]' \\
-                        '--update-all[${e(t('commands.merge.updateAllOption'))}]' \\
+                        '--fetch[${e(t('commands.merge.fetchOption'))}]' \\
                         '--no-fetch[${e(t('commands.merge.noFetchOption'))}]' \\
-                        '--skip-build[${e(t('commands.merge.skipBuildOption'))}]' \\
-                        '(-v --verbose)'{-v,--verbose}'[${e(t('commands.merge.verboseOption'))}]'
+                        '--all[${e(t('commands.merge.allOption'))}]' \\
+                        '--no-all[${e(t('commands.merge.noAllOption'))}]' \\
+                        '--current-only[${e(t('commands.merge.noAllOption'))}]' \\
+                        '(-v --verbose)'{-v,--verbose}'[${e(t('common.verboseOption'))}]' \\
+                        '--no-verbose[${e(t('common.noVerboseOption'))}]'
                     ;;
                 update)
                     _arguments \\
                         '1: :_colyn_worktrees' \\
+                        '--rebase[${e(t('commands.update.rebaseOption'))}]' \\
+                        '--no-rebase[${e(t('commands.update.noRebaseOption'))}]' \\
+                        '--fetch[${e(t('commands.update.fetchOption'))}]' \\
+                        '--no-fetch[${e(t('commands.update.noFetchOption'))}]' \\
                         '--all[${e(t('commands.update.allOption'))}]' \\
-                        '--no-rebase[${e(t('commands.update.noRebaseOption'))}]'
+                        '--no-all[${e(t('commands.update.noAllOption'))}]' \\
+                        '--current-only[${e(t('commands.update.noAllOption'))}]'
                     ;;
                 remove)
                     _arguments \\
@@ -139,7 +151,9 @@ _colyn() {
                 checkout|co)
                     _arguments \\
                         '1: :_colyn_worktree_ids' \\
-                        '2: :_colyn_branches'
+                        '2: :_colyn_branches' \\
+                        '--fetch[${e(t('commands.checkout.fetchOption'))}]' \\
+                        '--no-fetch[${e(t('commands.checkout.noFetchOption'))}]'
                     ;;
                 info)
                     _arguments \\
@@ -188,7 +202,17 @@ _colyn() {
                     ;;
                 release)
                     _arguments \\
-                        '1: :('\\''patch'\\'' '\\''minor'\\'' '\\''major'\\'')'
+                        '1: :('\\''patch'\\'' '\\''minor'\\'' '\\''major'\\'')'\\
+                        '--update[${e(t('commands.release.updateOption'))}]' \\
+                        '--no-update[${e(t('commands.release.noUpdateOption'))}]' \\
+                        '--build[${e(t('commands.release.buildOption'))}]' \\
+                        '--no-build[${e(t('commands.release.noBuildOption'))}]' \\
+                        '--version-update[${e(t('commands.release.versionUpdateOption'))}]' \\
+                        '--no-version-update[${e(t('commands.release.noVersionUpdateOption'))}]' \\
+                        '--tag[${e(t('commands.release.tagOption'))}]' \\
+                        '--no-tag[${e(t('commands.release.noTagOption'))}]' \\
+                        '(-v --verbose)'{-v,--verbose}'[${e(t('common.verboseOption'))}]' \\
+                        '--no-verbose[${e(t('common.noVerboseOption'))}]'
                     ;;
                 completion)
                     _arguments \\

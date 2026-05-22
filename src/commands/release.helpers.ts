@@ -165,18 +165,32 @@ export async function pushToRemote(
 }
 
 /**
+ * executeRelease 的选项
+ */
+export interface ExecuteReleaseOptions {
+  verbose?: boolean;
+  noBuild?: boolean;
+  noVersionUpdate?: boolean;
+  noTag?: boolean;
+}
+
+/**
  * 执行发布流程
  * @param projectRoot 项目根目录（.colyn 的父目录）
  * @param dir 主分支目录路径
  * @param versionType 版本类型或版本号
- * @param verbose 是否输出详细信息
+ * @param options 控制选项
  */
 export async function executeRelease(
   projectRoot: string,
   dir: string,
   versionType: VersionType | string,
-  verbose: boolean = false
-): Promise<string> {
+  options: ExecuteReleaseOptions = {}
+): Promise<string | null> {
+  const verbose = options.verbose ?? false;
+  const noBuild = options.noBuild ?? false;
+  const noVersionUpdate = options.noVersionUpdate ?? false;
+  const noTag = options.noTag ?? false;
   // 步骤 1: 检查 git 状态
   outputLine();
   outputBold(t('commands.release.step1'));
@@ -197,15 +211,21 @@ export async function executeRelease(
   // 步骤 2: 确定新版本号（通过插件读取当前版本）
   outputLine();
   outputBold(t('commands.release.step2'));
-  const currentVersion = contexts.length > 0
-    ? await pluginManager.runReadVersion(contexts[0].absolutePath, [contexts[0].toolchainName])
-    : null;
-  const newVersion = bumpVersion(currentVersion, versionType);
-  if (currentVersion !== null) {
-    outputInfo(t('commands.release.currentVersion', { version: currentVersion }));
-    outputSuccess(t('commands.release.newVersion', { old: currentVersion, new: newVersion }));
+  let currentVersion: string | null = null;
+  let newVersion: string | null = null;
+  if (noVersionUpdate) {
+    outputInfo(t('commands.release.versionStepSkipped'));
   } else {
-    outputSuccess(t('commands.release.targetVersion', { version: newVersion }));
+    currentVersion = contexts.length > 0
+      ? await pluginManager.runReadVersion(contexts[0].absolutePath, [contexts[0].toolchainName])
+      : null;
+    newVersion = bumpVersion(currentVersion, versionType);
+    if (currentVersion !== null) {
+      outputInfo(t('commands.release.currentVersion', { version: currentVersion }));
+      outputSuccess(t('commands.release.newVersion', { old: currentVersion, new: newVersion }));
+    } else {
+      outputSuccess(t('commands.release.targetVersion', { version: newVersion }));
+    }
   }
 
   // 步骤 3: 安装依赖（通过工具链插件）
@@ -220,7 +240,7 @@ export async function executeRelease(
   }
 
   // 步骤 4: 运行 lint（通过工具链插件）
-  if (contexts.length > 0) {
+  if (contexts.length > 0 && !noBuild) {
     outputLine();
     outputBold(t('commands.release.step4'));
     outputInfo(t('commands.release.runningLint'));
@@ -228,10 +248,14 @@ export async function executeRelease(
       await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
     }
     outputSuccess(t('commands.release.lintPassed'));
+  } else if (noBuild) {
+    outputLine();
+    outputBold(t('commands.release.step4'));
+    outputInfo(t('commands.release.lintSkipped'));
   }
 
   // 步骤 5: 运行 build（通过工具链插件）
-  if (contexts.length > 0) {
+  if (contexts.length > 0 && !noBuild) {
     outputLine();
     outputBold(t('commands.release.step5'));
     outputInfo(t('commands.release.runningBuild'));
@@ -239,12 +263,18 @@ export async function executeRelease(
       await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
     }
     outputSuccess(t('commands.release.buildSucceeded'));
+  } else if (noBuild) {
+    outputLine();
+    outputBold(t('commands.release.step5'));
+    outputInfo(t('commands.release.buildSkipped'));
   }
 
   // 步骤 6: 更新版本号（通过工具链插件）
-  if (contexts.length > 0) {
-    outputLine();
-    outputBold(t('commands.release.step6'));
+  outputLine();
+  outputBold(t('commands.release.step6'));
+  if (noVersionUpdate) {
+    outputInfo(t('commands.release.versionStepSkipped'));
+  } else if (contexts.length > 0 && newVersion !== null) {
     for (const ctx of contexts) {
       await pluginManager.runBumpVersion(ctx.absolutePath, newVersion, [ctx.toolchainName]);
     }
@@ -252,32 +282,43 @@ export async function executeRelease(
       old: currentVersion ?? newVersion,
       new: newVersion
     }));
+  } else {
+    outputInfo(t('commands.release.versionStepSkipped'));
   }
 
   // 步骤 7: 创建 commit（如有版本文件变更）
   outputLine();
   outputBold(t('commands.release.step7'));
-  const commitMessage = `chore: release v${newVersion}`;
-  const committed = await createCommit(dir, commitMessage);
-  if (committed) {
-    outputSuccess(t('commands.release.commitCreated', { message: commitMessage }));
+  if (noVersionUpdate) {
+    outputInfo(t('commands.release.versionStepSkipped'));
   } else {
-    outputInfo(t('commands.release.commitSkipped'));
+    const commitMessage = `chore: release v${newVersion}`;
+    const committed = await createCommit(dir, commitMessage);
+    if (committed) {
+      outputSuccess(t('commands.release.commitCreated', { message: commitMessage }));
+    } else {
+      outputInfo(t('commands.release.commitSkipped'));
+    }
   }
 
   // 步骤 8: 创建 tag
   outputLine();
   outputBold(t('commands.release.step8'));
-  const tagName = `v${newVersion}`;
-  const tagMessage = `Release v${newVersion}`;
-  await createTag(dir, tagName, tagMessage);
-  outputSuccess(t('commands.release.tagCreated', { tag: tagName }));
+  let tagName: string | null = null;
+  if (noVersionUpdate || noTag || newVersion === null) {
+    outputInfo(t('commands.release.tagSkipped'));
+  } else {
+    tagName = `v${newVersion}`;
+    const tagMessage = `Release v${newVersion}`;
+    await createTag(dir, tagName, tagMessage);
+    outputSuccess(t('commands.release.tagCreated', { tag: tagName }));
+  }
 
   // 步骤 9: 推送到远程
   outputLine();
   outputBold(t('commands.release.step9'));
   outputInfo(t('commands.release.pushing'));
-  await pushToRemote(dir, currentBranch, tagName);
+  await pushToRemote(dir, currentBranch, tagName ?? undefined);
   outputSuccess(t('commands.release.pushSucceeded'));
 
   return newVersion;
@@ -287,7 +328,7 @@ export async function executeRelease(
  * 显示发布成功信息
  */
 export function displayReleaseSuccess(
-  version: string,
+  version: string | null,
   branch: string
 ): void {
   outputLine();
@@ -295,9 +336,13 @@ export function displayReleaseSuccess(
   outputLine();
 
   outputBold(t('commands.release.releaseInfo'));
-  outputInfo(t('commands.release.releaseVersion', { version }));
+  if (version !== null) {
+    outputInfo(t('commands.release.releaseVersion', { version }));
+  }
   outputInfo(t('commands.release.releaseBranch', { branch }));
-  outputInfo(t('commands.release.releaseTag', { tag: `v${version}` }));
+  if (version !== null) {
+    outputInfo(t('commands.release.releaseTag', { tag: `v${version}` }));
+  }
   outputLine();
 
   outputBold(t('commands.release.nextSteps'));
@@ -311,12 +356,15 @@ export function displayReleaseSuccess(
 
 /**
  * 显示回滚命令
+ * @param version 若为 null 表示未更新版本号，仅给出分支重置提示
  */
-export function displayRollbackCommands(version: string): void {
+export function displayRollbackCommands(version: string | null): void {
   outputLine();
   outputBold(t('commands.release.rollbackHint'));
   outputLine();
-  outputStep(`  git tag -d v${version}`);
+  if (version !== null) {
+    outputStep(`  git tag -d v${version}`);
+  }
   outputStep(`  git reset --hard HEAD~1`);
   outputLine();
 }
