@@ -1513,6 +1513,8 @@ Since v3.3, you can set project-level or user-level defaults for boolean options
 | `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees |
 
+> ⚠️ `merge.all` only takes effect when `merge.update === true`. If `update=false` (or CLI `--no-update`), no worktrees will be updated even when `all=true`.
+
 #### commands.update
 
 | Field | Default | CLI On | CLI Off | Description |

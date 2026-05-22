@@ -1513,6 +1513,8 @@ EOF
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
 
+> ⚠️ `merge.all` 仅在 `merge.update === true` 时生效。若 `update=false`（或命令行 `--no-update`），即使 `all=true` 也不会更新任何 worktree。
+
 #### commands.update
 
 | 字段 | 默认 | CLI 开启 | CLI 关闭 | 说明 |
