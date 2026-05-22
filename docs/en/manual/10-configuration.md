@@ -1486,6 +1486,130 @@ Or for a specific branch:
 
 ---
 
+## Command Defaults Configuration
+
+Since v3.3, you can set project-level or user-level defaults for boolean options of subcommands in `settings.json`.
+
+**Configuration locations**:
+- User level: `~/.config/colyn/settings.json`
+- Project level: `<project>/.colyn/settings.json`
+- Per-branch overrides are also supported via `branchOverrides`
+
+### Configuration Options Reference
+
+#### Top-Level Fields
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `verbose` | `false` | Enable verbose output for all commands, equivalent to adding `-v` every time |
+
+#### commands.merge
+
+| Field | Default | CLI On | CLI Off | Description |
+|-------|---------|--------|---------|-------------|
+| `build` | `true` | `--build` | `--no-build` | Run build before merge |
+| `rebase` | `true` | `--rebase` | `--no-rebase` | Use rebase to update main branch |
+| `update` | `true` | `--update` | `--no-update` | Update all worktrees before merge |
+| `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
+| `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees |
+
+#### commands.update
+
+| Field | Default | CLI On | CLI Off | Description |
+|-------|---------|--------|---------|-------------|
+| `rebase` | `true` | `--rebase` | `--no-rebase` | Use rebase to update |
+| `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
+| `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees |
+
+#### commands.release
+
+| Field | Default | CLI On | CLI Off | Description |
+|-------|---------|--------|---------|-------------|
+| `update` | `true` | `--update` | `--no-update` | Update dependencies before release |
+| `build` | `true` | `--build` | `--no-build` | Run build before release |
+| `tag` | `true` | `--tag` | `--no-tag` | Create git tag |
+| `versionUpdate` | `true` | `--version-update` | `--no-version-update` | Update version number |
+
+#### commands.checkout
+
+| Field | Default | CLI On | CLI Off | Description |
+|-------|---------|--------|---------|-------------|
+| `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch before checkout |
+
+### Top-Level Shared verbose
+
+The top-level `verbose: boolean` field applies to all commands that support `-v/--verbose` (merge, release, etc.). A CLI `-v` or `--no-verbose` always takes priority.
+
+### Three-Source Resolution
+
+All boolean options follow this priority order:
+
+1. **Explicit CLI**: `--xxx` or `--no-xxx` specified directly — highest priority
+2. **Config file**: Value from `settings.json`'s `commands.<cmd>.<key>` (including branchOverrides)
+3. **Built-in default**: The command's built-in default value (usually `true`)
+
+### Configuration Example
+
+```jsonc
+{
+  "version": 4,
+
+  // Top-level verbose: shared by all commands
+  "verbose": true,
+
+  "commands": {
+    "merge": {
+      "build": false,    // Skip build on merge by default
+      "rebase": false    // No rebase
+    },
+    "update": {
+      "all": false       // Only update current worktree (overrides new default all=true)
+    }
+  },
+
+  // On release/* branches, force build during merge
+  "branchOverrides": {
+    "release/*": {
+      "commands": {
+        "merge": { "build": true }
+      }
+    }
+  }
+}
+```
+
+**What this means**:
+- Verbose output always on
+- merge skips build and rebase by default (fast daily iteration)
+- update only updates the current worktree by default
+- On `release/*` branches, merge always runs build
+
+### Negation Flags and --current-only Alias
+
+Every configuration key has a corresponding pair of CLI flags: `--xxx` (enable) / `--no-xxx` (disable). For example, if `commands.merge.build=true` is configured, `merge --no-build` can temporarily override it.
+
+`--no-all` for `update` and `merge` has an alias `--current-only` for clearer intent:
+
+```bash
+# These two commands are equivalent
+colyn update --no-all
+colyn update --current-only
+```
+
+### Breaking Changes (v3.3)
+
+> **Please review these incompatible changes when upgrading**:
+
+| Change | Old usage | New usage |
+|--------|-----------|-----------|
+| `merge --skip-build` removed | `colyn merge --skip-build` | `colyn merge --no-build` |
+| `merge --update-all` removed | `colyn merge --update-all` | `colyn merge --all` |
+| `update --all` default reversed | Must explicitly add `--all` | All worktrees updated by default |
+| Restore old behavior | No extra flags needed | `colyn update --current-only` |
+| verbose config source changed | Each command had its own setting | Reads top-level `verbose` field |
+
+---
+
 ## Next Steps
 
 - See [Tmux Integration](06-tmux-integration.md) to learn about the tmux workflow
@@ -1496,4 +1620,5 @@ Or for a specific branch:
 
 **Related documentation**:
 - [Design doc: Configuration Migration](../docs/design-config-migration.md)
+- [Design doc: Command Defaults Configuration](../develop/design/design-command-defaults.md)
 - [CLAUDE.md: Configuration Design Principles](../CLAUDE.md#configuration-design-principles)

@@ -226,6 +226,62 @@ colyn add feature/dashboard
 
 ---
 
+### Command Defaults Config
+
+**Definition**: Default values for boolean options of subcommands, stored under the `commands.*` nodes in `settings.json`, at the project or user level.
+
+**Origin**: Introduced in Colyn v3.3
+
+**Usage in Colyn**:
+- Supported commands: `merge`, `update`, `release`, `checkout`
+- Supported fields: Boolean option flags per command (e.g., `build`, `rebase`, `fetch`, `all`)
+- Top-level `verbose` field is shared across all commands
+- Can be overridden per branch via `branchOverrides`
+
+**Example**:
+```jsonc
+{
+  "version": 4,
+  "verbose": true,
+  "commands": {
+    "merge": { "build": false },
+    "update": { "all": false }
+  }
+}
+```
+
+**Reference**: `docs/en/develop/design/design-command-defaults.md`
+
+**Related terms**: [Three-Source Resolution](#three-source-resolution), [Minimal Configuration Principle](#minimal-configuration-principle)
+
+---
+
+### Three-Source Resolution
+
+**Definition**: A three-level priority chain for resolving boolean CLI options, checked in order:
+
+1. **Explicit CLI flag**: User typed `--xxx` or `--no-xxx` (commander's `getOptionValueSource() === 'cli'`)
+2. **settings.json config**: Merged value from `commands.<cmd>.<key>` (including branchOverrides)
+3. **Command built-in default**: Fallback value passed in the command implementation
+
+**Origin**: Introduced in Colyn v3.3
+
+**Core principle**: An explicit CLI flag always wins; config file values only apply when the user has not explicitly specified the option.
+
+**Implementation**:
+```typescript
+// source === 'cli' → keep user input, no override
+// source !== 'cli' && config has value → use config value
+// otherwise → use built-in default
+applyCommandDefaults(cmd, opts, configDefaults, builtinDefaults)
+```
+
+**Reference**: `docs/en/develop/design/design-command-defaults.md`
+
+**Related terms**: [Command Defaults Config](#command-defaults-config)
+
+---
+
 ### Branch Category
 
 **Definition**: A classification label describing the purpose of a branch. It is the foundational concept in Colyn's Todo and branch naming system.
@@ -644,6 +700,8 @@ if (process.env.WORKTREE === 'main') {
 - Todo ID
 - Parallel Vibe Coding
 - Minimal Configuration Principle
+- Command Defaults Config
+- Three-Source Resolution
 
 **tmux Concepts**:
 - Session

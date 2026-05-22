@@ -1486,6 +1486,130 @@ EOF
 
 ---
 
+## 命令默认值配置
+
+从 v3.3 起，可以在 `settings.json` 中为各子命令的开关型参数设置项目级或用户级默认值。
+
+**配置位置**：
+- 用户级：`~/.config/colyn/settings.json`
+- 项目级：`<project>/.colyn/settings.json`
+- 还可通过 `branchOverrides` 按分支递归覆盖
+
+### 配置项清单
+
+#### 顶层字段
+
+| 字段 | 默认 | 说明 |
+|------|------|------|
+| `verbose` | `false` | 为所有命令开启详细输出，等价于每次加 `-v` |
+
+#### commands.merge
+
+| 字段 | 默认 | CLI 开启 | CLI 关闭 | 说明 |
+|------|------|----------|----------|------|
+| `build` | `true` | `--build` | `--no-build` | 合并前执行构建 |
+| `rebase` | `true` | `--rebase` | `--no-rebase` | 使用 rebase 更新主分支 |
+| `update` | `true` | `--update` | `--no-update` | 合并前更新所有 worktree |
+| `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
+| `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
+
+#### commands.update
+
+| 字段 | 默认 | CLI 开启 | CLI 关闭 | 说明 |
+|------|------|----------|----------|------|
+| `rebase` | `true` | `--rebase` | `--no-rebase` | 使用 rebase 更新 |
+| `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
+| `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
+
+#### commands.release
+
+| 字段 | 默认 | CLI 开启 | CLI 关闭 | 说明 |
+|------|------|----------|----------|------|
+| `update` | `true` | `--update` | `--no-update` | 发布前更新依赖 |
+| `build` | `true` | `--build` | `--no-build` | 发布前执行构建 |
+| `tag` | `true` | `--tag` | `--no-tag` | 创建 git tag |
+| `versionUpdate` | `true` | `--version-update` | `--no-version-update` | 更新版本号 |
+
+#### commands.checkout
+
+| 字段 | 默认 | CLI 开启 | CLI 关闭 | 说明 |
+|------|------|----------|----------|------|
+| `fetch` | `true` | `--fetch` | `--no-fetch` | checkout 前执行 git fetch |
+
+### 顶层 verbose 共享
+
+顶层 `verbose: boolean` 字段会作用于所有支持 `-v/--verbose` 的命令（merge、release 等）。命令行上 `-v` 或 `--no-verbose` 总是优先。
+
+### 三态解析
+
+所有开关型参数遵循以下优先级：
+
+1. **命令行显式**：`--xxx` 或 `--no-xxx` 直接指定，最高优先
+2. **配置文件**：`settings.json` 中 `commands.<cmd>.<key>` 的值（含 branchOverrides）
+3. **内置默认**：命令的内置默认值（通常为 `true`）
+
+### 配置示例
+
+```jsonc
+{
+  "version": 4,
+
+  // 顶层 verbose：所有命令共享
+  "verbose": true,
+
+  "commands": {
+    "merge": {
+      "build": false,    // 合并时默认跳过构建
+      "rebase": false    // 不做 rebase
+    },
+    "update": {
+      "all": false       // 只更新当前 worktree（覆盖新版默认 all=true）
+    }
+  },
+
+  // release/* 分支上，强制执行构建
+  "branchOverrides": {
+    "release/*": {
+      "commands": {
+        "merge": { "build": true }
+      }
+    }
+  }
+}
+```
+
+**含义**：
+- 全局开启详细输出
+- merge 默认跳过 build、不 rebase（平时快速迭代）
+- update 默认只更新当前 worktree
+- 在 `release/*` 分支上合并时，仍执行 build
+
+### 反向覆盖与 --current-only 别名
+
+每个配置项都对应一对 CLI flag：`--xxx`（开启）/ `--no-xxx`（关闭）。例如配置 `commands.merge.build=true`，命令行 `merge --no-build` 可临时覆盖。
+
+`update --all` / `merge --all` 的 `--no-all` 提供了别名 `--current-only`，语义更直观：
+
+```bash
+# 以下两条命令等价
+colyn update --no-all
+colyn update --current-only
+```
+
+### 破坏性变更（v3.3）
+
+> **升级时请注意以下不兼容变更**：
+
+| 变更 | 旧用法 | 新用法 |
+|------|--------|--------|
+| `merge --skip-build` 已移除 | `colyn merge --skip-build` | `colyn merge --no-build` |
+| `merge --update-all` 已移除 | `colyn merge --update-all` | `colyn merge --all` |
+| `update --all` 默认反转 | 需显式加 `--all` | 默认即更新所有 worktree |
+| 恢复旧行为 | 无需参数 | `colyn update --current-only` |
+| verbose 配置来源变更 | 各命令独立 | 读取顶层 `verbose` 字段 |
+
+---
+
 ## 下一步
 
 - 查看 [tmux 集成](06-tmux-integration.md) 了解 tmux 工作流
@@ -1496,4 +1620,5 @@ EOF
 
 **相关文档**:
 - [设计文档: 配置迁移](../docs/design-config-migration.md)
+- [设计文档: 命令默认值配置](../develop/design/design-command-defaults.md)
 - [CLAUDE.md: 配置设计原则](../CLAUDE.md#配置设计原则)

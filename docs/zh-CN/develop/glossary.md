@@ -226,6 +226,62 @@ colyn add feature/dashboard
 
 ---
 
+### 命令默认值配置（Command Defaults Config）
+
+**定义**：`settings.json` 中 `commands.*` 节点存放的各子命令开关型参数的项目级或用户级默认值。
+
+**来源**：Colyn v3.3 引入
+
+**在 Colyn 中的用法**：
+- 支持命令：`merge`、`update`、`release`、`checkout`
+- 支持字段：各命令的布尔型开关（如 `build`、`rebase`、`fetch`、`all` 等）
+- 顶层 `verbose` 字段对所有命令共享
+- 可通过 `branchOverrides` 按分支递归覆盖
+
+**示例**：
+```jsonc
+{
+  "version": 4,
+  "verbose": true,
+  "commands": {
+    "merge": { "build": false },
+    "update": { "all": false }
+  }
+}
+```
+
+**参考文档**：`docs/zh-CN/develop/design/design-command-defaults.md`
+
+**相关术语**：[三态解析](#三态解析three-source-resolution)、[最小配置原则](#最小配置原则)
+
+---
+
+### 三态解析（Three-Source Resolution）
+
+**定义**：针对开关型 CLI 参数的三级优先级解析链，按以下顺序依次检查：
+
+1. **命令行显式指定**：用户输入 `--xxx` 或 `--no-xxx`（commander 的 `getOptionValueSource() === 'cli'`）
+2. **settings.json 配置**：合并后的 `commands.<cmd>.<key>` 节点值（含 branchOverrides）
+3. **命令内置默认值**：命令实现中传入的 fallback 值
+
+**来源**：Colyn v3.3 引入
+
+**核心原则**：命令行显式指定永远优先，配置文件只在用户未显式指定时生效。
+
+**实现**：
+```typescript
+// source === 'cli' → 保留用户输入，不覆盖
+// source !== 'cli' && config 有值 → 用配置值
+// 否则 → 用内置默认
+applyCommandDefaults(cmd, opts, configDefaults, builtinDefaults)
+```
+
+**参考文档**：`docs/zh-CN/develop/design/design-command-defaults.md`
+
+**相关术语**：[命令默认值配置](#命令默认值配置command-defaults-config)
+
+---
+
 ### Branch Category（分支类别）
 
 **定义**：描述分支用途的分类标签，是 Colyn Todo 和分支命名系统中的基础概念。
@@ -644,6 +700,8 @@ if (process.env.WORKTREE === 'main') {
 - Todo ID
 - 并行 Vibe Coding
 - 最小配置原则
+- 命令默认值配置
+- 三态解析
 
 **tmux 概念**：
 - Session
