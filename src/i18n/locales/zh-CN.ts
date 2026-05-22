@@ -747,6 +747,7 @@ export const zhCN = {
       unsetSuccess: '已删除 {{key}}（{{scope}}）',
       unsetNoop: '{{key}}（{{scope}}）未设置，无需删除',
       invalidUnsetKey: '无效的 key "{{key}}"。支持的 key: {{validKeys}}',
+      setFailed: '设置 {{key}} 失败：{{reason}}',
     },
 
     // completion command

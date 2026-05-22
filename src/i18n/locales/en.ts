@@ -747,6 +747,7 @@ Or force delete:
       unsetSuccess: 'Removed {{key}} ({{scope}})',
       unsetNoop: '{{key}} ({{scope}}) was not set, nothing to remove',
       invalidUnsetKey: 'Invalid key "{{key}}". Supported keys: {{validKeys}}',
+      setFailed: 'Failed to set {{key}}: {{reason}}',
     },
 
     // completion command

@@ -411,7 +411,16 @@ async function setConfigValue(
       const filePath = options.user
         ? getUserConfigPath()
         : getProjectConfigPath((await getProjectPaths()).rootDir);
-      await setSettingsValueAtPath(filePath, key, value);
+      try {
+        await setSettingsValueAtPath(filePath, key, value);
+      } catch (err) {
+        throw new ColynError(
+          t('commands.config.setFailed', {
+            key,
+            reason: err instanceof Error ? err.message : String(err),
+          })
+        );
+      }
       const scope = options.user
         ? t('commands.config.userScope')
         : t('commands.config.projectScope');
