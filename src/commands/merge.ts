@@ -233,7 +233,7 @@ async function mergeCommand(
       }
 
       if (options.all) {
-        // --update-all: 更新所有 worktrees（包括当前的）
+        // --all: 更新所有 worktrees（包括当前的）
         output(t('commands.merge.updatingAllWorktrees'));
 
         const allWorktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir);
