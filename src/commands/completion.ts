@@ -117,12 +117,19 @@ _colyn() {
                 merge)
                     _arguments \\
                         '1: :_colyn_worktrees' \\
+                        '--build[${e(t('commands.merge.buildOption'))}]' \\
+                        '--no-build[${e(t('commands.merge.noBuildOption'))}]' \\
+                        '--rebase[${e(t('commands.merge.rebaseOption'))}]' \\
                         '--no-rebase[${e(t('commands.merge.noRebaseOption'))}]' \\
+                        '--update[${e(t('commands.merge.updateOption'))}]' \\
                         '--no-update[${e(t('commands.merge.noUpdateOption'))}]' \\
-                        '--update-all[${e(t('commands.merge.updateAllOption'))}]' \\
+                        '--fetch[${e(t('commands.merge.fetchOption'))}]' \\
                         '--no-fetch[${e(t('commands.merge.noFetchOption'))}]' \\
-                        '--skip-build[${e(t('commands.merge.skipBuildOption'))}]' \\
-                        '(-v --verbose)'{-v,--verbose}'[${e(t('commands.merge.verboseOption'))}]'
+                        '--all[${e(t('commands.merge.allOption'))}]' \\
+                        '--no-all[${e(t('commands.merge.noAllOption'))}]' \\
+                        '--current-only[${e(t('commands.merge.noAllOption'))}]' \\
+                        '(-v --verbose)'{-v,--verbose}'[${e(t('common.verboseOption'))}]' \\
+                        '--no-verbose[${e(t('common.noVerboseOption'))}]'
                     ;;
                 update)
                     _arguments \\

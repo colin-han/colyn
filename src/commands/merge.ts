@@ -29,17 +29,18 @@ import {
 } from './update.helpers.js';
 import { t } from '../i18n/index.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
+import { applyCommandDefaults, resolveVerbose } from '../core/command-defaults.js';
 
 /**
  * Merge 命令选项
  */
-interface MergeOptions {
-  noRebase?: boolean;
-  noUpdate?: boolean;  // 合并后不自动更新
-  updateAll?: boolean;  // 合并后更新所有 worktrees
+interface MergeOptions extends Record<string, unknown> {
+  build?: boolean;    // 执行构建检查（默认 true）
+  rebase?: boolean;   // 合并前 rebase（默认 true）
+  update?: boolean;   // 合并后自动更新（默认 true）
+  fetch?: boolean;    // 是否 fetch（默认 true）
+  all?: boolean;      // 更新所有 worktrees（默认 true，需 update=true）
   verbose?: boolean;  // 显示详细的步骤信息
-  fetch?: boolean;     // 是否 fetch,默认 true
-  skipBuild?: boolean; // 跳过 lint 和 build 检查
 }
 
 /**
@@ -99,8 +100,8 @@ async function mergeCommand(
     // 解析工具链上下文
     const contexts = await resolveToolchains(paths.rootDir, worktree.path);
 
-    // 步骤4.5: Lint 和 Build 检查（可通过 --skip-build 跳过）
-    if (options.skipBuild) {
+    // 步骤4.5: Lint 和 Build 检查（可通过 --no-build 跳过）
+    if (!options.build) {
       output(t('commands.merge.skippingBuild'));
     } else {
       for (const ctx of contexts) {
@@ -128,7 +129,7 @@ async function mergeCommand(
     const mainBranch = await getMainBranch(paths.mainDir);
 
     // 确定是否使用 rebase（默认 true）
-    const useRebase = !options.noRebase;
+    const useRebase = options.rebase ?? true;
 
     // 步骤6: 在 worktree 中更新主分支代码（确保 worktree 包含主分支的所有更改）
     if (options.verbose) {
@@ -221,17 +222,17 @@ async function mergeCommand(
     );
 
     // 步骤9: 自动更新 worktrees
-    if (!options.noUpdate) {
+    if (options.update) {
       output('');
 
       // 拉取主分支最新代码（拉取失败不影响后续更新流程）
       try {
-        await pullMainBranch(paths.mainDir, options.fetch === false);
+        await pullMainBranch(paths.mainDir, !options.fetch);
       } catch {
         // 拉取失败不影响更新流程，因为本地已有合并结果
       }
 
-      if (options.updateAll) {
+      if (options.all) {
         // --update-all: 更新所有 worktrees（包括当前的）
         output(t('commands.merge.updatingAllWorktrees'));
 
@@ -297,13 +298,30 @@ export function register(program: Command): void {
   program
     .command('merge [target]')
     .description(t('commands.merge.description'))
+    .option('--build', t('commands.merge.buildOption'))
+    .option('--no-build', t('commands.merge.noBuildOption'))
+    .option('--rebase', t('commands.merge.rebaseOption'))
     .option('--no-rebase', t('commands.merge.noRebaseOption'))
+    .option('--update', t('commands.merge.updateOption'))
     .option('--no-update', t('commands.merge.noUpdateOption'))
-    .option('--update-all', t('commands.merge.updateAllOption'))
-    .option('-v, --verbose', t('commands.merge.verboseOption'))
+    .option('--fetch', t('commands.merge.fetchOption'))
     .option('--no-fetch', t('commands.merge.noFetchOption'))
-    .option('--skip-build', t('commands.merge.skipBuildOption'))
-    .action(async (target: string | undefined, options: MergeOptions) => {
-      await mergeCommand(target, options);
+    .option('--all', t('commands.merge.allOption'))
+    .option('--no-all, --current-only', t('commands.merge.noAllOption'))
+    .option('-v, --verbose', t('common.verboseOption'))
+    .option('--no-verbose', t('common.noVerboseOption'))
+    .action(async (target: string | undefined, options: MergeOptions, command: Command) => {
+      const resolved = await applyCommandDefaults(
+        command,
+        options,
+        ['commands', 'merge'] as const,
+        { build: true, rebase: true, update: true, fetch: true, all: true }
+      );
+      const verbose = await resolveVerbose(command, options.verbose);
+
+      // 业务规则：all 仅在 update=true 时生效
+      if (!resolved.update) resolved.all = false;
+
+      await mergeCommand(target, { ...resolved, verbose });
     });
 }
