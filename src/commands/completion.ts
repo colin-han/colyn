@@ -134,8 +134,13 @@ _colyn() {
                 update)
                     _arguments \\
                         '1: :_colyn_worktrees' \\
+                        '--rebase[${e(t('commands.update.rebaseOption'))}]' \\
+                        '--no-rebase[${e(t('commands.update.noRebaseOption'))}]' \\
+                        '--fetch[${e(t('commands.update.fetchOption'))}]' \\
+                        '--no-fetch[${e(t('commands.update.noFetchOption'))}]' \\
                         '--all[${e(t('commands.update.allOption'))}]' \\
-                        '--no-rebase[${e(t('commands.update.noRebaseOption'))}]'
+                        '--no-all[${e(t('commands.update.noAllOption'))}]' \\
+                        '--current-only[${e(t('commands.update.noAllOption'))}]'
                     ;;
                 remove)
                     _arguments \\
