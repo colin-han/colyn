@@ -47,6 +47,9 @@ colyn 当前所有子命令的开关型参数（如 `merge --skip-build`、`merg
 | `commands.update.fetch` | `true` | `--fetch` *(新增)* | `--no-fetch` *(已存在)* |
 | `commands.update.all` | `true` | `--all` *(已存在)* | `--no-all` / `--current-only` *(新增)* |
 | `commands.release.update` | `true` | `--update` *(新增)* | `--no-update` *(已存在)* |
+| `commands.release.build` | `true` | `--build` *(新增)* | `--no-build` *(已存在)* |
+| `commands.release.tag` | `true` | `--tag` *(新增)* | `--no-tag` *(已存在)* |
+| `commands.release.versionUpdate` | `true` | `--version-update` *(新增)* | `--no-version-update` *(已存在)* |
 | `commands.checkout.fetch` | `true` | `--fetch` *(新增)* | `--no-fetch` *(已存在)* |
 
 ### 2.3 业务规则约束

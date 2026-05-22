@@ -521,9 +521,13 @@ grep -n "skipBuildOption\|updateAllOption\|noRebaseOption\|noFetchOption\|noUpda
 
 在 `commands.release` 中：
 - 删除：`verboseOption`
+- 保留：`noUpdateOption`、`noBuildOption`、`noTagOption`、`noVersionUpdateOption`
 - 新增：
   ```ts
   updateOption: '发布前更新 worktree（默认行为）',
+  buildOption: '发布前执行 lint 与 build（默认行为）',
+  tagOption: '发布时创建 git tag（默认行为）',
+  versionUpdateOption: '发布时升级 package.json 版本号（默认行为）',
   ```
 
 在 `commands.checkout` 中：
@@ -561,6 +565,9 @@ noAllOption: 'Update only current worktree (overrides commands.update.all=true)'
 
 // commands.release
 updateOption: 'Update worktrees before release (default)',
+buildOption: 'Run lint and build before release (default)',
+tagOption: 'Create git tag on release (default)',
+versionUpdateOption: 'Bump package.json version on release (default)',
 
 // commands.checkout
 fetchOption: 'Fetch remote before operation (default)',
@@ -823,14 +830,20 @@ git commit -m "feat(update): 支持项目级默认值配置，--all 默认开启
 
 **Files:**
 - Modify: `src/commands/release.ts`
+- Modify: `src/commands/release.helpers.ts`
 
-- [ ] **Step 1: 更新 ReleaseOptions 接口**
+⚠️ **注意**：release 现已有 5 个开关（`--no-update`、`--no-build`、`--no-version-update`、`--no-tag`、`-v, --verbose`）。本任务把全部 4 个布尔开关纳入配置化体系。
+
+- [ ] **Step 1: 更新 ReleaseOptions 接口（release.ts）**
 
 把：
 
 ```ts
 interface ReleaseOptions {
   noUpdate?: boolean;
+  noBuild?: boolean;
+  noVersionUpdate?: boolean;
+  noTag?: boolean;
   verbose?: boolean;
 }
 ```
@@ -840,6 +853,9 @@ interface ReleaseOptions {
 ```ts
 interface ReleaseOptions {
   update?: boolean;
+  build?: boolean;
+  versionUpdate?: boolean;
+  tag?: boolean;
   verbose?: boolean;
 }
 ```
@@ -852,7 +868,7 @@ interface ReleaseOptions {
     command,
     options,
     ['commands', 'release'] as const,
-    { update: true }
+    { update: true, build: true, versionUpdate: true, tag: true }
   );
   const verbose = await resolveVerbose(command, options.verbose);
   await releaseCommand(version, { ...resolved, verbose });
@@ -871,15 +887,30 @@ import type { Command } from 'commander';
 ```ts
 .option('--update', t('commands.release.updateOption'))
 .option('--no-update', t('commands.release.noUpdateOption'))
+.option('--build', t('commands.release.buildOption'))
+.option('--no-build', t('commands.release.noBuildOption'))
+.option('--version-update', t('commands.release.versionUpdateOption'))
+.option('--no-version-update', t('commands.release.noVersionUpdateOption'))
+.option('--tag', t('commands.release.tagOption'))
+.option('--no-tag', t('commands.release.noTagOption'))
 .option('-v, --verbose', t('common.verboseOption'))
 .option('--no-verbose', t('common.noVerboseOption'))
 ```
 
-- [ ] **Step 4: 替换 releaseCommand 内部字段读取**
+- [ ] **Step 4: 替换 release.ts / release.helpers.ts 内部字段读取**
 
+`release.ts`：
 | 原代码 | 新代码 |
 |---|---|
 | `if (!options.noUpdate)` | `if (options.update)` |
+| `options.noVersionUpdate ? null : version` | `options.versionUpdate ? version : null` |
+| `noBuild: options.noBuild` | `noBuild: !options.build` |
+| `noVersionUpdate: options.noVersionUpdate` | `noVersionUpdate: !options.versionUpdate` |
+| `noTag: options.noTag` | `noTag: !options.tag` |
+
+`release.helpers.ts` 仍以内部 `noBuild` / `noVersionUpdate` / `noTag` 表达"反向意图"，**保持其参数名不变**，只在调用侧（release.ts）做翻译。这样可以最小化对 helpers 业务逻辑的改动。
+
+也可选择把 helpers 接口也改为正向（`build` / `versionUpdate` / `tag`），更彻底但改动更大。**实施时选择前者**（保持 helpers 不变）。
 
 - [ ] **Step 5: 编译 + 测试 + lint**
 
