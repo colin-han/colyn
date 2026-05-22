@@ -25,6 +25,7 @@ colyn release [version-type] [选项]
 | 选项 | 说明 |
 |------|------|
 | `--no-update` | 跳过发布后自动更新所有 worktree |
+| `--no-build` | 跳过 lint 和 build 步骤（适用于已在 CI 中验证或紧急发布） |
 | `--verbose` / `-v` | 显示 install/lint/build 的完整命令输出（失败时） |
 
 ### 功能说明
@@ -70,6 +71,9 @@ $ colyn release 1.2.3
 
 # 发布但不自动更新 worktree
 $ colyn release --no-update
+
+# 跳过 lint 和 build（已在 CI 中验证过）
+$ colyn release patch --no-build
 ```
 
 ### 常见错误

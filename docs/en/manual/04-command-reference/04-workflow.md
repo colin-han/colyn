@@ -25,6 +25,7 @@ colyn release [version-type] [options]
 | Option | Description |
 |--------|-------------|
 | `--no-update` | Skip auto-updating all worktrees after release |
+| `--no-build` | Skip lint and build steps (for releases already validated in CI or hotfixes) |
 | `--verbose` / `-v` | Show full command output for install/lint/build (on failure) |
 
 ### Description
@@ -70,6 +71,9 @@ $ colyn release 1.2.3
 
 # Release without auto-updating worktrees
 $ colyn release --no-update
+
+# Skip lint and build (already validated in CI)
+$ colyn release patch --no-build
 ```
 
 ### Common Errors

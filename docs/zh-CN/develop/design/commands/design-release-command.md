@@ -45,6 +45,7 @@ colyn release [version-type] [选项]
 
 **选项：**
 - `--no-update` - 跳过发布后自动更新所有 Worktree
+- `--no-build` - 跳过 lint 和 build 步骤（用于已在 CI 中验证或紧急发布场景）
 - `--verbose` / `-v` - install/lint/build 失败时显示完整命令输出
 
 示例：
@@ -56,6 +57,7 @@ colyn release major              # 发布 major 版本并自动更新所有 work
 colyn release 1.2.3              # 发布指定版本并自动更新所有 worktree
 colyn release patch --no-update  # 发布但不更新 worktree
 colyn release --no-update        # 发布 patch 版本但不更新 worktree
+colyn release patch --no-build   # 发布 patch 版本，跳过 lint 和 build
 colyn release -v                 # 发布时，失败则显示完整命令输出
 ```
 

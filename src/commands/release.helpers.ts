@@ -175,7 +175,8 @@ export async function executeRelease(
   projectRoot: string,
   dir: string,
   versionType: VersionType | string,
-  verbose: boolean = false
+  verbose: boolean = false,
+  noBuild: boolean = false
 ): Promise<string> {
   // 步骤 1: 检查 git 状态
   outputLine();
@@ -220,7 +221,7 @@ export async function executeRelease(
   }
 
   // 步骤 4: 运行 lint（通过工具链插件）
-  if (contexts.length > 0) {
+  if (contexts.length > 0 && !noBuild) {
     outputLine();
     outputBold(t('commands.release.step4'));
     outputInfo(t('commands.release.runningLint'));
@@ -228,10 +229,14 @@ export async function executeRelease(
       await pluginManager.runLint(ctx.absolutePath, [ctx.toolchainName], verbose);
     }
     outputSuccess(t('commands.release.lintPassed'));
+  } else if (noBuild) {
+    outputLine();
+    outputBold(t('commands.release.step4'));
+    outputInfo(t('commands.release.lintSkipped'));
   }
 
   // 步骤 5: 运行 build（通过工具链插件）
-  if (contexts.length > 0) {
+  if (contexts.length > 0 && !noBuild) {
     outputLine();
     outputBold(t('commands.release.step5'));
     outputInfo(t('commands.release.runningBuild'));
@@ -239,6 +244,10 @@ export async function executeRelease(
       await pluginManager.runBuild(ctx.absolutePath, [ctx.toolchainName], verbose);
     }
     outputSuccess(t('commands.release.buildSucceeded'));
+  } else if (noBuild) {
+    outputLine();
+    outputBold(t('commands.release.step5'));
+    outputInfo(t('commands.release.buildSkipped'));
   }
 
   // 步骤 6: 更新版本号（通过工具链插件）

@@ -24,6 +24,7 @@ import {
  */
 interface ReleaseOptions {
   noUpdate?: boolean;
+  noBuild?: boolean;
   verbose?: boolean;
 }
 
@@ -123,7 +124,7 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
     // 步骤7: 在主分支目录执行发布流程
     let newVersion: string;
     try {
-      newVersion = await executeRelease(paths.rootDir, paths.mainDir, version, options.verbose);
+      newVersion = await executeRelease(paths.rootDir, paths.mainDir, version, options.verbose, options.noBuild);
     } catch (error) {
       // 如果发布失败，尝试回滚
       if (error instanceof ColynError) {
@@ -164,6 +165,7 @@ export function register(program: Command): void {
     .command('release [version]')
     .description(t('commands.release.description'))
     .option('--no-update', t('commands.release.noUpdateOption'))
+    .option('--no-build', t('commands.release.noBuildOption'))
     .option('-v, --verbose', t('commands.release.verboseOption'))
     .action(async (version: string | undefined, options: ReleaseOptions) => {
       await releaseCommand(version, options);

@@ -44,6 +44,7 @@ colyn release <version-type>
 
 **Options**:
 - `--no-update` — skip auto-updating all Worktrees after release
+- `--no-build` — skip lint and build steps (use when already validated in CI or for hotfix releases)
 - `--verbose` / `-v` — show full command output when install/lint/build fails
 
 Examples:
@@ -55,6 +56,7 @@ colyn release major              # release major version
 colyn release 1.2.3              # release specific version
 colyn release patch --no-update  # release but skip updating worktrees
 colyn release --no-update        # release patch but skip updating worktrees
+colyn release patch --no-build   # release patch, skip lint and build
 colyn release -v                 # release; show full output on failure
 ```
 
