@@ -743,6 +743,10 @@ export const zhCN = {
       setSuccess: '配置已设置：{{key}} = {{value}} ({{scope}})',
       userScope: '用户',
       projectScope: '项目',
+      unsetDescription: '删除指定的配置项（恢复为内置默认）',
+      unsetSuccess: '已删除 {{key}}（{{scope}}）',
+      unsetNoop: '{{key}}（{{scope}}）未设置，无需删除',
+      invalidUnsetKey: '无效的 key "{{key}}"。支持的 key: {{validKeys}}',
     },
 
     // completion command
