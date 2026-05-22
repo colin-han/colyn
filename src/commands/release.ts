@@ -18,15 +18,16 @@ import {
   displayReleaseSuccess,
   displayRollbackCommands
 } from './release.helpers.js';
+import { applyCommandDefaults, resolveVerbose } from '../core/command-defaults.js';
 
 /**
  * Release 命令选项
  */
-interface ReleaseOptions {
-  noUpdate?: boolean;
-  noBuild?: boolean;
-  noVersionUpdate?: boolean;
-  noTag?: boolean;
+interface ReleaseOptions extends Record<string, unknown> {
+  update?: boolean;
+  build?: boolean;
+  versionUpdate?: boolean;
+  tag?: boolean;
   verbose?: boolean;
 }
 
@@ -128,21 +129,21 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
     try {
       newVersion = await executeRelease(paths.rootDir, paths.mainDir, version, {
         verbose: options.verbose,
-        noBuild: options.noBuild,
-        noVersionUpdate: options.noVersionUpdate,
-        noTag: options.noTag,
+        noBuild: !options.build,
+        noVersionUpdate: !options.versionUpdate,
+        noTag: !options.tag,
       });
     } catch (error) {
       // 如果发布失败，尝试回滚
       if (error instanceof ColynError) {
         // 显示回滚提示
-        displayRollbackCommands(options.noVersionUpdate ? null : version);
+        displayRollbackCommands(options.versionUpdate ? version : null);
       }
       throw error;
     }
 
     // 步骤8: 发布成功后，自动更新所有 worktree（除非指定 --no-update）
-    if (!options.noUpdate) {
+    if (options.update) {
       output(''); // 空行分隔
       output(t('commands.release.updatingWorktrees'));
       try {
@@ -171,12 +172,24 @@ export function register(program: Command): void {
   program
     .command('release [version]')
     .description(t('commands.release.description'))
+    .option('--update', t('commands.release.updateOption'))
     .option('--no-update', t('commands.release.noUpdateOption'))
+    .option('--build', t('commands.release.buildOption'))
     .option('--no-build', t('commands.release.noBuildOption'))
+    .option('--version-update', t('commands.release.versionUpdateOption'))
     .option('--no-version-update', t('commands.release.noVersionUpdateOption'))
+    .option('--tag', t('commands.release.tagOption'))
     .option('--no-tag', t('commands.release.noTagOption'))
-    .option('-v, --verbose', t('commands.release.verboseOption'))
-    .action(async (version: string | undefined, options: ReleaseOptions) => {
-      await releaseCommand(version, options);
+    .option('-v, --verbose', t('common.verboseOption'))
+    .option('--no-verbose', t('common.noVerboseOption'))
+    .action(async (version: string | undefined, options: ReleaseOptions, command: Command) => {
+      const resolved = await applyCommandDefaults(
+        command,
+        options,
+        ['commands', 'release'] as const,
+        { update: true, build: true, versionUpdate: true, tag: true }
+      );
+      const verbose = await resolveVerbose(command, options.verbose);
+      await releaseCommand(version, { ...resolved, verbose });
     });
 }

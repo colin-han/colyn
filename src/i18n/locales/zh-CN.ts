@@ -181,7 +181,6 @@ export const zhCN = {
       noBuildOption: '跳过 lint 和 build 步骤',
       noVersionUpdateOption: '跳过读取版本、更新版本和打 tag（仅推送当前分支）',
       noTagOption: '跳过打 tag（仍会更新版本号并推送分支）',
-      verboseOption: '输出失败命令的详细日志',
       updateOption: '发布前更新 worktree（默认行为）',
       buildOption: '发布前执行 lint 与 build（默认行为）',
       tagOption: '发布时创建 git tag（默认行为）',

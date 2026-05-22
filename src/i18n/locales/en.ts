@@ -181,7 +181,6 @@ Hints:
       noBuildOption: 'Skip lint and build steps',
       noVersionUpdateOption: 'Skip version reading/bumping and tagging (push branch only)',
       noTagOption: 'Skip git tag creation (still bumps version and pushes branch)',
-      verboseOption: 'Output detailed logs from failed commands',
       updateOption: 'Update worktrees before release (default)',
       buildOption: 'Run lint and build before release (default)',
       tagOption: 'Create git tag on release (default)',

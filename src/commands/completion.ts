@@ -200,7 +200,17 @@ _colyn() {
                     ;;
                 release)
                     _arguments \\
-                        '1: :('\\''patch'\\'' '\\''minor'\\'' '\\''major'\\'')'
+                        '1: :('\\''patch'\\'' '\\''minor'\\'' '\\''major'\\'')'\\
+                        '--update[${e(t('commands.release.updateOption'))}]' \\
+                        '--no-update[${e(t('commands.release.noUpdateOption'))}]' \\
+                        '--build[${e(t('commands.release.buildOption'))}]' \\
+                        '--no-build[${e(t('commands.release.noBuildOption'))}]' \\
+                        '--version-update[${e(t('commands.release.versionUpdateOption'))}]' \\
+                        '--no-version-update[${e(t('commands.release.noVersionUpdateOption'))}]' \\
+                        '--tag[${e(t('commands.release.tagOption'))}]' \\
+                        '--no-tag[${e(t('commands.release.noTagOption'))}]' \\
+                        '(-v --verbose)'{-v,--verbose}'[${e(t('common.verboseOption'))}]' \\
+                        '--no-verbose[${e(t('common.noVerboseOption'))}]'
                     ;;
                 completion)
                     _arguments \\
