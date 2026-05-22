@@ -137,6 +137,71 @@ export const BranchCategorySchema = z.object({
 export type BranchCategory = z.infer<typeof BranchCategorySchema>;
 
 /**
+ * Merge 命令默认值配置
+ * 所有字段都是"正向能力开关"，默认值由命令实现兜底
+ */
+export const MergeCommandConfigSchema = z
+  .object({
+    build: z.boolean().optional(),
+    rebase: z.boolean().optional(),
+    update: z.boolean().optional(),
+    fetch: z.boolean().optional(),
+    all: z.boolean().optional(),
+  })
+  .strict();
+
+export type MergeCommandConfig = z.infer<typeof MergeCommandConfigSchema>;
+
+/**
+ * Update 命令默认值配置
+ */
+export const UpdateCommandConfigSchema = z
+  .object({
+    rebase: z.boolean().optional(),
+    fetch: z.boolean().optional(),
+    all: z.boolean().optional(),
+  })
+  .strict();
+
+export type UpdateCommandConfig = z.infer<typeof UpdateCommandConfigSchema>;
+
+/**
+ * Release 命令默认值配置
+ */
+export const ReleaseCommandConfigSchema = z
+  .object({
+    update: z.boolean().optional(),
+  })
+  .strict();
+
+export type ReleaseCommandConfig = z.infer<typeof ReleaseCommandConfigSchema>;
+
+/**
+ * Checkout 命令默认值配置
+ */
+export const CheckoutCommandConfigSchema = z
+  .object({
+    fetch: z.boolean().optional(),
+  })
+  .strict();
+
+export type CheckoutCommandConfig = z.infer<typeof CheckoutCommandConfigSchema>;
+
+/**
+ * commands 配置容器
+ */
+export const CommandsConfigSchema = z
+  .object({
+    merge: MergeCommandConfigSchema.optional(),
+    update: UpdateCommandConfigSchema.optional(),
+    release: ReleaseCommandConfigSchema.optional(),
+    checkout: CheckoutCommandConfigSchema.optional(),
+  })
+  .strict();
+
+export type CommandsConfig = z.infer<typeof CommandsConfigSchema>;
+
+/**
  * Settings Schema 基础部分（不包含递归的 branchOverrides）
  */
 const SettingsSchemaBase = z.object({
@@ -144,6 +209,8 @@ const SettingsSchemaBase = z.object({
   version: z.number(),
   /** 界面语言 */
   lang: z.enum(['en', 'zh-CN']).optional(),
+  /** 全局详细输出（影响所有支持 --verbose 的命令） */
+  verbose: z.boolean().optional(),
   /** 系统命令配置 */
   systemCommands: SystemCommandsSchema.optional(),
   /** tmux 相关配置 */
@@ -166,6 +233,8 @@ const SettingsSchemaBase = z.object({
    * 用于 add/checkout/todo add 的 type 选择
    */
   branchCategories: z.array(BranchCategorySchema).optional(),
+  /** 子命令的默认值配置 */
+  commands: CommandsConfigSchema.optional(),
 });
 
 /**
