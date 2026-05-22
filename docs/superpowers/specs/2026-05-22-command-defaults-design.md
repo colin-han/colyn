@@ -334,12 +334,6 @@ Commander 原生不支持给 `--no-xxx` 加别名。采用语法 `--no-all, --cu
 | 风险 | 缓解 |
 |---|---|
 | `update --all` 默认反转可能让老用户误以为"为什么 update 突然变慢了" | CHANGELOG 显著说明；命令首次执行多 worktree 时在 stderr 输出一行提示（可选，待评估） |
-| `--skip-build` / `--update-all` 移除后老脚本失效 | 在过渡期内保留旧 flag 作为隐藏别名 + deprecation warning？此项**待用户决定**（见下方未决问题） |
+| `--skip-build` / `--update-all` 移除后老脚本失效 | 直接硬移除，在 CHANGELOG 中显著说明；老用户首次使用旧 flag 会得到 commander 的 "unknown option" 报错——天然提示 |
+| `update --all` 默认反转可能让老用户误以为"update 突然变慢了" | 仅在 CHANGELOG 中说明，不增加运行时提示（避免噪音） |
 | `getOptionValueSource` 行为依赖 commander 版本 | 在工具函数单测中显式锁定该 API；升 commander 时跑测试即可 |
-
----
-
-## 9. 未决问题（提交实施前需用户裁定）
-
-1. **过渡期支持**：是否为 `merge --skip-build` 和 `merge --update-all` 保留一个版本的 deprecated 别名（运行时打 warning），还是直接硬移除？
-2. **`update --all` 默认反转的迁移提示**：首次出现执行差异时是否输出一次性提醒？
