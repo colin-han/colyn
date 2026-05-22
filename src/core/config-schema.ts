@@ -171,6 +171,9 @@ export type UpdateCommandConfig = z.infer<typeof UpdateCommandConfigSchema>;
 export const ReleaseCommandConfigSchema = z
   .object({
     update: z.boolean().optional(),
+    build: z.boolean().optional(),
+    tag: z.boolean().optional(),
+    versionUpdate: z.boolean().optional(),
   })
   .strict();
 
