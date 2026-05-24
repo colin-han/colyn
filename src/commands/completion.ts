@@ -173,19 +173,50 @@ _colyn() {
                     case $state in
                         subcmd)
                             local -a config_subcmds
-                            config_subcmds=('get:${e(t('commands.config.getDescription'))}' 'set:${e(t('commands.config.setDescription'))}')
+                            config_subcmds=(
+                                'get:${e(t('commands.config.getDescription'))}'
+                                'set:${e(t('commands.config.setDescription'))}'
+                                'unset:${e(t('commands.config.unsetDescription'))}'
+                            )
                             _describe 'config subcommands' config_subcmds
                             ;;
                         subargs)
                             case $line[1] in
                                 get)
                                     local -a keys
-                                    keys=('npm' 'lang' 'branchCategories')
+                                    keys=(
+                                        'lang' 'verbose'
+                                        'systemCommands.npm' 'systemCommands.claude'
+                                        'commands.merge.build' 'commands.merge.rebase' 'commands.merge.update' 'commands.merge.fetch' 'commands.merge.all'
+                                        'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
+                                        'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
+                                        'commands.checkout.fetch'
+                                        'branchCategories'
+                                    )
                                     _describe 'config keys' keys
                                     ;;
                                 set)
                                     local -a keys
-                                    keys=('npm' 'lang')
+                                    keys=(
+                                        'lang' 'verbose'
+                                        'systemCommands.npm' 'systemCommands.claude'
+                                        'commands.merge.build' 'commands.merge.rebase' 'commands.merge.update' 'commands.merge.fetch' 'commands.merge.all'
+                                        'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
+                                        'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
+                                        'commands.checkout.fetch'
+                                    )
+                                    _describe 'config keys' keys
+                                    ;;
+                                unset)
+                                    local -a keys
+                                    keys=(
+                                        'lang' 'verbose'
+                                        'systemCommands.npm' 'systemCommands.claude'
+                                        'commands.merge.build' 'commands.merge.rebase' 'commands.merge.update' 'commands.merge.fetch' 'commands.merge.all'
+                                        'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
+                                        'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
+                                        'commands.checkout.fetch'
+                                    )
                                     _describe 'config keys' keys
                                     ;;
                             esac

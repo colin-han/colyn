@@ -117,10 +117,39 @@ _colyn_completion() {
             ;;
 
         config)
-            # config 命令选项
+            # config [get|set|unset] [key] [value] [--json|--user]
+            local config_subcmds="get set unset"
+            local config_keys="lang verbose systemCommands.npm systemCommands.claude commands.merge.build commands.merge.rebase commands.merge.update commands.merge.fetch commands.merge.all commands.update.rebase commands.update.fetch commands.update.all commands.release.update commands.release.build commands.release.tag commands.release.versionUpdate commands.checkout.fetch"
+            local config_keys_get="$config_keys branchCategories"
+
             if [[ $cur == -* ]]; then
-                COMPREPLY=($(compgen -W "--json" -- "$cur"))
+                COMPREPLY=($(compgen -W "--json --user" -- "$cur"))
+                return 0
             fi
+
+            local subcommand="${words[2]}"
+            if [[ $cword -eq 2 ]]; then
+                COMPREPLY=($(compgen -W "$config_subcmds" -- "$cur"))
+                return 0
+            fi
+
+            case "$subcommand" in
+                get)
+                    if [[ $cword -eq 3 ]]; then
+                        COMPREPLY=($(compgen -W "$config_keys_get" -- "$cur"))
+                    fi
+                    ;;
+                set)
+                    if [[ $cword -eq 3 ]]; then
+                        COMPREPLY=($(compgen -W "$config_keys" -- "$cur"))
+                    fi
+                    ;;
+                unset)
+                    if [[ $cword -eq 3 ]]; then
+                        COMPREPLY=($(compgen -W "$config_keys" -- "$cur"))
+                    fi
+                    ;;
+            esac
             return 0
             ;;
 
