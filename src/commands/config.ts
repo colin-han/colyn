@@ -8,11 +8,7 @@ import type { Command } from 'commander';
 import chalk from 'chalk';
 import { getProjectPaths } from '../core/paths.js';
 import {
-  getConfig,
-  saveConfig,
-  getGlobalConfigDir,
   getBranchCategories,
-  type ColynConfig,
 } from '../core/config.js';
 import {
   loadTmuxConfigForBranch,
@@ -334,38 +330,10 @@ async function configCommand(options: ConfigOptions): Promise<void> {
 }
 
 /**
- * 获取配置目录
- */
-async function getConfigDirectory(isUser: boolean): Promise<string> {
-  if (isUser) {
-    const userDir = getGlobalConfigDir();
-    // 确保用户配置目录存在
-    await fs.mkdir(userDir, { recursive: true });
-    return userDir;
-  } else {
-    const paths = await getProjectPaths();
-    return paths.configDir;
-  }
-}
-
-/**
  * 获取配置值
  */
 async function getConfigValue(key: string, options: { user?: boolean }): Promise<void> {
   try {
-    // 新 key：通过点分路径访问 Settings JSON
-    if (isSettingsKey(key)) {
-      const filePath = options.user
-        ? getUserConfigPath()
-        : getProjectConfigPath((await getProjectPaths()).rootDir);
-      const value = await getSettingsValueAtPath(filePath, key);
-      if (value === undefined) {
-        process.exit(0);
-      }
-      process.stdout.write(String(value) + '\n');
-      return;
-    }
-
     // branchCategories 特殊处理：返回合并后的完整列表（JSON 格式）
     if (key === 'branchCategories') {
       const configDir = options.user ? undefined : (await getProjectPaths()).configDir;
@@ -374,20 +342,20 @@ async function getConfigValue(key: string, options: { user?: boolean }): Promise
       return;
     }
 
-    const validKeys: Array<keyof ColynConfig> = ['npm', 'lang'];
-
-    if (!validKeys.includes(key as keyof ColynConfig)) {
+    if (!isSettingsKey(key)) {
       throw new ColynError(
-        t('commands.config.invalidKey', { key, validKeys: ['branchCategories', ...validKeys, ...Object.keys(SETTINGS_KEYS)].join(', ') })
+        t('commands.config.invalidKey', { key, validKeys: ['branchCategories', ...Object.keys(SETTINGS_KEYS)].join(', ') })
       );
     }
 
-    const configDir = options.user ? undefined : (await getProjectPaths()).configDir;
-    const config = await getConfig(configDir);
-    const value = config[key as keyof ColynConfig];
-
-    // 输出到 stdout 供脚本解析
-    process.stdout.write(value + '\n');
+    const filePath = options.user
+      ? getUserConfigPath()
+      : getProjectConfigPath((await getProjectPaths()).rootDir);
+    const value = await getSettingsValueAtPath(filePath, key);
+    if (value === undefined) {
+      process.exit(0);
+    }
+    process.stdout.write(String(value) + '\n');
   } catch (error) {
     if (error instanceof ColynError) {
       formatError(error);
@@ -406,55 +374,28 @@ async function setConfigValue(
   options: { user?: boolean }
 ): Promise<void> {
   try {
-    // 新 key：通过点分路径写入 Settings JSON
-    if (isSettingsKey(key)) {
-      const filePath = options.user
-        ? getUserConfigPath()
-        : getProjectConfigPath((await getProjectPaths()).rootDir);
-      try {
-        await setSettingsValueAtPath(filePath, key, value);
-      } catch (err) {
-        throw new ColynError(
-          t('commands.config.setFailed', {
-            key,
-            reason: err instanceof Error ? err.message : String(err),
-          })
-        );
-      }
-      const scope = options.user
-        ? t('commands.config.userScope')
-        : t('commands.config.projectScope');
-      outputSuccess(t('commands.config.setSuccess', { key, value, scope }));
-      return;
-    }
-
-    const validKeys: Array<keyof ColynConfig> = ['npm', 'lang'];
-
-    if (!validKeys.includes(key as keyof ColynConfig)) {
+    if (!isSettingsKey(key)) {
       throw new ColynError(
-        t('commands.config.invalidKey', { key, validKeys: [...validKeys, ...Object.keys(SETTINGS_KEYS)].join(', ') })
+        t('commands.config.invalidKey', { key, validKeys: Object.keys(SETTINGS_KEYS).join(', ') })
       );
     }
 
-    // 验证 lang 值
-    if (key === 'lang') {
-      const validLangs = ['en', 'zh-CN'];
-      if (!validLangs.includes(value)) {
-        throw new ColynError(
-          t('commands.config.invalidLang', { value, validLangs: validLangs.join(', ') })
-        );
-      }
+    const filePath = options.user
+      ? getUserConfigPath()
+      : getProjectConfigPath((await getProjectPaths()).rootDir);
+    try {
+      await setSettingsValueAtPath(filePath, key, value);
+    } catch (err) {
+      throw new ColynError(
+        t('commands.config.setFailed', {
+          key,
+          reason: err instanceof Error ? err.message : String(err),
+        })
+      );
     }
-
-    const configDir = await getConfigDirectory(!!options.user);
-    const updates: Partial<ColynConfig> = { [key]: value };
-
-    await saveConfig(configDir, updates);
-
     const scope = options.user
       ? t('commands.config.userScope')
       : t('commands.config.projectScope');
-
     outputSuccess(t('commands.config.setSuccess', { key, value, scope }));
   } catch (error) {
     if (error instanceof ColynError) {

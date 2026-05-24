@@ -12,10 +12,23 @@ import { z } from 'zod';
 import { SettingsSchema } from './config-schema.js';
 
 /**
- * 支持的"新"key（不含 legacy npm/lang/branchCategories）
+ * 支持的配置 key（点分路径，映射到 settings.json 中的嵌套字段）
+ *
+ * 类型说明：
+ * - 'boolean': 接受 true/false/yes/no/1/0/on/off
+ * - 'string':  任意字符串
+ * - 'lang':    枚举类型，仅接受 'en' | 'zh-CN'
  */
 export const SETTINGS_KEYS = {
+  // 全局
+  lang: 'lang',
   verbose: 'boolean',
+
+  // 系统命令
+  'systemCommands.npm': 'string',
+  'systemCommands.claude': 'string',
+
+  // 命令行为覆盖
   'commands.merge.build': 'boolean',
   'commands.merge.rebase': 'boolean',
   'commands.merge.update': 'boolean',
@@ -132,6 +145,11 @@ export async function getSettingsValueAtPath(
   return getNestedValue(raw, key);
 }
 
+/**
+ * lang 允许的值
+ */
+const VALID_LANGS = ['en', 'zh-CN'] as const;
+
 export async function setSettingsValueAtPath(
   filePath: string,
   key: SettingsKey,
@@ -141,6 +159,13 @@ export async function setSettingsValueAtPath(
   let value: unknown;
   if (expectedType === 'boolean') {
     value = parseBoolean(rawValue);
+  } else if (expectedType === 'string') {
+    value = rawValue;
+  } else if (expectedType === 'lang') {
+    if (!(VALID_LANGS as readonly string[]).includes(rawValue)) {
+      throw new Error(`无效的语言: "${rawValue}"（接受 ${VALID_LANGS.join(', ')}）`);
+    }
+    value = rawValue;
   } else {
     throw new Error(`未知类型: ${expectedType}`);
   }
