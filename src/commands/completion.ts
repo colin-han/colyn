@@ -165,9 +165,9 @@ _colyn() {
                     # repair: no args
                     ;;
                 config)
-                    _arguments -C \\\\
-                        '1: :->subcmd' \\\\
-                        '--json[${e(t('commands.config.jsonOption'))}]' \\\\
+                    _arguments -C \\
+                        '1: :->subcmd' \\
+                        '--json[${e(t('commands.config.jsonOption'))}]' \\
                         '*::arg:->subargs'
 
                     case $state in
