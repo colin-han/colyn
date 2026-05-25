@@ -19,7 +19,7 @@ async function loadMergedSettings(): Promise<Settings | null> {
   const paths = await getProjectPaths().catch(() => null);
   const [userCfg, projectCfg] = await Promise.all([
     loadUserConfig(),
-    paths ? loadProjectConfig(paths.mainDir) : Promise.resolve(null),
+    paths ? loadProjectConfig(paths.rootDir) : Promise.resolve(null),
   ]);
   if (!userCfg && !projectCfg) return null;
 
