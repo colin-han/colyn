@@ -59,16 +59,17 @@ Display information about all worktrees in the project, including main branch an
 
 ```
 ID    Branch            Port   Status      Diff   Remote   Path
-  0-main   main         10000              -      ✓        my-app
+  0   main              10000              -      ✓        my-app
   1   feature/login     10001  M:3         ↑2 ↓1  ↑1       worktrees/task-1
 → 2   feature/dashboard 10002              ↑5     N/A      worktrees/task-2
 ```
 
 **Notes**:
-- `→` arrow indicates current worktree, entire row highlighted in cyan
+- `→` arrow indicates current worktree, entire row highlighted in cyan; the main row uses the same colors as regular rows
+- `ID`: `0` is the main branch; other numbers identify task worktrees
 - `Path` shows relative path from project root
 - `Status`: Uncommitted changes count, `M:3` means 3 files modified, `S:` staged, `?:` untracked
-- `Diff`: Commit difference from main branch, `↑` ahead, `↓` behind, `✓` synced
+- `Diff`: Commit difference from main branch, `↑` ahead, `↓` behind, `✓` synced; main itself shows `-`
 - `Remote`: Commit difference from the **same-named remote branch** (e.g. `origin/<branch>`), `↑` ahead, `↓` behind, `✓` synced; shows `N/A` when no remote has a branch with the same name. Note: this is the same-named remote branch, not git's `@{upstream}` (worktree branches are often set to track `origin/main`, which is not counted as the "remote branch" here).
 
 ---
