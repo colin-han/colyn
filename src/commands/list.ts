@@ -255,7 +255,9 @@ function outputTable(items: ListItem[]): void {
   }
 
   // 获取终端宽度
-  const terminalWidth = process.stdout.columns || 80;
+  // 注意：表格输出到 stderr，且 shell/colyn.sh 会用命令替换捕获 stdout
+  // （此时 process.stdout.columns 为 undefined）。优先读 stderr.columns。
+  const terminalWidth = process.stderr.columns || process.stdout.columns || 80;
 
   // 计算列宽度
   const widths = getColumnWidths(items);
