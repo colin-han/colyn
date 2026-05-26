@@ -88,7 +88,7 @@ function getColumnWidths(items: ListItem[]): {
   wtStatus: number;
   wtStatusEmoji: number;
 } {
-  let maxId = 6; // "0-main" 或 "→ 1"
+  let maxId = 4; // "→ 0" 等
   let maxBranch = 6; // "Branch"
   let maxPort = 5; // "Port" + 1
   let maxGitStatus = 3; // "Git"
@@ -100,8 +100,8 @@ function getColumnWidths(items: ListItem[]): {
   const maxWtStatusEmoji = 3; // "st."
 
   for (const item of items) {
-    // 主分支显示 "0-main"，worktree 显示数字 ID
-    const idStr = item.isMain ? '0-main' : String(item.id);
+    // 主分支显示 "0"，worktree 显示数字 ID
+    const idStr = item.isMain ? '0' : String(item.id);
     const idDisplay = item.isCurrent ? `→ ${idStr}` : `  ${idStr}`;
     maxId = Math.max(maxId, idDisplay.length);
     maxBranch = Math.max(maxBranch, item.branch.length);
@@ -223,11 +223,11 @@ function getColoredCellIndices(mode: DisplayMode): number[] {
 /**
  * 根据远端差异返回带颜色的字符串
  */
-function coloredRemoteDiff(diff: GitDiff | null, isMain: boolean): string {
+function coloredRemoteDiff(diff: GitDiff | null): string {
   const str = formatRemoteDiff(diff);
   if (diff === null) return chalk.dim(str);
-  if (str === '✓') return isMain ? chalk.dim(str) : chalk.green(str);
-  return isMain ? chalk.dim(str) : chalk.cyan(str);
+  if (str === '✓') return chalk.green(str);
+  return chalk.cyan(str);
 }
 
 /**
@@ -333,8 +333,8 @@ function outputTable(items: ListItem[]): void {
   });
 
   for (const item of items) {
-    // 主分支显示 "0-main"，worktree 显示数字 ID
-    const idStr = item.isMain ? '0-main' : String(item.id);
+    // 主分支显示 "0"，worktree 显示数字 ID
+    const idStr = item.isMain ? '0' : String(item.id);
     const idDisplay = item.isCurrent ? `→ ${idStr}` : `  ${idStr}`;
 
     // 构建行数据
@@ -346,10 +346,10 @@ function outputTable(items: ListItem[]): void {
     const gitSimpleStr = formatStatusSimple(item.status);
     const coloredGitSimple = gitSimpleStr ? chalk.yellow(gitSimpleStr) : '';
     const diffStr = formatDiff(item.diff, item.isMain);
-    const coloredDiff = item.isMain
+    const coloredDiff = diffStr === '-'
       ? chalk.dim(diffStr)
       : (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
-    const coloredRemote = coloredRemoteDiff(item.remoteDiff, item.isMain);
+    const coloredRemote = coloredRemoteDiff(item.remoteDiff);
 
     // 根据模式追加列
     switch (mode) {
@@ -379,15 +379,11 @@ function outputTable(items: ListItem[]): void {
         break;
     }
 
-    // 应用行样式（当前行青色，主分支灰色）
+    // 应用行样式（仅当前行青色高亮，主分支与普通行同色）
     const coloredIndices = new Set(getColoredCellIndices(mode));
     if (item.isCurrent) {
       table.push(row.map((cell, index) =>
         coloredIndices.has(index) ? cell : chalk.cyan(cell)
-      ));
-    } else if (item.isMain) {
-      table.push(row.map((cell, index) =>
-        coloredIndices.has(index) ? cell : chalk.dim(cell)
       ));
     } else {
       table.push(row);

@@ -58,23 +58,23 @@ colyn ls [options]   # 别名
 示例：
 
 ```text
-ID      Branch            Port   Git       Diff    Remote   Path              Status
-  0-main main             10000            -       ✓        my-app
-  1      feature/login    10001  M:3 S:1   ↑2 ↓1   ↑1       worktrees/task-1  running
-→ 2      feature/ui       10002            ✓       N/A      worktrees/task-2
+ID    Branch            Port   Git       Diff    Remote   Path              Status
+  0   main              10000            -       ✓        my-app
+  1   feature/login     10001  M:3 S:1   ↑2 ↓1   ↑1       worktrees/task-1  running
+→ 2   feature/ui        10002            ✓       N/A      worktrees/task-2
 ```
 
 列语义：
+- `ID`：`0` 为主分支，其余为 worktree 编号
 - `Git`：工作区变更统计（`M` modified / `S` staged / `?` untracked）
-- `Diff`：与主分支提交差异（`↑` ahead / `↓` behind / `✓` synced）
+- `Diff`：与主分支提交差异（`↑` ahead / `↓` behind / `✓` synced）；主分支自身显示 `-`
 - `Remote`：与**同名远端分支**（如 `origin/<branch>`）的提交差异（`↑` ahead / `↓` behind / `✓` synced）；远端不存在同名分支时显示 `N/A`。注意这里取的是同名远端分支，而非 git 的 `@{upstream}`（worktree 分支常被设为 track `origin/main`，但这不视为"远端分支"）
 - `Status`：工作流状态（`idle` 为空，其余显示 `running` / `waiting-confirm` / `finish`）
 
 颜色规则：
-- 当前行：青色高亮
-- 主分支行：灰色
+- 当前行：青色高亮（主分支与普通行同样不做整行染色）
 - `Git` 有改动：黄色
-- `Diff` 为 `✓`：绿色；其余差异：青色
+- `Diff` 为 `✓`：绿色；`-`：灰色；其余差异：青色
 - `Remote` 为 `✓`：绿色；`N/A`：灰色；其余差异：青色
 - `Status`：`running` 青色、`waiting-confirm` 黄色、`finish` 绿色
 
