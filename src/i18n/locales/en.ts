@@ -159,6 +159,7 @@ Hints:
       tablePort: 'Port',
       tableGit: 'Git',
       tableDiff: 'Diff',
+      tableRemote: 'Remote',
       tablePath: 'Path',
       tableWtStatus: 'Status',
       tableWtStatusShort: 'st.',
