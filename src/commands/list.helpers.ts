@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import type { WorktreeStatus } from '../core/worktree-status.js';
 
 /**
@@ -176,6 +176,90 @@ export function formatDiff(diff: GitDiff, isMain: boolean): string {
 
   if (parts.length === 0) {
     return '✓';  // 已同步
+  }
+
+  return parts.join(' ');
+}
+
+/**
+ * 获取分支与同名远端分支的差异
+ *
+ * 语义：远端 = 远端仓库（如 origin）上与当前分支同名的分支。
+ * 与 `@{upstream}` 不同：例如 worktree 分支默认可能 track 了 origin/main，
+ * 但只要远端没有同名分支（origin/<branch>），就视为没有远端，返回 null。
+ *
+ * 查找策略：
+ *   1. 取当前分支名
+ *   2. 在任意远端中查找同名分支（`refs/remotes/<remote>/<branch>`）
+ *   3. 找不到返回 null
+ */
+export function getGitRemoteDiff(worktreePath: string): GitDiff | null {
+  let branch = '';
+  try {
+    branch = execSync('git branch --show-current', {
+      cwd: worktreePath,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+  } catch {
+    return null;
+  }
+  if (!branch) return null;
+
+  // 列出所有远端中同名的分支
+  // 注意：使用 spawnSync 数组参数避免 shell 解析 %(refname) 中的括号
+  let remoteRef = '';
+  const result = spawnSync(
+    'git',
+    ['for-each-ref', '--format=%(refname)', `refs/remotes/*/${branch}`],
+    {
+      cwd: worktreePath,
+      encoding: 'utf-8'
+    }
+  );
+  if (result.status !== 0) return null;
+  const refs = (result.stdout ?? '').trim();
+  if (!refs) return null;
+
+  // 优先使用 origin，否则取第一个
+  const lines = refs.split('\n').filter(Boolean);
+  const originLine = lines.find(l => l.startsWith(`refs/remotes/origin/${branch}`));
+  remoteRef = originLine ?? lines[0];
+
+  try {
+    const output = execSync(`git rev-list --left-right --count ${remoteRef}...HEAD`, {
+      cwd: worktreePath,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    }).trim();
+
+    const [behind, ahead] = output.split('\t').map(Number);
+    return { ahead: ahead || 0, behind: behind || 0 };
+  } catch {
+    return { ahead: 0, behind: 0 };
+  }
+}
+
+/**
+ * 格式化与远端分支的差异
+ * 无上游分支显示 N/A，否则与 formatDiff 一致
+ */
+export function formatRemoteDiff(diff: GitDiff | null): string {
+  if (diff === null) {
+    return 'N/A';
+  }
+
+  const parts: string[] = [];
+
+  if (diff.ahead > 0) {
+    parts.push(`↑${diff.ahead}`);
+  }
+  if (diff.behind > 0) {
+    parts.push(`↓${diff.behind}`);
+  }
+
+  if (parts.length === 0) {
+    return '✓';
   }
 
   return parts.join(' ');

@@ -16,9 +16,11 @@ import { t } from '../i18n/index.js';
 import {
   getGitStatus,
   getGitDiff,
+  getGitRemoteDiff,
   formatStatus,
   formatStatusSimple,
   formatDiff,
+  formatRemoteDiff,
   formatWorktreeStatus,
   formatWorktreeStatusEmoji,
   type GitStatus,
@@ -49,6 +51,7 @@ interface ListItem {
   isCurrent: boolean;
   status: GitStatus;
   diff: GitDiff;
+  remoteDiff: GitDiff | null;
   worktreeStatus: WorktreeStatus;
 }
 
@@ -80,6 +83,7 @@ function getColumnWidths(items: ListItem[]): {
   gitStatus: number;
   gitStatusSimple: number;
   diff: number;
+  remote: number;
   path: number;
   wtStatus: number;
   wtStatusEmoji: number;
@@ -90,6 +94,7 @@ function getColumnWidths(items: ListItem[]): {
   let maxGitStatus = 3; // "Git"
   const maxGitStatusSimple = 1; // "●"
   let maxDiff = 4; // "Diff"
+  let maxRemote = 6; // "Remote"
   let maxPath = 4; // "Path"
   let maxWtStatus = 6; // "Status"
   const maxWtStatusEmoji = 3; // "st."
@@ -103,6 +108,7 @@ function getColumnWidths(items: ListItem[]): {
     maxPort = Math.max(maxPort, String(item.port).length);
     maxGitStatus = Math.max(maxGitStatus, formatStatus(item.status).length);
     maxDiff = Math.max(maxDiff, formatDiff(item.diff, item.isMain).length);
+    maxRemote = Math.max(maxRemote, formatRemoteDiff(item.remoteDiff).length);
     maxPath = Math.max(maxPath, item.path.length);
     maxWtStatus = Math.max(maxWtStatus, formatWorktreeStatus(item.worktreeStatus).length);
   }
@@ -114,6 +120,7 @@ function getColumnWidths(items: ListItem[]): {
     gitStatus: maxGitStatus,
     gitStatusSimple: maxGitStatusSimple,
     diff: maxDiff,
+    remote: maxRemote,
     path: maxPath,
     wtStatus: maxWtStatus,
     wtStatusEmoji: maxWtStatusEmoji
@@ -137,32 +144,38 @@ function calculateTableWidth(widths: ReturnType<typeof getColumnWidths>, mode: D
       totalWidth += widths.port + borderOverhead;
       totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.remote + borderOverhead;
       totalWidth += widths.path + borderOverhead;
       totalWidth += widths.wtStatus + borderOverhead;
       break;
     case 'no-port':
       totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.remote + borderOverhead;
       totalWidth += widths.path + borderOverhead;
       totalWidth += widths.wtStatus + borderOverhead;
       break;
     case 'no-path':
       totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.remote + borderOverhead;
       totalWidth += widths.wtStatus + borderOverhead;
       break;
     case 'compress-wt':
       totalWidth += widths.gitStatus + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.remote + borderOverhead;
       totalWidth += widths.wtStatusEmoji + borderOverhead;
       break;
     case 'simple-git':
       totalWidth += widths.gitStatusSimple + borderOverhead;
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.remote + borderOverhead;
       totalWidth += widths.wtStatusEmoji + borderOverhead;
       break;
     case 'no-git':
       totalWidth += widths.diff + borderOverhead;
+      totalWidth += widths.remote + borderOverhead;
       totalWidth += widths.wtStatusEmoji + borderOverhead;
       break;
     case 'no-diff':
@@ -196,15 +209,25 @@ function selectDisplayMode(widths: ReturnType<typeof getColumnWidths>, terminalW
  */
 function getColoredCellIndices(mode: DisplayMode): number[] {
   switch (mode) {
-    case 'full':        return [3, 4, 6]; // git, diff, wtStatus
-    case 'no-port':     return [2, 3, 5]; // git, diff, wtStatus
-    case 'no-path':     return [2, 3, 4]; // git, diff, wtStatus
-    case 'compress-wt': return [2, 3, 4]; // git, diff, wtEmoji
-    case 'simple-git':  return [2, 3, 4]; // gitSimple, diff, wtEmoji
-    case 'no-git':      return [2, 3];    // diff, wtEmoji
-    case 'no-diff':     return [2];       // wtEmoji
+    case 'full':        return [3, 4, 5, 7]; // git, diff, remote, wtStatus
+    case 'no-port':     return [2, 3, 4, 6]; // git, diff, remote, wtStatus
+    case 'no-path':     return [2, 3, 4, 5]; // git, diff, remote, wtStatus
+    case 'compress-wt': return [2, 3, 4, 5]; // git, diff, remote, wtEmoji
+    case 'simple-git':  return [2, 3, 4, 5]; // gitSimple, diff, remote, wtEmoji
+    case 'no-git':      return [2, 3, 4];    // diff, remote, wtEmoji
+    case 'no-diff':     return [2];          // wtEmoji
     case 'minimal':     return [];
   }
+}
+
+/**
+ * 根据远端差异返回带颜色的字符串
+ */
+function coloredRemoteDiff(diff: GitDiff | null, isMain: boolean): string {
+  const str = formatRemoteDiff(diff);
+  if (diff === null) return chalk.dim(str);
+  if (str === '✓') return isMain ? chalk.dim(str) : chalk.green(str);
+  return isMain ? chalk.dim(str) : chalk.cyan(str);
 }
 
 /**
@@ -248,6 +271,7 @@ function outputTable(items: ListItem[]): void {
         chalk.bold(t('commands.list.tablePort')),
         chalk.bold(t('commands.list.tableGit')),
         chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableRemote')),
         chalk.bold(t('commands.list.tablePath')),
         chalk.bold(t('commands.list.tableWtStatus'))
       );
@@ -256,6 +280,7 @@ function outputTable(items: ListItem[]): void {
       headers.push(
         chalk.bold(t('commands.list.tableGit')),
         chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableRemote')),
         chalk.bold(t('commands.list.tablePath')),
         chalk.bold(t('commands.list.tableWtStatus'))
       );
@@ -264,6 +289,7 @@ function outputTable(items: ListItem[]): void {
       headers.push(
         chalk.bold(t('commands.list.tableGit')),
         chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableRemote')),
         chalk.bold(t('commands.list.tableWtStatus'))
       );
       break;
@@ -271,6 +297,7 @@ function outputTable(items: ListItem[]): void {
       headers.push(
         chalk.bold(t('commands.list.tableGit')),
         chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableRemote')),
         chalk.bold(t('commands.list.tableWtStatusShort'))
       );
       break;
@@ -278,12 +305,14 @@ function outputTable(items: ListItem[]): void {
       headers.push(
         chalk.bold('S'),
         chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableRemote')),
         chalk.bold(t('commands.list.tableWtStatusShort'))
       );
       break;
     case 'no-git':
       headers.push(
         chalk.bold(t('commands.list.tableDiff')),
+        chalk.bold(t('commands.list.tableRemote')),
         chalk.bold(t('commands.list.tableWtStatusShort'))
       );
       break;
@@ -320,26 +349,27 @@ function outputTable(items: ListItem[]): void {
     const coloredDiff = item.isMain
       ? chalk.dim(diffStr)
       : (diffStr === '✓' ? chalk.green(diffStr) : chalk.cyan(diffStr));
+    const coloredRemote = coloredRemoteDiff(item.remoteDiff, item.isMain);
 
     // 根据模式追加列
     switch (mode) {
       case 'full':
-        row.push(String(item.port), coloredGit, coloredDiff, item.path, coloredWtStatus(item.worktreeStatus, false));
+        row.push(String(item.port), coloredGit, coloredDiff, coloredRemote, item.path, coloredWtStatus(item.worktreeStatus, false));
         break;
       case 'no-port':
-        row.push(coloredGit, coloredDiff, item.path, coloredWtStatus(item.worktreeStatus, false));
+        row.push(coloredGit, coloredDiff, coloredRemote, item.path, coloredWtStatus(item.worktreeStatus, false));
         break;
       case 'no-path':
-        row.push(coloredGit, coloredDiff, coloredWtStatus(item.worktreeStatus, false));
+        row.push(coloredGit, coloredDiff, coloredRemote, coloredWtStatus(item.worktreeStatus, false));
         break;
       case 'compress-wt':
-        row.push(coloredGit, coloredDiff, coloredWtStatus(item.worktreeStatus, true));
+        row.push(coloredGit, coloredDiff, coloredRemote, coloredWtStatus(item.worktreeStatus, true));
         break;
       case 'simple-git':
-        row.push(coloredGitSimple, coloredDiff, coloredWtStatus(item.worktreeStatus, true));
+        row.push(coloredGitSimple, coloredDiff, coloredRemote, coloredWtStatus(item.worktreeStatus, true));
         break;
       case 'no-git':
-        row.push(coloredDiff, coloredWtStatus(item.worktreeStatus, true));
+        row.push(coloredDiff, coloredRemote, coloredWtStatus(item.worktreeStatus, true));
         break;
       case 'no-diff':
         row.push(coloredWtStatus(item.worktreeStatus, true));
@@ -437,6 +467,7 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
       isCurrent: isCurrentDirectory(paths.mainDir),
       status: getGitStatus(paths.mainDir),
       diff: { ahead: 0, behind: 0 },  // 主分支没有差异
+      remoteDiff: getGitRemoteDiff(paths.mainDir),
       worktreeStatus: mainWtStatus
     });
   }
@@ -453,6 +484,7 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
       isCurrent: isCurrentDirectory(wt.path),
       status: getGitStatus(wt.path),
       diff: getGitDiff(wt.path, mainBranch),
+      remoteDiff: getGitRemoteDiff(wt.path),
       worktreeStatus: wtStatus
     };
   }));
@@ -627,6 +659,7 @@ async function listCommand(options: ListOptions): Promise<void> {
         isCurrent: isCurrentDirectory(paths.mainDir),
         status: getGitStatus(paths.mainDir),
         diff: { ahead: 0, behind: 0 },  // 主分支没有差异
+        remoteDiff: getGitRemoteDiff(paths.mainDir),
         worktreeStatus: mainWtStatus
       });
     }
@@ -643,6 +676,7 @@ async function listCommand(options: ListOptions): Promise<void> {
         isCurrent: isCurrentDirectory(wt.path),
         status: getGitStatus(wt.path),
         diff: getGitDiff(wt.path, mainBranch),
+        remoteDiff: getGitRemoteDiff(wt.path),
         worktreeStatus: wtStatus
       };
     }));

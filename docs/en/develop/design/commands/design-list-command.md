@@ -58,10 +58,10 @@ Display information about all worktrees in the project, including main branch an
 **Example Output** (default table format):
 
 ```
-ID    Branch            Port   Status      Diff   Path
-  0-main   main         10000              -      my-app
-  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
-→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
+ID    Branch            Port   Status      Diff   Remote   Path
+  0-main   main         10000              -      ✓        my-app
+  1   feature/login     10001  M:3         ↑2 ↓1  ↑1       worktrees/task-1
+→ 2   feature/dashboard 10002              ↑5     N/A      worktrees/task-2
 ```
 
 **Notes**:
@@ -69,6 +69,7 @@ ID    Branch            Port   Status      Diff   Path
 - `Path` shows relative path from project root
 - `Status`: Uncommitted changes count, `M:3` means 3 files modified, `S:` staged, `?:` untracked
 - `Diff`: Commit difference from main branch, `↑` ahead, `↓` behind, `✓` synced
+- `Remote`: Commit difference from the **same-named remote branch** (e.g. `origin/<branch>`), `↑` ahead, `↓` behind, `✓` synced; shows `N/A` when no remote has a branch with the same name. Note: this is the same-named remote branch, not git's `@{upstream}` (worktree branches are often set to track `origin/main`, which is not counted as the "remote branch" here).
 
 ---
 
@@ -135,7 +136,8 @@ $ colyn list --json
     "isMain": true,
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
-    "diff": { "ahead": 0, "behind": 0 }
+    "diff": { "ahead": 0, "behind": 0 },
+    "remoteDiff": { "ahead": 0, "behind": 0 }
   },
   {
     "id": 1,
@@ -145,7 +147,8 @@ $ colyn list --json
     "isMain": false,
     "isCurrent": false,
     "status": { "modified": 3, "staged": 1, "untracked": 2 },
-    "diff": { "ahead": 2, "behind": 1 }
+    "diff": { "ahead": 2, "behind": 1 },
+    "remoteDiff": null
   }
 ]
 ```

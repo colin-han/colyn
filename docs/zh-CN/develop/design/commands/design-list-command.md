@@ -51,21 +51,23 @@ colyn ls [options]   # 别名
 - `Port`
 - `Git`
 - `Diff`
+- `Remote`
 - `Path`
 - `Status`
 
 示例：
 
 ```text
-ID      Branch            Port   Git       Diff    Path              Status
-  0-main main             10000            -       my-app
-  1      feature/login    10001  M:3 S:1   ↑2 ↓1   worktrees/task-1  running
-→ 2      feature/ui       10002            ✓       worktrees/task-2
+ID      Branch            Port   Git       Diff    Remote   Path              Status
+  0-main main             10000            -       ✓        my-app
+  1      feature/login    10001  M:3 S:1   ↑2 ↓1   ↑1       worktrees/task-1  running
+→ 2      feature/ui       10002            ✓       N/A      worktrees/task-2
 ```
 
 列语义：
 - `Git`：工作区变更统计（`M` modified / `S` staged / `?` untracked）
 - `Diff`：与主分支提交差异（`↑` ahead / `↓` behind / `✓` synced）
+- `Remote`：与**同名远端分支**（如 `origin/<branch>`）的提交差异（`↑` ahead / `↓` behind / `✓` synced）；远端不存在同名分支时显示 `N/A`。注意这里取的是同名远端分支，而非 git 的 `@{upstream}`（worktree 分支常被设为 track `origin/main`，但这不视为"远端分支"）
 - `Status`：工作流状态（`idle` 为空，其余显示 `running` / `waiting-confirm` / `finish`）
 
 颜色规则：
@@ -73,6 +75,7 @@ ID      Branch            Port   Git       Diff    Path              Status
 - 主分支行：灰色
 - `Git` 有改动：黄色
 - `Diff` 为 `✓`：绿色；其余差异：青色
+- `Remote` 为 `✓`：绿色；`N/A`：灰色；其余差异：青色
 - `Status`：`running` 青色、`waiting-confirm` 黄色、`finish` 绿色
 
 ### 2.2 响应式列模式
@@ -81,14 +84,16 @@ ID      Branch            Port   Git       Diff    Path              Status
 
 | 模式 | 显示列 |
 |------|--------|
-| `full` | ID, Branch, Port, Git, Diff, Path, Status |
-| `no-port` | ID, Branch, Git, Diff, Path, Status |
-| `no-path` | ID, Branch, Git, Diff, Status |
-| `compress-wt` | ID, Branch, Git, Diff, st. |
-| `simple-git` | ID, Branch, S, Diff, st. |
-| `no-git` | ID, Branch, Diff, st. |
+| `full` | ID, Branch, Port, Git, Diff, Remote, Path, Status |
+| `no-port` | ID, Branch, Git, Diff, Remote, Path, Status |
+| `no-path` | ID, Branch, Git, Diff, Remote, Status |
+| `compress-wt` | ID, Branch, Git, Diff, Remote, st. |
+| `simple-git` | ID, Branch, S, Diff, Remote, st. |
+| `no-git` | ID, Branch, Diff, Remote, st. |
 | `no-diff` | ID, Branch, st. |
 | `minimal` | ID, Branch |
+
+`Remote` 列与 `Diff` 同等优先级：保留 `Diff` 的模式都会保留 `Remote`，`no-diff` 模式时一同移除。
 
 说明：
 - `st.` 为工作流状态压缩列：`▶`（running）/ `?`（waiting-confirm）/ `✓`（finish）
@@ -109,6 +114,7 @@ ID      Branch            Port   Git       Diff    Path              Status
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
     "diff": { "ahead": 0, "behind": 0 },
+    "remoteDiff": { "ahead": 0, "behind": 0 },
     "worktreeStatus": "idle"
   }
 ]
@@ -123,6 +129,7 @@ ID      Branch            Port   Git       Diff    Path              Status
 - `isCurrent`: 是否当前所在目录
 - `status`: Git 工作区统计（`modified/staged/untracked`）
 - `diff`: 与主分支差异（`ahead/behind`）
+- `remoteDiff`: 与同名远端分支差异（`ahead/behind`）；远端不存在同名分支时为 `null`
 - `worktreeStatus`: 工作流状态（`idle/running/waiting-confirm/finish`）
 
 ### 2.4 路径格式（`--paths`）
