@@ -2,19 +2,24 @@
 # 使用方法：将以下内容添加到 ~/.bashrc 或 ~/.zshrc
 #   source /path/to/colyn/shell/colyn.sh
 
+# 在 source 时解析本文件所在目录（兼容 bash 和 zsh）。
+# 注意：必须在文件顶层求值，不能放进函数体内。
+# zsh 的 ${(%):-%x} 只有在 source 时才返回本文件路径；
+# 在函数被调用时求值会返回 "zsh"，导致目录解析错误（找不到 colyn）。
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  # bash
+  _COLYN_SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+elif [[ -n "${ZSH_VERSION:-}" ]]; then
+  # zsh
+  _COLYN_SHELL_DIR="$(cd "$(dirname "${(%):-%x}")" && pwd)"
+else
+  # fallback
+  _COLYN_SHELL_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
 colyn() {
-  # 定位 colyn 安装目录（兼容 bash 和 zsh）
-  local COLYN_SHELL_DIR
-  if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
-    # bash
-    COLYN_SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  elif [[ -n "${ZSH_VERSION:-}" ]]; then
-    # zsh
-    COLYN_SHELL_DIR="$(cd "$(dirname "${(%):-%x}")" && pwd)"
-  else
-    # fallback
-    COLYN_SHELL_DIR="$(cd "$(dirname "$0")" && pwd)"
-  fi
+  # 使用 source 时解析好的安装目录
+  local COLYN_SHELL_DIR="${_COLYN_SHELL_DIR}"
 
   local COLYN_BIN="${COLYN_SHELL_DIR}/../../colyn"
 
