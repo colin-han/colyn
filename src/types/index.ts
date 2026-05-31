@@ -62,6 +62,8 @@ export interface CommandResult {
   attachSession?: string;
   /** attach 到 session 后选中的 window index（与 attachSession 搭配） */
   attachWindow?: number;
+  /** 执行模式：在目标目录下执行的命令 */
+  command?: string;
 }
 
 /**
