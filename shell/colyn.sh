@@ -47,15 +47,20 @@ colyn() {
     fi
 
     if [[ $has_control_result -eq 0 ]]; then
-      local target_dir display_path attach_session attach_window result_success
+      local target_dir display_path attach_session attach_window command result_success
       result_success=$(node -e "try{const r=JSON.parse(process.argv[1]);process.stdout.write((r&&typeof r==='object'&&r.success===true)?'1':'0')}catch(e){process.stdout.write('0')}" "$control_line" 2>/dev/null)
 
       if [[ "$result_success" == "1" ]]; then
         attach_session=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.attachSession==='string')process.stdout.write(r.attachSession)}catch(e){}" "$control_line" 2>/dev/null)
         attach_window=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.attachWindow==='number')process.stdout.write(String(r.attachWindow))}catch(e){}" "$control_line" 2>/dev/null)
         target_dir=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.targetDir==='string')process.stdout.write(r.targetDir)}catch(e){}" "$control_line" 2>/dev/null)
+        command=$(node -e "try{const r=JSON.parse(process.argv[1]);if(r&&typeof r==='object'&&typeof r.command==='string')process.stdout.write(r.command)}catch(e){}" "$control_line" 2>/dev/null)
 
-        if [[ -n "$attach_session" ]]; then
+        if [[ -n "$command" && -n "$target_dir" && -d "$target_dir" ]]; then
+          # 执行模式：在目标目录执行命令，不改变当前目录
+          (cd "$target_dir" && $command)
+          return $?
+        elif [[ -n "$attach_session" ]]; then
           # 需要连接到 tmux session
           if [[ -n "$attach_window" ]]; then
             exec tmux attach-session -t "${attach_session}:${attach_window}"
