@@ -76,7 +76,7 @@ async function printAvailableWorktrees(paths: {
   }
 }
 
-export async function handleSwitch(numberArg: string): Promise<void> {
+export async function handleSwitch(numberArg: string, commandArgs: string[] | undefined): Promise<void> {
   let paths: Awaited<ReturnType<typeof getProjectPaths>>;
   try {
     paths = await getProjectPaths();
@@ -99,6 +99,17 @@ export async function handleSwitch(numberArg: string): Promise<void> {
   }
 
   const displayPath = toDisplayPath(target);
+
+  // 执行模式：输出 command 字段，由 shell 执行
+  if (commandArgs && commandArgs.length > 0) {
+    outputResult({
+      success: true,
+      targetDir: target,
+      displayPath,
+      command: commandArgs.join(' '),
+    });
+    return;
+  }
 
   // 项目名 = 主目录名 = tmux session 名
   const sessionName = paths.mainDirName;
@@ -136,9 +147,9 @@ export async function handleSwitch(numberArg: string): Promise<void> {
 
 export function register(program: Command): void {
   program
-    .command('switch <number>', { hidden: true })
+    .command('switch <number> [commandArgs...]', { hidden: true })
     .description(t('commands.switch.description'))
-    .action(async (numberArg: string) => {
-      await handleSwitch(numberArg);
+    .action(async (numberArg: string, commandArgs: string[] | undefined) => {
+      await handleSwitch(numberArg, commandArgs);
     });
 }
