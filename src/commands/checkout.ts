@@ -607,8 +607,8 @@ export async function checkoutCommand(
         await git.checkout(['-b', branch, '--track', branchInfo.remoteBranch!]);
         switchSpinner.succeed(t('commands.checkout.switchedToTrack', { branch, remote: branchInfo.remoteBranch ?? '' }));
       } else {
-        // 基于最新的主分支创建新分支：fetch 成功时用 origin/{mainBranch}，否则用本地 mainBranch
-        const base = branchInfo.fetched ? `origin/${mainBranch}` : mainBranch;
+        // 基于本地主分支创建新分支（updateMainBranch 已拉取最新）
+        const base = mainBranch;
         await git.checkout(['-b', branch, base]);
         switchSpinner.succeed(t('commands.checkout.switchedToNew', { branch }));
       }
