@@ -123,9 +123,9 @@ export function register(program: Command): void {
       }
     });
 
-  // todo add [todoId] [...message]
+  // todo add [todoId] [message...]
   todo
-    .command('add [todoId] [...message]')
+    .command('add [todoId] [message...]')
     .description(t('commands.todo.add.description'))
     .action(async (todoId: string | undefined, messageParts: string[] | undefined) => {
       const message = messageParts?.length ? messageParts.join(' ') : undefined;
