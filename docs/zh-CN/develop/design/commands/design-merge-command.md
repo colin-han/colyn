@@ -305,8 +305,8 @@ graph TD
 | Worktree 是否存在 | 通过 discovery 模块查找 | ID 或分支名不存在，运行 `colyn list` 查看 |
 | 主分支目录状态 | `git status` 是否干净 | 请先提交或 stash 主分支的更改 |
 | Worktree 目录状态 | `git status` 是否干净 | 请先提交 worktree 的更改 |
-| Lint 检查（插件驱动） | 根据 `.colyn/settings.json` 中配置的工具链插件运行 lint；使用 `--skip-build` 可跳过 | 请先修复 lint 错误后再合并（使用 `-v` 查看完整输出） |
-| 编译检查（插件驱动） | 根据配置的工具链插件运行 build；使用 `--skip-build` 可跳过 | 请先修复编译错误后再合并（使用 `-v` 查看完整输出） |
+| Lint 检查（插件驱动） | 根据 `.colyn/settings.json` 中配置的工具链插件运行 lint；使用 `--no-build` 可跳过 | 请先修复 lint 错误后再合并（使用 `-v` 查看完整输出） |
+| 编译检查（插件驱动） | 根据配置的工具链插件运行 build；使用 `--no-build` 可跳过 | 请先修复编译错误后再合并（使用 `-v` 查看完整输出） |
 
 ---
 
@@ -320,9 +320,9 @@ sequenceDiagram
     participant WT as Git Worktree
     participant M as Git 主分支
 
-    Note over C: 步骤 1: 在 worktree 中合并主分支
+    Note over C: 步骤 1: 在 worktree 中更新主分支（默认 rebase）
     C->>WT: cd <worktree-dir>
-    C->>WT: git merge <main-branch>
+    C->>WT: git rebase <main-branch>（--no-rebase 改用 git merge）
 
     alt 合并成功
         WT->>C: 合并完成
@@ -339,10 +339,10 @@ sequenceDiagram
     end
 ```
 
-**步骤 1：在 worktree 中合并主分支**（允许 fast-forward）
+**步骤 1：在 worktree 中更新主分支代码**（默认使用 rebase，`--no-rebase` 改用 merge）
 ```bash
 cd <worktree-dir>
-git merge <main-branch>
+git rebase <main-branch>   # 默认；--no-rebase 时为 git merge <main-branch>
 ```
 
 **步骤 2：在主分支中合并 worktree 分支**（使用 --no-ff）
@@ -363,7 +363,35 @@ git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 
 ---
 
-### 3.4 远端推送策略
+### 3.4 合并后更新 worktree（默认行为）
+
+合并成功后，默认会让 worktree 同步主分支的最新代码：
+
+```mermaid
+graph TD
+    Merged[合并成功] --> Fetch{fetch 远端?}
+    Fetch -->|默认| DoFetch[git fetch 主分支最新代码]
+    Fetch -->|--no-fetch| SkipFetch[跳过 fetch]
+    DoFetch --> Update{更新范围}
+    SkipFetch --> Update
+    Update -->|默认 --all| All[更新所有 worktree]
+    Update -->|--current-only| Cur[仅更新当前 worktree]
+    Update -->|--no-update| None[不更新]
+```
+
+**设计规则**：
+
+| 选项 | 默认 | 行为 |
+|------|------|------|
+| `--fetch` / `--no-fetch` | fetch | 更新前是否从远程拉取主分支最新代码 |
+| `--update` / `--no-update` | update | 合并后是否更新 worktree |
+| `--all` / `--current-only` | all | 更新所有 worktree 还是仅当前（仅在 `--update` 生效时有意义） |
+
+> 注：这是合并**后**的同步行为；合并**前**不会自动更新主分支（见第 8 节范围外）。
+
+---
+
+### 3.5 远端推送策略
 
 ```mermaid
 graph TD
@@ -383,7 +411,7 @@ graph TD
 
 ---
 
-### 3.5 Worktree 保留
+### 3.6 Worktree 保留
 
 合并成功后**不删除** worktree：
 
@@ -407,12 +435,12 @@ graph TD
 | 输入内容 | 必填 | 说明 | 验证规则 |
 |---------|------|------|---------|
 | ID 或分支名 | 否 | 指定要合并的 worktree<br/>无参数时自动识别 | - 数字视为 ID<br/>- 包含 `/` 视为分支名 |
-| `--no-rebase` | 否 | 使用 merge 而非 rebase 更新 worktree | 默认使用 rebase |
-| `--no-update` | 否 | 合并后不自动更新当前 worktree | 默认会更新 |
-| `--update-all` | 否 | 合并后更新所有 worktrees | 与 `--no-update` 互斥 |
-| `--no-fetch` | 否 | 跳过从远程拉取主分支最新代码 | 离线工作或无上游时使用 |
-| `--skip-build` | 否 | 跳过 lint 和 build 检查 | 紧急合并或确认代码已检查时使用 |
-| `--verbose` / `-v` | 否 | lint/build 失败时显示完整命令输出 | 调试 lint/build 错误时使用 |
+| `--build` / `--no-build` | 否 | 是否运行工具链插件的 lint 和 build 检查 | 默认运行；`--no-build` 跳过（紧急合并或已确认代码时） |
+| `--rebase` / `--no-rebase` | 否 | 更新 worktree 时使用 rebase 还是 merge | 默认 rebase；`--no-rebase` 改用 merge |
+| `--update` / `--no-update` | 否 | 合并后是否用主分支最新代码更新 worktree | 默认更新 |
+| `--fetch` / `--no-fetch` | 否 | 更新前是否从远程 fetch 主分支 | 默认 fetch；离线或无上游时用 `--no-fetch` |
+| `--all` / `--no-all`（别名 `--current-only`） | 否 | 更新范围：所有 worktree 还是仅当前 | 默认所有；仅在 `--update` 生效时有意义 |
+| `-v, --verbose` / `--no-verbose` | 否 | lint/build 失败时是否显示完整命令输出 | 默认不显示 |
 
 ### 4.2 系统输出
 

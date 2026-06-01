@@ -64,8 +64,8 @@ Project: my-task-app
 | `colyn add` | Create window + switch | Normal worktree creation |
 | `colyn checkout` | Update window name | Switch directory |
 | `colyn list` | Show window numbers | Show ID column |
-| `colyn repair` | Repair missing windows | Create session + repair |
-| `colyn tmux` | tmux repair/management | tmux repair/management |
+| `colyn tmux start` | Start / repair session and window | Create session (detached) + repair missing windows |
+| `colyn tmux stop` | Stop the current project's session | `-f/--force` skips confirmation |
 
 ---
 

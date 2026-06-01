@@ -297,7 +297,7 @@ The authentication feature is done. Xiao Ming runs the merge directly from workt
 
 ```bash
 # Inside worktrees/task-1
-colyn merge --push
+colyn merge
 ```
 
 No need to specify a worktree ID — Colyn automatically identifies the current worktree.
@@ -330,7 +330,7 @@ colyn merge
 Please resolve conflicts in the current worktree and retry
 ```
 
-The conflict is isolated to the worktree. The main branch is untouched. Xiao Ming resolves the conflict inside the worktree, commits, and runs `colyn merge --push` again. Clean and simple.
+The conflict is isolated to the worktree. The main branch is untouched. Xiao Ming resolves the conflict inside the worktree, commits, and runs `colyn merge` again. Clean and simple.
 
 ### Reusing a Worktree: The Most Efficient Approach
 
@@ -431,7 +431,7 @@ All windows, panes, and even Claude session history are still there.
 New idea anytime → colyn todo add to capture it
 A worktree frees up → colyn todo start to pick the next task
                     → paste into Claude → add details → AI gets to work
-Done → colyn merge --push
+Done → colyn merge
 Periodically → colyn todo archive -y (archive completed tasks)
 ```
 

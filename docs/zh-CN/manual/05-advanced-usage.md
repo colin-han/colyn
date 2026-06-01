@@ -56,10 +56,10 @@ COLYN_LANG=zh-CN colyn --help
 
 ```bash
 # 设置用户级默认包管理器
-colyn config set npm yarn --user
+colyn config set systemCommands.npm yarn --user
 
 # 为特定项目设置
-colyn config set npm pnpm
+colyn config set systemCommands.npm pnpm
 ```
 
 ### 查看配置值
@@ -69,7 +69,7 @@ colyn config set npm pnpm
 colyn config get lang
 
 # 查看用户级包管理器设置
-colyn config get npm --user
+colyn config get systemCommands.npm --user
 ```
 
 ---
@@ -444,17 +444,17 @@ $ colyn repair
 colyn merge 1
 ```
 
-**合并并推送**：
+**合并**：
 
 ```bash
-colyn merge 1 --push
+colyn merge 1
 ```
 
 **在 worktree 目录中自动识别**：
 
 ```bash
 cd worktrees/task-1
-colyn merge --push
+colyn merge
 ```
 
 ### Remove 命令的高级用法
@@ -626,7 +626,7 @@ alias cr='colyn remove'
 alias co='colyn checkout'  # 注意：colyn 已内置 co 别名
 
 # 带选项的别名
-alias cmp='colyn merge --push'    # 合并并推送
+alias cmp='colyn merge'    # 合并
 alias clj='colyn list --json'     # JSON 格式列表
 alias cln='colyn list --no-color' # 无颜色列表
 ```
@@ -635,7 +635,7 @@ alias cln='colyn list --no-color' # 无颜色列表
 
 ```bash
 ca feature/new-feature  # 等同于 colyn add feature/new-feature
-cmp 1                   # 等同于 colyn merge 1 --push
+cmp 1                   # 等同于 colyn merge 1
 ```
 
 ---
@@ -653,7 +653,7 @@ colyn add feature/user-profile
 # 开发...
 
 # 完成后合并
-colyn merge feature/user-profile --push
+colyn merge feature/user-profile
 
 # 清理
 colyn remove feature/user-profile
@@ -667,8 +667,8 @@ colyn add hotfix/security-patch
 
 # 修复...
 
-# 快速合并和推送
-colyn merge hotfix/security-patch --push
+# 快速合并
+colyn merge hotfix/security-patch
 
 # 立即删除
 colyn remove hotfix/security-patch -y
@@ -683,7 +683,7 @@ colyn add release/v1.2.0
 # 版本准备、测试...
 
 # 合并到主分支
-colyn merge release/v1.2.0 --push
+colyn merge release/v1.2.0
 ```
 
 ---

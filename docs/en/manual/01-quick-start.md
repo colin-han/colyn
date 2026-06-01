@@ -177,8 +177,8 @@ colyn merge 1
 # Or use the branch name
 colyn merge feature/login
 
-# Merge and push to remote
-colyn merge 1 --push
+# Merge into the main branch
+colyn merge 1
 ```
 
 The merge process:

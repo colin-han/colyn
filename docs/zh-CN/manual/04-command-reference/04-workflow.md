@@ -96,8 +96,65 @@ $ colyn release patch --no-tag
 
 - **最常用方式**：直接运行 `colyn release` 即可发布 patch 版本
 - 无需手动切换到主分支目录
-- 包管理器命令通过 `colyn config set npm <命令>` 配置（默认 `npm`）
+- 包管理器命令通过 `colyn config set systemCommands.npm <命令>` 配置（默认 `npm`）
 - 默认自动更新所有 worktree，确保所有开发分支基于最新版本
+
+---
+
+## colyn update
+
+将主分支的最新代码更新到 worktree。**默认更新所有 worktree。**
+
+### 语法
+
+```bash
+colyn update [target] [选项]
+```
+
+### 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `target` | 否 | 支持以下形式：<br>- 数字：按 ID 查找（如 `1`）<br>- 分支名：按分支名查找（如 `feature/login`）<br>- 不传：默认更新**所有** worktree |
+
+### 选项
+
+所有开关型选项都有正 / 反两种形式，默认值可通过 `.colyn/settings.json` 的 `commands.update.*` 覆盖（见配置手册）。
+
+| 选项 | 默认 | 说明 |
+|------|------|------|
+| `--rebase` / `--no-rebase` | `--rebase` | 更新时使用 rebase；`--no-rebase` 改用 merge |
+| `--fetch` / `--no-fetch` | `--fetch` | 更新前是否从远程 fetch 主分支最新代码 |
+| `--all` / `--no-all`（别名 `--current-only`） | `--all` | 更新范围：所有 worktree 还是仅当前 worktree |
+
+### 功能说明
+
+`colyn update` 用主分支的最新代码同步 worktree：
+
+- 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）
+- 默认使用 `rebase` 将主分支代码应用到 worktree 分支（`--no-rebase` 改用 merge）
+- **不传 `target` 时默认更新所有 worktree**；指定 `target`（ID 或分支名）或使用 `--current-only` 时，仅更新对应的单个 worktree
+
+> 与 `colyn merge` 的关系：merge 完成后会自动触发同样的更新流程（见 `colyn merge` 的"步骤 3"）。
+
+### 示例
+
+```bash
+# 更新所有 worktree（默认）
+$ colyn update
+
+# 仅更新当前 worktree
+$ colyn update --current-only
+
+# 通过 ID 更新指定 worktree
+$ colyn update 1
+
+# 通过分支名更新
+$ colyn update feature/login
+
+# 跳过 fetch（离线场景）
+$ colyn update --no-fetch
+```
 
 ---
 
@@ -117,7 +174,7 @@ colyn todo [子命令] [选项]
 
 | 子命令 | 说明 |
 |--------|------|
-| `add [todoId] [message]` | 添加 Todo 任务 |
+| `add [todoId] [message...]` | 添加 Todo 任务 |
 | `start [todoId]` | 开始执行任务（切换分支 + 复制描述到剪贴板） |
 | `list` / `ls` | 列出任务（默认显示待办） |
 | `edit [todoId] [message]` | 编辑 Todo 任务的描述 |
@@ -148,7 +205,7 @@ document/api-guide
 #### 语法
 
 ```bash
-colyn todo add [todoId] [message]
+colyn todo add [todoId] [message...]
 ```
 
 #### 参数
@@ -156,7 +213,7 @@ colyn todo add [todoId] [message]
 | 参数 | 说明 |
 |------|------|
 | `todoId` | Todo ID（格式：`type/name`），省略时交互式选择 |
-| `message` | 任务描述，省略时打开编辑器（支持 Markdown） |
+| `message...` | 任务描述，可包含空格且无需引号（多个词会自动拼接）；省略时打开编辑器（支持 Markdown） |
 
 #### 示例
 
@@ -167,8 +224,11 @@ $ colyn todo add
 # 指定 ID，描述通过编辑器输入
 $ colyn todo add feature/login
 
-# 全部直接指定
+# 全部直接指定（描述可加引号）
 $ colyn todo add feature/login "实现用户登录功能"
+
+# 描述也可不加引号，多个词会自动拼接
+$ colyn todo add feature/login 实现用户登录功能
 ```
 
 #### 编辑器说明

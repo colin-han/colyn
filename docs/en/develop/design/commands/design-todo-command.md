@@ -96,15 +96,16 @@ pending ────────────────────────
 
 ## 5. Subcommand Design
 
-### 5.1 `colyn todo add [todoId] [message]`
+### 5.1 `colyn todo add [todoId] [message...]`
 
-Add a new todo task. All arguments are optional; fully interactive when no arguments are provided.
+Add a new todo task. All arguments are optional; fully interactive when no arguments are provided. `message` is a variadic argument (commander's `[message...]`): it accepts multiple unquoted words, joined internally with spaces into the full description.
 
 **Argument resolution logic**:
 
 ```
-No todoId → Interactive: select type + input name
-No message → Open editor ($VISUAL / $EDITOR / vim)
+No todoId   → Interactive: select type + input name
+No message  → Open editor ($VISUAL / $EDITOR / vim)
+Has message → Multiple words joined with spaces into the description
 ```
 
 **Editor template** (Markdown format; lines starting with `# ` are comments):

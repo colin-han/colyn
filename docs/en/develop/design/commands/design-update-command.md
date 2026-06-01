@@ -1,7 +1,7 @@
 # Update Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-28
-**Last Updated**: 2026-01-28
+**Last Updated**: 2026-06-01
 **Command Name**: `colyn update`
 **Status**: Implemented
 
@@ -27,23 +27,58 @@ Provide a simple command that automatically updates the main branch's latest cod
 ### 1.3 Core Value
 
 - **Simplify Operations**: One command completes the update process
-- **Smart Detection**: Supports auto-detection of current worktree
+- **Update All by Default**: Updates all worktrees when no parameter is given
+- **Precise Update**: Specify an ID/branch name to update a single worktree, or `--current-only` to update just the current one
 - **Default Rebase**: Produces linear commit history, cleaner
 - **Optional Merge**: Use `--no-rebase` to preserve complete history
-- **Auto Sync**: Automatically pulls main branch's latest code
-- **Batch Update**: Supports `--all` to update all worktrees at once
+- **Auto Sync**: Automatically pulls main branch's latest code (can skip with `--no-fetch`)
 
 ---
 
 ## 2. User Scenarios
 
-### 2.1 Scenario 1: Update Current Worktree
+### 2.1 Scenario 1: Update All Worktrees (Default)
 
-**User Situation**: Developing in worktree, wants to sync main branch's latest code
+**User Situation**: Wants to sync the main branch's latest code to all worktrees at once
 
 ```bash
-$ cd worktrees/task-1
 $ colyn update
+
+Found 3 worktrees:
+  1. task-1 (feature/login)
+  2. task-2 (feature/signup)
+  3. task-3 (bugfix/header)
+
+Step 1/4: Pull main branch latest code
+✔ Main branch updated
+
+Step 2/4: Update task-1 (feature/login)
+✔ Rebase successful
+
+Step 3/4: Update task-2 (feature/signup)
+✔ Rebase successful
+
+Step 4/4: Update task-3 (bugfix/header)
+✔ Rebase successful
+
+Update results:
+  ✓ 3 worktrees updated successfully
+```
+
+> Note: With no parameter, `colyn update` is equivalent to `colyn update --all`, i.e. it updates all worktrees.
+
+---
+
+### 2.2 Scenario 2: Update Specified Worktree
+
+**User Situation**: In any directory, wants to update only a specific worktree
+
+```bash
+# Specify by ID
+$ colyn update 1
+
+# Specify by branch name
+$ colyn update feature/login
 
 ✓ Detected worktree:
   ID: 1
@@ -70,21 +105,38 @@ Step 3/3: Rebase main branch onto current branch
 
 ---
 
-### 2.2 Scenario 2: Update Specified Worktree
+### 2.3 Scenario 3: Update Only the Current Worktree (`--current-only`)
 
-**User Situation**: In any directory, wants to update a specific worktree
+**User Situation**: Developing inside a worktree directory, wants to sync only this one worktree
 
 ```bash
-# Specify by ID
-$ colyn update 1
+$ cd worktrees/task-1
+$ colyn update --current-only
 
-# Specify by branch name
-$ colyn update feature/login
+✓ Detected current worktree:
+  ID: 1
+  Branch: feature/login
+  Path: /path/to/worktrees/task-1
+
+Step 1/3: Check working directory status
+✔ Worktree working directory clean
+
+Step 2/3: Pull main branch latest code
+✔ Main branch updated
+
+Step 3/3: Rebase main branch onto current branch
+✔ Rebase successful
+
+✓ Update complete!
+  Main branch (main) → feature/login
+  Strategy: rebase
 ```
+
+> Note: `--current-only` is an alias of `--no-all` and must be run inside a worktree directory — it auto-detects the current worktree by reading the `WORKTREE` value from `.env.local`.
 
 ---
 
-### 2.3 Scenario 3: Use Merge Strategy
+### 2.4 Scenario 4: Use Merge Strategy
 
 **User Situation**: Doesn't want to use rebase, wants to preserve complete branch history
 
@@ -103,9 +155,9 @@ Step 3/3: Merge main branch into current branch
 
 ---
 
-### 2.4 Scenario 4: Batch Update All Worktrees
+### 2.5 Scenario 5: Batch Update (Partial Failure)
 
-**User Situation**: Wants to update all worktrees at once
+**User Situation**: Explicitly passes `--all` (equivalent to no parameter), and one of the worktrees fails to update
 
 ```bash
 $ colyn update --all
@@ -141,12 +193,12 @@ Failed details:
 
 ---
 
-### 2.5 Scenario 5: Handle Conflicts
+### 2.6 Scenario 6: Handle Conflicts
 
 **User Situation**: Conflicts occur during rebase process
 
 ```bash
-$ colyn update
+$ colyn update 1
 
 Step 3/3: Rebase main branch onto current branch
 ✗ Rebase failed, conflicts exist
@@ -175,23 +227,23 @@ Supports three calling methods:
 
 ```mermaid
 graph TD
-    Start[User runs colyn update] --> HasParam{Has parameter?}
+    Start[User runs colyn update] --> HasTarget{Has target parameter?}
 
-    HasParam -->|No| ReadEnv[Read .env.local<br/>Get WORKTREE ID]
-    HasParam -->|Yes| CheckAll{Is --all?}
+    HasTarget -->|Yes| CheckType{Parameter type?}
+    HasTarget -->|No| CheckCurrent{--current-only?}
 
-    CheckAll -->|Yes| AllWorktrees[Update all worktrees]
-    CheckAll -->|No| CheckType{Parameter type?}
+    CheckCurrent -->|No default --all| AllWorktrees[Update all worktrees]
+    CheckCurrent -->|Yes| ReadEnv[Read .env.local<br/>Get WORKTREE ID]
 
     CheckType -->|Pure number| UseId[Find by ID]
     CheckType -->|Not pure number| UseBranch[Find by branch name]
 
-    ReadEnv --> FindWT[Find worktree]
+    ReadEnv --> FindWT[Find current worktree]
     UseId --> FindWT
     UseBranch --> FindWT
 
     FindWT --> Found{Found?}
-    Found -->|Yes| Continue[Continue update process]
+    Found -->|Yes| Continue[Continue updating single worktree]
     Found -->|No| Error[✗ Worktree not found]
 
     style Error fill:#ffcccc
@@ -202,11 +254,12 @@ graph TD
 **Examples**:
 | Command | Detection Method | Description |
 |---------|-----------------|-------------|
-| `colyn update` | Auto-detect | Read WORKTREE value from .env.local |
-| `colyn update 1` | By ID | Find worktree with ID 1 |
-| `colyn update feature/login` | By branch name | Find worktree with branch feature/login |
-| `colyn update bugfix-header` | By branch name | Find worktree with branch bugfix-header |
-| `colyn update --all` | Batch | Update all worktrees |
+| `colyn update` | Update all (default) | Update all worktrees (equivalent to `--all`) |
+| `colyn update --all` | Update all | Explicit form, equivalent to no parameter |
+| `colyn update 1` | By ID | Update only the worktree with ID 1 |
+| `colyn update feature/login` | By branch name | Update only the worktree with branch feature/login |
+| `colyn update bugfix-header` | By branch name | Update only the worktree with branch bugfix-header |
+| `colyn update --current-only` | Current worktree | Read WORKTREE value from .env.local, update only the current one (`--no-all` alias) |
 
 ---
 
@@ -342,11 +395,14 @@ sequenceDiagram
 
 ### 4.1 User Input
 
-| Input | Required | Description | Validation |
+| Input | Required | Description | Validation / Default |
 |-------|----------|-------------|------------|
-| ID or branch name | No | Specify worktree to update<br/>Auto-detect when no parameter | - Pure number treated as ID<br/>- Non-pure number treated as branch name |
-| `--no-rebase` | No | Use merge strategy instead of rebase | Default uses rebase |
-| `--all` | No | Update all worktrees | Mutually exclusive with ID/branch name |
+| `target` (ID or branch name) | No | Update only a specific worktree<br/>Updates all worktrees when no parameter | - Pure number treated as ID<br/>- Non-pure number treated as branch name |
+| `--rebase` / `--no-rebase` | No | Choose update strategy: rebase or merge | Default `--rebase` |
+| `--fetch` / `--no-fetch` | No | Whether to pull the main branch's latest code from remote; use `--no-fetch` when offline or with no upstream | Default `--fetch` |
+| `--all` / `--no-all` (`--current-only`) | No | `--all` (default) updates all worktrees; `--no-all`/`--current-only` updates only the current worktree | Default `--all` (i.e. `all=true`) |
+
+> Relationship: with no `target` and without `--current-only`, all worktrees are updated; with a `target`, only that single worktree is updated; with `--current-only` (`--no-all`), only the current worktree is updated. All defaults can be overridden via `commands.update.*` in `.colyn/settings.json`.
 
 ### 4.2 System Output
 
@@ -422,16 +478,17 @@ worktree ─────────────────────┘
 
 ### 7.1 Basic Functions
 
-- [x] Support parameter-less call (auto-detect current worktree)
-- [x] Support specifying worktree by ID
-- [x] Support specifying worktree by branch name
+- [x] Update all worktrees on parameter-less call (default `--all`)
+- [x] Support specifying a single worktree by ID
+- [x] Support specifying a single worktree by branch name
+- [x] `--current-only` (`--no-all`) updates only the current worktree (detected via .env.local)
 - [x] Default use `git rebase main`
 - [x] `--no-rebase` uses `git merge main`
-- [x] Auto execute `git pull` to pull main branch before update
+- [x] Auto execute `git pull` to pull main branch before update (can skip with `--no-fetch`)
 
 ### 7.2 Batch Update
 
-- [x] `--all` supports updating all worktrees
+- [x] Both no parameter and `--all` update all worktrees
 - [x] Execute `git pull` only once
 - [x] On failure, don't interrupt, continue updating other worktrees
 - [x] Display summary results
@@ -582,11 +639,11 @@ commands.update.batchResult
 `colyn update` command core values:
 
 - **Simplify Operations**: One command completes update process
+- **Update All by Default**: Updates all worktrees when no parameter is given
+- **Precise Update**: Specify an ID/branch name to update a single worktree, or `--current-only` to update just the current one
 - **Default Rebase**: Produces clean linear history
 - **Optional Merge**: Flexible choice via `--no-rebase`
-- **Auto Sync**: Automatically pulls main branch's latest code
-- **Batch Update**: `--all` updates all worktrees at once
-- **Smart Detection**: Supports auto-detection of current worktree
+- **Auto Sync**: Automatically pulls main branch's latest code (can skip with `--no-fetch`)
 - **Friendly Prompts**: Clear error messages and conflict resolution steps
 
 Through this command, users can easily keep worktrees synchronized with the main branch and focus on feature development.

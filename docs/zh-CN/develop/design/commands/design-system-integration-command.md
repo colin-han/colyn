@@ -212,6 +212,19 @@ source "/path/to/colyn/shell/colyn.sh"
      ✓ 使用 Tab 键可自动完成命令和参数
    ```
 
+### 3.4 Claude Code 集成
+
+除 shell 集成外，`colyn setup` 还会配置与 Claude Code 的集成（均为非致命操作，失败仅警告、不中断流程）：
+
+1. **状态 hooks**：在 `~/.claude/settings.json` 中写入三个 hook，使 Claude Code 会话状态实时同步到 worktree 状态：
+   - `UserPromptSubmit` → `colyn status set running`
+   - `PreToolUse`（matcher 为 `AskUserQuestion`）→ `colyn status set waiting-confirm`
+   - `Stop` → `colyn status set finish`
+
+   这些状态会显示在 `colyn list` 的状态列中。hook 命令使用 colyn 可执行文件的绝对路径，并以 `2>/dev/null || true` 包裹，避免影响 Claude Code 正常运行。
+
+2. **Claude skills 安装**：将 Colyn 内置的 `skills/<skill-name>/` 目录递归复制到 `~/.claude/skills/`，并把 `SKILL.md` 中 bash 代码块里的 `colyn` 命令替换为绝对路径。
+
 ---
 
 ## 4. 输入与输出
@@ -282,6 +295,8 @@ source "/path/to/colyn/shell/colyn.sh"
 - [x] 首次配置：添加 source 命令到配置文件
 - [x] 更新配置：替换现有的 source 命令路径
 - [x] 配置文件不存在时自动创建
+- [x] 配置 Claude Code 状态 hooks（写入 `~/.claude/settings.json`）
+- [x] 安装 Colyn 内置的 Claude skills（复制到 `~/.claude/skills/`）
 
 ### 7.2 输出信息
 

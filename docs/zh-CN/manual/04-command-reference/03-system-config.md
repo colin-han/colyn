@@ -41,10 +41,6 @@ colyn repair
    - 检测路径失效的 worktree（可修复）
    - 检测真孤儿型 worktree（仅报告）
 
-**Tmux 集成：**
-- 如果 session 不存在则创建
-- 如果 window 不存在则创建并设置 3-pane 布局
-
 ### 使用场景
 
 ```bash
@@ -56,7 +52,6 @@ $ cd ~/Desktop/project
 $ colyn repair
 ✔ 检测并修复孤儿 worktree 目录...
 ✔ 已修复 2 个路径失效的 worktree
-✔ 创建了 session "project" 和 3 个 window
 
 ✓ 修复完成！
 ```
@@ -108,6 +103,9 @@ colyn config get <key> [选项]
 
 # 设置配置值
 colyn config set <key> <value> [选项]
+
+# 删除配置值（恢复为内置默认）
+colyn config unset <key> [选项]
 ```
 
 ### 子命令
@@ -117,7 +115,7 @@ colyn config set <key> <value> [选项]
 获取配置项的值。
 
 **参数：**
-- `key` - 配置键名（`npm`、`lang` 或 `branchCategories`）
+- `key` - 配置键名。支持 `branchCategories`（返回合并后的完整列表），或下方"支持的配置键"表中的任意键
 
 **选项：**
 - `--user` - 从用户级配置读取（`~/.config/colyn/settings.json`）
@@ -148,12 +146,20 @@ $ colyn config get branchCategories
 
 设置配置项的值。
 
-**支持的配置项：**
+**支持的配置键：**
 
-| 配置键 | 说明 | 有效值 |
-|-------|------|--------|
-| `npm` | 包管理器命令 | `npm`, `yarn`, `pnpm` 等 |
-| `lang` | 界面语言 | `en`, `zh-CN` |
+| 配置键 | 类型 | 说明 |
+|-------|------|------|
+| `lang` | 枚举 | 界面语言：`en` / `zh-CN` |
+| `verbose` | 布尔 | 是否默认显示详细输出 |
+| `systemCommands.npm` | 字符串 | 包管理器命令（默认 `npm`），如 `yarn` / `pnpm` |
+| `systemCommands.claude` | 字符串 | Claude CLI 命令 |
+| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` | 布尔 | `colyn merge` 各开关的默认值 |
+| `commands.update.rebase` / `.fetch` / `.all` | 布尔 | `colyn update` 各开关的默认值 |
+| `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | 布尔 | `colyn release` 各开关的默认值 |
+| `commands.checkout.fetch` | 布尔 | `colyn checkout` 的 fetch 开关默认值 |
+
+> 布尔值接受 `true/false/yes/no/1/0/on/off`。命令默认值的完整说明见[配置详解](../10-configuration.md)。
 
 **选项：**
 - `--user` - 设置用户级配置（影响所有项目）
@@ -169,8 +175,29 @@ $ colyn config set lang en --user
 ✓ 配置已设置：lang = en (用户)
 
 # 设置包管理器为 yarn
-$ colyn config set npm yarn --user
-✓ 配置已设置：npm = yarn (用户)
+$ colyn config set systemCommands.npm yarn --user
+✓ 配置已设置：systemCommands.npm = yarn (用户)
+
+# 让 merge 默认跳过 build 检查
+$ colyn config set commands.merge.build false
+✓ 配置已设置：commands.merge.build = false (项目)
+```
+
+#### `colyn config unset <key>`
+
+删除指定配置项，恢复为内置默认值。
+
+**参数：**
+- `key` - 见上方"支持的配置键"（不支持 `branchCategories`）
+
+**选项：**
+- `--user` - 删除用户级配置
+
+**示例：**
+```bash
+# 取消项目级的包管理器设置，恢复内置默认（npm）
+$ colyn config unset systemCommands.npm
+✓ 已删除配置：systemCommands.npm (项目)
 ```
 
 ### 配置文件优先级
@@ -180,7 +207,7 @@ $ colyn config set npm yarn --user
 1. **环境变量**：仅 `COLYN_LANG`
 2. **项目配置**：`.colyn/settings.json`
 3. **用户配置**：`~/.config/colyn/settings.json`
-4. **默认值**：`npm='npm'`、`lang='en'`
+4. **默认值**：`systemCommands.npm='npm'`、`lang='en'`
 
 ### 配置文件位置
 
@@ -262,7 +289,7 @@ $ echo "source ~/.colyn-completion.zsh" >> ~/.zshrc
 
 ## colyn setup
 
-配置 shell 集成（支持自动目录切换和命令补全）。
+配置 shell 集成（支持自动目录切换和命令补全），并集成 Claude Code（状态 hooks 与 skills）。
 
 ### 语法
 
@@ -272,14 +299,20 @@ colyn setup
 
 ### 功能说明
 
-`colyn setup` 自动完成 shell 集成配置：
+`colyn setup` 自动完成 shell 集成与 Claude Code 集成：
 
 **检测和配置：**
 1. 检测 shell 类型（bash/zsh）
 2. 检测 shell 配置文件路径
-3. 定位 colyn.sh 文件路径
-4. 添加 shell 集成到配置文件
-5. 添加补全脚本到配置文件
+3. 定位 colyn.sh 并生成命令补全脚本
+4. 添加 shell 集成和补全脚本到配置文件
+5. 配置 Claude Code 状态 hooks（写入 `~/.claude/settings.json`）
+6. 安装 Colyn 提供的 Claude skills（复制到 `~/.claude/skills/`）
+
+**Claude Code 集成（步骤 5–6）：**
+- **状态 hooks**：写入三个 hook，让 Claude Code 会话状态实时同步到 worktree 状态——提交提示时设为 `running`、弹出确认（AskUserQuestion）时设为 `waiting-confirm`、会话停止时设为 `finish`。这些状态会显示在 `colyn list` 的状态列中。
+- **Claude skills**：把 Colyn 内置的 skills 复制到 `~/.claude/skills/`，并将其中的 `colyn` 命令替换为绝对路径。
+- 这两步为非致命操作：失败时仅显示警告，不中断 setup。
 
 **更新策略：**
 - 如果配置已存在：更新路径
@@ -301,6 +334,12 @@ $ colyn setup
 配置 shell 集成...
 ✓ 已添加 shell 集成到 ~/.zshrc
 ✓ 已添加补全脚本到 ~/.zshrc
+
+配置 Claude Code hooks...
+✓ 已添加 Claude Code 状态 hooks
+
+安装 Claude skills...
+✓ 已安装 Claude skills: colyn-todo
 
 ✓ 安装完成！
 

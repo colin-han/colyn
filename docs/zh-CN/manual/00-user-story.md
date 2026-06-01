@@ -297,7 +297,7 @@ Ctrl-b 3  → 数据仪表盘
 
 ```bash
 # 在 worktrees/task-1 目录中
-colyn merge --push
+colyn merge
 ```
 
 他不需要指定 worktree ID——Colyn 自动识别当前所在的 worktree。
@@ -330,7 +330,7 @@ colyn merge
 请在当前 worktree 中解决冲突后重试
 ```
 
-冲突发生在 worktree 里，主分支不受影响。小明在 worktree 中解决冲突、提交，然后再次 `colyn merge --push`，干净利落。
+冲突发生在 worktree 里，主分支不受影响。小明在 worktree 中解决冲突、提交，然后再次 `colyn merge`，干净利落。
 
 ### 复用 Worktree：最高效的方式
 
@@ -431,7 +431,7 @@ tmux attach -t my-task-app
 随时想到新点子 → colyn todo add 捕获灵感
 某个 worktree 空闲 → colyn todo start 挑选下一个任务
                    → 粘贴到 Claude → 补充细节 → AI 开工
-开发完成 → colyn merge --push
+开发完成 → colyn merge
 定期整理 → colyn todo archive -y（归档已完成任务）
 ```
 

@@ -203,6 +203,42 @@ $ npm run dev
 
 ---
 
+## colyn tmux 命令
+
+除了 `colyn add` / `colyn init` 等命令会自动管理 tmux，Colyn 还提供 `colyn tmux` 命令，用于手动启动或结束项目的 tmux 环境。
+
+### colyn tmux start
+
+启动并修复项目的 tmux session 和 windows：session 不存在时创建（detached），为缺失的 worktree 创建 window 并应用 3-pane 布局。`colyn tmux`（无子命令）等同于 `colyn tmux start`。
+
+```bash
+# 启动 / 修复当前项目的 tmux 环境
+colyn tmux start
+
+# 等价写法
+colyn tmux
+```
+
+### colyn tmux stop
+
+结束当前项目的 tmux session。
+
+| 选项 | 说明 |
+|------|------|
+| `-f` / `--force` | 跳过确认直接结束 |
+
+```bash
+# 结束当前项目的 session（会先确认）
+colyn tmux stop
+
+# 跳过确认直接结束
+colyn tmux stop --force
+```
+
+> 注：session 名称等于项目名。结束 session 只关闭 tmux 工作环境，不影响 worktree 目录或代码。
+
+---
+
 ## iTerm2 集成
 
 ### 自动 Tab Title 同步
@@ -833,7 +869,7 @@ fix                        → Window name: fix
 # 每周清理已合并的 worktrees
 $ colyn list
 # 检查哪些功能已完成
-$ colyn merge 1 --push
+$ colyn merge 1
 $ colyn remove 1
 ```
 

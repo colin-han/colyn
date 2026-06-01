@@ -203,6 +203,42 @@ $ npm run dev
 
 ---
 
+## colyn tmux Commands
+
+Besides commands like `colyn add` / `colyn init` that manage tmux automatically, Colyn provides the `colyn tmux` command to manually start or stop the project's tmux environment.
+
+### colyn tmux start
+
+Start and repair the project's tmux session and windows: creates the session (detached) if it doesn't exist, and creates windows with the 3-pane layout for any missing worktrees. `colyn tmux` (no subcommand) is equivalent to `colyn tmux start`.
+
+```bash
+# Start / repair the current project's tmux environment
+colyn tmux start
+
+# Equivalent form
+colyn tmux
+```
+
+### colyn tmux stop
+
+Stop the current project's tmux session.
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--force` | Skip confirmation and stop immediately |
+
+```bash
+# Stop the current project's session (asks for confirmation first)
+colyn tmux stop
+
+# Skip confirmation and stop immediately
+colyn tmux stop --force
+```
+
+> Note: the session name equals the project name. Stopping a session only closes the tmux working environment; it does not affect worktree directories or code.
+
+---
+
 ## iTerm2 Integration
 
 ### Automatic Tab Title Synchronization
@@ -833,7 +869,7 @@ fix                        → Window name: fix
 # Clean up merged worktrees weekly
 $ colyn list
 # Check which features are complete
-$ colyn merge 1 --push
+$ colyn merge 1
 $ colyn remove 1
 ```
 

@@ -325,8 +325,6 @@ Hints:
     // merge command
     merge: {
       description: 'Merge worktree branch back to main branch',
-      pushOption: 'Auto push to remote after merge',
-      noPushOption: 'Do not push after merge (skip prompt)',
       noRebaseOption: 'Use merge instead of rebase to update worktree',
       noUpdateOption: 'Do not auto-update after merge',
       noFetchOption: 'Skip fetching latest code from remote',

@@ -288,8 +288,8 @@ git pull origin main
 # 2. 如果有冲突，解决后再推送
 git push origin main
 
-# 或使用 colyn merge 的 --push 选项
-colyn merge 1 --push
+# 或使用 colyn merge 合并
+colyn merge 1
 ```
 
 ---

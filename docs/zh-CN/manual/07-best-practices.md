@@ -165,7 +165,7 @@ colyn add feature/quick-fix      # 创建 task-3
 cd worktrees/task-1
 colyn checkout feature/new-feature    # 在 task-1 中切换到新功能
 # 完成后合并
-colyn merge --push
+colyn merge
 
 # 继续下一个功能，仍在 task-1 中
 colyn checkout feature/another-feature
@@ -182,17 +182,17 @@ cd worktrees/task-1
 # 开发功能 A
 colyn checkout feature/user-auth
 # ... 开发、测试、提交 ...
-colyn merge --push
+colyn merge
 
 # 切换到功能 B（同一个 worktree）
 colyn checkout feature/dashboard
 # ... 开发、测试、提交 ...
-colyn merge --push
+colyn merge
 
 # 切换到 Bug 修复（同一个 worktree）
 colyn checkout bugfix/issue-123
 # ... 修复、测试、提交 ...
-colyn merge --push
+colyn merge
 ```
 
 **优势**：
@@ -390,12 +390,12 @@ colyn merge 1
 3. 使用 `--no-ff` 保持清晰的分支历史
 4. 合并失败时在 worktree 中解决冲突
 
-**推送到远程**：
+**合并到主分支**：
 
 ```bash
-# 在 worktree 中合并并推送
+# 在 worktree 中合并
 cd worktrees/task-1
-colyn merge --push
+colyn merge
 ```
 
 ### 处理合并冲突
@@ -758,7 +758,7 @@ git add src/component.tsx
 git commit -m "feat: implement feature"
 
 # 功能完成
-colyn merge --push
+colyn merge
 
 # 继续下一个功能（复用同一个 worktree）
 colyn checkout feature/next-task
@@ -805,7 +805,7 @@ colyn checkout bugfix/issue-123
 npm run test
 
 # 合并修复
-colyn merge --push
+colyn merge
 
 # 继续下一个 Bug（复用同一个 worktree）
 colyn checkout bugfix/issue-124
@@ -897,15 +897,15 @@ colyn add feature/workspace-1   # 只创建一次
 # 在同一个 worktree 中切换功能
 colyn checkout feature/a
 # 完成后
-colyn merge --push
+colyn merge
 
 colyn checkout feature/b
 # 完成后
-colyn merge --push
+colyn merge
 
 colyn checkout feature/c
 # 完成后
-colyn merge --push
+colyn merge
 ```
 
 ### ❌ 忽略未提交的更改

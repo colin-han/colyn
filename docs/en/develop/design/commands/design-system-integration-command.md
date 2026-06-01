@@ -212,6 +212,19 @@ Three phases:
      ✓ Use Tab key to auto-complete commands and arguments
    ```
 
+### 3.4 Claude Code Integration
+
+Besides shell integration, `colyn setup` also configures Claude Code integration (both are non-fatal: on failure they only warn and do not interrupt the flow):
+
+1. **Status hooks**: writes three hooks into `~/.claude/settings.json` so Claude Code session state syncs to worktree status in real time:
+   - `UserPromptSubmit` → `colyn status set running`
+   - `PreToolUse` (matcher `AskUserQuestion`) → `colyn status set waiting-confirm`
+   - `Stop` → `colyn status set finish`
+
+   These statuses appear in the status column of `colyn list`. The hook commands use the absolute path to the colyn binary, wrapped with `2>/dev/null || true` to avoid interfering with Claude Code.
+
+2. **Claude skills installation**: recursively copies Colyn's bundled `skills/<skill-name>/` directories into `~/.claude/skills/`, rewriting the `colyn` command in `SKILL.md` bash blocks to an absolute path.
+
 ---
 
 ## 4. Input and Output
@@ -282,6 +295,8 @@ Three phases:
 - [x] First-time configuration: Add source command to config file
 - [x] Update configuration: Replace existing source command path
 - [x] Auto-create config file when it doesn't exist
+- [x] Configure Claude Code status hooks (written to `~/.claude/settings.json`)
+- [x] Install Colyn's bundled Claude skills (copied to `~/.claude/skills/`)
 
 ### 7.2 Output Information
 

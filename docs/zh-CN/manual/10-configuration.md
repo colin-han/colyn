@@ -397,10 +397,10 @@ cat .colyn/settings.json
 
 ```bash
 # 设置用户级默认包管理器
-colyn config set npm yarn --user
+colyn config set systemCommands.npm yarn --user
 
 # 设置项目级包管理器
-colyn config set npm pnpm
+colyn config set systemCommands.npm pnpm
 ```
 
 #### systemCommands.claude
@@ -993,15 +993,19 @@ colyn config get <key> --user
 ```
 
 **支持的 key**:
-- `npm` - 包管理器
 - `lang` - 界面语言
-- `branchCategories` - 分支类型列表（返回合并后的完整列表，JSON 格式）
+- `verbose` - 是否默认显示详细输出
+- `systemCommands.npm` / `systemCommands.claude` - 系统命令（包管理器 / Claude CLI）
+- `commands.merge.*` / `commands.update.*` / `commands.release.*` / `commands.checkout.fetch` - 各命令开关的默认值
+- `branchCategories` - 分支类型列表（仅 `get`，返回合并后的完整列表，JSON 格式）
+
+> 完整的配置键说明见[命令参考 · config](04-command-reference/03-system-config.md)。
 
 **示例**:
 
 ```bash
 # 查看当前项目的包管理器
-colyn config get npm
+colyn config get systemCommands.npm
 
 # 查看用户级语言设置
 colyn config get lang --user
@@ -1027,13 +1031,16 @@ colyn config set <key> <value> --user
 colyn config set lang zh-CN --user
 
 # 设置项目级包管理器为 yarn
-colyn config set npm yarn
+colyn config set systemCommands.npm yarn
 
 # 设置用户级包管理器为 pnpm
-colyn config set npm pnpm --user
+colyn config set systemCommands.npm pnpm --user
+
+# 删除某个配置项，恢复内置默认
+colyn config unset systemCommands.npm
 ```
 
-**⚠️ 注意**: `config set` 命令只支持 `npm` 和 `lang` 两个配置项。Tmux 相关配置需要手动编辑配置文件。
+**⚠️ 注意**: `config set` / `config unset` 支持 `lang`、`verbose`、`systemCommands.*`、`commands.*` 等点分键（完整列表见[命令参考 · config](04-command-reference/03-system-config.md)）。Tmux 相关配置需要手动编辑配置文件。
 
 ---
 

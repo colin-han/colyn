@@ -29,7 +29,7 @@ Colyn uses Git worktrees for parallel Vibe Coding. When switching between multip
 |---------|-----------------|-------|
 | `colyn add` | When creating a new worktree | Triggered after `setupWindow()` creates the window, and again after `switchWindow()` switches to it |
 | `colyn checkout` | When switching to an existing worktree | Triggered after the switch completes, regardless of tmux environment |
-| `colyn tmux repair` | When repairing a tmux window | Triggered via `setupWindow()` |
+| `colyn tmux start` | When starting/repairing a tmux session and window | Triggered via `setupWindow()` |
 
 ### 2.2 Trigger Conditions
 

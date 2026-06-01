@@ -70,7 +70,7 @@ Develop a command-line tool `colyn` to:
      - Automatically check working directory status (both main branch and worktree must be clean)
      - Two-step merge strategy: first merge main branch in worktree, then merge worktree in main branch
      - Use --no-ff merge to maintain clear commit history
-     - Optional push to remote (--push)
+     - Merge is performed locally only; run `git push` manually if you need to push to remote
    - **Special Handling**:
      - Keep worktree after merge (don't auto-delete)
      - Conflicts occur in worktree, convenient to resolve in development environment
@@ -204,10 +204,7 @@ graph TD
     D --> E{Confirm merge?}
     E -->|Yes| F[Execute merge]
     E -->|No| G[Cancel operation]
-    F --> H{Need to push?}
-    H -->|Yes| I[colyn merge 1 --push]
-    H -->|No| J[Local merge only]
-    I --> K[Merged and pushed]
+    F --> J[Local merge only]
 ```
 
 **Steps**:
@@ -215,7 +212,7 @@ graph TD
 2. Run `colyn merge 1` or `colyn merge feature/login`
 3. View merge preview information
 4. Confirm merge
-5. (Optional) Run `colyn merge feature/login --push` to push to remote
+5. If you need to push to remote, run `git push` manually
 
 **Expected Result**: Feature branch merged to main branch, worktree retained for future use
 
@@ -291,7 +288,6 @@ graph TD
 | Branch name | Create/checkout worktree | Feature branch name to develop | `feature/login` |
 | Main port | Initialize project | Main branch development server port | `10000` |
 | Worktree ID | Merge/delete/query | Identify specific worktree | `1`, `2` |
-| Push option | When merging (optional) | Whether to push to remote | `--push`, `--no-push` |
 
 ### 4.2 Tool Output
 
@@ -400,7 +396,7 @@ graph TD
 - [x] Initialization feature (`init`): Correctly reorganize project structure and configure environment variables
 - [x] Create worktree (`add`): Auto-assign id and port, intelligently handle branches
 - [x] List view (`list`): Display all worktree information
-- [x] Merge worktree (`merge`): Two-step merge strategy, support push option
+- [x] Merge worktree (`merge`): Two-step merge strategy, local merge only
 - [x] Delete worktree (`remove`): Safe deletion, automatic directory switching
 - [x] Checkout branch (`checkout`): Switch branches in worktree, auto-archive logs
 - [x] View project info (`info`): Display current directory's project info
@@ -564,7 +560,6 @@ colyn list
 # Merge
 colyn merge 1                 # Merge to local only
 colyn merge feature-login     # Use branch name
-colyn merge 1 --push          # Merge and push
 
 # Delete
 colyn remove 1                # Delete worktree

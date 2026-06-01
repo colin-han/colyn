@@ -397,10 +397,10 @@ cat .colyn/settings.json
 
 ```bash
 # Set user-level default package manager
-colyn config set npm yarn --user
+colyn config set systemCommands.npm yarn --user
 
 # Set project-level package manager
-colyn config set npm pnpm
+colyn config set systemCommands.npm pnpm
 ```
 
 #### systemCommands.claude
@@ -993,15 +993,19 @@ colyn config get <key> --user
 ```
 
 **Supported keys**:
-- `npm` - Package manager
 - `lang` - Interface language
-- `branchCategories` - Branch type list (returns the merged complete list, in JSON format)
+- `verbose` - Whether to show verbose output by default
+- `systemCommands.npm` / `systemCommands.claude` - System commands (package manager / Claude CLI)
+- `commands.merge.*` / `commands.update.*` / `commands.release.*` / `commands.checkout.fetch` - Default values for each command's switches
+- `branchCategories` - Branch type list (`get` only, returns the merged complete list, in JSON format)
+
+> See [Command Reference · config](04-command-reference/03-system-config.md) for the full list of configuration keys.
 
 **Examples**:
 
 ```bash
 # View the package manager for the current project
-colyn config get npm
+colyn config get systemCommands.npm
 
 # View the user-level language setting
 colyn config get lang --user
@@ -1027,13 +1031,16 @@ colyn config set <key> <value> --user
 colyn config set lang zh-CN --user
 
 # Set project-level package manager to yarn
-colyn config set npm yarn
+colyn config set systemCommands.npm yarn
 
 # Set user-level package manager to pnpm
-colyn config set npm pnpm --user
+colyn config set systemCommands.npm pnpm --user
+
+# Remove a configuration item, reverting to the built-in default
+colyn config unset systemCommands.npm
 ```
 
-**Note**: The `config set` command only supports the `npm` and `lang` configuration options. Tmux-related configuration requires manual editing of the configuration file.
+**Note**: `config set` / `config unset` support dotted keys such as `lang`, `verbose`, `systemCommands.*`, and `commands.*` (see [Command Reference · config](04-command-reference/03-system-config.md) for the full list). Tmux-related configuration requires manual editing of the configuration file.
 
 ---
 

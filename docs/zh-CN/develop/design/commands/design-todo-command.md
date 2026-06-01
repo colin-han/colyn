@@ -95,15 +95,16 @@ pending ────────────────────────
 
 ## 5. 子命令设计
 
-### 5.1 `colyn todo add [todoId] [message]`
+### 5.1 `colyn todo add [todoId] [message...]`
 
-添加新的待办任务。所有参数均为可选，无参数时完全交互式。
+添加新的待办任务。所有参数均为可选，无参数时完全交互式。`message` 为变长参数（commander 的 `[message...]`），可不加引号传入多个词，内部以空格拼接为完整描述。
 
 **参数解析逻辑**：
 
 ```
-无 todoId → 交互式选择 type + 输入 name
+无 todoId  → 交互式选择 type + 输入 name
 无 message → 打开编辑器（$VISUAL / $EDITOR / vim）
+有 message → 多个词以空格拼接为任务描述
 ```
 
 **编辑器模板**（Markdown 格式，以 `# ` 开头的行为注释）：

@@ -158,7 +158,7 @@ colyn add [branch]
 - 自动分配 ID（递增）
 - 自动分配端口号（主端口 + ID）
 - 复制主分支环境变量并更新 PORT 和 WORKTREE
-- 执行后自动切换到 Worktree 目录
+- 执行后自动切换到 Worktree 目录（需启用 shell 集成）
 
 **tmux 集成**（如果在 tmux 中）：
 - 自动创建新的 tmux window
@@ -192,25 +192,29 @@ $ pwd
 ✔ 使用本地分支: feature/login
 ✔ Worktree 创建完成: task-1
 ✔ 环境变量配置完成
-✔ 配置文件更新完成
 
 ✓ Worktree 创建成功！
 
 Worktree 信息：
   ID: 1
   分支: feature/login
-  路径: /path/to/worktrees/task-1
+  路径: worktrees/task-1
   端口: 10001
 
 后续操作：
-  1. 启动开发服务器（端口已自动配置）：
+  1. 进入 worktree 目录：
+     cd worktrees/task-1
+
+  2. 启动开发服务器（端口已自动配置）：
      npm run dev
 
-  2. 查看所有 worktree：
+  3. 查看所有 worktree：
      colyn list
 
-📂 已切换到: /path/to/worktrees/task-1
+📂 已切换到: worktrees/task-1
 ```
+
+> 说明：若已启用 shell 集成，命令会自动切换到 worktree 目录（即末尾的 `📂 已切换到`），上面第 1 步的 `cd` 可省略；未启用 shell 集成时则需手动执行该 `cd`。
 
 创建后的目录结构：
 
@@ -239,7 +243,7 @@ my-project/
 - 分支名会自动去除 `origin/` 前缀
 - 交互选择器中的本地分支会自动忽略主分支目录当前分支
 - 交互选择器中若选择 Todo 分支，会自动完成 Todo 并复制 message 到剪贴板
-- 命令执行后会自动切换到新创建的 worktree 目录
+- 启用 shell 集成后（运行 `colyn setup` 即可配置），命令执行后会自动切换到新创建的 worktree 目录；未启用时不会切换，可按提示手动 `cd`
 
 ---
 
@@ -571,14 +575,16 @@ colyn merge [target] [选项]
 
 ### 选项
 
-| 选项 | 说明 |
-|------|------|
-| `--no-rebase` | 使用 merge 而非 rebase 更新 worktree |
-| `--no-update` | 合并后不自动更新当前 worktree |
-| `--update-all` | 合并后更新所有 worktrees |
-| `--no-fetch` | 跳过从远程拉取主分支最新代码 |
-| `--skip-build` | 跳过 lint 和 build 检查 |
-| `--verbose` / `-v` | 显示 lint/build 的完整命令输出（失败时） |
+所有开关型选项都有正 / 反两种形式，默认值可通过 `.colyn/settings.json` 的 `commands.merge.*` 覆盖（见配置手册）。
+
+| 选项 | 默认 | 说明 |
+|------|------|------|
+| `--build` / `--no-build` | `--build` | 是否运行工具链插件的 lint 和 build 检查；`--no-build` 跳过 |
+| `--rebase` / `--no-rebase` | `--rebase` | 更新 worktree 时使用 rebase；`--no-rebase` 改用 merge |
+| `--update` / `--no-update` | `--update` | 合并后是否用主分支最新代码自动更新 worktree |
+| `--fetch` / `--no-fetch` | `--fetch` | 更新前是否从远程 fetch 主分支最新代码 |
+| `--all` / `--no-all`（别名 `--current-only`） | `--all` | 更新范围：所有 worktree 还是仅当前 worktree（仅在 `--update` 生效时有意义） |
+| `-v, --verbose` / `--no-verbose` | `--no-verbose` | 是否显示 lint/build 的完整命令输出（失败时） |
 
 ### 功能说明
 
@@ -591,6 +597,10 @@ colyn merge [target] [选项]
 **步骤 2：在主分支中合并 Worktree 分支**
 - 在主分支中执行 `git merge --no-ff <branch>`
 - 强制创建合并提交，保持清晰的分支历史
+
+**步骤 3：合并后自动更新 worktree（默认行为）**
+- 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）
+- 默认更新**所有** worktree，使其同步主分支最新代码（`--current-only` 仅更新当前 worktree；`--no-update` 完全跳过更新，此时 `--all` 不生效）
 
 **前置检查：**
 - 主分支工作目录必须干净

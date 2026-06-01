@@ -70,7 +70,7 @@
      - 自动检查工作目录状态（主分支和 worktree 都需干净）
      - 两步合并策略：先在 worktree 合并主分支，再在主分支合并 worktree
      - 使用 --no-ff 合并保持清晰的提交历史
-     - 可选推送到远程（--push）
+     - 仅在本地完成合并，如需推送到远程请手动执行 `git push`
    - **特殊处理**：
      - 合并后保留 worktree（不自动删除）
      - 冲突发生在 worktree 中，便于在开发环境解决
@@ -204,10 +204,7 @@ graph TD
     D --> E{确认合并?}
     E -->|是| F[执行合并]
     E -->|否| G[取消操作]
-    F --> H{需要推送?}
-    H -->|是| I[colyn merge 1 --push]
-    H -->|否| J[✓ 仅本地合并]
-    I --> K[✓ 合并并推送]
+    F --> J[✓ 仅本地合并]
 ```
 
 **操作步骤**：
@@ -215,7 +212,7 @@ graph TD
 2. 运行 `colyn merge 1` 或 `colyn merge feature/login`
 3. 查看合并预览信息
 4. 确认合并
-5. （可选）运行 `colyn merge feature/login --push` 推送到远程
+5. 如需推送到远程，手动执行 `git push`
 
 **预期结果**：功能分支合并到主分支，worktree 保留供后续使用
 
@@ -291,7 +288,6 @@ graph TD
 | 分支名称 | 创建/签出 worktree | 要开发的功能分支名 | `feature/login` |
 | 主端口号 | 初始化项目 | 主分支开发服务器的端口 | `10000` |
 | Worktree ID | 合并/删除/查询 | 识别特定的 worktree | `1`, `2` |
-| 推送选项 | 合并时（可选） | 是否推送到远程 | `--push`, `--no-push` |
 
 ### 4.2 工具提供的信息
 
@@ -400,7 +396,7 @@ graph TD
 - [x] 初始化功能（`init`）：正确重组项目结构并配置环境变量
 - [x] 创建 worktree（`add`）：自动分配 id 和端口，智能处理分支
 - [x] 列表查看（`list`）：展示所有 worktree 信息
-- [x] 合并 worktree（`merge`）：两步合并策略，支持推送选项
+- [x] 合并 worktree（`merge`）：两步合并策略，仅本地合并
 - [x] 删除 worktree（`remove`）：安全删除，自动目录切换
 - [x] 签出分支（`checkout`）：在 worktree 中切换分支，自动归档日志
 - [x] 查看项目信息（`info`）：显示当前目录的项目信息
@@ -564,7 +560,6 @@ colyn list
 # 合并
 colyn merge 1                 # 仅合并到本地
 colyn merge feature-login     # 使用分支名
-colyn merge 1 --push          # 合并并推送
 
 # 删除
 colyn remove 1                # 删除 worktree

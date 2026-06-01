@@ -177,8 +177,8 @@ colyn merge 1
 # 或使用分支名
 colyn merge feature/login
 
-# 合并并推送到远程
-colyn merge 1 --push
+# 合并到主分支
+colyn merge 1
 ```
 
 合并过程：

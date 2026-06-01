@@ -158,7 +158,7 @@ The created Worktree will:
 - Automatically assign an ID (incrementing)
 - Automatically assign a port number (main port + ID)
 - Copy main branch environment variables and update PORT and WORKTREE
-- Automatically switch to the Worktree directory after execution
+- Automatically switch to the Worktree directory after execution (requires shell integration)
 
 **tmux integration** (when inside tmux):
 - Automatically creates a new tmux window
@@ -192,25 +192,29 @@ $ pwd
 ✔ Using local branch: feature/login
 ✔ Worktree created: task-1
 ✔ Environment variables configured
-✔ Config files updated
 
 ✓ Worktree created successfully!
 
 Worktree info:
   ID: 1
   Branch: feature/login
-  Path: /path/to/worktrees/task-1
+  Path: worktrees/task-1
   Port: 10001
 
 Next steps:
-  1. Start dev server (port already configured):
+  1. Enter worktree directory:
+     cd worktrees/task-1
+
+  2. Start dev server (port auto-configured):
      npm run dev
 
-  2. View all worktrees:
+  3. View all worktrees:
      colyn list
 
-📂 Switched to: /path/to/worktrees/task-1
+📂 Switched to: worktrees/task-1
 ```
+
+> Note: With shell integration enabled, the command switches to the worktree directory automatically (the trailing `📂 Switched to`), so step 1's `cd` can be skipped; without shell integration, run that `cd` manually.
 
 Directory structure after creation:
 
@@ -239,7 +243,7 @@ my-project/
 - Branch name automatically strips `origin/` prefix
 - Local branches in the selector automatically exclude the current branch in the main-branch directory
 - Selecting a todo branch in the selector will auto-complete the todo and copy its message
-- After execution, automatically switches to the newly created worktree directory
+- With shell integration enabled (configured by running `colyn setup`), the command switches to the newly created worktree directory after execution; without it, no switch occurs and you can `cd` manually
 
 ---
 
@@ -570,14 +574,16 @@ colyn merge [target] [options]
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--no-rebase` | Use merge instead of rebase to update worktree |
-| `--no-update` | Do not automatically update current worktree after merge |
-| `--update-all` | Update all worktrees after merge |
-| `--no-fetch` | Skip fetching latest main branch from remote |
-| `--skip-build` | Skip lint and build checks |
-| `--verbose` / `-v` | Show full lint/build command output (on failure) |
+All toggle options come in positive / negative forms. Defaults can be overridden via `commands.merge.*` in `.colyn/settings.json` (see the configuration manual).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--build` / `--no-build` | `--build` | Whether to run the toolchain plugins' lint and build checks; `--no-build` skips them |
+| `--rebase` / `--no-rebase` | `--rebase` | Use rebase to update the worktree; `--no-rebase` uses merge instead |
+| `--update` / `--no-update` | `--update` | Whether to automatically update worktrees with the latest main branch code after merge |
+| `--fetch` / `--no-fetch` | `--fetch` | Whether to fetch the latest main branch from remote before updating |
+| `--all` / `--no-all` (alias `--current-only`) | `--all` | Update scope: all worktrees or only the current one (only meaningful when `--update` is active) |
+| `-v, --verbose` / `--no-verbose` | `--no-verbose` | Whether to show full lint/build command output (on failure) |
 
 ### Description
 
@@ -590,6 +596,10 @@ colyn merge [target] [options]
 **Step 2: Merge Worktree branch in main branch**
 - Run `git merge --no-ff <branch>` in the main branch
 - Forces a merge commit for clear branch history
+
+**Step 3: Automatically update worktrees after merge (default behavior)**
+- By default, first `fetch` the latest main branch from remote (`--no-fetch` skips this)
+- By default, update **all** worktrees so they sync with the latest main branch (`--current-only` updates only the current worktree; `--no-update` skips updating entirely, in which case `--all` has no effect)
 
 **Pre-checks:**
 - Main branch working directory must be clean
