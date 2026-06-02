@@ -28,7 +28,10 @@ colyn co [worktree-id] [branch] [选项]
 
 | 选项 | 说明 |
 |------|------|
+| `--fetch` | 切换前从远程获取分支信息（默认行为） |
 | `--no-fetch` | 跳过从远程获取分支信息 |
+
+> **关于 fetch 行为：** fetch 默认开启，切换前会先从远程获取分支信息；fetch 成功后还会顺带更新主分支（如果主分支落后于远程）。使用 `--no-fetch` 会同时跳过 fetch 和主分支更新这两个步骤。
 
 ### 功能说明
 
@@ -161,7 +164,7 @@ colyn info [选项]
 | 字段名 | 说明 | 示例值 |
 |--------|------|--------|
 | `project` | 主目录名称 | `myapp` |
-| `project-path` | 主目录完整路径 | `/Users/me/work/myapp/myapp` |
+| `project-path` | 主目录完整路径 | `/Users/me/work/myapp` |
 | `worktree-id` | Worktree ID（主分支为 0） | `1` |
 | `worktree-dir` | Worktree 目录名 | `task-1` |
 | `worktree-path` | Worktree 目录完整路径 | `/Users/me/work/myapp/worktrees/task-1` |
@@ -197,7 +200,7 @@ colyn info [选项]
 ```bash
 $ colyn info
 📁 Project:       myapp
-📂 Project Path:  /Users/me/work/myapp/myapp
+📂 Project Path:  /Users/me/work/myapp
 🔢 Worktree ID:   1
 📁 Worktree Dir:  task-1
 📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1

@@ -165,7 +165,7 @@ In `colyn list` output:
 ┌────────┬─────────────┐
 │ ID     │ Branch      │
 ├────────┼─────────────┤
-│ 0-main │ main        │  ← Main branch shown as "0-main"
+│ 0      │ main        │  ← Main branch shown as "0"
 │ 1      │ feature/a   │  ← Other worktrees show only number
 │ 2      │ feature/b   │
 └────────┴─────────────┘

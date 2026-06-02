@@ -29,6 +29,7 @@ colyn release [version-type] [options]
 | `--no-version-update` | Skip reading/bumping the version, commit, and tag; push the current branch only |
 | `--no-tag` | Skip git tag creation while still bumping the version and pushing the branch |
 | `--verbose` / `-v` | Show full command output for install/lint/build (on failure) |
+| `--no-verbose` | Disable verbose output (opposite of `--verbose`) |
 
 ### Description
 
@@ -38,12 +39,11 @@ colyn release [version-type] [options]
 1. Check current directory for uncommitted code
 2. Check if current branch is merged (only when executing from a worktree)
 3. Check git status (main branch)
-4. Install dependencies (using the configured package manager command)
-5. Run lint and build
-6. Update package.json version
-7. Create commit and tag
-8. Push to remote
-9. **Auto-update all worktrees (unless `--no-update` is used)**
+4. Install dependencies, run lint and build (driven by toolchain plugins: executed only when the project has the corresponding plugin configured, skipped otherwise; lint and build can additionally be skipped via `--no-build`)
+5. Update package.json version
+6. Create commit and tag
+7. Push to remote
+8. **Auto-update all worktrees (unless `--no-update` is used)**
 
 ### Location Rules
 
@@ -96,8 +96,65 @@ $ colyn release patch --no-tag
 
 - **Most common usage**: Just run `colyn release` to release a patch version
 - No need to manually switch to the main branch directory
-- Package manager command is configured via `colyn config set npm <command>` (default `npm`)
+- Package manager command is configured via `colyn config set systemCommands.npm <command>` (default `npm`)
 - Auto-updates all worktrees by default, ensuring all development branches are based on the latest version
+
+---
+
+## colyn update
+
+Update worktrees with the latest main branch code. **Updates all worktrees by default.**
+
+### Syntax
+
+```bash
+colyn update [target] [options]
+```
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `target` | No | Supports:<br>- Number: look up by ID (e.g. `1`)<br>- Branch name: look up by branch (e.g. `feature/login`)<br>- Omitted: update **all** worktrees by default |
+
+### Options
+
+All toggle options come in positive / negative forms. Defaults can be overridden via `commands.update.*` in `.colyn/settings.json` (see the configuration manual).
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--rebase` / `--no-rebase` | `--rebase` | Use rebase to update; `--no-rebase` uses merge instead |
+| `--fetch` / `--no-fetch` | `--fetch` | Whether to fetch the latest main branch from remote before updating |
+| `--all` / `--no-all` (alias `--current-only`) | `--all` | Update scope: all worktrees or only the current one |
+
+### Description
+
+`colyn update` syncs worktrees with the latest main branch code:
+
+- By default, first `fetch` the latest main branch from remote (`--no-fetch` skips this)
+- By default, use `rebase` to apply main branch code onto the worktree branch (`--no-rebase` uses merge)
+- **When no `target` is given, updates all worktrees by default**; specifying a `target` (ID or branch name) or using `--current-only` updates only that single worktree
+
+> Relationship with `colyn merge`: after a merge completes, the same update flow runs automatically (see "Step 3" of `colyn merge`).
+
+### Examples
+
+```bash
+# Update all worktrees (default)
+$ colyn update
+
+# Update only the current worktree
+$ colyn update --current-only
+
+# Update a specific worktree by ID
+$ colyn update 1
+
+# Update by branch name
+$ colyn update feature/login
+
+# Skip fetch (offline scenario)
+$ colyn update --no-fetch
+```
 
 ---
 
@@ -117,7 +174,7 @@ Without a subcommand, equivalent to `colyn todo list`, showing all pending tasks
 
 | Subcommand | Description |
 |-----------|-------------|
-| `add [todoId] [message]` | Add a Todo task |
+| `add [todoId] [message...]` | Add a Todo task |
 | `start [todoId]` | Start a task (switch branch + copy description to clipboard) |
 | `list` / `ls` | List tasks (shows pending by default) |
 | `edit [todoId] [message]` | Edit a Todo task's description |
@@ -148,7 +205,7 @@ Add a new pending task. All parameters are optional; entering with no arguments 
 #### Syntax
 
 ```bash
-colyn todo add [todoId] [message]
+colyn todo add [todoId] [message...]
 ```
 
 #### Parameters
@@ -156,7 +213,7 @@ colyn todo add [todoId] [message]
 | Parameter | Description |
 |-----------|-------------|
 | `todoId` | Todo ID (format: `type/name`); interactive selection if omitted |
-| `message` | Task description; opens editor if omitted (supports Markdown) |
+| `message...` | Task description; may contain spaces without quotes (multiple words are joined automatically); opens editor if omitted (supports Markdown) |
 
 #### Examples
 
@@ -167,8 +224,11 @@ $ colyn todo add
 # Specify ID, enter description via editor
 $ colyn todo add feature/login
 
-# Specify everything directly
+# Specify everything directly (description in quotes)
 $ colyn todo add feature/login "Implement user login feature"
+
+# The description can also be unquoted; multiple words are joined automatically
+$ colyn todo add feature/login Implement user login feature
 ```
 
 #### Editor Notes
@@ -262,10 +322,10 @@ colyn todo           # Equivalent to this command when no subcommand given
 ```bash
 # Show pending tasks (default)
 $ colyn todo
-  Type     Name       Message                    Status   Created
-  ---------------------------------------------------------------
-  feature  login      Implement user login...    pending  2026/02/22 10:00
-  bugfix   fix-crash  Fix application crash      pending  2026/02/22 11:30
+  Type     Name       Message                    Created
+  ------------------------------------------------------
+  feature  login      Implement user login...    2026/02/22 10:00
+  bugfix   fix-crash  Fix application crash      2026/02/22 11:30
 
 # Show completed tasks
 $ colyn todo list --completed

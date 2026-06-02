@@ -96,8 +96,8 @@ tmux 状态栏显示：
 | Pane | 位置 | 大小 | 用途 |
 |------|------|------|------|
 | **Pane 0** | 左侧 | 60% | Claude Code（AI 编程助手）|
-| **Pane 1** | 右上 | 12% | Dev Server（开发服务器日志）|
-| **Pane 2** | 右下 | 28% | Bash（命令行操作）|
+| **Pane 1** | 右上 | 30% | Dev Server（开发服务器日志）|
+| **Pane 2** | 右下 | 70% | Bash（命令行操作）|
 
 ### 布局特点
 
@@ -125,8 +125,8 @@ $ colyn init -p 3000
 ✓ 已创建 tmux session: my-task-app
 ✓ 已设置 Window 0: main
   ├─ Claude Code  (左侧 60%)
-  ├─ Dev Server   (右上 12%)
-  └─ Bash         (右下 28%)
+  ├─ Dev Server   (右上 30%)
+  └─ Bash         (右下 70%)
 
 💡 提示: 运行 'tmux attach -t my-task-app' 进入工作环境
 ```
@@ -200,6 +200,42 @@ $ npm run dev
 - 切换到 worktree 目录
 - 不执行额外命令
 - 保持干净的 shell 环境
+
+---
+
+## colyn tmux 命令
+
+除了 `colyn add` / `colyn init` 等命令会自动管理 tmux，Colyn 还提供 `colyn tmux` 命令，用于手动启动或结束项目的 tmux 环境。
+
+### colyn tmux start
+
+启动并修复项目的 tmux session 和 windows：session 不存在时创建（detached），为缺失的 worktree 创建 window 并应用 3-pane 布局。`colyn tmux`（无子命令）等同于 `colyn tmux start`。
+
+```bash
+# 启动 / 修复当前项目的 tmux 环境
+colyn tmux start
+
+# 等价写法
+colyn tmux
+```
+
+### colyn tmux stop
+
+结束当前项目的 tmux session。
+
+| 选项 | 说明 |
+|------|------|
+| `-f` / `--force` | 跳过确认直接结束 |
+
+```bash
+# 结束当前项目的 session（会先确认）
+colyn tmux stop
+
+# 跳过确认直接结束
+colyn tmux stop --force
+```
+
+> 注：session 名称等于项目名。结束 session 只关闭 tmux 工作环境，不影响 worktree 目录或代码。
 
 ---
 
@@ -390,7 +426,7 @@ $ colyn list
 ┌────────┬──────────────────┬──────┐
 │ ID     │ 分支             │ 端口 │
 ├────────┼──────────────────┼──────┤
-│ 0-main │ main             │ 3000 │
+│ 0      │ main             │ 3000 │
 │ 1      │ feature/auth     │ 3001 │
 │ 2      │ feature/tasks    │ 3002 │
 │ 3      │ feature/dashboard│ 3003 │
@@ -481,7 +517,7 @@ $ colyn list
 ┌────────┬──────────────┬──────┐
 │ ID     │ 分支         │ 端口 │
 ├────────┼──────────────┼──────┤
-│ 0-main │ main         │ 3000 │
+│ 0      │ main         │ 3000 │
 │ 1      │ feature/auth │ 3001 │
 └────────┴──────────────┴──────┘
 
@@ -532,7 +568,7 @@ Pane 命令可以通过配置文件自定义（完全可选）。
 
 | 层级 | 路径 | 优先级 |
 |------|------|--------|
-| 用户级 | `~/.colyn/settings.json` | 低 |
+| 用户级 | `~/.config/colyn/settings.json` | 低 |
 | 项目级 | `{projectRoot}/.colyn/settings.json` | 高 |
 
 ### 配置格式
@@ -542,11 +578,11 @@ Pane 命令可以通过配置文件自定义（完全可选）。
   "tmux": {
     "autoRun": true,
     "leftPane": {
-      "command": "auto continues claude session",
+      "command": "continue claude session",
       "size": "60%"
     },
     "topRightPane": {
-      "command": "auto start dev server",
+      "command": "start dev server",
       "size": "30%"
     },
     "bottomRightPane": {
@@ -562,9 +598,9 @@ Pane 命令可以通过配置文件自定义（完全可选）。
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `autoRun` | boolean | `true` | 是否自动运行命令 |
-| `leftPane.command` | string \| null | `"auto continues claude session"` | 左侧 Pane 命令 |
+| `leftPane.command` | string \| null | `"continue claude session"` | 左侧 Pane 命令 |
 | `leftPane.size` | string | `"60%"` | 左侧 Pane 宽度 |
-| `topRightPane.command` | string \| null | `"auto start dev server"` | 右上 Pane 命令 |
+| `topRightPane.command` | string \| null | `"start dev server"` | 右上 Pane 命令 |
 | `topRightPane.size` | string | `"30%"` | 右上占右侧高度比例 |
 | `bottomRightPane.command` | string \| null | `null` | 右下 Pane 命令 |
 | `bottomRightPane.size` | string | `"70%"` | 右下占右侧高度比例 |
@@ -573,9 +609,10 @@ Pane 命令可以通过配置文件自定义（完全可选）。
 
 | 命令 | 说明 |
 |------|------|
-| `auto continues claude session` | 自动继续或启动 Claude 会话 |
-| `auto continues claude session with dangerously skip permissions` | 同上，但跳过权限检查 |
-| `auto start dev server` | 自动启动开发服务器 |
+| `continue claude session` | 自动继续或启动 Claude 会话 |
+| `start dev server` | 自动启动开发服务器 |
+
+> 如需让 Claude 跳过权限检查，请通过 `systemCommands.claude` 配置（例如 `"claude --dangerously-skip-permissions"`），而不是使用已废弃的内置命令。
 
 ### 配置示例
 
@@ -634,11 +671,11 @@ Pane 命令可以通过配置文件自定义（完全可选）。
 #### 两层配置合并
 
 ```json
-// ~/.colyn/settings.json（用户级）
+// ~/.config/colyn/settings.json（用户级）
 {
   "tmux": {
     "leftPane": {
-      "command": "auto continues claude session with dangerously skip permissions",
+      "command": "continue claude session",
       "size": "50%"
     }
   }
@@ -833,7 +870,7 @@ fix                        → Window name: fix
 # 每周清理已合并的 worktrees
 $ colyn list
 # 检查哪些功能已完成
-$ colyn merge 1 --push
+$ colyn merge 1
 $ colyn remove 1
 ```
 

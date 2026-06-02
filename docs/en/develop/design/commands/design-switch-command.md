@@ -80,16 +80,29 @@ From the user's perspective the only entry is `colyn <N>`, but internally this i
 process.argv  --(preprocess)-->  commander  --(dispatch)-->  switch handler  --(emit)-->  shell/colyn.sh
 ```
 
-#### Step 1: argv preprocessing (`src/cli.ts`)
+#### Step 1: argv preprocessing (`src/cli-preprocess.ts`)
 
-Add roughly 6 lines before `program.parse()`:
+`preprocessArgv(argv)` takes the full argv (including `argv[0]`/`argv[1]`), detects the case of "exactly one non-option argument that is pure digits", and inserts `'switch'` **after** the digit argument:
 
 ```ts
-// Detect: exactly one non-option arg, and it is pure digits
-const rest = process.argv.slice(2).filter(a => !a.startsWith('-'));
-if (rest.length === 1 && /^\d+$/.test(rest[0])) {
-  const idx = process.argv.findIndex(a => a === rest[0]);
-  process.argv.splice(idx, 0, 'switch');
+export function preprocessArgv(argv: string[]): string[] {
+  const args = argv.slice(2);
+  const nonOptionArgs = args.filter((a) => !a.startsWith('-'));
+
+  if (nonOptionArgs.length !== 1) return [...argv];
+  if (!/^\d+$/.test(nonOptionArgs[0])) return [...argv];
+
+  const digitArg = nonOptionArgs[0];
+  const digitIdx = args.indexOf(digitArg);
+
+  // Prevent mixed usage like `colyn 1 --foo` from being treated as quick switch
+  const hasOptionAfterDigit = args.slice(digitIdx + 1).some((a) => a.startsWith('-'));
+  if (hasOptionAfterDigit) return [...argv];
+
+  // Note: digitIdx is relative to args (argv.slice(2)); compensate with +2 for the full argv
+  const result = [...argv];
+  result.splice(digitIdx + 2, 0, 'switch');
+  return result;
 }
 ```
 
@@ -234,7 +247,7 @@ All error messages go to stderr. On error, **no** JSON control message is emitte
 ```
 Worktree task-9 does not exist
 Available worktrees:
-  0  main         (main directory)
+  0  main         main  (main directory)
   1  task-1       feature/foo
   2  task-2       feature/quick-switch
 ```
@@ -277,12 +290,13 @@ Per the project's "dual-layer architecture" rule:
 ### New
 
 - `src/commands/switch.ts`: command module — registers the hidden subcommand, performs target resolution, tmux detection, and emits the control message
+- `src/cli-preprocess.ts`: the `preprocessArgv()` argv preprocessing logic (standalone module for easy unit testing)
 - `docs/zh-CN/develop/design/commands/design-switch-command.md`: Chinese design doc
 - `docs/en/develop/design/commands/design-switch-command.md`: this document
 
 ### Modified
 
-- `src/cli.ts`: add argv preprocessing (~6 lines)
+- `src/cli.ts`: call `process.argv = preprocessArgv(process.argv)` before `program.parse()`
 - `src/commands/index.ts`: add `registerSwitch(program)` (existing pattern)
 - `shell/colyn.sh`: parse `attachWindow`; extend the existing `attachSession` branch
 - `src/i18n/locales/zh-CN.ts`: add `commands.switch.*`
@@ -308,16 +322,16 @@ Add `src/commands/switch.test.ts` (matching the project's existing test layout),
 | 6 | `colyn 99999` | same as #5 |
 | 7 | Not inside a colyn project | stderr error, exit 1 |
 
-argv preprocessing logic tested separately:
+argv preprocessing logic tested separately. Input is the full argv (including `argv[0]`/`argv[1]`, e.g. `["node", "colyn", ...]`):
 
 | # | Input argv | Expected |
 |---|-----------|----------|
-| 1 | `["1"]` | rewritten to `["switch", "1"]` |
-| 2 | `["add"]` | not rewritten |
-| 3 | `["1", "2"]` | not rewritten |
-| 4 | `["1", "--foo"]` | not rewritten |
-| 5 | `["--help"]` | not rewritten |
-| 6 | `["12abc"]` | not rewritten |
+| 1 | `["node", "colyn", "1"]` | rewritten to `["node", "colyn", "switch", "1"]` |
+| 2 | `["node", "colyn", "add"]` | not rewritten |
+| 3 | `["node", "colyn", "1", "2"]` | not rewritten |
+| 4 | `["node", "colyn", "1", "--foo"]` | not rewritten |
+| 5 | `["node", "colyn", "--help"]` | not rewritten |
+| 6 | `["node", "colyn", "12abc"]` | not rewritten |
 
 ## Compatibility
 

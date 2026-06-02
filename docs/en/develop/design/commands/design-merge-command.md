@@ -305,8 +305,8 @@ graph TD
 | Worktree exists | Find through discovery module | ID or branch name doesn't exist, run `colyn list` |
 | Main directory status | Is `git status` clean | Please commit or stash main branch changes first |
 | Worktree directory status | Is `git status` clean | Please commit worktree changes first |
-| Lint check | Run lint in worktree directory (plugin-driven; use `--skip-build` to skip, `-v` to see full output) | Please fix lint errors before merging |
-| Build check | Run build in worktree directory (plugin-driven; use `--skip-build` to skip, `-v` to see full output) | Please fix build errors before merging |
+| Lint check | Run lint in worktree directory (plugin-driven; use `--no-build` to skip, `-v` to see full output) | Please fix lint errors before merging |
+| Build check | Run build in worktree directory (plugin-driven; use `--no-build` to skip, `-v` to see full output) | Please fix build errors before merging |
 
 ---
 
@@ -320,9 +320,9 @@ sequenceDiagram
     participant WT as Git Worktree
     participant M as Git Main Branch
 
-    Note over C: Step 1: Merge main branch into worktree
+    Note over C: Step 1: Update main branch into worktree (rebase by default)
     C->>WT: cd <worktree-dir>
-    C->>WT: git merge <main-branch>
+    C->>WT: git rebase <main-branch> (git merge when --no-rebase)
 
     alt Merge successful
         WT->>C: Merge complete
@@ -339,10 +339,10 @@ sequenceDiagram
     end
 ```
 
-**Step 1: Merge main branch into worktree** (allow fast-forward)
+**Step 1: Update main branch code in worktree** (rebase by default; `--no-rebase` uses merge)
 ```bash
 cd <worktree-dir>
-git merge <main-branch>
+git rebase <main-branch>   # default; git merge <main-branch> when --no-rebase
 ```
 
 **Step 2: Merge worktree branch into main** (use --no-ff)
@@ -363,7 +363,35 @@ git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 
 ---
 
-### 3.4 Remote Push Strategy
+### 3.4 Update Worktrees After Merge (default behavior)
+
+After a successful merge, worktrees are updated to sync with the latest main branch code by default:
+
+```mermaid
+graph TD
+    Merged[Merge successful] --> Fetch{fetch remote?}
+    Fetch -->|default| DoFetch[git fetch latest main branch]
+    Fetch -->|--no-fetch| SkipFetch[skip fetch]
+    DoFetch --> Update{update scope}
+    SkipFetch --> Update
+    Update -->|default --all| All[update all worktrees]
+    Update -->|--current-only| Cur[update current worktree only]
+    Update -->|--no-update| None[no update]
+```
+
+**Design rules**:
+
+| Option | Default | Behavior |
+|--------|---------|----------|
+| `--fetch` / `--no-fetch` | fetch | Whether to fetch the latest main branch from remote before updating |
+| `--update` / `--no-update` | update | Whether to update worktrees after merge |
+| `--all` / `--current-only` | all | Update all worktrees or only the current one (only meaningful when `--update` is active) |
+
+> Note: This is post-merge syncing; the main branch is **not** auto-updated before merge (see the Out-of-Scope section).
+
+---
+
+### 3.5 Remote Push Strategy
 
 ```mermaid
 graph TD
@@ -383,7 +411,7 @@ graph TD
 
 ---
 
-### 3.5 Worktree Retention
+### 3.6 Worktree Retention
 
 Worktree is **not deleted** after successful merge:
 
@@ -407,12 +435,12 @@ Worktree is **not deleted** after successful merge:
 | Input | Required | Description | Validation |
 |-------|----------|-------------|------------|
 | ID or branch name | No | Specify worktree to merge<br/>Auto-detect if no parameter | - Numbers treated as ID<br/>- Contains `/` treated as branch name |
-| `--no-rebase` | No | Use merge instead of rebase to update worktree | Rebase by default |
-| `--no-update` | No | Do not auto-update current worktree after merge | Auto-update by default |
-| `--update-all` | No | Update all worktrees after merge | Mutually exclusive with `--no-update` |
-| `--no-fetch` | No | Skip pulling latest main branch from remote | Useful for offline or no-upstream scenarios |
-| `--skip-build` | No | Skip lint and build checks | Use for urgent merges or when code is already verified |
-| `--verbose` / `-v` | No | Show full command output when lint/build fails | Use when debugging lint/build errors |
+| `--build` / `--no-build` | No | Whether to run the toolchain plugins' lint and build checks | Runs by default; `--no-build` skips (urgent merges or already-verified code) |
+| `--rebase` / `--no-rebase` | No | Use rebase or merge to update the worktree | Rebase by default; `--no-rebase` uses merge |
+| `--update` / `--no-update` | No | Whether to update the worktree with latest main branch code after merge | Updates by default |
+| `--fetch` / `--no-fetch` | No | Whether to fetch the latest main branch from remote before updating | Fetches by default; use `--no-fetch` when offline or no upstream |
+| `--all` / `--no-all` (alias `--current-only`) | No | Update scope: all worktrees or only the current one | All by default; only meaningful when `--update` is active |
+| `-v, --verbose` / `--no-verbose` | No | Whether to show full command output when lint/build fails | Hidden by default |
 
 ### 4.2 System Output
 

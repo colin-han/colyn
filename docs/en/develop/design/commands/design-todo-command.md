@@ -96,15 +96,16 @@ pending ────────────────────────
 
 ## 5. Subcommand Design
 
-### 5.1 `colyn todo add [todoId] [message]`
+### 5.1 `colyn todo add [todoId] [message...]`
 
-Add a new todo task. All arguments are optional; fully interactive when no arguments are provided.
+Add a new todo task. All arguments are optional; fully interactive when no arguments are provided. `message` is a variadic argument (commander's `[message...]`): it accepts multiple unquoted words, joined internally with spaces into the full description.
 
 **Argument resolution logic**:
 
 ```
-No todoId → Interactive: select type + input name
-No message → Open editor ($VISUAL / $EDITOR / vim)
+No todoId   → Interactive: select type + input name
+No message  → Open editor ($VISUAL / $EDITOR / vim)
+Has message → Multiple words joined with spaces into the description
 ```
 
 **Editor template** (Markdown format; lines starting with `# ` are comments):
@@ -175,15 +176,15 @@ List tasks. Alias: `colyn todo ls`.
 
 **Table output format** (without `--json`):
 
-- Columns: Type / Name / Message / Status / Created
+- Columns: Type / Name / Message / Created
 - Message column shows only the **first line** of the message
-- Type, Name, Status, and Created columns auto-size to fit content; Message column fills remaining terminal width
+- Type, Name, and Created columns auto-size to fit content; Message column fills remaining terminal width
 - Message content is truncated with an ellipsis (`…`) when it exceeds the column width
 - All column width calculations are CJK-aware (Chinese characters count as width 2)
 
-### 5.4 `colyn todo remove <todoId> [-y]`
+### 5.4 `colyn todo remove [todoId] [-y]`
 
-Remove a task from the active list. `-y` skips the confirmation prompt.
+Remove a task from the active list. `todoId` is optional; when omitted, an interactive selection list is shown to pick the task to remove. `-y` skips the confirmation prompt.
 
 ### 5.5 `colyn todo archive [-y]`
 
@@ -279,4 +280,4 @@ Key exports from `todo.helpers.ts`:
 | `editMessageWithEditor` | Open editor to interactively edit message |
 | `copyToClipboard` | Copy text to system clipboard |
 | `formatTodoTable` | Format table output (CJK-aware width) |
-| `selectPendingTodo` | Interactive task selection with preview |
+| `selectTodo` | Interactive task selection with preview (actually called by subcommands) |

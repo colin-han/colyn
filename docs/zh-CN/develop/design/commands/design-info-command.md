@@ -23,7 +23,7 @@ colyn info [选项]
 
 | 字段名 | 说明 | 示例值 |
 |--------|------|--------|
-| `project` | 项目名称 | `myapp` |
+| `project` | 项目名称（主目录名） | `myapp` |
 | `project-path` | 项目根目录路径 | `/Users/me/work/myapp` |
 | `worktree-id` | worktree ID（主分支为 0） | `1` |
 | `worktree-dir` | worktree 目录名 | `task-1` |
@@ -208,6 +208,4 @@ async function getShortId(): Promise<string> {
 | 退出码 | 说明 |
 |--------|------|
 | 0 | 成功 |
-| 1 | 未找到项目根目录 |
-| 2 | 不在 worktree 或主分支目录中 |
-| 3 | 无效的字段名 |
+| 1 | 失败（未找到项目根目录 / 不在 worktree 或主分支目录中 / 无效的字段名等错误统一返回 1） |

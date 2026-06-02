@@ -41,10 +41,6 @@ colyn repair
    - Detect worktrees with invalid paths (repairable)
    - Detect true orphan worktrees (report only)
 
-**tmux integration:**
-- Creates session if it doesn't exist
-- Creates window and sets 3-pane layout if it doesn't exist
-
 ### Use Cases
 
 ```bash
@@ -56,7 +52,6 @@ $ cd ~/Desktop/project
 $ colyn repair
 ✔ Detecting and repairing orphaned worktree directories...
 ✔ Repaired 2 worktrees with invalid paths
-✔ Created session "project" and 3 windows
 
 ✓ Repair completed!
 ```
@@ -108,6 +103,9 @@ colyn config get <key> [options]
 
 # Set configuration value
 colyn config set <key> <value> [options]
+
+# Remove configuration value (revert to built-in default)
+colyn config unset <key> [options]
 ```
 
 ### Subcommands
@@ -117,7 +115,7 @@ colyn config set <key> <value> [options]
 Get the value of a configuration item.
 
 **Parameters:**
-- `key` - Config key name (`npm`, `lang`, or `branchCategories`)
+- `key` - Config key name. Supports `branchCategories` (returns the merged list), or any key from the "Supported configuration keys" table below
 
 **Options:**
 - `--user` - Read from user-level config (`~/.config/colyn/settings.json`)
@@ -150,10 +148,18 @@ Set the value of a configuration item.
 
 **Supported configuration keys:**
 
-| Config Key | Description | Valid Values |
-|-----------|-------------|-------------|
-| `npm` | Package manager command | `npm`, `yarn`, `pnpm`, etc. |
-| `lang` | Interface language | `en`, `zh-CN` |
+| Config Key | Type | Description |
+|-----------|------|-------------|
+| `lang` | enum | Interface language: `en` / `zh-CN` |
+| `verbose` | boolean | Whether to show verbose output by default |
+| `systemCommands.npm` | string | Package manager command (default `npm`), e.g. `yarn` / `pnpm` |
+| `systemCommands.claude` | string | Claude CLI command |
+| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` | boolean | Default values for `colyn merge` switches |
+| `commands.update.rebase` / `.fetch` / `.all` | boolean | Default values for `colyn update` switches |
+| `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | boolean | Default values for `colyn release` switches |
+| `commands.checkout.fetch` | boolean | Default value for `colyn checkout`'s fetch switch |
+
+> Boolean values accept `true/false/yes/no/1/0/on/off`. See the [configuration manual](../10-configuration.md) for full details on command defaults.
 
 **Options:**
 - `--user` - Set user-level configuration (affects all projects)
@@ -169,8 +175,29 @@ $ colyn config set lang en --user
 ✓ Configuration set: lang = en (user)
 
 # Set package manager to yarn
-$ colyn config set npm yarn --user
-✓ Configuration set: npm = yarn (user)
+$ colyn config set systemCommands.npm yarn --user
+✓ Configuration set: systemCommands.npm = yarn (user)
+
+# Make merge skip the build check by default
+$ colyn config set commands.merge.build false
+✓ Configuration set: commands.merge.build = false (project)
+```
+
+#### `colyn config unset <key>`
+
+Remove a configuration item, reverting it to the built-in default.
+
+**Parameters:**
+- `key` - See "Supported configuration keys" above (`branchCategories` is not supported)
+
+**Options:**
+- `--user` - Remove user-level configuration
+
+**Examples:**
+```bash
+# Unset the project-level package manager, reverting to the built-in default (npm)
+$ colyn config unset systemCommands.npm
+✓ Configuration removed: systemCommands.npm (project)
 ```
 
 ### Configuration File Priority
@@ -180,7 +207,7 @@ Configuration values are determined by the following priority (highest to lowest
 1. **Environment variables**: Only `COLYN_LANG`
 2. **Project config**: `.colyn/settings.json`
 3. **User config**: `~/.config/colyn/settings.json`
-4. **Defaults**: `npm='npm'`, `lang='en'`
+4. **Defaults**: `systemCommands.npm='npm'`, `lang='en'`
 
 ### Configuration File Locations
 
@@ -262,7 +289,7 @@ $ echo "source ~/.colyn-completion.zsh" >> ~/.zshrc
 
 ## colyn setup
 
-Configure shell integration (supports automatic directory switching and command completion).
+Configure shell integration (supports automatic directory switching and command completion), plus Claude Code integration (status hooks and skills).
 
 ### Syntax
 
@@ -272,14 +299,20 @@ colyn setup
 
 ### Description
 
-`colyn setup` automatically completes shell integration configuration:
+`colyn setup` automatically completes shell integration and Claude Code integration:
 
 **Detection and configuration:**
 1. Detect shell type (bash/zsh)
 2. Detect shell config file path
-3. Locate colyn.sh file path
-4. Add shell integration to config file
-5. Add completion script to config file
+3. Locate colyn.sh and generate the command completion script
+4. Add shell integration and completion script to config file
+5. Configure Claude Code status hooks (written to `~/.claude/settings.json`)
+6. Install the Claude skills bundled with Colyn (copied to `~/.claude/skills/`)
+
+**Claude Code integration (steps 5–6):**
+- **Status hooks**: writes three hooks so Claude Code session state syncs to worktree status in real time — set to `running` on prompt submit, `waiting-confirm` on a confirmation prompt (AskUserQuestion), and `finish` when the session stops. These show up in the status column of `colyn list`.
+- **Claude skills**: copies Colyn's bundled skills into `~/.claude/skills/`, rewriting the `colyn` command inside them to an absolute path.
+- Both steps are non-fatal: on failure they only print a warning and do not interrupt setup.
 
 **Update strategy:**
 - If config already exists: update path
@@ -301,6 +334,12 @@ Detecting system environment...
 Configuring shell integration...
 ✓ Added shell integration to ~/.zshrc
 ✓ Added completion script to ~/.zshrc
+
+Configuring Claude Code hooks...
+✓ Added Claude Code status hooks
+
+Installing Claude skills...
+✓ Installed Claude skills: colyn-todo
 
 ✓ Installation complete!
 

@@ -147,7 +147,7 @@ app/
 
 ```bash
 # Recommended configuration
-0-main     main branch (keep clean, used for merging and releases)
+0          main branch (keep clean, used for merging and releases)
 1          Primary development workspace (switch different features via checkout)
 2          Secondary development workspace (parallel development or experiments)
 3          Quick fix workspace (temporary bug fixes or code review)
@@ -165,7 +165,7 @@ colyn add feature/quick-fix      # Creates task-3
 cd worktrees/task-1
 colyn checkout feature/new-feature    # Switch to new feature in task-1
 # After completion, merge
-colyn merge --push
+colyn merge
 
 # Continue with next feature, still in task-1
 colyn checkout feature/another-feature
@@ -182,17 +182,17 @@ cd worktrees/task-1
 # Develop feature A
 colyn checkout feature/user-auth
 # ... develop, test, commit ...
-colyn merge --push
+colyn merge
 
 # Switch to feature B (same worktree)
 colyn checkout feature/dashboard
 # ... develop, test, commit ...
-colyn merge --push
+colyn merge
 
 # Switch to bug fix (same worktree)
 colyn checkout bugfix/issue-123
 # ... fix, test, commit ...
-colyn merge --push
+colyn merge
 ```
 
 **Advantages**:
@@ -390,12 +390,12 @@ colyn merge 1
 3. Uses `--no-ff` to maintain a clear branch history
 4. Resolve conflicts in the worktree when merge fails
 
-**Push to remote**:
+**Merge to main branch**:
 
 ```bash
-# Merge and push from worktree
+# Merge from worktree
 cd worktrees/task-1
-colyn merge --push
+colyn merge
 ```
 
 ### Handling Merge Conflicts
@@ -758,7 +758,7 @@ git add src/component.tsx
 git commit -m "feat: implement feature"
 
 # Feature complete
-colyn merge --push
+colyn merge
 
 # Continue with the next feature (reuse the same worktree)
 colyn checkout feature/next-task
@@ -805,7 +805,7 @@ colyn checkout bugfix/issue-123
 npm run test
 
 # Merge the fix
-colyn merge --push
+colyn merge
 
 # Continue to next bug (reuse the same worktree)
 colyn checkout bugfix/issue-124
@@ -897,15 +897,15 @@ colyn add feature/workspace-1   # Create only once
 # Switch features in the same worktree
 colyn checkout feature/a
 # After completion
-colyn merge --push
+colyn merge
 
 colyn checkout feature/b
 # After completion
-colyn merge --push
+colyn merge
 
 colyn checkout feature/c
 # After completion
-colyn merge --push
+colyn merge
 ```
 
 ### Ignoring Uncommitted Changes

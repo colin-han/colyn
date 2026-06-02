@@ -152,7 +152,7 @@ Example output:
 ┌────────┬──────────────────────┬──────┬────────────────────────────┐
 │ ID     │ Branch               │ Port │ Path                       │
 ├────────┼──────────────────────┼──────┼────────────────────────────┤
-│ 0-main │ main                 │ 3000 │ /path/to/my-project        │
+│ 0      │ main                 │ 3000 │ /path/to/my-project        │
 │ 1      │ feature/login      * │ 3001 │ worktrees/task-1           │
 │ 2      │ feature/dashboard    │ 3002 │ worktrees/task-2           │
 │ 3      │ bugfix/user-profile  │ 3003 │ worktrees/task-3           │
@@ -177,8 +177,8 @@ colyn merge 1
 # Or use the branch name
 colyn merge feature/login
 
-# Merge and push to remote
-colyn merge 1 --push
+# Merge into the main branch
+colyn merge 1
 ```
 
 The merge process:

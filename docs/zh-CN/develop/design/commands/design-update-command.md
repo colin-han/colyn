@@ -1,7 +1,7 @@
 # Update 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-28
-**最后更新**：2026-02-10
+**最后更新**：2026-06-01
 **命令名称**：`colyn update`
 **状态**：✅ 已实现
 
@@ -27,25 +27,60 @@
 ### 1.3 核心价值
 
 - ✅ **简化操作**：一条命令完成更新流程
-- ✅ **智能识别**：支持自动识别当前 worktree
+- ✅ **默认更新所有**：无参数时默认更新所有 worktree
+- ✅ **精准更新**：指定 ID/分支名只更新单个，`--current-only` 只更新当前
 - ✅ **默认 rebase**：产生线性提交历史，更整洁
 - ✅ **可选 merge**：通过 `--no-rebase` 保留完整历史
-- ✅ **自动同步**：自动拉取主分支最新代码
-- ✅ **批量更新**：支持 `--all` 一次性更新所有 worktree
+- ✅ **自动同步**：自动拉取主分支最新代码（可通过 `--no-fetch` 跳过）
 
 ---
 
 ## 2. 用户使用场景
 
-### 2.1 场景 1：更新当前 worktree
+### 2.1 场景 1：更新所有 worktree（默认）
 
-**用户情况**：正在 worktree 中开发，想要同步主分支的最新代码
+**用户情况**：想要一次性把主分支最新代码同步到所有 worktree
 
 ```bash
-$ cd worktrees/task-1
 $ colyn update
 
-✓ 检测到当前 worktree:
+发现 3 个 worktree:
+  1. task-1 (feature/login)
+  2. task-2 (feature/signup)
+  3. task-3 (bugfix/header)
+
+步骤 1/4: 拉取主分支最新代码
+✔ 主分支已更新
+
+步骤 2/4: 更新 task-1 (feature/login)
+✔ 变基成功
+
+步骤 3/4: 更新 task-2 (feature/signup)
+✔ 变基成功
+
+步骤 4/4: 更新 task-3 (bugfix/header)
+✔ 变基成功
+
+更新结果:
+  ✓ 3 个 worktree 更新成功
+```
+
+> 说明：`colyn update` 无参数时默认等同于 `colyn update --all`，即更新所有 worktree。
+
+---
+
+### 2.2 场景 2：指定 worktree 进行更新
+
+**用户情况**：在任意目录，想要只更新某个指定的 worktree
+
+```bash
+# 通过 ID 指定
+$ colyn update 1
+
+# 通过分支名指定
+$ colyn update feature/login
+
+✓ 检测到 worktree:
   ID: 1
   分支: feature/login
   路径: /path/to/worktrees/task-1
@@ -70,21 +105,38 @@ $ colyn update
 
 ---
 
-### 2.2 场景 2：指定 worktree 进行更新
+### 2.3 场景 3：只更新当前 worktree（`--current-only`）
 
-**用户情况**：在任意目录，想要更新指定的 worktree
+**用户情况**：正在某个 worktree 目录中开发，只想同步当前这一个 worktree
 
 ```bash
-# 通过 ID 指定
-$ colyn update 1
+$ cd worktrees/task-1
+$ colyn update --current-only
 
-# 通过分支名指定
-$ colyn update feature/login
+✓ 检测到当前 worktree:
+  ID: 1
+  分支: feature/login
+  路径: /path/to/worktrees/task-1
+
+步骤 1/3: 检查工作目录状态
+✔ Worktree 工作目录干净
+
+步骤 2/3: 拉取主分支最新代码
+✔ 主分支已更新
+
+步骤 3/3: 将主分支变基到当前分支
+✔ 变基成功
+
+✓ 更新完成！
+  主分支 (main) → feature/login
+  策略: rebase
 ```
+
+> 说明：`--current-only` 是 `--no-all` 的别名，需在 worktree 目录中运行——通过读取 `.env.local` 中的 `WORKTREE` 值自动识别当前 worktree。
 
 ---
 
-### 2.3 场景 3：使用 merge 策略
+### 2.4 场景 4：使用 merge 策略
 
 **用户情况**：不想使用 rebase，想保留完整的分支历史
 
@@ -103,9 +155,9 @@ $ colyn update --no-rebase
 
 ---
 
-### 2.4 场景 4：批量更新所有 worktree
+### 2.5 场景 5：批量更新（部分失败）
 
-**用户情况**：想要一次性更新所有 worktree
+**用户情况**：显式写出 `--all`（效果等同无参），其中某个 worktree 更新失败
 
 ```bash
 $ colyn update --all
@@ -141,12 +193,12 @@ $ colyn update --all
 
 ---
 
-### 2.5 场景 5：处理冲突
+### 2.6 场景 6：处理冲突
 
 **用户情况**：rebase 过程中发生冲突
 
 ```bash
-$ colyn update
+$ colyn update 1
 
 步骤 3/3: 将主分支变基到当前分支
 ✗ 变基失败，存在冲突
@@ -175,23 +227,23 @@ $ colyn update
 
 ```mermaid
 graph TD
-    Start[用户运行 colyn update] --> HasParam{有参数?}
+    Start[用户运行 colyn update] --> HasTarget{有 target 参数?}
 
-    HasParam -->|否| ReadEnv[读取 .env.local<br/>获取 WORKTREE ID]
-    HasParam -->|是| CheckAll{是 --all?}
+    HasTarget -->|是| CheckType{参数类型?}
+    HasTarget -->|否| CheckCurrent{--current-only?}
 
-    CheckAll -->|是| AllWorktrees[更新所有 worktree]
-    CheckAll -->|否| CheckType{参数类型?}
+    CheckCurrent -->|否（默认 --all）| AllWorktrees[更新所有 worktree]
+    CheckCurrent -->|是| ReadEnv[读取 .env.local<br/>获取 WORKTREE ID]
 
     CheckType -->|纯数字| UseId[按 ID 查找]
     CheckType -->|非纯数字| UseBranch[按分支名查找]
 
-    ReadEnv --> FindWT[查找 worktree]
+    ReadEnv --> FindWT[查找当前 worktree]
     UseId --> FindWT
     UseBranch --> FindWT
 
     FindWT --> Found{找到?}
-    Found -->|是| Continue[继续更新流程]
+    Found -->|是| Continue[继续更新单个 worktree]
     Found -->|否| Error[✗ Worktree 不存在]
 
     style Error fill:#ffcccc
@@ -202,11 +254,12 @@ graph TD
 **示例**：
 | 命令 | 识别方式 | 说明 |
 |------|---------|------|
-| `colyn update` | 自动识别 | 读取 .env.local 中的 WORKTREE 值 |
-| `colyn update 1` | 按 ID | 查找 ID 为 1 的 worktree |
-| `colyn update feature/login` | 按分支名 | 查找分支为 feature/login 的 worktree |
-| `colyn update bugfix-header` | 按分支名 | 查找分支为 bugfix-header 的 worktree |
-| `colyn update --all` | 批量 | 更新所有 worktree |
+| `colyn update` | 更新所有（默认） | 更新所有 worktree（等同 `--all`） |
+| `colyn update --all` | 更新所有 | 显式写出，效果等同无参 |
+| `colyn update 1` | 按 ID | 只更新 ID 为 1 的 worktree |
+| `colyn update feature/login` | 按分支名 | 只更新分支为 feature/login 的 worktree |
+| `colyn update bugfix-header` | 按分支名 | 只更新分支为 bugfix-header 的 worktree |
+| `colyn update --current-only` | 当前 worktree | 读取 .env.local 中的 WORKTREE 值，只更新当前（`--no-all` 别名） |
 
 ---
 
@@ -342,12 +395,14 @@ sequenceDiagram
 
 ### 4.1 用户输入
 
-| 输入内容 | 必填 | 说明 | 验证规则 |
+| 输入内容 | 必填 | 说明 | 验证规则 / 默认值 |
 |---------|------|------|---------|
-| ID 或分支名 | 否 | 指定要更新的 worktree<br/>无参数时自动识别 | - 纯数字视为 ID<br/>- 非纯数字视为分支名 |
-| `--no-rebase` | 否 | 使用 merge 策略而非 rebase | 默认使用 rebase |
-| `--all` | 否 | 更新所有 worktree | 与指定 ID/分支名互斥 |
-| `--no-fetch` | 否 | 跳过从远程拉取主分支最新代码 | 离线工作或无上游时使用 |
+| `target`（ID 或分支名） | 否 | 指定只更新某个 worktree<br/>无参数时更新所有 worktree | - 纯数字视为 ID<br/>- 非纯数字视为分支名 |
+| `--rebase` / `--no-rebase` | 否 | 选择更新策略：rebase 或 merge | 默认 `--rebase` |
+| `--fetch` / `--no-fetch` | 否 | 是否从远程拉取主分支最新代码；`--no-fetch` 用于离线工作或无上游时 | 默认 `--fetch` |
+| `--all` / `--no-all`（`--current-only`） | 否 | `--all`（默认）更新所有 worktree；`--no-all`/`--current-only` 只更新当前 worktree | 默认 `--all`（即 `all=true`） |
+
+> 三者关系：无 `target` 且未指定 `--current-only` 时更新所有；指定 `target` 时只更新该单个 worktree；`--current-only`（`--no-all`）时只更新当前 worktree。所有默认值均可被 `.colyn/settings.json` 中的 `commands.update.*` 覆盖。
 
 ### 4.2 系统输出
 
@@ -423,16 +478,17 @@ worktree ─────────────────────┘
 
 ### 7.1 基本功能
 
-- [ ] 支持无参数调用（自动识别当前 worktree）
-- [ ] 支持通过 ID 指定 worktree
-- [ ] 支持通过分支名指定 worktree
+- [ ] 无参数调用时更新所有 worktree（默认 `--all`）
+- [ ] 支持通过 ID 指定只更新单个 worktree
+- [ ] 支持通过分支名指定只更新单个 worktree
+- [ ] `--current-only`（`--no-all`）只更新当前 worktree（读取 .env.local 识别）
 - [ ] 默认使用 `git rebase main`
 - [ ] `--no-rebase` 使用 `git merge main`
-- [ ] 更新前自动执行 `git pull` 拉取主分支
+- [ ] 更新前自动执行 `git pull` 拉取主分支（`--no-fetch` 可跳过）
 
 ### 7.2 批量更新
 
-- [ ] `--all` 支持更新所有 worktree
+- [ ] 无参数及 `--all` 均更新所有 worktree
 - [ ] 只执行一次 `git pull`
 - [ ] 遇到失败不中断，继续更新其他 worktree
 - [ ] 显示汇总结果
@@ -583,11 +639,11 @@ commands.update.notInWorktree
 `colyn update` 命令核心价值：
 
 ✅ **简化操作**：一条命令完成更新流程
+✅ **默认更新所有**：无参数时默认更新所有 worktree
+✅ **精准更新**：指定 ID/分支名只更新单个，`--current-only` 只更新当前
 ✅ **默认 rebase**：产生整洁的线性历史
 ✅ **可选 merge**：通过 `--no-rebase` 灵活选择
-✅ **自动同步**：自动拉取主分支最新代码
-✅ **批量更新**：`--all` 一次性更新所有 worktree
-✅ **智能识别**：支持自动识别当前 worktree
+✅ **自动同步**：自动拉取主分支最新代码（可通过 `--no-fetch` 跳过）
 ✅ **友好提示**：清晰的错误信息和冲突解决步骤
 
 通过本命令，用户可以轻松保持 worktree 与主分支同步，专注于功能开发。

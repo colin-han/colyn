@@ -227,10 +227,10 @@ Worktree to delete:
 
 ✔ Worktree deleted
 
-? Also delete local branch "feature/login"? (Y/n) ›
+ℹ Skipped branch deletion prompt (--yes). Local branch is kept by default.
 ```
 
-**Note**: `-y` only skips deletion confirmation, branch deletion prompt still shows.
+**Note**: `-y` skips the deletion confirmation **and** the branch deletion prompt, keeping the local branch by default.
 
 ---
 
@@ -503,7 +503,7 @@ A: System automatically switches to main branch directory, preventing user from 
 
 ### Q5: Can I use --force and --yes together?
 
-A: Yes. `colyn remove 1 -f -y` skips all checks and confirmations, deleting directly. But branch deletion prompt still shows.
+A: Yes. `colyn remove 1 -f -y` skips all checks and confirmations, deleting directly. The branch deletion prompt is also skipped, keeping the local branch by default.
 
 ---
 

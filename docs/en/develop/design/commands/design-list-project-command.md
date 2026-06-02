@@ -385,8 +385,11 @@ async function getProjectWorktrees(
   mainBranchPath: string
 ): Promise<ListItem[]>
 
-// Get all project information
-async function getAllProjects(): Promise<ProjectInfo[]>
+// Get summary info for all projects (default mode, no worktree details)
+async function getAllProjectSummaries(): Promise<ProjectSummary[]>
+
+// Get detailed info for all projects (--details mode, with worktree list)
+async function getAllProjectDetails(): Promise<ProjectDetail[]>
 ```
 
 ### 5.2 Data Flow
@@ -398,7 +401,8 @@ Read projectPath list
   ↓
 Validate project directory layout
   ↓
-Use getProjectWorktrees() to get worktree list
+Default mode: getAllProjectSummaries() to get project overview
+--details/--paths mode: getAllProjectDetails() via getProjectWorktrees() to get worktree list
   ↓
 Output (table/JSON/paths)
 ```

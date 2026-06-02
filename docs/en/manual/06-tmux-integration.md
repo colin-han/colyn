@@ -96,8 +96,8 @@ Each window uses a fixed three-pane layout:
 | Pane | Position | Size | Purpose |
 |------|----------|------|---------|
 | **Pane 0** | Left | 60% | Claude Code (AI programming assistant) |
-| **Pane 1** | Top right | 12% | Dev Server (development server logs) |
-| **Pane 2** | Bottom right | 28% | Bash (command line operations) |
+| **Pane 1** | Top right | 30% | Dev Server (development server logs) |
+| **Pane 2** | Bottom right | 70% | Bash (command line operations) |
 
 ### Layout Characteristics
 
@@ -125,8 +125,8 @@ $ colyn init -p 3000
 ✓ Created tmux session: my-task-app
 ✓ Set up Window 0: main
   ├─ Claude Code  (left 60%)
-  ├─ Dev Server   (top right 12%)
-  └─ Bash         (bottom right 28%)
+  ├─ Dev Server   (top right 30%)
+  └─ Bash         (bottom right 70%)
 
 💡 Tip: Run 'tmux attach -t my-task-app' to enter the work environment
 ```
@@ -200,6 +200,42 @@ $ npm run dev
 - Changes to the worktree directory
 - Does not run any additional commands
 - Maintains a clean shell environment
+
+---
+
+## colyn tmux Commands
+
+Besides commands like `colyn add` / `colyn init` that manage tmux automatically, Colyn provides the `colyn tmux` command to manually start or stop the project's tmux environment.
+
+### colyn tmux start
+
+Start and repair the project's tmux session and windows: creates the session (detached) if it doesn't exist, and creates windows with the 3-pane layout for any missing worktrees. `colyn tmux` (no subcommand) is equivalent to `colyn tmux start`.
+
+```bash
+# Start / repair the current project's tmux environment
+colyn tmux start
+
+# Equivalent form
+colyn tmux
+```
+
+### colyn tmux stop
+
+Stop the current project's tmux session.
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--force` | Skip confirmation and stop immediately |
+
+```bash
+# Stop the current project's session (asks for confirmation first)
+colyn tmux stop
+
+# Skip confirmation and stop immediately
+colyn tmux stop --force
+```
+
+> Note: the session name equals the project name. Stopping a session only closes the tmux working environment; it does not affect worktree directories or code.
 
 ---
 
@@ -390,7 +426,7 @@ $ colyn list
 ┌────────┬──────────────────┬──────┐
 │ ID     │ Branch           │ Port │
 ├────────┼──────────────────┼──────┤
-│ 0-main │ main             │ 3000 │
+│ 0      │ main             │ 3000 │
 │ 1      │ feature/auth     │ 3001 │
 │ 2      │ feature/tasks    │ 3002 │
 │ 3      │ feature/dashboard│ 3003 │
@@ -481,7 +517,7 @@ $ colyn list
 ┌────────┬──────────────┬──────┐
 │ ID     │ Branch       │ Port │
 ├────────┼──────────────┼──────┤
-│ 0-main │ main         │ 3000 │
+│ 0      │ main         │ 3000 │
 │ 1      │ feature/auth │ 3001 │
 └────────┴──────────────┴──────┘
 
@@ -532,7 +568,7 @@ Pane commands can be customized through configuration files (completely optional
 
 | Level | Path | Priority |
 |-------|------|----------|
-| User-level | `~/.colyn/settings.json` | Low |
+| User-level | `~/.config/colyn/settings.json` | Low |
 | Project-level | `{projectRoot}/.colyn/settings.json` | High |
 
 ### Configuration Format
@@ -542,11 +578,11 @@ Pane commands can be customized through configuration files (completely optional
   "tmux": {
     "autoRun": true,
     "leftPane": {
-      "command": "auto continues claude session",
+      "command": "continue claude session",
       "size": "60%"
     },
     "topRightPane": {
-      "command": "auto start dev server",
+      "command": "start dev server",
       "size": "30%"
     },
     "bottomRightPane": {
@@ -562,9 +598,9 @@ Pane commands can be customized through configuration files (completely optional
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `autoRun` | boolean | `true` | Whether to automatically run commands |
-| `leftPane.command` | string \| null | `"auto continues claude session"` | Left pane command |
+| `leftPane.command` | string \| null | `"continue claude session"` | Left pane command |
 | `leftPane.size` | string | `"60%"` | Left pane width |
-| `topRightPane.command` | string \| null | `"auto start dev server"` | Top right pane command |
+| `topRightPane.command` | string \| null | `"start dev server"` | Top right pane command |
 | `topRightPane.size` | string | `"30%"` | Top right pane height proportion within the right side |
 | `bottomRightPane.command` | string \| null | `null` | Bottom right pane command |
 | `bottomRightPane.size` | string | `"70%"` | Bottom right pane height proportion within the right side |
@@ -573,9 +609,10 @@ Pane commands can be customized through configuration files (completely optional
 
 | Command | Description |
 |---------|-------------|
-| `auto continues claude session` | Automatically continues or starts a Claude session |
-| `auto continues claude session with dangerously skip permissions` | Same as above, but skips permission checks |
-| `auto start dev server` | Automatically starts the dev server |
+| `continue claude session` | Automatically continues or starts a Claude session |
+| `start dev server` | Automatically starts the dev server |
+
+> To make Claude skip permission checks, configure it via `systemCommands.claude` (for example `"claude --dangerously-skip-permissions"`) instead of using the deprecated built-in command.
 
 ### Configuration Examples
 
@@ -634,11 +671,11 @@ Pane commands can be customized through configuration files (completely optional
 #### Two-Level Configuration Merging
 
 ```json
-// ~/.colyn/settings.json (user-level)
+// ~/.config/colyn/settings.json (user-level)
 {
   "tmux": {
     "leftPane": {
-      "command": "auto continues claude session with dangerously skip permissions",
+      "command": "continue claude session",
       "size": "50%"
     }
   }
@@ -833,7 +870,7 @@ fix                        → Window name: fix
 # Clean up merged worktrees weekly
 $ colyn list
 # Check which features are complete
-$ colyn merge 1 --push
+$ colyn merge 1
 $ colyn remove 1
 ```
 

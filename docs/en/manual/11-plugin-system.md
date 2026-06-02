@@ -271,12 +271,12 @@ Automatically installs project dependencies in the new Worktree directory:
 | xcode | Pure SPM with no scheme | `swift build` |
 | xcode | Has xcodeproj but no scheme configured | Silently skipped; prompts to run `colyn repair` |
 
-#### Skip Checks: `--skip-build`
+#### Skip Checks: `--no-build`
 
 For urgent merges, you can skip lint and build checks:
 
 ```bash
-colyn merge --skip-build
+colyn merge --no-build
 ```
 
 #### View Failure Details: `-v / --verbose`
@@ -747,7 +747,7 @@ Colyn runs lint using the command configured by the plugin, executed in the Work
 
 1. Manually run lint in the Worktree directory to verify whether it actually passes
 2. If it passes, try adding `-v` to see detailed output: `colyn merge -v`
-3. Temporary workaround: `colyn merge --skip-build` (only for emergencies)
+3. Temporary workaround: `colyn merge --no-build` (only for emergencies)
 
 ---
 
@@ -763,7 +763,7 @@ If the active plugin does not support version bumping, release will report an er
 ### Q5: How do I disable a specific toolchain feature?
 
 There are currently no fine-grained toggles. Options include:
-- **Skip lint/build**: `colyn merge --skip-build`
+- **Skip lint/build**: `colyn merge --no-build`
 - **Completely disable toolchain**: Set `toolchain` to `null` in `.colyn/settings.json`
 - **Switch toolchain**: Modify the `toolchain.type` field
 

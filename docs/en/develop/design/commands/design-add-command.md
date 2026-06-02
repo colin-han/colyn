@@ -536,131 +536,58 @@ After deleting worktree 1:
 
 ---
 
-## 9. Special Case: Auto-enter Worktree Directory
+## 9. Auto-enter Worktree Directory
 
-### 9.1 User Expectation
+### 9.1 Behavior
 
-Users want `colyn add` command to automatically switch to newly created worktree directory after execution:
+After `colyn add` succeeds, it automatically switches to the newly created worktree directory:
 
 ```bash
 $ colyn add feature/login
 ✓ Worktree created successfully!
-$ pwd
-/path/to/worktrees/task-1  # Auto-switched here
-```
-
-### 9.2 Technical Limitation
-
-**Cannot be implemented**: Node.js subprocess cannot change parent shell's current directory.
-
-```mermaid
-graph TD
-    User[User Shell] --> Spawn[Start Node.js process]
-    Spawn --> Execute[Execute colyn add]
-    Execute --> Try[Try to change directory]
-    Try --> Limit[❌ Cannot affect parent Shell]
-    Limit --> Return[Return to user Shell]
-    Return --> Same[Still in original directory]
-
-    style Limit fill:#ffcccc
-```
-
-This is a fundamental operating system limitation, not a Colyn issue.
-
-### 9.3 Solutions
-
-#### Solution 1: Shell Function Wrapper (Recommended)
-
-Add to `~/.bashrc` or `~/.zshrc`:
-
-```bash
-colyn-add() {
-  # Call colyn add and capture output
-  local output=$(colyn add "$@" 2>&1)
-  local exit_code=$?
-
-  # Display output
-  echo "$output"
-
-  # If successful, extract path and switch directory
-  if [ $exit_code -eq 0 ]; then
-    local worktree_path=$(echo "$output" | grep "Path:" | awk '{print $2}')
-    if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
-      cd "$worktree_path"
-      echo "Switched to: $worktree_path"
-    fi
-  fi
-
-  return $exit_code
-}
-```
-
-**Usage**:
-```bash
-$ colyn-add feature/login
-✓ Worktree created successfully!
-Switched to: /path/to/worktrees/task-1
-
+📂 Switched to: worktrees/task-1
 $ pwd
 /path/to/worktrees/task-1
 ```
 
----
+### 9.2 How It Works (Two-layer Architecture)
 
-#### Solution 2: Manually Copy cd Command
+A Node.js subprocess cannot directly change the parent shell's current directory, so Colyn implements auto-switching with a **Bash + Node.js two-layer architecture**:
 
-After seeing success message, copy and execute `cd` command:
+1. **Node.js layer**: On success, the `add` command writes a control JSON (containing the target directory) to stdout:
 
-```bash
-$ colyn add feature/login
-✓ Worktree created successfully!
+   ```json
+   { "success": true, "targetDir": "/path/to/worktrees/task-1", "displayPath": "worktrees/task-1" }
+   ```
 
-Next steps:
-  1. Enter worktree directory:
-     cd /path/to/worktrees/task-1    # Copy this line
+2. **Shell layer**: The `colyn()` function provided by `shell/colyn.sh` captures this JSON, reads the `targetDir` field, runs `cd` in the **parent shell**, and prints `📂 Switched to: <displayPath>`.
 
-$ cd /path/to/worktrees/task-1  # Paste and execute
+```mermaid
+graph TD
+    User[User Shell colyn function] --> Spawn[Start Node.js process]
+    Spawn --> Execute[Execute colyn add]
+    Execute --> Output[Write control JSON targetDir]
+    Output --> Capture[colyn function captures JSON]
+    Capture --> Cd[Run cd in parent Shell]
+    Cd --> Done[✓ Switched to worktree directory]
+
+    style Done fill:#ccffcc
 ```
 
----
+> This mechanism applies uniformly to all commands that change directory (`add`, `checkout`, `<N>`, etc.) and is handled by the shared `colyn()` function — no per-command wrapper is needed.
 
-#### Solution 3: Use Alias with eval
+### 9.3 Requirements
 
-Add to `~/.bashrc` or `~/.zshrc`:
-
-```bash
-alias colyn-add='colyn add'
-```
-
-Then use custom script:
+Auto-switching relies on the shell integration. Users must source the wrapper in `~/.bashrc` or `~/.zshrc` (running `colyn setup` configures this automatically):
 
 ```bash
-#!/bin/bash
-# ~/bin/colyn-cd-add.sh
-
-output=$(colyn add "$@" 2>&1)
-echo "$output"
-
-if [ $? -eq 0 ]; then
-  path=$(echo "$output" | grep "Path:" | awk '{print $2}')
-  [ -n "$path" ] && echo "cd \"$path\""
-fi
+source /path/to/colyn/shell/colyn.sh
 ```
 
-**Usage**:
-```bash
-$ eval $(~/bin/colyn-cd-add.sh feature/login)
-✓ Worktree created successfully!
-# Auto-switches directory
-```
-
----
-
-### 9.4 Recommended Practices
-
-1. **Use Shell Function** (Solution 1): Most convenient, configure once and use forever
-2. **Provide Configuration Script**: Prompt user whether to add shell function during installation
-3. **Documentation**: Clearly explain limitation and solutions in README
+| Scenario | Behavior |
+|----------|----------|
+| Shell integration enabled | `colyn add` switches to the worktree directory on success and prints `📂 Switched to: ...` |
+| Not enabled (calling `bin/colyn` directly) | No directory change; the command only prints next-step hints, and the user can `cd` manually |
 
 ---
 
@@ -668,7 +595,7 @@ $ eval $(~/bin/colyn-cd-add.sh feature/login)
 
 ### Q1: How to switch to new directory after creating worktree?
 
-A: Copy the `cd` command from success message and execute, or configure Shell function (see Section 9).
+A: With shell integration enabled (run `colyn setup`, or source `shell/colyn.sh`), `colyn add` switches to the new directory automatically (see Section 9). Without shell integration, copy the `cd` command from the success message and run it manually.
 
 ### Q2: How is port number determined?
 

@@ -325,8 +325,6 @@ export const zhCN = {
     // merge command
     merge: {
       description: '将 worktree 分支合并回主分支',
-      pushOption: '合并后自动推送到远程',
-      noPushOption: '合并后不推送（跳过询问）',
       noRebaseOption: '使用 merge 而非 rebase 更新 worktree',
       noUpdateOption: '合并后不自动更新',
       noFetchOption: '跳过从远程拉取主分支最新代码',
