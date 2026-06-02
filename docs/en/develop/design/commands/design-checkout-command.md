@@ -233,7 +233,5 @@ Hint: Please use the main branch directory directly
 | Exit Code | Description |
 |-----------|-------------|
 | 0 | Success |
-| 1 | Uncommitted changes / Git operation failed |
-| 2 | Target branch is main branch |
-| 3 | Target branch already used by another worktree |
-| 4 | User cancelled operation |
+| 1 | All errors return 1 (uncommitted changes / target branch is main branch / target branch already used by another worktree / Git operation failed, etc.) |
+| 4 | User cancelled an unmerged switch |

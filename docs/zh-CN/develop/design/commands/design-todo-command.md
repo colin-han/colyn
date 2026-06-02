@@ -181,9 +181,9 @@ pending ────────────────────────
 - Message 内容超出列宽时自动截断并追加省略号（`…`）
 - 所有列宽计算均采用 CJK 感知的显示宽度（中文字符宽度为 2）
 
-### 5.4 `colyn todo remove <todoId> [-y]`
+### 5.4 `colyn todo remove [todoId] [-y]`
 
-从活跃列表删除任务。`-y` 跳过确认提示。
+从活跃列表删除任务。`todoId` 为可选参数，省略时展示交互式选择列表供用户选择要删除的任务。`-y` 跳过确认提示。
 
 ### 5.5 `colyn todo archive [-y]`
 
@@ -279,4 +279,4 @@ src/commands/
 | `editMessageWithEditor` | 打开编辑器交互式编辑 message |
 | `copyToClipboard` | 复制文本到系统剪贴板 |
 | `formatTodoTable` | 格式化表格输出（CJK 感知宽度） |
-| `selectPendingTodo` | 带预览的交互式任务选择 |
+| `selectTodo` | 带预览的交互式任务选择（各子命令实际调用） |

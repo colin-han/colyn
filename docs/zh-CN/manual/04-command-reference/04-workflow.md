@@ -29,6 +29,7 @@ colyn release [version-type] [选项]
 | `--no-version-update` | 跳过读取版本、更新版本号、commit 和打 tag，仅推送当前分支 |
 | `--no-tag` | 仅跳过打 tag，版本号仍会更新并推送分支 |
 | `--verbose` / `-v` | 显示 install/lint/build 的完整命令输出（失败时） |
+| `--no-verbose` | 关闭详细输出（与 `--verbose` 相反） |
 
 ### 功能说明
 
@@ -38,12 +39,11 @@ colyn release [version-type] [选项]
 1. 检查当前目录是否有未提交代码
 2. 检查当前分支是否已合并（仅在 worktree 中执行时）
 3. 检查 git 状态（主分支）
-4. 安装依赖（使用配置的包管理器命令）
-5. 运行 lint 和 build
-6. 更新 package.json 版本
-7. 创建提交与 tag
-8. 推送到远程
-9. **自动更新所有 worktree（除非使用 `--no-update`）**
+4. 安装依赖、运行 lint 和 build（由工具链插件驱动：仅当项目配置了对应插件时才执行，未配置插件时跳过；其中 lint 和 build 还可由 `--no-build` 跳过）
+5. 更新 package.json 版本
+6. 创建提交与 tag
+7. 推送到远程
+8. **自动更新所有 worktree（除非使用 `--no-update`）**
 
 ### 运行位置规则
 
@@ -322,10 +322,10 @@ colyn todo           # 不带子命令时等同于此命令
 ```bash
 # 显示待办任务（默认）
 $ colyn todo
-  Type     Name       Message                    Status  Created
-  ---------------------------------------------------------------
-  feature  login      实现用户登录功能，支持邮…    待办    2026/02/22 10:00
-  bugfix   fix-crash  修复应用崩溃问题              待办    2026/02/22 11:30
+  Type     Name       Message                    Created
+  ------------------------------------------------------
+  feature  login      实现用户登录功能，支持邮…    2026/02/22 10:00
+  bugfix   fix-crash  修复应用崩溃问题              2026/02/22 11:30
 
 # 显示已完成任务
 $ colyn todo list --completed

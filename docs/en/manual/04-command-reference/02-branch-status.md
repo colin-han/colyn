@@ -28,7 +28,10 @@ colyn co [worktree-id] [branch] [options]
 
 | Option | Description |
 |--------|-------------|
+| `--fetch` | Fetch branch information from remote before switching (default behavior) |
 | `--no-fetch` | Skip fetching branch information from remote |
+
+> **About fetch behavior:** fetch is enabled by default, fetching branch information from remote before switching; after a successful fetch, it also updates the main branch (if it's behind remote). Using `--no-fetch` skips both the fetch and the main branch update.
 
 ### Description
 
@@ -161,7 +164,7 @@ colyn info [options]
 | Field Name | Description | Example Value |
 |-----------|-------------|---------------|
 | `project` | Main directory name | `myapp` |
-| `project-path` | Main directory full path | `/Users/me/work/myapp/myapp` |
+| `project-path` | Main directory full path | `/Users/me/work/myapp` |
 | `worktree-id` | Worktree ID (0 for main branch) | `1` |
 | `worktree-dir` | Worktree directory name | `task-1` |
 | `worktree-path` | Worktree directory full path | `/Users/me/work/myapp/worktrees/task-1` |
@@ -197,7 +200,7 @@ colyn info [options]
 ```bash
 $ colyn info
 📁 Project:       myapp
-📂 Project Path:  /Users/me/work/myapp/myapp
+📂 Project Path:  /Users/me/work/myapp
 🔢 Worktree ID:   1
 📁 Worktree Dir:  task-1
 📂 Worktree Path: /Users/me/work/myapp/worktrees/task-1

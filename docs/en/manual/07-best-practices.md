@@ -147,7 +147,7 @@ app/
 
 ```bash
 # Recommended configuration
-0-main     main branch (keep clean, used for merging and releases)
+0          main branch (keep clean, used for merging and releases)
 1          Primary development workspace (switch different features via checkout)
 2          Secondary development workspace (parallel development or experiments)
 3          Quick fix workspace (temporary bug fixes or code review)

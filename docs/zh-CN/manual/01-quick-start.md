@@ -152,7 +152,7 @@ colyn list
 ┌────────┬──────────────────────┬──────┬────────────────────────────┐
 │ ID     │ 分支                 │ 端口 │ 路径                       │
 ├────────┼──────────────────────┼──────┼────────────────────────────┤
-│ 0-main │ main                 │ 3000 │ /path/to/my-project        │
+│ 0      │ main                 │ 3000 │ /path/to/my-project        │
 │ 1      │ feature/login      * │ 3001 │ worktrees/task-1           │
 │ 2      │ feature/dashboard    │ 3002 │ worktrees/task-2           │
 │ 3      │ bugfix/user-profile  │ 3003 │ worktrees/task-3           │

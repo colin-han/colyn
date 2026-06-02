@@ -71,7 +71,7 @@ main                   # Main branch
 **Definition**: A unique numeric identifier assigned by Colyn to each worktree.
 
 **Usage in Colyn**:
-- The main branch is always displayed with ID `0-main`
+- The main branch is fixed as ID `0`: displayed as `0` in `colyn list`; displayed as `0-main` in the worktree details table of `colyn list-project`
 - Other worktrees start from `1` and increment
 - The ID is used for directory naming (`task-1`, `task-2`, etc.)
 - The ID is used for port assignment (base port + ID)
@@ -84,7 +84,7 @@ colyn list
 ┌────────┬─────────────────────┬──────┐
 │ ID     │ Branch              │ Port │
 ├────────┼─────────────────────┼──────┤
-│ 0-main │ main                │ 3000 │
+│ 0      │ main                │ 3000 │
 │ 1      │ feature/auth        │ 3001 │
 │ 2      │ feature/tasks       │ 3002 │
 └────────┴─────────────────────┴──────┘

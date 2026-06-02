@@ -85,7 +85,7 @@ mkdir -p ~/.config/colyn
 # 创建用户级配置文件 (JSON5 格式)
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -95,7 +95,7 @@ EOF
 
 # 或使用 YAML 格式
 cat > ~/.config/colyn/settings.yaml << 'EOF'
-version: 3
+version: 4
 lang: zh-CN
 systemCommands:
   npm: yarn
@@ -105,7 +105,7 @@ EOF
 mkdir -p .colyn
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -223,7 +223,7 @@ COLYN_LANG=en colyn list
 ```typescript
 {
   // 配置文件版本号（用于自动迁移）
-  "version": 3,
+  "version": 4,
 
   // 界面语言
   "lang": "zh-CN" | "en",
@@ -289,7 +289,7 @@ COLYN_LANG=en colyn list
 ### version
 
 **类型**: `number`
-**默认值**: `3`（当前版本）
+**默认值**: `4`（当前版本）
 **说明**: 配置文件版本号,用于自动迁移
 
 **⚠️ 重要**: 不要手动修改此字段,系统会自动管理
@@ -875,7 +875,7 @@ Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -905,7 +905,7 @@ Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "en",
   "systemCommands": {
     "npm": "npm"
@@ -957,7 +957,7 @@ User-level Config:
   Status: Exists
   Content:
     {
-      "version": 3,
+      "version": 4,
       "lang": "zh-CN"
     }
 
@@ -966,7 +966,7 @@ Project-level Config:
   Status: Exists
   Content:
     {
-      "version": 3,
+      "version": 4,
       "tmux": {
         "layout": "three-pane"
       }
@@ -1052,7 +1052,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 3
+  "version": 4
 }
 ```
 
@@ -1067,7 +1067,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1079,7 +1079,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true,
@@ -1103,7 +1103,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1150,7 +1150,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "autoRun": false,
     "layout": "three-pane"
@@ -1164,7 +1164,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": {
     "npm": "pnpm",
     "claude": "claude --dangerously-skip-permissions"
@@ -1211,7 +1211,7 @@ git commit -m "Add team tmux configuration"
 
 Colyn 使用版本号来管理配置文件的演进,当配置结构发生变化时,系统会**自动迁移**你的配置。
 
-**当前版本**: `3`
+**当前版本**: `4`
 
 ### 配置文件格式
 
@@ -1297,7 +1297,7 @@ Colyn 支持多种配置文件格式：
 }
 ```
 
-#### Version 2 → Version 3 (当前版本)
+#### Version 2 → Version 3
 
 **变更时间**: 2026-02-20
 
@@ -1382,7 +1382,7 @@ mv ~/.config/colyn/settings.json ~/.config/colyn/settings.json.bak
 # 创建新的配置
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN"
 }
 EOF
@@ -1416,7 +1416,7 @@ rm ~/.config/colyn/settings.json  # 用户级
 rm .colyn/settings.json           # 项目级
 
 # 或者设置为空配置
-echo '{"version": 3}' > ~/.config/colyn/settings.json
+echo '{"version": 4}' > ~/.config/colyn/settings.json
 ```
 
 ### 3. 分支覆盖配置不生效?
@@ -1451,7 +1451,7 @@ echo '{"version": 3}' > ~/.config/colyn/settings.json
 cd project-a
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": { "npm": "yarn" }
 }
 EOF
@@ -1459,7 +1459,7 @@ EOF
 cd project-b
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": { "npm": "pnpm" }
 }
 EOF
@@ -1469,7 +1469,7 @@ EOF
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "autoRun": false
   }
@@ -1480,7 +1480,7 @@ EOF
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "branchOverrides": {
     "main": {
       "tmux": {
@@ -1534,7 +1534,7 @@ EOF
 
 | 字段 | 默认 | CLI 开启 | CLI 关闭 | 说明 |
 |------|------|----------|----------|------|
-| `update` | `true` | `--update` | `--no-update` | 发布前更新依赖 |
+| `update` | `true` | `--update` | `--no-update` | 发布成功后自动 update 所有 worktree |
 | `build` | `true` | `--build` | `--no-build` | 发布前执行构建 |
 | `tag` | `true` | `--tag` | `--no-tag` | 创建 git tag |
 | `versionUpdate` | `true` | `--version-update` | `--no-version-update` | 更新版本号 |

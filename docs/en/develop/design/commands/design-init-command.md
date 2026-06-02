@@ -22,6 +22,10 @@ colyn init
 # Specify port directly
 colyn init --port 10000
 colyn init -p 3000
+
+# Skip confirmation prompt when initializing an existing project
+colyn init -y
+colyn init --yes
 ```
 
 ### 1.3 Execution Result
@@ -296,8 +300,9 @@ sequenceDiagram
 
 | Input | Method | Required | Default | Validation Rules |
 |-------|--------|----------|---------|-----------------|
-| Port number | `--port` parameter or interactive | Yes | 10000 | Integer between 1-65535 |
+| Port number | `--port` / `-p` parameter or interactive | Yes | 10000 | Integer between 1-65535 |
 | Confirm continue (for existing project) | Interactive selection | Yes | No | Yes/No |
+| Skip confirmation (`-y` / `--yes`) | Command-line option | No | Off | When provided, skips confirmation prompt for existing project |
 
 ### 4.2 System Output
 

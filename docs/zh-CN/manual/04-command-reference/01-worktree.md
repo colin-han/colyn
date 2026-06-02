@@ -343,8 +343,8 @@ colyn list [选项]
 #### 1. 表格格式（默认）
 - 彩色输出，美观易读
 - 当前所在 worktree 用 `→` 箭头标识
-- 主分支 ID 显示为 `0-main`
-- 显示 `Git`（工作区变更）、`Diff`（与主分支差异）、`Status`（工作流状态）
+- 主分支 ID 显示为 `0`
+- 显示 `Git`（工作区变更）、`Diff`（与主分支差异）、`Remote`（与远程分支差异）、`Status`（工作流状态）
 - 响应式布局：根据终端宽度自动调整显示列
 
 #### 2. JSON 格式（`--json`）
@@ -368,16 +368,19 @@ colyn list [选项]
 ```bash
 $ colyn list
 
-ID      Branch            Port   Git       Diff    Path              Status
-  0-main main             10000            -       my-app
-  1      feature/login    10001  M:3 S:1   ↑2 ↓1   worktrees/task-1  running
-→ 2      feature/ui       10002            ✓       worktrees/task-2
+ID   Branch            Port   Git       Diff    Remote  Path              Status
+  0  main              10000            -       ✓       my-app
+  1  feature/login     10001  M:3 S:1   ↑2 ↓1   ↑1      worktrees/task-1  running
+→ 2  feature/ui        10002            ✓       -       worktrees/task-2
 ```
 
 **说明：**
+- 列顺序：`ID` / `Branch` / `Port` / `Git` / `Diff` / `Remote` / `Path` / `Status`
 - `→` 箭头标识当前所在的 worktree，整行青色高亮
+- 主分支 ID 显示为 `0`
 - `Git`: 未提交修改统计（`M` 已修改，`S` 已暂存，`?` 未跟踪）
 - `Diff`: 与主分支的提交差异（↑领先 ↓落后 ✓已同步）
+- `Remote`: 与远程跟踪分支的提交差异（↑领先 ↓落后 ✓已同步，无远程分支时为 `-`）
 - `Status`: 工作流状态（`idle` 时为空，其他为 `running` / `waiting-confirm` / `finish`）
 - 窄屏时 `Status` 会压缩为 `st.` 列，符号为 `▶ / ? / ✓`
 
@@ -398,6 +401,7 @@ $ colyn list --json
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
     "diff": { "ahead": 0, "behind": 0 },
+    "remoteDiff": { "ahead": 0, "behind": 0 },
     "worktreeStatus": "idle"
   },
   {
@@ -409,6 +413,7 @@ $ colyn list --json
     "isCurrent": false,
     "status": { "modified": 3, "staged": 1, "untracked": 2 },
     "diff": { "ahead": 2, "behind": 1 },
+    "remoteDiff": { "ahead": 1, "behind": 0 },
     "worktreeStatus": "running"
   }
 ]
@@ -460,7 +465,7 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 
 - 可以在项目的任意位置运行
 - 路径输出为相对于项目根目录的相对路径
-- 主分支的 ID 显示为 `0-main`
+- 主分支的 ID 显示为 `0`
 - 终端窄时表格会按实现自动切换显示模式（`full` → `no-port` → `no-path` → `compress-wt` → `simple-git` → `no-git` → `no-diff` → `minimal`）
 
 ---
@@ -484,15 +489,17 @@ colyn lsp [选项]        # 使用别名
 |------|--------|------|--------|
 | `--json` | - | 以 JSON 格式输出 | 否 |
 | `--paths` | `-p` | 只输出路径（每行一个） | 否 |
+| `--details` | `-d` | 显示各项目的 Worktree 详情 | 否（仅显示项目概览） |
 
 ### 功能说明
 
-`colyn list-project` 通过全局状态索引文件 `~/.colyn-status.json` 获取项目列表，并显示每个项目的 worktree 信息。
+`colyn list-project` 通过全局状态索引文件 `~/.colyn-status.json` 获取项目列表，并显示项目信息。
 
 **核心特性：**
 - 跨项目查看：一次性查看全局状态索引中的 colyn 项目
 - 完全复用 `list` 命令的数据结构和输出格式
 - 支持三种输出模式：表格、JSON、路径
+- 默认只输出项目概览表；加上 `--details` 才额外输出各项目的 Worktree 详情表
 
 **与 `list` 命令的区别：**
 - `list` - 查看**当前项目**的所有 worktree
@@ -504,7 +511,7 @@ colyn lsp [选项]        # 使用别名
 
 ### 示例
 
-**表格格式（默认）：**
+**表格格式（默认）：** 默认只输出项目概览表，不含 Worktree 详情。
 
 ```bash
 $ colyn list-project
@@ -515,14 +522,27 @@ $ colyn list-project
 │ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
 │ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
 └─────────┴──────────────────┴───────────┴─────────────────────┘
+```
+
+**详情格式（`--details`）：** 在项目概览表之外，额外输出各项目的 Worktree 详情表。
+
+```bash
+$ colyn list-project --details
+
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 backend 的 Worktrees:
-┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
-│ ID       │ Branch       │ Port │ Status │ Diff │ Path             │
-├──────────┼──────────────┼──────┼────────┼──────┼──────────────────┤
-│   0-main │ develop      │ 3010 │        │ -    │ backend          │
-│   1      │ feature/auth │ 3011 │        │ ✓    │ worktrees/task-1 │
-└──────────┴──────────────┴──────┴────────┴──────┴──────────────────┘
+┌──────────┬──────────────┬──────┬─────┬──────┬──────────────────┐
+│ ID       │ Branch       │ Port │ Git │ Diff │ Path             │
+├──────────┼──────────────┼──────┼─────┼──────┼──────────────────┤
+│   0-main │ develop      │ 3010 │     │ -    │ backend          │
+│   1      │ feature/auth │ 3011 │     │ ✓    │ worktrees/task-1 │
+└──────────┴──────────────┴──────┴─────┴──────┴──────────────────┘
 ```
 
 **路径格式：**

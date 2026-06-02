@@ -23,7 +23,7 @@ colyn info [options]
 
 | Field Name | Description | Example Value |
 |------------|-------------|---------------|
-| `project` | Project name | `myapp` |
+| `project` | Project name (main directory name) | `myapp` |
 | `project-path` | Project root directory path | `/Users/me/work/myapp` |
 | `worktree-id` | Worktree ID (0 for main branch) | `1` |
 | `worktree-dir` | Worktree directory name | `task-1` |
@@ -208,6 +208,4 @@ async function getShortId(): Promise<string> {
 | Exit Code | Description |
 |-----------|-------------|
 | 0 | Success |
-| 1 | Project root not found |
-| 2 | Not in worktree or main branch directory |
-| 3 | Invalid field name |
+| 1 | Failure (all errors return 1: project root not found / not in worktree or main branch directory / invalid field name, etc.) |

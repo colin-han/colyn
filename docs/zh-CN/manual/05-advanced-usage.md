@@ -101,7 +101,7 @@ colyn list
 # ┌────────┬──────────────────────┬──────┐
 # │ ID     │ 分支                 │ 端口 │
 # ├────────┼──────────────────────┼──────┤
-# │ 0-main │ main                 │ 3000 │
+# │ 0      │ main                 │ 3000 │
 # │ 1      │ feature/auth       * │ 3001 │
 # │ 2      │ feature/dashboard    │ 3002 │
 # │ 3      │ feature/notifications│ 3003 │
@@ -131,14 +131,14 @@ colyn list --json
 ```json
 [
   {
-    "id": "0-main",
+    "id": null,
     "branch": "main",
     "port": 3000,
     "path": "/path/to/project/my-project",
     "isCurrent": false
   },
   {
-    "id": "1",
+    "id": 1,
     "branch": "feature/login",
     "port": 3001,
     "path": "/path/to/project/worktrees/task-1",

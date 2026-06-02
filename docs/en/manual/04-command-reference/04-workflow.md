@@ -29,6 +29,7 @@ colyn release [version-type] [options]
 | `--no-version-update` | Skip reading/bumping the version, commit, and tag; push the current branch only |
 | `--no-tag` | Skip git tag creation while still bumping the version and pushing the branch |
 | `--verbose` / `-v` | Show full command output for install/lint/build (on failure) |
+| `--no-verbose` | Disable verbose output (opposite of `--verbose`) |
 
 ### Description
 
@@ -38,12 +39,11 @@ colyn release [version-type] [options]
 1. Check current directory for uncommitted code
 2. Check if current branch is merged (only when executing from a worktree)
 3. Check git status (main branch)
-4. Install dependencies (using the configured package manager command)
-5. Run lint and build
-6. Update package.json version
-7. Create commit and tag
-8. Push to remote
-9. **Auto-update all worktrees (unless `--no-update` is used)**
+4. Install dependencies, run lint and build (driven by toolchain plugins: executed only when the project has the corresponding plugin configured, skipped otherwise; lint and build can additionally be skipped via `--no-build`)
+5. Update package.json version
+6. Create commit and tag
+7. Push to remote
+8. **Auto-update all worktrees (unless `--no-update` is used)**
 
 ### Location Rules
 
@@ -322,10 +322,10 @@ colyn todo           # Equivalent to this command when no subcommand given
 ```bash
 # Show pending tasks (default)
 $ colyn todo
-  Type     Name       Message                    Status   Created
-  ---------------------------------------------------------------
-  feature  login      Implement user login...    pending  2026/02/22 10:00
-  bugfix   fix-crash  Fix application crash      pending  2026/02/22 11:30
+  Type     Name       Message                    Created
+  ------------------------------------------------------
+  feature  login      Implement user login...    2026/02/22 10:00
+  bugfix   fix-crash  Fix application crash      2026/02/22 11:30
 
 # Show completed tasks
 $ colyn todo list --completed

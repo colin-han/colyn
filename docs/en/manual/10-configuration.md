@@ -85,7 +85,7 @@ mkdir -p ~/.config/colyn
 # Create user-level configuration file (JSON5 format)
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -95,7 +95,7 @@ EOF
 
 # Or use YAML format
 cat > ~/.config/colyn/settings.yaml << 'EOF'
-version: 3
+version: 4
 lang: zh-CN
 systemCommands:
   npm: yarn
@@ -105,7 +105,7 @@ EOF
 mkdir -p .colyn
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -223,7 +223,7 @@ The complete configuration file structure is as follows:
 ```typescript
 {
   // Configuration file version number (used for automatic migration)
-  "version": 3,
+  "version": 4,
 
   // Interface language
   "lang": "zh-CN" | "en",
@@ -289,7 +289,7 @@ The complete configuration file structure is as follows:
 ### version
 
 **Type**: `number`
-**Default**: `3` (current version)
+**Default**: `4` (current version)
 **Description**: Configuration file version number, used for automatic migration
 
 **Warning**: Do not modify this field manually; the system manages it automatically
@@ -875,7 +875,7 @@ Colyn provides **system built-in default configuration** for certain branches, w
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -905,7 +905,7 @@ Colyn provides **system built-in default configuration** for certain branches, w
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "en",
   "systemCommands": {
     "npm": "npm"
@@ -957,7 +957,7 @@ User-level Config:
   Status: Exists
   Content:
     {
-      "version": 3,
+      "version": 4,
       "lang": "zh-CN"
     }
 
@@ -966,7 +966,7 @@ Project-level Config:
   Status: Exists
   Content:
     {
-      "version": 3,
+      "version": 4,
       "tmux": {
         "layout": "three-pane"
       }
@@ -1052,7 +1052,7 @@ If you are satisfied with the defaults, you do not need to create any configurat
 
 ```json
 {
-  "version": 3
+  "version": 4
 }
 ```
 
@@ -1067,7 +1067,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1079,7 +1079,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true,
@@ -1103,7 +1103,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1150,7 +1150,7 @@ If you do not want any commands to run automatically:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "autoRun": false,
     "layout": "three-pane"
@@ -1164,7 +1164,7 @@ Project-level configuration can be committed to version control so that team mem
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": {
     "npm": "pnpm",
     "claude": "claude --dangerously-skip-permissions"
@@ -1211,7 +1211,7 @@ git commit -m "Add team tmux configuration"
 
 Colyn uses version numbers to manage the evolution of configuration files. When the configuration structure changes, the system will **automatically migrate** your configuration.
 
-**Current version**: `3`
+**Current version**: `4`
 
 ### Configuration File Formats
 
@@ -1297,7 +1297,7 @@ Colyn supports multiple configuration file formats:
 }
 ```
 
-#### Version 2 to Version 3 (current version)
+#### Version 2 to Version 3
 
 **Date**: 2026-02-20
 
@@ -1382,7 +1382,7 @@ mv ~/.config/colyn/settings.json ~/.config/colyn/settings.json.bak
 # Create a new configuration
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN"
 }
 EOF
@@ -1416,7 +1416,7 @@ rm ~/.config/colyn/settings.json  # user-level
 rm .colyn/settings.json           # project-level
 
 # Or set to empty configuration
-echo '{"version": 3}' > ~/.config/colyn/settings.json
+echo '{"version": 4}' > ~/.config/colyn/settings.json
 ```
 
 ### 3. Branch override configuration not taking effect?
@@ -1451,7 +1451,7 @@ echo '{"version": 3}' > ~/.config/colyn/settings.json
 cd project-a
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": { "npm": "yarn" }
 }
 EOF
@@ -1459,7 +1459,7 @@ EOF
 cd project-b
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": { "npm": "pnpm" }
 }
 EOF
@@ -1469,7 +1469,7 @@ EOF
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "autoRun": false
   }
@@ -1480,7 +1480,7 @@ Or for a specific branch:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "branchOverrides": {
     "main": {
       "tmux": {
@@ -1534,7 +1534,7 @@ Since v3.3, you can set project-level or user-level defaults for boolean options
 
 | Field | Default | CLI On | CLI Off | Description |
 |-------|---------|--------|---------|-------------|
-| `update` | `true` | `--update` | `--no-update` | Update dependencies before release |
+| `update` | `true` | `--update` | `--no-update` | Automatically update all worktrees after a successful release |
 | `build` | `true` | `--build` | `--no-build` | Run build before release |
 | `tag` | `true` | `--tag` | `--no-tag` | Create git tag |
 | `versionUpdate` | `true` | `--version-update` | `--no-version-update` | Update version number |

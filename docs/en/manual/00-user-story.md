@@ -85,7 +85,7 @@ A quick `colyn list` shows the full picture:
 ┌────────┬──────────────┬──────┬──────────────────────┐
 │ ID     │ Branch       │ Port │ Path                  │
 ├────────┼──────────────┼──────┼──────────────────────┤
-│ 0-main │ main         │ 3000 │ my-task-app           │
+│ 0      │ main         │ 3000 │ my-task-app           │
 │ 1      │ feature/auth │ 3001 │ worktrees/task-1      │
 └────────┴──────────────┴──────┴──────────────────────┘
 ```

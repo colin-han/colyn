@@ -48,6 +48,7 @@ colyn release <version-type>
 - `--no-version-update` — skip reading/bumping version, commit and tag; only push the current branch (e.g. to trigger a deploy pipeline)
 - `--no-tag` — skip git tag creation while still bumping version and pushing the branch (e.g. when CI owns tagging)
 - `--verbose` / `-v` — show full command output when install/lint/build fails
+- `--no-verbose` — explicitly disable verbose output (overrides a configured default)
 
 Examples:
 ```bash

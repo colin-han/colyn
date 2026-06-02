@@ -334,7 +334,7 @@ colyn list [options]
 | `--json` | - | Output in JSON format | No |
 | `--paths` | `-p` | Output paths only (one per line) | No |
 | `--no-main` | - | Do not show main branch | No (shows main branch) |
-| `--refresh [interval]` | `-r` | Watch file changes and auto-refresh (optional: refresh interval in seconds) | No |
+| `--refresh` | `-r` | Watch file changes and auto-refresh | No |
 
 ### Description
 
@@ -343,8 +343,8 @@ colyn list [options]
 #### 1. Table Format (default)
 - Colored output, visually readable
 - Current worktree marked with `→` arrow
-- Main branch ID shown as `0-main`
-- Shows git status and diff against main branch
+- Main branch ID shown as `0`
+- Shows `Git` (working tree changes), `Diff` (diff against main branch), `Remote` (diff against remote branch), `Status` (workflow status)
 - Responsive layout: automatically adjusts columns based on terminal width
 
 #### 2. JSON Format (`--json`)
@@ -359,7 +359,7 @@ colyn list [options]
 #### 4. Auto-refresh (`--refresh`)
 - Automatically watches file changes and refreshes the table
 - Only supports table output; cannot be used with `--json` or `--paths`
-- By default refreshes on file events; optionally pass a number (seconds) as refresh interval
+- Triggered by file change events (with debounce)
 
 ### Examples
 
@@ -368,16 +368,21 @@ colyn list [options]
 ```bash
 $ colyn list
 
-ID    Branch            Port   Status      Diff   Path
-  0-main   main         10000              -      my-app
-  1   feature/login     10001  M:3         ↑2 ↓1  worktrees/task-1
-→ 2   feature/dashboard 10002              ↑5     worktrees/task-2
+ID   Branch            Port   Git       Diff    Remote  Path              Status
+  0  main              10000            -       ✓       my-app
+  1  feature/login     10001  M:3 S:1   ↑2 ↓1   ↑1      worktrees/task-1  running
+→ 2  feature/ui        10002            ✓       -       worktrees/task-2
 ```
 
 **Notes:**
+- Column order: `ID` / `Branch` / `Port` / `Git` / `Diff` / `Remote` / `Path` / `Status`
 - `→` arrow marks the current worktree, entire row highlighted in cyan
-- `Status`: Uncommitted change counts (M:modified S:staged ?:untracked)
+- Main branch ID is shown as `0`
+- `Git`: Uncommitted change counts (M:modified S:staged ?:untracked)
 - `Diff`: Commit diff against main branch (↑ahead ↓behind ✓synced)
+- `Remote`: Commit diff against the remote tracking branch (↑ahead ↓behind ✓synced, `-` when no remote branch)
+- `Status`: Workflow status (empty when `idle`, otherwise `running` / `waiting-confirm` / `finish`)
+- On narrow terminals, `Status` is compressed into the `st.` column with symbols `▶ / ? / ✓`
 
 **JSON format:**
 
@@ -395,7 +400,9 @@ $ colyn list --json
     "isMain": true,
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
-    "diff": { "ahead": 0, "behind": 0 }
+    "diff": { "ahead": 0, "behind": 0 },
+    "remoteDiff": { "ahead": 0, "behind": 0 },
+    "worktreeStatus": "idle"
   },
   {
     "id": 1,
@@ -405,7 +412,9 @@ $ colyn list --json
     "isMain": false,
     "isCurrent": false,
     "status": { "modified": 3, "staged": 1, "untracked": 2 },
-    "diff": { "ahead": 2, "behind": 1 }
+    "diff": { "ahead": 2, "behind": 1 },
+    "remoteDiff": { "ahead": 1, "behind": 0 },
+    "worktreeStatus": "running"
   }
 ]
 ```
@@ -429,9 +438,6 @@ worktrees/task-2
 ```bash
 # Watch file changes and auto-refresh
 $ colyn list -r
-
-# Refresh every 2 seconds
-$ colyn list --refresh 2
 ```
 
 ### Script Usage Examples
@@ -459,8 +465,8 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 
 - Can be run from anywhere in the project
 - Path output is relative to the project root directory
-- Main branch ID is displayed as `0-main`
-- On narrow terminals, the table automatically hides less important columns
+- Main branch ID is displayed as `0`
+- On narrow terminals, the table automatically switches display mode per implementation (`full` → `no-port` → `no-path` → `compress-wt` → `simple-git` → `no-git` → `no-diff` → `minimal`)
 
 ---
 
@@ -483,15 +489,17 @@ colyn lsp [options]        # Using alias
 |--------|-------|-------------|---------|
 | `--json` | - | Output in JSON format | No |
 | `--paths` | `-p` | Output paths only (one per line) | No |
+| `--details` | `-d` | Show worktree details for each project | No (overview only) |
 
 ### Description
 
-`colyn list-project` retrieves project paths from the global status index file `~/.colyn-status.json` and shows worktree information for each project.
+`colyn list-project` retrieves project paths from the global status index file `~/.colyn-status.json` and shows project information.
 
 **Key features:**
 - Cross-project view: see all colyn projects in the global status index at once
 - Fully reuses data structure and output format from `list` command
 - Supports three output modes: table, JSON, paths
+- By default outputs only the project overview table; add `--details` to also output a worktree details table for each project
 
 **Difference from `list` command:**
 - `list` - View all worktrees of the **current project**
@@ -503,7 +511,7 @@ colyn lsp [options]        # Using alias
 
 ### Examples
 
-**Table format (default):**
+**Table format (default):** by default only the project overview table is printed, without worktree details.
 
 ```bash
 $ colyn list-project
@@ -514,14 +522,27 @@ $ colyn list-project
 │ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
 │ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
 └─────────┴──────────────────┴───────────┴─────────────────────┘
+```
+
+**Details format (`--details`):** in addition to the project overview table, a worktree details table is printed for each project.
+
+```bash
+$ colyn list-project --details
+
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 backend Worktrees:
-┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
-│ ID       │ Branch       │ Port │ Status │ Diff │ Path             │
-├──────────┼──────────────┼──────┼────────┼──────┼──────────────────┤
-│   0-main │ develop      │ 3010 │        │ -    │ backend          │
-│   1      │ feature/auth │ 3011 │        │ ✓    │ worktrees/task-1 │
-└──────────┴──────────────┴──────┴────────┴──────┴──────────────────┘
+┌──────────┬──────────────┬──────┬─────┬──────┬──────────────────┐
+│ ID       │ Branch       │ Port │ Git │ Diff │ Path             │
+├──────────┼──────────────┼──────┼─────┼──────┼──────────────────┤
+│   0-main │ develop      │ 3010 │     │ -    │ backend          │
+│   1      │ feature/auth │ 3011 │     │ ✓    │ worktrees/task-1 │
+└──────────┴──────────────┴──────┴─────┴──────┴──────────────────┘
 ```
 
 **Path format:**

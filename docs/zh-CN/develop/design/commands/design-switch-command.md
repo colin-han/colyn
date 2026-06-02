@@ -80,17 +80,29 @@ colyn <number>
 process.argv  --(预处理)-->  commander  --(分派)-->  switch handler  --(输出)-->  shell/colyn.sh
 ```
 
-#### 第一步：argv 预处理（`src/cli.ts`）
+#### 第一步：argv 预处理（`src/cli-preprocess.ts`）
 
-在 `program.parse()` 之前增加约 6 行预处理：
+`preprocessArgv(argv)` 接收完整 argv（含 `argv[0]`/`argv[1]`），识别"恰好一个非选项参数且为纯数字"的情况，在数字参数**之后**插入 `'switch'`：
 
 ```ts
-// 识别"第一个非选项参数为纯数字"且只有一个参数的情况
-const rest = process.argv.slice(2).filter(a => !a.startsWith('-'));
-if (rest.length === 1 && /^\d+$/.test(rest[0])) {
-  // 找到该数字在 argv 中的位置，前面插入 'switch'
-  const idx = process.argv.findIndex(a => a === rest[0]);
-  process.argv.splice(idx, 0, 'switch');
+export function preprocessArgv(argv: string[]): string[] {
+  const args = argv.slice(2);
+  const nonOptionArgs = args.filter((a) => !a.startsWith('-'));
+
+  if (nonOptionArgs.length !== 1) return [...argv];
+  if (!/^\d+$/.test(nonOptionArgs[0])) return [...argv];
+
+  const digitArg = nonOptionArgs[0];
+  const digitIdx = args.indexOf(digitArg);
+
+  // 防止 `colyn 1 --foo` 这类混合用法被误识别为快速切换
+  const hasOptionAfterDigit = args.slice(digitIdx + 1).some((a) => a.startsWith('-'));
+  if (hasOptionAfterDigit) return [...argv];
+
+  // 注意：digitIdx 相对于 args（argv.slice(2)），在完整 argv 中需补偿 +2
+  const result = [...argv];
+  result.splice(digitIdx + 2, 0, 'switch');
+  return result;
 }
 ```
 
@@ -235,7 +247,7 @@ fi
 ```
 Worktree task-9 不存在
 可用 worktree：
-  0  main         (主目录)
+  0  main         main  (主目录)
   1  task-1       feature/foo
   2  task-2       feature/quick-switch
 ```
@@ -278,12 +290,13 @@ switch: {
 ### 新增
 
 - `src/commands/switch.ts`：命令模块，注册 hidden subcommand，包含目标解析、tmux 状态检测、控制消息输出
+- `src/cli-preprocess.ts`：`preprocessArgv()` argv 预处理逻辑（独立模块，便于单元测试）
 - `docs/zh-CN/develop/design/commands/design-switch-command.md`：本文档
 - `docs/en/develop/design/commands/design-switch-command.md`：英文版
 
 ### 修改
 
-- `src/cli.ts`：增加 argv 预处理（约 6 行）
+- `src/cli.ts`：在 `program.parse()` 前调用 `process.argv = preprocessArgv(process.argv)`
 - `src/commands/index.ts`：增加 `registerSwitch(program)`（项目既有模式）
 - `shell/colyn.sh`：解析 `attachWindow` 字段，扩展现有 attachSession 分支
 - `src/i18n/locales/zh-CN.ts`：新增 `commands.switch.*` 键
@@ -311,14 +324,16 @@ switch: {
 
 argv 预处理逻辑单独测试：
 
+输入为完整 argv（含 `argv[0]`/`argv[1]`，如 `["node", "colyn", ...]`）：
+
 | # | 输入 argv | 期望结果 |
 |---|----------|------|
-| 1 | `["1"]` | 重写为 `["switch", "1"]` |
-| 2 | `["add"]` | 不重写 |
-| 3 | `["1", "2"]` | 不重写 |
-| 4 | `["1", "--foo"]` | 不重写 |
-| 5 | `["--help"]` | 不重写 |
-| 6 | `["12abc"]` | 不重写 |
+| 1 | `["node", "colyn", "1"]` | 重写为 `["node", "colyn", "switch", "1"]` |
+| 2 | `["node", "colyn", "add"]` | 不重写 |
+| 3 | `["node", "colyn", "1", "2"]` | 不重写 |
+| 4 | `["node", "colyn", "1", "--foo"]` | 不重写 |
+| 5 | `["node", "colyn", "--help"]` | 不重写 |
+| 6 | `["node", "colyn", "12abc"]` | 不重写 |
 
 ## 兼容性
 
