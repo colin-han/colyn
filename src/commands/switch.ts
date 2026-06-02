@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import path from 'path';
+import { spawn } from 'child_process';
 import * as fsp from 'fs/promises';
 import os from 'os';
 import { t } from '../i18n/index.js';
@@ -100,14 +101,21 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
 
   const displayPath = toDisplayPath(target);
 
-  // 执行模式：输出 command 字段，由 shell 执行
+  // 执行模式：Node.js 直接执行命令，输出转发到 stderr
   if (commandArgs && commandArgs.length > 0) {
-    outputResult({
-      success: true,
-      targetDir: target,
-      displayPath,
-      command: commandArgs.join(' '),
+    const child = spawn(commandArgs.join(' '), {
+      cwd: target,
+      stdio: ['inherit', 'pipe', 'pipe'],
+      shell: true,
     });
+
+    child.stdout.pipe(process.stderr);
+    child.stderr.pipe(process.stderr);
+
+    child.on('close', (code) => {
+      process.exit(code ?? 1);
+    });
+
     return;
   }
 
