@@ -76,7 +76,7 @@ export interface CommandModule {
 /**
  * Todo 状态
  */
-export type TodoStatus = 'pending' | 'completed';
+export type TodoStatus = 'pending' | 'in-progress' | 'done';
 
 /**
  * Todo 条目
