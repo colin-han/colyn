@@ -72,3 +72,71 @@ describe('GitHubIssuesBackend.list', () => {
     expect(await be.list('pending')).toHaveLength(0);
   });
 });
+
+describe('GitHubIssuesBackend 写操作', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureGhRepo.mockReturnValue('owner/repo');
+  });
+
+  it('add：create 并回填 issue 号', async () => {
+    runGh.mockReturnValue('https://github.com/owner/repo/issues/42');
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: { feature: 'enhancement' } });
+    const item = await be.add({ type: 'feature', message: 'Title line\nbody text' });
+    expect(item.name).toBe('42');
+    expect(item.type).toBe('feature');
+    const call = runGh.mock.calls[0][0] as string[];
+    expect(call).toEqual(expect.arrayContaining(['issue', 'create', '--title', 'Title line', '--body', 'body text', '--label', 'enhancement']));
+  });
+
+  it('markDone：gh issue close', async () => {
+    runGh.mockReturnValue('');
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await be.markDone('feature', '42');
+    expect(runGh).toHaveBeenCalledWith(['issue', 'close', '42']);
+  });
+
+  it('reopen：gh issue reopen', async () => {
+    runGh.mockReturnValue('');
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await be.reopen('feature', '42');
+    expect(runGh).toHaveBeenCalledWith(['issue', 'reopen', '42']);
+  });
+
+  it('edit：更新 title/body', async () => {
+    runGh.mockReturnValue('');
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await be.edit('feature', '42', 'New title\nnew body');
+    const call = runGh.mock.calls[0][0] as string[];
+    expect(call).toEqual(expect.arrayContaining(['issue', 'edit', '42', '--title', 'New title', '--body', 'new body']));
+  });
+
+  it('remove：close + 加 wontfix label', async () => {
+    runGh.mockReturnValue('');
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await be.remove('feature', '42');
+    expect(runGh).toHaveBeenCalledWith(['issue', 'edit', '42', '--add-label', 'wontfix']);
+    expect(runGh).toHaveBeenCalledWith(['issue', 'close', '42']);
+  });
+
+  it('markStarted：IMS 侧 no-op（不调用 gh 写操作）', async () => {
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await be.markStarted('feature', '42', 'feature/42');
+    expect(runGh).not.toHaveBeenCalled();
+  });
+
+  it('archive(已配置 label)：给所有无 label 的 closed 加 archivedLabel', async () => {
+    runGh
+      .mockReturnValueOnce(JSON.stringify([{ number: 8, title: 'H', body: '', labels: [] }]))
+      .mockReturnValue('');
+    const be = new GitHubIssuesBackend({ archivedLabel: 'colyn-archived', typeLabels: {} });
+    await be.archive();
+    expect(runGh).toHaveBeenCalledWith(['issue', 'edit', '8', '--add-label', 'colyn-archived']);
+  });
+
+  it('archive(未配置 label)：no-op', async () => {
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await be.archive();
+    expect(runGh).not.toHaveBeenCalled();
+  });
+});

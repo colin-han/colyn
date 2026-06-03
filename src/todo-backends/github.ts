@@ -24,6 +24,11 @@ export class GitHubIssuesBackend implements TodoBackend {
 
   constructor(private readonly config: GhConfig) {}
 
+  /** colyn type → GitHub label（有映射用映射值，否则原样返回 type）*/
+  private typeToLabel(type: string): string {
+    return this.config.typeLabels[type] ?? type;
+  }
+
   /** GitHub label 列表 → colyn type（取首个命中映射或同名的 label）*/
   private labelsToType(labels: string[]): string {
     const reverse = new Map(
@@ -120,26 +125,63 @@ export class GitHubIssuesBackend implements TodoBackend {
     }
   }
 
-  // 写操作在 Task 3.3 实现
-  async add(_input: AddTodoInput): Promise<TodoItem> {
-    throw new Error('not implemented');
+  /** 拆分 message 为 title（首行）和 body（其余） */
+  private splitMessage(message: string): { title: string; body: string } {
+    const idx = message.indexOf('\n');
+    if (idx === -1) return { title: message, body: '' };
+    return { title: message.slice(0, idx), body: message.slice(idx + 1) };
   }
-  async markStarted(_t: string, _n: string, _b: string): Promise<void> {
-    throw new Error('not implemented');
+
+  async add(input: AddTodoInput): Promise<TodoItem> {
+    ensureGhRepo();
+    const { title, body } = this.splitMessage(input.message);
+    const out = runGh([
+      'issue', 'create', '--title', title, '--body', body,
+      '--label', this.typeToLabel(input.type),
+    ]);
+    const number = out.split('/').pop()?.trim() ?? '';
+    return {
+      type: input.type,
+      name: number,
+      message: input.message,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
   }
-  async markDone(_t: string, _n: string): Promise<void> {
-    throw new Error('not implemented');
+
+  async markStarted(_type: string, _name: string, _branch: string): Promise<void> {
+    // in-progress 靠分支推断，IMS 侧无需操作
   }
-  async reopen(_t: string, _n: string): Promise<void> {
-    throw new Error('not implemented');
+
+  async markDone(_type: string, name: string): Promise<void> {
+    ensureGhRepo();
+    runGh(['issue', 'close', name]);
   }
-  async edit(_t: string, _n: string, _m: string): Promise<void> {
-    throw new Error('not implemented');
+
+  async reopen(_type: string, name: string): Promise<void> {
+    ensureGhRepo();
+    runGh(['issue', 'reopen', name]);
   }
-  async remove(_t: string, _n: string): Promise<void> {
-    throw new Error('not implemented');
+
+  async edit(_type: string, name: string, message: string): Promise<void> {
+    ensureGhRepo();
+    const { title, body } = this.splitMessage(message);
+    runGh(['issue', 'edit', name, '--title', title, '--body', body]);
   }
+
+  async remove(_type: string, name: string): Promise<void> {
+    ensureGhRepo();
+    runGh(['issue', 'edit', name, '--add-label', WONTFIX_LABEL]);
+    runGh(['issue', 'close', name]);
+  }
+
   async archive(): Promise<void> {
-    throw new Error('not implemented');
+    const label = this.config.archivedLabel;
+    if (!label) return;
+    const closed = this.fetchIssues('closed')
+      .filter((i) => !this.hasLabel(i, WONTFIX_LABEL) && !this.hasLabel(i, label));
+    for (const issue of closed) {
+      runGh(['issue', 'edit', String(issue.number), '--add-label', label]);
+    }
   }
 }
