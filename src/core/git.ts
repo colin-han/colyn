@@ -104,3 +104,17 @@ export async function branchExistsAnywhere(branch: string, dir?: string): Promis
     return false;
   }
 }
+
+/**
+ * 获取 origin 远端的 fetch URL；无 origin 返回 null。
+ */
+export async function getOriginUrl(dir?: string): Promise<string | null> {
+  const git = simpleGit(dir);
+  try {
+    const remotes = await git.getRemotes(true);
+    const origin = remotes.find((r) => r.name === 'origin');
+    return origin?.refs?.fetch ?? null;
+  } catch {
+    return null;
+  }
+}

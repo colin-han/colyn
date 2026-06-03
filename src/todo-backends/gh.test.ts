@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { spawnSync } = vi.hoisted(() => ({ spawnSync: vi.fn() }));
 vi.mock('child_process', () => ({ spawnSync }));
 
-import { runGh, ensureGhRepo } from './gh.js';
+import { runGh, ensureGhRepo, isGhInstalled, isGhAuthed } from './gh.js';
 
 describe('gh wrapper', () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -27,5 +27,29 @@ describe('gh wrapper', () => {
   it('ensureGhRepo：成功返回 nameWithOwner', () => {
     spawnSync.mockReturnValue({ status: 0, stdout: JSON.stringify({ nameWithOwner: 'a/b' }), stderr: '' });
     expect(ensureGhRepo()).toBe('a/b');
+  });
+});
+
+describe('gh availability', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('isGhInstalled：which gh 成功 → true', () => {
+    spawnSync.mockReturnValue({ status: 0, stdout: '/usr/bin/gh', stderr: '' });
+    expect(isGhInstalled()).toBe(true);
+  });
+
+  it('isGhInstalled：which gh 失败 → false', () => {
+    spawnSync.mockReturnValue({ status: 1, stdout: '', stderr: '' });
+    expect(isGhInstalled()).toBe(false);
+  });
+
+  it('isGhAuthed：gh auth status 退出 0 → true', () => {
+    spawnSync.mockReturnValue({ status: 0, stdout: '', stderr: 'Logged in' });
+    expect(isGhAuthed()).toBe(true);
+  });
+
+  it('isGhAuthed：非零 → false', () => {
+    spawnSync.mockReturnValue({ status: 1, stdout: '', stderr: 'not logged in' });
+    expect(isGhAuthed()).toBe(false);
   });
 });

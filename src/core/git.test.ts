@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const branchLocal = vi.fn();
 const branch = vi.fn();
+const getRemotes = vi.fn();
 vi.mock('simple-git', () => ({
-  default: () => ({ branchLocal, branch }),
+  default: () => ({ branchLocal, branch, getRemotes }),
 }));
 
-import { localBranchExists, branchExistsAnywhere } from './git.js';
+import { localBranchExists, branchExistsAnywhere, getOriginUrl } from './git.js';
 
 describe('branch existence helpers', () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -26,5 +27,21 @@ describe('branch existence helpers', () => {
     branch.mockResolvedValue({ all: ['main', 'remotes/origin/feature/42'] });
     expect(await branchExistsAnywhere('feature/42')).toBe(true);
     expect(await branchExistsAnywhere('feature/none')).toBe(false);
+  });
+});
+
+describe('getOriginUrl', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('返回 origin 的 fetch URL', async () => {
+    getRemotes.mockResolvedValue([
+      { name: 'origin', refs: { fetch: 'git@github.com:owner/repo.git', push: '' } },
+    ]);
+    expect(await getOriginUrl()).toBe('git@github.com:owner/repo.git');
+  });
+
+  it('无 origin 返回 null', async () => {
+    getRemotes.mockResolvedValue([]);
+    expect(await getOriginUrl()).toBeNull();
   });
 });

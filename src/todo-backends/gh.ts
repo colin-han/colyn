@@ -24,6 +24,18 @@ export function runGh(args: string[]): string {
   return (result.stdout ?? '').toString().trim();
 }
 
+/** gh 是否已安装 */
+export function isGhInstalled(): boolean {
+  const result = spawnSync('which', ['gh'], { encoding: 'utf-8' });
+  return !result.error && result.status === 0;
+}
+
+/** gh 是否已登录 */
+export function isGhAuthed(): boolean {
+  const result = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8' });
+  return !result.error && result.status === 0;
+}
+
 /**
  * 解析当前仓库 nameWithOwner；非 GitHub repo 抛错。
  */
