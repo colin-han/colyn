@@ -212,7 +212,7 @@ export const GitHubTodoConfigSchema = z.object({
   archivedLabel: z.string().nullable().default(null),
   /** colyn type ↔ GitHub label 映射；未配置时按同名处理 */
   typeLabels: z.record(z.string(), z.string()).default({}),
-}).strict().default({});
+});
 
 /**
  * Todo backend 配置
@@ -223,7 +223,7 @@ export const TodoConfigSchema = z.object({
   /** complete 标记 done 时是否自动归档，默认 false */
   autoArchive: z.boolean().default(false),
   /** GitHub backend 配置 */
-  github: GitHubTodoConfigSchema,
+  github: GitHubTodoConfigSchema.default({ archivedLabel: null, typeLabels: {} }),
 });
 
 export type TodoConfig = z.infer<typeof TodoConfigSchema>;
