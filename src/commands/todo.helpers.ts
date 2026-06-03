@@ -191,11 +191,69 @@ function isWideCodePoint(code: number): boolean {
   );
 }
 
+/**
+ * 判断 Unicode 码点是否默认按 emoji 宽度（终端显示 2 列）渲染。
+ *
+ * 仅包含 Emoji_Presentation=Yes 的码点。文本默认符号（如 ♻ U+267B，
+ * Emoji_Presentation=No）不在此列——它们只有在跟随变体选择符 U+FE0F 时
+ * 才按 emoji 宽度渲染，而 U+FE0F 本身按 1 列计入，恰好补足这 1 列宽度，
+ * 因此无需在此特殊处理变体选择符。
+ */
+function isEmojiCodePoint(code: number): boolean {
+  return (
+    // 补充平面常见 emoji 区块
+    (code >= 0x1f300 && code <= 0x1f64f) || // 杂项符号/象形文字、表情
+    (code >= 0x1f680 && code <= 0x1f6ff) || // 交通与地图符号
+    (code >= 0x1f900 && code <= 0x1f9ff) || // 补充符号与象形文字
+    (code >= 0x1fa70 && code <= 0x1faff) || // 符号与象形文字扩展-A
+    (code >= 0x1f1e6 && code <= 0x1f1ff) || // 区域指示符（旗帜）
+    // BMP 中 Emoji_Presentation=Yes 的码点
+    (code >= 0x231a && code <= 0x231b) ||
+    (code >= 0x23e9 && code <= 0x23ec) ||
+    code === 0x23f0 ||
+    code === 0x23f3 ||
+    (code >= 0x25fd && code <= 0x25fe) ||
+    (code >= 0x2614 && code <= 0x2615) ||
+    (code >= 0x2648 && code <= 0x2653) ||
+    code === 0x267f ||
+    code === 0x2693 ||
+    code === 0x26a1 ||
+    (code >= 0x26aa && code <= 0x26ab) ||
+    (code >= 0x26bd && code <= 0x26be) ||
+    (code >= 0x26c4 && code <= 0x26c5) ||
+    code === 0x26ce ||
+    code === 0x26d4 ||
+    code === 0x26ea ||
+    (code >= 0x26f2 && code <= 0x26f3) ||
+    code === 0x26f5 ||
+    code === 0x26fa ||
+    code === 0x26fd ||
+    code === 0x2705 ||
+    (code >= 0x270a && code <= 0x270b) ||
+    code === 0x2728 || // ✨（默认 abbr 用到）
+    code === 0x274c ||
+    code === 0x274e ||
+    (code >= 0x2753 && code <= 0x2755) ||
+    code === 0x2757 ||
+    (code >= 0x2795 && code <= 0x2797) ||
+    code === 0x27b0 ||
+    code === 0x27bf ||
+    (code >= 0x2b1b && code <= 0x2b1c) ||
+    code === 0x2b50 ||
+    code === 0x2b55
+  );
+}
+
+/** 计算单个 Unicode 码点的终端显示宽度（1 或 2 列） */
+function codePointWidth(code: number): number {
+  return isWideCodePoint(code) || isEmojiCodePoint(code) ? 2 : 1;
+}
+
 /** 计算字符串在终端中的显示宽度 */
 export function strWidth(s: string): number {
   let w = 0;
   for (const ch of s) {
-    w += isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    w += codePointWidth(ch.codePointAt(0) ?? 0);
   }
   return w;
 }
@@ -211,7 +269,7 @@ function truncWidth(s: string, maxW: number): string {
   let w = 0;
   let result = '';
   for (const ch of s) {
-    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    const cw = codePointWidth(ch.codePointAt(0) ?? 0);
     if (w + cw + 1 > maxW) break; // 保留 1 格放省略号
     result += ch;
     w += cw;
@@ -225,7 +283,7 @@ function truncStr(s: string, maxW: number): string {
   let w = 0;
   let result = '';
   for (const ch of s) {
-    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    const cw = codePointWidth(ch.codePointAt(0) ?? 0);
     if (w + cw + 1 > maxW) break;
     result += ch;
     w += cw;
@@ -243,7 +301,7 @@ function wrapByWidth(s: string, maxW: number): string[] {
   let width = 0;
 
   for (const ch of s) {
-    const chWidth = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    const chWidth = codePointWidth(ch.codePointAt(0) ?? 0);
 
     if (width > 0 && width + chWidth > maxW) {
       lines.push(current);
