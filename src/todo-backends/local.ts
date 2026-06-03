@@ -1,5 +1,7 @@
 import type { TodoItem, ArchivedTodoItem } from '../types/index.js';
-import type { TodoBackend, TodoFilter, AddTodoInput } from '../types/todo-backend.js';
+import type { TodoBackend, TodoFilter, AddTodoInput, TodoBackendProvider, TodoBackendDetectContext } from '../types/todo-backend.js';
+import type { ProjectPaths } from '../core/paths.js';
+import type { TodoConfig } from '../core/config-schema.js';
 import {
   readTodoFile, saveTodoFile, readArchivedTodoFile, saveArchivedTodoFile,
 } from '../commands/todo.helpers.js';
@@ -156,3 +158,17 @@ export class LocalFileBackend implements TodoBackend {
     await saveTodoFile(this.configDir, file);
   }
 }
+
+export const localProvider: TodoBackendProvider = {
+  name: 'local',
+  displayName: 'Local (todo.json)',
+  async detect(_ctx: TodoBackendDetectContext): Promise<boolean> {
+    return true; // 本地 backend 永远可用
+  },
+  async setup(_ctx: TodoBackendDetectContext): Promise<void> {
+    // 无前置依赖，no-op
+  },
+  create(paths: ProjectPaths, config: TodoConfig): TodoBackend {
+    return new LocalFileBackend(paths.configDir, config.autoArchive);
+  },
+};
