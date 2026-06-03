@@ -976,6 +976,9 @@ export const zhCN = {
         ghInstallFailed: 'gh 安装失败，请手动安装：{{url}}',
         ghAuthHint: 'gh 尚未登录，请运行 gh auth login 后再使用 GitHub backend',
         ghReady: 'GitHub CLI 已就绪',
+        selectPrompt: '检测到多个可用的 todo backend，请选择一个：',
+        configured: '已配置 todo backend：{{backend}}',
+        setupFailed: 'todo backend "{{backend}}" 初始化失败，保留默认 local：{{error}}',
       },
     },
 

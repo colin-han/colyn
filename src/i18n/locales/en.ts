@@ -976,6 +976,9 @@ Solution:
         ghInstallFailed: 'Failed to install gh. Install manually: {{url}}',
         ghAuthHint: 'gh is not authenticated. Run "gh auth login" before using the GitHub backend',
         ghReady: 'GitHub CLI is ready',
+        selectPrompt: 'Multiple todo backends are available. Choose one:',
+        configured: 'Configured todo backend: {{backend}}',
+        setupFailed: 'Setup for todo backend "{{backend}}" failed; keeping default local: {{error}}',
       },
     },
 
