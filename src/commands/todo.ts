@@ -734,6 +734,7 @@ export function register(program: Command): void {
         // 记录成功迁移的本地项（type/name），用于后续删除
         const migrated: Array<{ type: string; name: string }> = [];
         let skippedCount = 0;
+        let failedCount = 0;
 
         // 4. 逐项确认并迁移
         for (const item of unfinished) {
@@ -744,22 +745,30 @@ export function register(program: Command): void {
             type: 'confirm',
             name: 'confirm',
             message: t('commands.todo.migrateLocal.confirmItem', { todoId, summary }),
-            initial: true,
+            initial: false,
             stdout: process.stderr,
           });
 
-          if (response.confirm) {
+          if (!response.confirm) {
+            skippedCount++;
+            continue;
+          }
+
+          try {
             const created = await backend.add({ type: item.type, message: item.message });
             const newTodoId = `${created.type}/${created.name}`;
             outputSuccess(t('commands.todo.migrateLocal.migrated', { from: todoId, to: newTodoId }));
             migrated.push({ type: item.type, name: item.name });
-          } else {
-            skippedCount++;
+          } catch (error) {
+            // 单项失败不中断整个迁移：打印该项错误后继续处理下一项
+            const message = error instanceof Error ? error.message : String(error);
+            outputError(t('commands.todo.migrateLocal.itemFailed', { todoId, error: message }));
+            failedCount++;
           }
         }
 
         // 5. 汇总
-        outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migrated.length, skipped: skippedCount }));
+        outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migrated.length, skipped: skippedCount, failed: failedCount }));
 
         // 6. 全部迁移完成后，做一次最终确认；确认则从本地删除已迁移的项（破坏性操作，默认否）
         if (migrated.length > 0) {
