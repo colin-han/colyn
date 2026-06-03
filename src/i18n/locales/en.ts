@@ -965,7 +965,7 @@ Solution:
       },
       backend: {
         unknown: 'Unknown todo backend: "{{backend}}"',
-        ghNotInstalled: 'gh command not found. Install GitHub CLI first (https://cli.github.com)',
+        ghNotInstalled: 'gh command not found. Install it with: {{install}}',
         ghNotAuthed: 'gh is not authenticated. Run "gh auth login" first',
         notGithubRepo: 'Current directory is not a GitHub repo (gh repo view failed)',
         ghFailed: 'gh command failed: {{detail}}',

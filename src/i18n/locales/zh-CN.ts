@@ -965,7 +965,7 @@ export const zhCN = {
       },
       backend: {
         unknown: '未知的 todo backend："{{backend}}"',
-        ghNotInstalled: '未检测到 gh 命令，请先安装 GitHub CLI（https://cli.github.com）',
+        ghNotInstalled: '未检测到 gh 命令。安装方式：{{install}}',
         ghNotAuthed: 'gh 未登录，请先运行 gh auth login',
         notGithubRepo: '当前目录不是 GitHub 仓库（无法通过 gh repo view 解析）',
         ghFailed: 'gh 命令执行失败：{{detail}}',

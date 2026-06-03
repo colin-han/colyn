@@ -4,7 +4,7 @@ import { ColynError } from '../types/index.js';
 import type { TodoBackend, TodoFilter, AddTodoInput, TodoBackendProvider, TodoBackendDetectContext } from '../types/todo-backend.js';
 import type { ProjectPaths } from '../core/paths.js';
 import type { TodoConfig } from '../core/config-schema.js';
-import { runGh, ensureGhRepo, isGhInstalled, isGhAuthed } from './gh.js';
+import { runGh, ensureGhRepo, isGhInstalled, isGhAuthed, ghInstallHint } from './gh.js';
 import { branchExistsAnywhere, getOriginUrl } from '../core/git.js';
 import { outputInfo, outputWarning } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
@@ -214,7 +214,7 @@ export const githubProvider: TodoBackendProvider = {
   async setup(ctx: TodoBackendDetectContext): Promise<void> {
     if (!isGhInstalled()) {
       if (ctx.nonInteractive) {
-        throw new ColynError(t('commands.todo.backend.ghNotInstalled'));
+        throw new ColynError(t('commands.todo.backend.ghNotInstalled', { install: ghInstallHint() }));
       }
       if (process.platform === 'darwin' && hasBrew()) {
         const { confirmed } = await (Enquirer as unknown as {
@@ -238,7 +238,7 @@ export const githubProvider: TodoBackendProvider = {
         outputInfo(t('commands.todo.backend.ghInstallGuide', { url: GH_INSTALL_URL }));
       }
       if (!isGhInstalled()) {
-        throw new ColynError(t('commands.todo.backend.ghNotInstalled'));
+        throw new ColynError(t('commands.todo.backend.ghNotInstalled', { install: ghInstallHint() }));
       }
     }
     if (!isGhAuthed()) {

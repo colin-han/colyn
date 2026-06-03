@@ -3,6 +3,21 @@ import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 
 /**
+ * 返回当前操作系统下安装 GitHub CLI 的建议命令；
+ * Linux 各发行版命令各异，回退到官方安装页。
+ */
+export function ghInstallHint(): string {
+  switch (process.platform) {
+    case 'darwin':
+      return 'brew install gh';
+    case 'win32':
+      return 'winget install --id GitHub.cli';
+    default:
+      return 'https://cli.github.com';
+  }
+}
+
+/**
  * 执行 gh 命令，返回 stdout（trim）。失败时抛 ColynError。
  */
 export function runGh(args: string[]): string {
@@ -10,7 +25,7 @@ export function runGh(args: string[]): string {
   if (result.error) {
     const code = (result.error as NodeJS.ErrnoException).code;
     if (code === 'ENOENT') {
-      throw new ColynError(t('commands.todo.backend.ghNotInstalled'));
+      throw new ColynError(t('commands.todo.backend.ghNotInstalled', { install: ghInstallHint() }));
     }
     throw new ColynError(t('commands.todo.backend.ghFailed', { detail: result.error.message }));
   }
@@ -44,7 +59,13 @@ export function ensureGhRepo(): string {
   try {
     out = runGh(['repo', 'view', '--json', 'nameWithOwner']);
   } catch (err) {
-    if (err instanceof ColynError && err.message === t('commands.todo.backend.ghNotInstalled')) {
+    // gh 未安装 / 未登录：原样抛出对应提示（让用户去安装或登录），
+    // 不要把这两种情况误判为"不是 GitHub 仓库"。
+    if (
+      err instanceof ColynError &&
+      (err.message === t('commands.todo.backend.ghNotInstalled', { install: ghInstallHint() }) ||
+        err.message === t('commands.todo.backend.ghNotAuthed'))
+    ) {
       throw err;
     }
     throw new ColynError(t('commands.todo.backend.notGithubRepo'));
