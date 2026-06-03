@@ -140,3 +140,47 @@ describe('GitHubIssuesBackend 写操作', () => {
     expect(runGh).not.toHaveBeenCalled();
   });
 });
+
+describe('GitHubIssuesBackend.find', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureGhRepo.mockReturnValue('owner/repo');
+  });
+
+  it('open issue 有分支 → in-progress', async () => {
+    runGh.mockReturnValue(JSON.stringify({ number: 10, title: 'T', body: 'B', labels: [{ name: 'feature' }], state: 'open' }));
+    branchExistsAnywhere.mockResolvedValue(true);
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    const item = await be.find('feature', '10');
+    expect(item?.status).toBe('in-progress');
+    expect(item?.name).toBe('10');
+    expect(item?.message).toBe('T\nB');
+  });
+
+  it('open issue 无分支 → pending', async () => {
+    runGh.mockReturnValue(JSON.stringify({ number: 11, title: 'T', body: '', labels: [], state: 'open' }));
+    branchExistsAnywhere.mockResolvedValue(false);
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    const item = await be.find('feature', '11');
+    expect(item?.status).toBe('pending');
+  });
+
+  it('closed issue → done', async () => {
+    runGh.mockReturnValue(JSON.stringify({ number: 12, title: 'T', body: '', labels: [], state: 'CLOSED' }));
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    const item = await be.find('feature', '12');
+    expect(item?.status).toBe('done');
+  });
+
+  it('带 wontfix label → null', async () => {
+    runGh.mockReturnValue(JSON.stringify({ number: 13, title: 'T', body: '', labels: [{ name: 'wontfix' }], state: 'open' }));
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    expect(await be.find('feature', '13')).toBeNull();
+  });
+
+  it('runGh 抛错（issue 不存在）→ null', async () => {
+    runGh.mockImplementation(() => { throw new Error('not found'); });
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    expect(await be.find('feature', '999')).toBeNull();
+  });
+});
