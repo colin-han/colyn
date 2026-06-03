@@ -35,3 +35,7 @@ yarn-error.log*
 .pnp.loader.mjs
 .yarn/
 .claude/
+
+# Superpower SPEC and PLAN
+docs/superpowers/
+
