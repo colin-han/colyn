@@ -40,7 +40,8 @@ export interface WorktreeInfo {
 export class ColynError extends Error {
   constructor(
     message: string,
-    public hint?: string
+    public hint?: string,
+    public code?: string
   ) {
     super(message);
     this.name = 'ColynError';
