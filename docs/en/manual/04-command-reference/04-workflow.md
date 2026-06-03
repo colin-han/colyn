@@ -160,7 +160,7 @@ $ colyn update --no-fetch
 
 ## colyn todo
 
-Manage the project's Todo task list, deeply integrated with the Parallel Vibe Coding workflow.
+Manage the project's Todo task list, deeply integrated with the Parallel Vibe Coding workflow. Supports both local file (default) and GitHub Issues backends.
 
 ### Syntax
 
@@ -175,23 +175,43 @@ Without a subcommand, equivalent to `colyn todo list`, showing all pending tasks
 | Subcommand | Description |
 |-----------|-------------|
 | `add [todoId] [message...]` | Add a Todo task |
-| `start [todoId]` | Start a task (switch branch + copy description to clipboard) |
+| `start [todoId]` | Start a task (switch branch + copy description to clipboard; sets status to in-progress) |
 | `list` / `ls` | List tasks (shows pending by default) |
 | `edit [todoId] [message]` | Edit a Todo task's description |
 | `remove [todoId]` | Delete a task (interactive selection if omitted) |
-| `archive` | Archive all completed tasks |
-| `complete [todoId]` | Mark a pending task as completed |
-| `uncomplete [todoId]` | Revert a completed task to pending |
+| `archive` | Archive all done tasks |
+| `complete [todoId]` | Mark an in-progress task as done |
+| `uncomplete [todoId]` | Revert a done task to in-progress |
+
+### Todo Lifecycle
+
+```
+pending → in-progress → done → archived
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Waiting to start |
+| `in-progress` | Branch created, work underway |
+| `done` | Development complete |
+| `archived` | Archived, removed from the active list |
 
 ### Todo ID Format
 
-Todo IDs use the `{type}/{name}` format, matching Git branch names:
+**Local backend** (default): Todo IDs use the `{type}/{name}` format, matching Git branch names:
 
 ```
 feature/login
 bugfix/fix-crash
 refactor/auth-module
 document/api-guide
+```
+
+**GitHub backend**: Todo IDs use the `{type}/{issue-number}` format; the number is auto-assigned by GitHub:
+
+```
+feature/42
+bugfix/17
 ```
 
 **Supported types**: `feature` / `bugfix` / `refactor` / `document`
@@ -212,8 +232,8 @@ colyn todo add [todoId] [message...]
 
 | Parameter | Description |
 |-----------|-------------|
-| `todoId` | Todo ID (format: `type/name`); interactive selection if omitted |
-| `message...` | Task description; may contain spaces without quotes (multiple words are joined automatically); opens editor if omitted (supports Markdown) |
+| `todoId` | Todo ID (format: `type/name`); interactive selection if omitted; GitHub backend: `name` is auto-assigned from Issue number |
+| `message...` | Task description; may contain spaces without quotes (multiple words are joined automatically); opens editor if omitted (supports Markdown); GitHub backend: first line becomes Issue title |
 
 #### Examples
 
@@ -221,14 +241,20 @@ colyn todo add [todoId] [message...]
 # Fully interactive (select type → enter name → editor for description)
 $ colyn todo add
 
-# Specify ID, enter description via editor
+# Specify ID, enter description via editor (local backend)
 $ colyn todo add feature/login
 
-# Specify everything directly (description in quotes)
+# Specify everything directly (local backend, description in quotes)
 $ colyn todo add feature/login "Implement user login feature"
 
 # The description can also be unquoted; multiple words are joined automatically
 $ colyn todo add feature/login Implement user login feature
+
+# GitHub backend: select type, Issue number auto-assigned
+$ colyn todo add
+? Select task type › feature
+(editor opens for description, first line becomes Issue title)
+✓ Todo created: feature/42
 ```
 
 #### Editor Notes
@@ -257,9 +283,9 @@ colyn todo start [options] [todoId]
 
 #### Execution Flow
 
-1. If `todoId` is not specified, list all `pending` tasks for interactive selection; exit if no pending tasks
-2. Switch to the `{type}/{name}` branch in the current Worktree (create if it doesn't exist)
-3. Mark the todo status as `completed`
+1. If `todoId` is not specified, fetch `pending` tasks from the current active backend for interactive selection; exit if no pending tasks
+2. Switch to the corresponding branch in the current Worktree (create if it doesn't exist)
+3. Mark the todo status as `in-progress`
 4. Output task description (message) to terminal
 5. Copy task description to clipboard (supports macOS / Linux / Windows)
 
@@ -275,7 +301,7 @@ $ colyn todo start
 # Directly specify task ID
 $ colyn todo start feature/login
 
-✓ Todo "feature/login" marked as completed
+✓ Todo "feature/login" is now in-progress
 
 Task description:
 Implement user login feature, supports both email and phone number
@@ -312,10 +338,14 @@ colyn todo           # Equivalent to this command when no subcommand given
 
 | Option | Description |
 |--------|-------------|
-| `--completed` | Show completed (`completed`) tasks |
+| `--in-progress` | Show in-progress tasks |
+| `--done` | Show done tasks |
 | `--archived` | Show archived tasks |
+| `--all` | Show all active tasks (pending + in-progress + done) |
 | `--id-only` | Output Todo IDs only (one per line), for script integration |
 | `--json` | Output task list in JSON format |
+
+> Note: The old `--completed` option has been renamed to `--done`.
 
 #### Examples
 
@@ -323,12 +353,18 @@ colyn todo           # Equivalent to this command when no subcommand given
 # Show pending tasks (default)
 $ colyn todo
   Type     Name       Message                    Created
-  ------------------------------------------------------
+  -------------------------------------------------------
   feature  login      Implement user login...    2026/02/22 10:00
   bugfix   fix-crash  Fix application crash      2026/02/22 11:30
 
-# Show completed tasks
-$ colyn todo list --completed
+# Show in-progress tasks
+$ colyn todo list --in-progress
+
+# Show done tasks
+$ colyn todo list --done
+
+# Show all active tasks
+$ colyn todo list --all
 
 # Output IDs only (for scripts)
 $ colyn todo list --id-only
@@ -347,8 +383,8 @@ $ colyn todo list --json
   }
 ]
 
-# Output completed tasks in JSON format
-$ colyn todo list --json --completed
+# Output done tasks in JSON format
+$ colyn todo list --json --done
 
 # Output archived tasks in JSON format (includes archivedAt field)
 $ colyn todo list --json --archived
@@ -442,7 +478,7 @@ $ colyn todo remove feature/login -y
 
 ### colyn todo archive
 
-Batch archive all tasks with `completed` status, moving them to `.colyn/archived-todo.json`.
+Batch archive all tasks with `done` status, removing them from the active list.
 
 #### Syntax
 
@@ -472,7 +508,7 @@ $ colyn todo archive -y
 
 ### colyn todo uncomplete
 
-Revert a task from `completed` status to `pending` (clears `startedAt` and `branch` records). When `todoId` is omitted, automatically uses the current Worktree's branch name.
+Revert a task from `done` status to `in-progress`. When `todoId` is omitted, automatically uses the current Worktree's branch name.
 
 #### Syntax
 
@@ -492,18 +528,18 @@ colyn todo uncomplete [todoId]
 # Execute directly in feature/login Worktree (auto-inferred)
 $ colyn todo uncomplete
 ℹ Using current branch name: feature/login
-✓ Todo "feature/login" reverted to pending status
+✓ Todo "feature/login" reverted to in-progress
 
 # Explicitly specify ID
 $ colyn todo uncomplete feature/login
-✓ Todo "feature/login" reverted to pending status
+✓ Todo "feature/login" reverted to in-progress
 ```
 
 ---
 
 ### colyn todo complete
 
-Mark a task in `pending` status as `completed`. If `todoId` is omitted, select a pending task interactively.
+Mark a task in `in-progress` status as `done`. If `todoId` is omitted, select an in-progress task interactively.
 
 #### Syntax
 
@@ -515,33 +551,97 @@ colyn todo complete [todoId]
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `todoId` | No | Todo ID to mark as completed; interactive selection if omitted |
+| `todoId` | No | Todo ID to mark as done; interactive selection of in-progress tasks if omitted |
 
 #### Examples
 
 ```bash
-# Interactively select a pending task
+# Interactively select an in-progress task
 $ colyn todo complete
 ? Select a task to complete
 ❯ feature/login
   bugfix/fix-crash
-✓ Todo "feature/login" marked as completed
+✓ Todo "feature/login" marked as done
 
 # Explicitly specify ID
 $ colyn todo complete feature/login
-✓ Todo "feature/login" marked as completed
+✓ Todo "feature/login" marked as done
 ```
 
 ---
 
 ### Data Storage
 
+**Local backend (default)**:
+
 | File | Description |
 |------|-------------|
-| `.colyn/todo.json` | All active Todos (pending + completed) |
+| `.colyn/todo.json` | All active Todos (pending + in-progress + done) |
 | `.colyn/archived-todo.json` | Archived Todos |
 
+**GitHub backend**: Data is stored in GitHub Issues. The system reads and writes in real time via the `gh` CLI; no local cache is kept.
+
 All Worktrees share the same todo data.
+
+### GitHub Issues Integration
+
+Colyn Todo supports GitHub Issues as a task data source, enabling two-way sync with GitHub project management.
+
+#### Prerequisites
+
+- GitHub CLI (`gh`) installed: macOS users can run `brew install gh`; see [cli.github.com](https://cli.github.com) for other platforms
+- Authenticated: `gh auth login`
+- Project origin is a GitHub repository (the `origin` URL contains `github.com`)
+
+#### Enabling GitHub Backend
+
+**Option 1**: Select GitHub Issues backend during `colyn init` (recommended; auto-detected and guided)
+
+**Option 2**: Configure manually
+
+```bash
+colyn config set todo.backend github
+```
+
+#### GitHub Status Mapping
+
+| Colyn status | GitHub Issue state |
+|-------------|-------------------|
+| `pending` | open, no matching branch |
+| `in-progress` | open, matching branch exists |
+| `done` | closed |
+| `archived` | closed + archived label (if configured) |
+
+#### Todo Backend Configuration
+
+```bash
+# Switch backend
+colyn config set todo.backend github   # use GitHub Issues
+colyn config set todo.backend local    # use local file (default)
+
+# Auto-archive done tasks
+colyn config set todo.autoArchive true
+
+# Set archived label (distinguishes done from archived in GitHub backend)
+colyn config set todo.github.archivedLabel archived
+```
+
+`todo.github.typeLabels` (type↔label mapping) must be edited manually in `.colyn/settings.json`:
+
+```json
+{
+  "todo": {
+    "github": {
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug",
+        "refactor": "refactor",
+        "document": "documentation"
+      }
+    }
+  }
+}
+```
 
 ### Recommended Workflow
 
@@ -553,14 +653,17 @@ colyn todo add feature/dashboard "Implement data dashboard"
 # 2. View pending tasks
 colyn todo list
 
-# 3. Start task (switch branch and get task context)
+# 3. Start task (switch branch and get task context; sets status to in-progress)
 colyn todo start feature/login
 # → Paste task description into Claude Code input box
 
-# 4. Merge after development is complete
+# 4. Mark done after development
+colyn todo complete feature/login
+
+# 5. Merge the branch
 colyn merge feature/login
 
-# 5. Archive completed tasks
+# 6. Archive done tasks (optional)
 colyn todo archive -y
 ```
 
@@ -570,17 +673,20 @@ colyn todo archive -y
 |---------------|---------------|----------|
 | Invalid Todo ID format | `✗ Invalid Todo ID format, should be {type}/{name}` | Use correct format, e.g., `feature/login` |
 | Todo doesn't exist | `✗ Todo "xxx" does not exist` | Add it with `todo add` first, or check with `colyn todo list` |
-| Todo not in pending status | `✗ Todo "xxx" is not in pending status` | Use `colyn todo uncomplete` to revert before starting |
-| Duplicate addition | `✗ Todo "xxx" already exists` | Each type/name can only be added once |
+| Todo not in pending status | `✗ Todo "xxx" is not in pending status` | Check current status; use `uncomplete` to revert to in-progress first if needed |
+| Todo not in in-progress status | `✗ Todo "xxx" is not in in-progress status` | Use `todo start` to set the task to in-progress first |
+| Duplicate addition (local) | `✗ Todo "xxx" already exists` | Each type/name can only be added once |
+| gh not installed (GitHub backend) | `✗ gh CLI is not installed` | Run `brew install gh` or visit cli.github.com |
+| gh not authenticated (GitHub backend) | `✗ Not logged in to GitHub` | Run `gh auth login` |
 
 ### Tips
 
 - `colyn todo` without any arguments shows the pending list — the most common usage
-- `todo start` executes the full `colyn checkout` flow, including uncommitted check, remote fetch, log archiving, etc.
-- For creating a new worktree, use `colyn add [branch]`; without `branch`, you can choose interactively (new branch / todo branch / local branch)
-- For reusing an existing worktree, use `colyn checkout [branch]`; without `branch`, you can also choose interactively (new branch / todo branch / local branch)
-- When selecting a todo branch via `add/checkout` interactive mode, it behaves like `todo start`: prints message, copies to clipboard, and marks the todo completed
-- `todo complete` only updates task status and does not trigger branch switching or clipboard copy
+- `todo start` executes the full `colyn checkout` flow (uncommitted check, remote fetch, log archiving, etc.) and sets status to `in-progress`
+- `todo complete` only updates task status (in-progress → done); it does not trigger branch switching or clipboard copy
+- For creating a new worktree, use `colyn add [branch]`; without `branch`, choose interactively (new branch / todo branch / local branch)
+- For reusing an existing worktree, use `colyn checkout [branch]`; without `branch`, also choose interactively
+- When selecting a todo branch via `add/checkout` interactive mode, it behaves like `todo start`: prints message, copies to clipboard, and marks the todo as `in-progress`
 - Descriptions (message) support full Markdown syntax, which helps provide clear context in Claude sessions
-- Regularly run `colyn todo archive -y` to keep the pending list clean
+- Regularly run `colyn todo archive -y` to keep the active list clean
 - Set the `$EDITOR` environment variable to use your preferred editor for editing descriptions

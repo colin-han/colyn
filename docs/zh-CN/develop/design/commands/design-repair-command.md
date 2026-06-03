@@ -1,7 +1,7 @@
 # Repair 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-17
-**最后更新**：2026-02-21
+**最后更新**：2026-06-03（更新：Todo Backend setup 修复）
 **命令名称**：`colyn repair`
 **状态**：✅ 已实现
 
@@ -27,7 +27,10 @@ colyn repair
 2. 检查并修复所有 worktree 的 `.env.local` 文件
 3. 运行 `git worktree repair` 修复 git 连接
 4. 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件初始化（非致命）
-5. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
+5. **运行当前 active Todo Backend 的 setup**（非致命）：
+   - Local backend：无额外操作
+   - GitHub backend：检查 `gh` 是否已安装并已登录；如未安装则提示安装方式，如未登录则提示运行 `gh auth login`
+6. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
 
 ---
 

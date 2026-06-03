@@ -1,7 +1,7 @@
 # Init 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-14
-**最后更新**：2026-01-15
+**最后更新**：2026-06-03（更新：Todo Backend 选择交互）
 **命令名称**：`colyn init`
 **状态**：✅ 已实现
 
@@ -128,6 +128,7 @@ project-root/
 ✔ 配置文件保存完成
 ✔ 检测到工具链: npm          ← 自动检测并写入 settings.json
 ✔ 插件初始化完成              ← 写入工具链运行配置、安装依赖等
+✔ Todo Backend 配置完成       ← 见下方 Todo Backend 配置节
 
 ✓ 初始化成功！
 
@@ -143,6 +144,26 @@ project-root/
   2. 查看 worktree 列表:
      colyn list
 ```
+
+#### Todo Backend 选择
+
+当检测到项目 origin 是 GitHub 仓库（`origin` URL 包含 `github.com`）且 `gh` CLI 可用时，`colyn init` 会在初始化结束前交互式询问用户选择 Todo Backend：
+
+```
+? 检测到 GitHub 仓库，是否使用 GitHub Issues 作为 Todo Backend？
+  ❯ 是，使用 GitHub Issues（推荐）
+    否，使用本地文件（默认）
+```
+
+**选择 GitHub Issues 时的流程**：
+1. 检查 `gh` CLI 是否已安装
+   - macOS：如未安装，提示用 `brew install gh` 安装
+   - 其他平台：提示访问 `https://cli.github.com` 安装
+2. 检查是否已登录（`gh auth status`）
+   - 如未登录，提示运行 `gh auth login`
+3. 前置条件满足后，将 `todo.backend = "github"` 写入 `.colyn/settings.json`
+
+**选择本地文件或检测条件不满足时**：沿用默认的 local backend，不写入 `todo.backend`（默认值即 `local`）。
 
 ---
 
