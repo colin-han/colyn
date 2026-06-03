@@ -130,72 +130,126 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        let type: string;
-        let name: string;
-
-        if (todoId) {
-          try {
-            ({ type, name } = parseTodoId(todoId));
-          } catch {
-            throw new ColynError(t('commands.todo.add.invalidFormat'));
-          }
-        } else {
-          // 交互式选择 type 和输入 name
-          const categories = await getBranchCategories(paths.configDir);
-          const typeResponse = await prompt<{ type: string }>({
-            type: 'select',
-            name: 'type',
-            message: t('commands.todo.add.selectType'),
-            choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
-            stdout: process.stderr,
-          });
-          type = typeResponse.type;
-
-          const nameResponse = await prompt<{ name: string }>({
-            type: 'input',
-            name: 'name',
-            message: t('commands.todo.add.inputName'),
-            stdout: process.stderr,
-          });
-          name = nameResponse.name.trim();
-
-          if (!name) {
-            throw new ColynError(t('commands.todo.add.emptyName'));
-          }
-        }
-
-        const resolvedTodoId = `${type}/${name}`;
         const backend = await getActiveTodoBackend(paths);
 
-        const existing = await backend.find(type, name);
-        if (existing) {
-          throw new ColynError(t('commands.todo.add.alreadyExists', { todoId: resolvedTodoId }));
-        }
+        if (backend.assignsName) {
+          // IMS 分支（如 github）：backend 自行分配 name，用户只需选 type + 提供 message
+          let type: string;
 
-        let resolvedMessage = message;
-
-        if (!resolvedMessage) {
-          let edited: string | null;
-          try {
-            edited = await editMessageWithEditor(resolvedTodoId);
-          } catch (error) {
-            const editor = error instanceof Error ? error.message : 'vim';
-            throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+          if (todoId) {
+            // 命令行传入的第一个参数视为 type（IMS 下无需 name）
+            // 若格式为 type/name（误传），取 type 部分
+            const slashIndex = todoId.indexOf('/');
+            type = slashIndex === -1 ? todoId : todoId.substring(0, slashIndex);
+            if (!type) {
+              throw new ColynError(t('commands.todo.add.invalidFormat'));
+            }
+          } else {
+            // 交互式选择 type
+            const categories = await getBranchCategories(paths.configDir);
+            const typeResponse = await prompt<{ type: string }>({
+              type: 'select',
+              name: 'type',
+              message: t('commands.todo.add.selectType'),
+              choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
+              stdout: process.stderr,
+            });
+            type = typeResponse.type;
           }
-          if (edited === null) {
-            output(chalk.gray(t('commands.todo.add.editorCanceled')));
-            return;
+
+          let resolvedMessage = message;
+
+          if (!resolvedMessage) {
+            let edited: string | null;
+            try {
+              edited = await editMessageWithEditor(type);
+            } catch (error) {
+              const editor = error instanceof Error ? error.message : 'vim';
+              throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+            }
+            if (edited === null) {
+              output(chalk.gray(t('commands.todo.add.editorCanceled')));
+              return;
+            }
+            resolvedMessage = edited;
           }
-          resolvedMessage = edited;
+
+          if (!resolvedMessage.trim()) {
+            throw new ColynError(t('commands.todo.add.emptyMessage'));
+          }
+
+          const created = await backend.add({ type, message: resolvedMessage });
+          const createdTodoId = `${created.type}/${created.name}`;
+
+          outputSuccess(t('commands.todo.add.success', { todoId: createdTodoId, message: created.message.split('\n')[0] }));
+        } else {
+          // local 分支：维持现有交互流程不变
+          let type: string;
+          let name: string;
+
+          if (todoId) {
+            try {
+              ({ type, name } = parseTodoId(todoId));
+            } catch {
+              throw new ColynError(t('commands.todo.add.invalidFormat'));
+            }
+          } else {
+            // 交互式选择 type 和输入 name
+            const categories = await getBranchCategories(paths.configDir);
+            const typeResponse = await prompt<{ type: string }>({
+              type: 'select',
+              name: 'type',
+              message: t('commands.todo.add.selectType'),
+              choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
+              stdout: process.stderr,
+            });
+            type = typeResponse.type;
+
+            const nameResponse = await prompt<{ name: string }>({
+              type: 'input',
+              name: 'name',
+              message: t('commands.todo.add.inputName'),
+              stdout: process.stderr,
+            });
+            name = nameResponse.name.trim();
+
+            if (!name) {
+              throw new ColynError(t('commands.todo.add.emptyName'));
+            }
+          }
+
+          const resolvedTodoId = `${type}/${name}`;
+
+          const existing = await backend.find(type, name);
+          if (existing) {
+            throw new ColynError(t('commands.todo.add.alreadyExists', { todoId: resolvedTodoId }));
+          }
+
+          let resolvedMessage = message;
+
+          if (!resolvedMessage) {
+            let edited: string | null;
+            try {
+              edited = await editMessageWithEditor(resolvedTodoId);
+            } catch (error) {
+              const editor = error instanceof Error ? error.message : 'vim';
+              throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+            }
+            if (edited === null) {
+              output(chalk.gray(t('commands.todo.add.editorCanceled')));
+              return;
+            }
+            resolvedMessage = edited;
+          }
+
+          if (!resolvedMessage.trim()) {
+            throw new ColynError(t('commands.todo.add.emptyMessage'));
+          }
+
+          await backend.add({ type, name, message: resolvedMessage });
+
+          outputSuccess(t('commands.todo.add.success', { todoId: resolvedTodoId, message: resolvedMessage }));
         }
-
-        if (!resolvedMessage.trim()) {
-          throw new ColynError(t('commands.todo.add.emptyMessage'));
-        }
-
-        await backend.add({ type, name, message: resolvedMessage });
-
-        outputSuccess(t('commands.todo.add.success', { todoId: resolvedTodoId, message: resolvedMessage }));
       } catch (error) {
         formatError(error);
         process.exit(1);
