@@ -903,7 +903,6 @@ Solution:
       },
       list: {
         description: 'List Todo tasks',
-        completedOption: 'Show completed tasks',
         doneOption: 'Show done todos',
         inProgressOption: 'Show in-progress todos',
         allOption: 'Show todos of all statuses',

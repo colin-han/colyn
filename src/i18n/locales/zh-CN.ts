@@ -903,7 +903,6 @@ export const zhCN = {
       },
       list: {
         description: '列出 Todo 任务',
-        completedOption: '显示已完成的任务',
         doneOption: '显示已完成（done）的任务',
         inProgressOption: '显示进行中的任务',
         allOption: '显示所有状态的任务',
