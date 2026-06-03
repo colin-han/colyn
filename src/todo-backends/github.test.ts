@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { runGh, ensureGhRepo } = vi.hoisted(() => ({ runGh: vi.fn(), ensureGhRepo: vi.fn() }));
 vi.mock('./gh.js', () => ({ runGh, ensureGhRepo }));
 
-const { branchExistsAnywhere } = vi.hoisted(() => ({ branchExistsAnywhere: vi.fn() }));
-vi.mock('../core/git.js', () => ({ branchExistsAnywhere }));
+const { branchExistsAnywhere, getOriginUrl } = vi.hoisted(() => ({ branchExistsAnywhere: vi.fn(), getOriginUrl: vi.fn() }));
+vi.mock('../core/git.js', () => ({ branchExistsAnywhere, getOriginUrl }));
 
-import { GitHubIssuesBackend } from './github.js';
+import { GitHubIssuesBackend, githubProvider } from './github.js';
 
 const cfg = { archivedLabel: null as string | null, typeLabels: {} as Record<string, string> };
 
@@ -182,5 +182,27 @@ describe('GitHubIssuesBackend.find', () => {
     runGh.mockImplementation(() => { throw new Error('not found'); });
     const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
     expect(await be.find('feature', '999')).toBeNull();
+  });
+});
+
+describe('githubProvider.detect', () => {
+  const ctx = { projectRoot: '/p', mainDirPath: '/p/main', nonInteractive: false };
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('origin 含 github.com → true（ssh）', async () => {
+    getOriginUrl.mockResolvedValue('git@github.com:owner/repo.git');
+    expect(await githubProvider.detect(ctx)).toBe(true);
+  });
+  it('origin 含 github.com → true（https）', async () => {
+    getOriginUrl.mockResolvedValue('https://github.com/owner/repo.git');
+    expect(await githubProvider.detect(ctx)).toBe(true);
+  });
+  it('非 github origin → false', async () => {
+    getOriginUrl.mockResolvedValue('git@gitlab.com:owner/repo.git');
+    expect(await githubProvider.detect(ctx)).toBe(false);
+  });
+  it('无 origin → false', async () => {
+    getOriginUrl.mockResolvedValue(null);
+    expect(await githubProvider.detect(ctx)).toBe(false);
   });
 });
