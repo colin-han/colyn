@@ -970,6 +970,9 @@ export const zhCN = {
         confirmItem: '迁移 "{{todoId}}"（{{summary}}）到当前 backend？',
         migrated: '已迁移：{{from}} → {{to}}',
         summary: '迁移完成：已迁移 {{migrated}} 项，跳过 {{skipped}} 项',
+        confirmDeleteLocal: '已迁移 {{count}} 项，是否从本地删除这些已迁移的 Todo？',
+        deletedLocal: '已从本地删除 {{count}} 项',
+        keptLocal: '已保留本地 Todo',
       },
       backend: {
         unknown: '未知的 todo backend："{{backend}}"',

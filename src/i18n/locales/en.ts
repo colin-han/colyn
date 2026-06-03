@@ -970,6 +970,9 @@ Solution:
         confirmItem: 'Migrate "{{todoId}}" ({{summary}}) to the current backend?',
         migrated: 'Migrated: {{from}} → {{to}}',
         summary: 'Migration done: {{migrated}} migrated, {{skipped}} skipped',
+        confirmDeleteLocal: 'Migrated {{count}} todos. Delete them from local storage?',
+        deletedLocal: 'Deleted {{count}} todos from local storage',
+        keptLocal: 'Kept local todos',
       },
       backend: {
         unknown: 'Unknown todo backend: "{{backend}}"',

@@ -731,7 +731,8 @@ export function register(program: Command): void {
         // 3. 取当前激活 backend（非 local 的目标）
         const backend = await getActiveTodoBackend(paths);
 
-        let migratedCount = 0;
+        // 记录成功迁移的本地项（type/name），用于后续删除
+        const migrated: Array<{ type: string; name: string }> = [];
         let skippedCount = 0;
 
         // 4. 逐项确认并迁移
@@ -751,14 +752,34 @@ export function register(program: Command): void {
             const created = await backend.add({ type: item.type, message: item.message });
             const newTodoId = `${created.type}/${created.name}`;
             outputSuccess(t('commands.todo.migrateLocal.migrated', { from: todoId, to: newTodoId }));
-            migratedCount++;
+            migrated.push({ type: item.type, name: item.name });
           } else {
             skippedCount++;
           }
         }
 
         // 5. 汇总
-        outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migratedCount, skipped: skippedCount }));
+        outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migrated.length, skipped: skippedCount }));
+
+        // 6. 全部迁移完成后，做一次最终确认；确认则从本地删除已迁移的项（破坏性操作，默认否）
+        if (migrated.length > 0) {
+          const deleteResponse = await prompt<{ confirm: boolean }>({
+            type: 'confirm',
+            name: 'confirm',
+            message: t('commands.todo.migrateLocal.confirmDeleteLocal', { count: migrated.length }),
+            initial: false,
+            stdout: process.stderr,
+          });
+
+          if (deleteResponse.confirm) {
+            for (const item of migrated) {
+              await local.remove(item.type, item.name);
+            }
+            outputSuccess(t('commands.todo.migrateLocal.deletedLocal', { count: migrated.length }));
+          } else {
+            outputInfo(t('commands.todo.migrateLocal.keptLocal'));
+          }
+        }
       } catch (error) {
         formatError(error);
         process.exit(1);
