@@ -104,6 +104,92 @@ async function listPendingTodos(paths: Awaited<ReturnType<typeof getProjectPaths
 }
 
 /**
+ * migrate-local 子命令的核心迁移逻辑（已导出以便测试）。
+ * action 回调负责 getProjectPaths / validateProjectInitialized / try-catch 外壳。
+ */
+export async function migrateLocalTodos(paths: Awaited<ReturnType<typeof getProjectPaths>>): Promise<void> {
+  // 1. 检查当前 backend 是否已是 local
+  const cfg = await getTodoConfig(paths.configDir);
+  if (cfg.backend === 'local') {
+    outputInfo(t('commands.todo.migrateLocal.alreadyLocal'));
+    return;
+  }
+
+  // 2. 读取本地未完成 todo（直接实例化 LocalFileBackend，不走 getActiveTodoBackend）
+  const local = new LocalFileBackend(paths.configDir);
+  const pending = await local.list('pending');
+  const inProgress = await local.list('in-progress');
+  const unfinished = [...pending, ...inProgress];
+
+  if (unfinished.length === 0) {
+    outputInfo(t('commands.todo.migrateLocal.noUnfinished'));
+    return;
+  }
+
+  // 3. 取当前激活 backend（非 local 的目标）
+  const backend = await getActiveTodoBackend(paths);
+
+  // 记录成功迁移的本地项（type/name），用于后续删除
+  const migrated: Array<{ type: string; name: string }> = [];
+  let skippedCount = 0;
+  let failedCount = 0;
+
+  // 4. 逐项确认并迁移
+  for (const item of unfinished) {
+    const todoId = `${item.type}/${item.name}`;
+    const summary = item.message.split('\n')[0];
+
+    const response = await prompt<{ confirm: boolean }>({
+      type: 'confirm',
+      name: 'confirm',
+      message: t('commands.todo.migrateLocal.confirmItem', { todoId, summary }),
+      initial: false,
+      stdout: process.stderr,
+    });
+
+    if (!response.confirm) {
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      const created = await backend.add({ type: item.type, message: item.message });
+      const newTodoId = `${created.type}/${created.name}`;
+      outputSuccess(t('commands.todo.migrateLocal.migrated', { from: todoId, to: newTodoId }));
+      migrated.push({ type: item.type, name: item.name });
+    } catch (error) {
+      // 单项失败不中断整个迁移：打印该项错误后继续处理下一项
+      const message = error instanceof Error ? error.message : String(error);
+      outputError(t('commands.todo.migrateLocal.itemFailed', { todoId, error: message }));
+      failedCount++;
+    }
+  }
+
+  // 5. 汇总
+  outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migrated.length, skipped: skippedCount, failed: failedCount }));
+
+  // 6. 全部迁移完成后，做一次最终确认；确认则从本地删除已迁移的项（破坏性操作，默认否）
+  if (migrated.length > 0) {
+    const deleteResponse = await prompt<{ confirm: boolean }>({
+      type: 'confirm',
+      name: 'confirm',
+      message: t('commands.todo.migrateLocal.confirmDeleteLocal', { count: migrated.length }),
+      initial: false,
+      stdout: process.stderr,
+    });
+
+    if (deleteResponse.confirm) {
+      for (const item of migrated) {
+        await local.remove(item.type, item.name);
+      }
+      outputSuccess(t('commands.todo.migrateLocal.deletedLocal', { count: migrated.length }));
+    } else {
+      outputInfo(t('commands.todo.migrateLocal.keptLocal'));
+    }
+  }
+}
+
+/**
  * 注册 todo 命令
  */
 export function register(program: Command): void {
@@ -709,86 +795,7 @@ export function register(program: Command): void {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
-
-        // 1. 检查当前 backend 是否已是 local
-        const cfg = await getTodoConfig(paths.configDir);
-        if (cfg.backend === 'local') {
-          outputInfo(t('commands.todo.migrateLocal.alreadyLocal'));
-          return;
-        }
-
-        // 2. 读取本地未完成 todo（直接实例化 LocalFileBackend，不走 getActiveTodoBackend）
-        const local = new LocalFileBackend(paths.configDir);
-        const pending = await local.list('pending');
-        const inProgress = await local.list('in-progress');
-        const unfinished = [...pending, ...inProgress];
-
-        if (unfinished.length === 0) {
-          outputInfo(t('commands.todo.migrateLocal.noUnfinished'));
-          return;
-        }
-
-        // 3. 取当前激活 backend（非 local 的目标）
-        const backend = await getActiveTodoBackend(paths);
-
-        // 记录成功迁移的本地项（type/name），用于后续删除
-        const migrated: Array<{ type: string; name: string }> = [];
-        let skippedCount = 0;
-        let failedCount = 0;
-
-        // 4. 逐项确认并迁移
-        for (const item of unfinished) {
-          const todoId = `${item.type}/${item.name}`;
-          const summary = item.message.split('\n')[0];
-
-          const response = await prompt<{ confirm: boolean }>({
-            type: 'confirm',
-            name: 'confirm',
-            message: t('commands.todo.migrateLocal.confirmItem', { todoId, summary }),
-            initial: false,
-            stdout: process.stderr,
-          });
-
-          if (!response.confirm) {
-            skippedCount++;
-            continue;
-          }
-
-          try {
-            const created = await backend.add({ type: item.type, message: item.message });
-            const newTodoId = `${created.type}/${created.name}`;
-            outputSuccess(t('commands.todo.migrateLocal.migrated', { from: todoId, to: newTodoId }));
-            migrated.push({ type: item.type, name: item.name });
-          } catch (error) {
-            // 单项失败不中断整个迁移：打印该项错误后继续处理下一项
-            const message = error instanceof Error ? error.message : String(error);
-            outputError(t('commands.todo.migrateLocal.itemFailed', { todoId, error: message }));
-            failedCount++;
-          }
-        }
-
-        // 5. 汇总
-        outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migrated.length, skipped: skippedCount, failed: failedCount }));
-
-        // 6. 全部迁移完成后，做一次最终确认；确认则从本地删除已迁移的项（破坏性操作，默认否）
-        if (migrated.length > 0) {
-          const deleteResponse = await prompt<{ confirm: boolean }>({
-            type: 'confirm',
-            name: 'confirm',
-            message: t('commands.todo.migrateLocal.confirmDeleteLocal', { count: migrated.length }),
-            initial: false,
-            stdout: process.stderr,
-          });
-
-          if (deleteResponse.confirm) {
-            for (const item of migrated) {
-              await local.remove(item.type, item.name);
-            }
-            outputSuccess(t('commands.todo.migrateLocal.deletedLocal', { count: migrated.length }));
-          } else {
-            outputInfo(t('commands.todo.migrateLocal.keptLocal'));
-          }
-        }
+        await migrateLocalTodos(paths);
       } catch (error) {
         formatError(error);
         process.exit(1);

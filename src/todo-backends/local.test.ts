@@ -138,6 +138,9 @@ describe('LocalFileBackend 写操作', () => {
     expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
       todos: [expect.objectContaining({ status: 'in-progress', name: 'login' })],
     });
+    // 确认写回 active 的项不含 archivedAt（objectContaining 会忽略多余字段，需单独验证）
+    const savedTodos = saveTodoFile.mock.calls.at(-1)?.[1]?.todos;
+    expect(savedTodos?.[0]).not.toHaveProperty('archivedAt');
   });
 
   it('edit 修改 message', async () => {
