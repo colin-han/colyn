@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { runGh, ensureGhRepo } = vi.hoisted(() => ({ runGh: vi.fn(), ensureGhRepo: vi.fn() }));
-vi.mock('./gh.js', () => ({ runGh, ensureGhRepo }));
+const { runGh, ensureGhRepo, isGhInstalled, isGhAuthed } = vi.hoisted(() => ({
+  runGh: vi.fn(),
+  ensureGhRepo: vi.fn(),
+  isGhInstalled: vi.fn(),
+  isGhAuthed: vi.fn(),
+}));
+vi.mock('./gh.js', () => ({ runGh, ensureGhRepo, isGhInstalled, isGhAuthed }));
+
+const { execSync } = vi.hoisted(() => ({ execSync: vi.fn() }));
+vi.mock('child_process', () => ({ execSync, spawnSync: vi.fn() }));
+
+const { prompt } = vi.hoisted(() => ({ prompt: vi.fn() }));
+vi.mock('enquirer', () => ({ default: { prompt } }));
 
 const { branchExistsAnywhere, getOriginUrl } = vi.hoisted(() => ({ branchExistsAnywhere: vi.fn(), getOriginUrl: vi.fn() }));
 vi.mock('../core/git.js', () => ({ branchExistsAnywhere, getOriginUrl }));
@@ -204,5 +215,67 @@ describe('githubProvider.detect', () => {
   it('无 origin → false', async () => {
     getOriginUrl.mockResolvedValue(null);
     expect(await githubProvider.detect(ctx)).toBe(false);
+  });
+});
+
+describe('githubProvider.setup', () => {
+  const baseCtx = { projectRoot: '/p', mainDirPath: '/p/main' };
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('非交互：gh 未装 → 抛错', async () => {
+    isGhInstalled.mockReturnValue(false);
+    await expect(githubProvider.setup({ ...baseCtx, nonInteractive: true })).rejects.toThrow();
+  });
+
+  it('非交互：gh 已装未登录 → 不抛错（仅提示）', async () => {
+    isGhInstalled.mockReturnValue(true);
+    isGhAuthed.mockReturnValue(false);
+    await expect(githubProvider.setup({ ...baseCtx, nonInteractive: true })).resolves.toBeUndefined();
+  });
+
+  it('交互：gh 已装已登录 → 成功', async () => {
+    isGhInstalled.mockReturnValue(true);
+    isGhAuthed.mockReturnValue(true);
+    await expect(githubProvider.setup({ ...baseCtx, nonInteractive: false })).resolves.toBeUndefined();
+  });
+
+  it('交互：gh 未装，用户拒装 → 抛错', async () => {
+    isGhInstalled.mockReturnValue(false);
+    // execSync for 'which brew' succeeds (returns Buffer)
+    execSync.mockReturnValue(Buffer.from(''));
+    prompt.mockResolvedValue({ confirmed: false });
+    const origPlatform = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+    try {
+      await expect(githubProvider.setup({ ...baseCtx, nonInteractive: false })).rejects.toThrow();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+    }
+  });
+
+  it('交互(mac+brew)：gh 未装，用户同意 brew 装成功 → 成功', async () => {
+    const orig = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+    try {
+      isGhInstalled.mockReturnValueOnce(false).mockReturnValue(true); // 装后复检 true
+      isGhAuthed.mockReturnValue(true);
+      prompt.mockResolvedValue({ confirmed: true });
+      execSync.mockReturnValue(Buffer.from('')); // which brew 成功 + brew install 成功
+      await expect(githubProvider.setup({ ...baseCtx, nonInteractive: false })).resolves.toBeUndefined();
+      expect(execSync).toHaveBeenCalledWith('brew install gh', expect.anything());
+    } finally {
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    }
+  });
+
+  it('交互：非 mac 平台，gh 未装 → 打印指引后抛错', async () => {
+    const orig = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+    try {
+      isGhInstalled.mockReturnValue(false);
+      await expect(githubProvider.setup({ ...baseCtx, nonInteractive: false })).rejects.toThrow();
+    } finally {
+      Object.defineProperty(process, 'platform', { value: orig, configurable: true });
+    }
   });
 });

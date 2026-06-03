@@ -970,6 +970,12 @@ Solution:
         ghNotAuthed: 'gh is not authenticated. Run "gh auth login" first',
         notGithubRepo: 'Current directory is not a GitHub repo (gh repo view failed)',
         ghFailed: 'gh command failed: {{detail}}',
+        ghInstallPrompt: 'gh is not installed. Install it via brew? (brew install gh)',
+        ghInstalling: 'Installing gh via brew...',
+        ghInstallGuide: 'Please install GitHub CLI manually: {{url}}',
+        ghInstallFailed: 'Failed to install gh. Install manually: {{url}}',
+        ghAuthHint: 'gh is not authenticated. Run "gh auth login" before using the GitHub backend',
+        ghReady: 'GitHub CLI is ready',
       },
     },
 

@@ -970,6 +970,12 @@ export const zhCN = {
         ghNotAuthed: 'gh 未登录，请先运行 gh auth login',
         notGithubRepo: '当前目录不是 GitHub 仓库（无法通过 gh repo view 解析）',
         ghFailed: 'gh 命令执行失败：{{detail}}',
+        ghInstallPrompt: '检测到未安装 gh，是否用 brew 安装？(brew install gh)',
+        ghInstalling: '正在通过 brew 安装 gh...',
+        ghInstallGuide: '请手动安装 GitHub CLI：{{url}}',
+        ghInstallFailed: 'gh 安装失败，请手动安装：{{url}}',
+        ghAuthHint: 'gh 尚未登录，请运行 gh auth login 后再使用 GitHub backend',
+        ghReady: 'GitHub CLI 已就绪',
       },
     },
 

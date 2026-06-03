@@ -1,11 +1,27 @@
+import { execSync } from 'child_process';
 import type { TodoItem } from '../types/index.js';
+import { ColynError } from '../types/index.js';
 import type { TodoBackend, TodoFilter, AddTodoInput, TodoBackendProvider, TodoBackendDetectContext } from '../types/todo-backend.js';
 import type { ProjectPaths } from '../core/paths.js';
 import type { TodoConfig } from '../core/config-schema.js';
-import { runGh, ensureGhRepo } from './gh.js';
+import { runGh, ensureGhRepo, isGhInstalled, isGhAuthed } from './gh.js';
 import { branchExistsAnywhere, getOriginUrl } from '../core/git.js';
+import { outputInfo, outputWarning } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
+import Enquirer from 'enquirer';
 
 const WONTFIX_LABEL = 'wontfix';
+
+const GH_INSTALL_URL = 'https://cli.github.com';
+
+function hasBrew(): boolean {
+  try {
+    execSync('which brew', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 interface GhConfig {
   archivedLabel: string | null;
@@ -195,8 +211,43 @@ export const githubProvider: TodoBackendProvider = {
     const url = await getOriginUrl(ctx.mainDirPath);
     return !!url && url.includes('github.com');
   },
-  async setup(_ctx: TodoBackendDetectContext): Promise<void> {
-    // 阶段 4 Task 4.3 实现（gh 检查/安装/登录提示）
+  async setup(ctx: TodoBackendDetectContext): Promise<void> {
+    if (!isGhInstalled()) {
+      if (ctx.nonInteractive) {
+        throw new ColynError(t('commands.todo.backend.ghNotInstalled'));
+      }
+      if (process.platform === 'darwin' && hasBrew()) {
+        const { confirmed } = await (Enquirer as unknown as {
+          prompt: (q: unknown) => Promise<{ confirmed: boolean }>;
+        }).prompt({
+          type: 'confirm',
+          name: 'confirmed',
+          message: t('commands.todo.backend.ghInstallPrompt'),
+          initial: true,
+          stdout: process.stderr,
+        });
+        if (confirmed) {
+          outputInfo(t('commands.todo.backend.ghInstalling'));
+          try {
+            execSync('brew install gh', { stdio: 'inherit' });
+          } catch {
+            throw new ColynError(t('commands.todo.backend.ghInstallFailed', { url: GH_INSTALL_URL }));
+          }
+        }
+      } else {
+        outputInfo(t('commands.todo.backend.ghInstallGuide', { url: GH_INSTALL_URL }));
+      }
+      if (!isGhInstalled()) {
+        throw new ColynError(t('commands.todo.backend.ghNotInstalled'));
+      }
+    }
+    if (!isGhAuthed()) {
+      outputWarning(t('commands.todo.backend.ghAuthHint'));
+      return;
+    }
+    if (!ctx.nonInteractive) {
+      outputInfo(t('commands.todo.backend.ghReady'));
+    }
   },
   create(_paths: ProjectPaths, config: TodoConfig): TodoBackend {
     return new GitHubIssuesBackend(config.github);
