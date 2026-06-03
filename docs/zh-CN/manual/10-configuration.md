@@ -15,6 +15,7 @@
 7. [配置管理命令](#配置管理命令)
 8. [配置示例](#配置示例)
 9. [配置版本与迁移](#配置版本与迁移)
+10. [Todo 配置项](#todo-配置项)
 
 ---
 
@@ -1485,6 +1486,128 @@ EOF
     "main": {
       "tmux": {
         "autoRun": false
+      }
+    }
+  }
+}
+```
+
+---
+
+## Todo 配置项
+
+`todo` 配置组控制 `todo` 命令的存储后端及相关行为。
+
+### todo.backend
+
+**类型**: `"local" | "github"`
+**默认值**: `"local"`
+**说明**: 选择 todo 的存储后端
+
+| 值 | 说明 |
+|----|------|
+| `"local"` | 将 todo 存储到项目目录下的本地 `todo.json` 文件 |
+| `"github"` | 将 todo 存储到当前仓库的 GitHub Issues |
+
+**前置条件（使用 `github` 时）**：
+- 已安装并登录 `gh`（GitHub CLI）
+- 当前仓库的 `origin` remote 为 GitHub 地址
+
+**命令行设置**:
+
+```bash
+# 切换到 GitHub Issues 后端
+colyn config set todo.backend github
+
+# 切换回本地后端
+colyn config set todo.backend local
+```
+
+---
+
+### todo.autoArchive
+
+**类型**: `boolean`
+**默认值**: `false`
+**说明**: 开启后，执行 `todo complete` 将 todo 标记为 done 时自动归档
+
+**命令行设置**:
+
+```bash
+# 开启自动归档
+colyn config set todo.autoArchive true
+
+# 关闭自动归档
+colyn config set todo.autoArchive false
+```
+
+---
+
+### todo.github.archivedLabel
+
+**类型**: `string`（可选）
+**默认值**: 未设置
+**说明**: GitHub backend 专用，用于区分 done 状态与 archived 状态的 GitHub label 名称
+
+**行为说明**:
+
+| 配置状态 | done | archived |
+|---------|------|----------|
+| 未设置（默认） | closed issue | closed issue（所有 closed issue 均视为 archived） |
+| 已设置 label 名 | closed issue（**无**该 label） | closed issue（**有**该 label） |
+
+**命令行设置**:
+
+```bash
+# 设置归档 label（例如使用名为 "archived" 的 label）
+colyn config set todo.github.archivedLabel archived
+```
+
+---
+
+### todo.github.typeLabels
+
+**类型**: `object`（可选，键值均为 `string`）
+**默认值**: `{}`
+**说明**: GitHub backend 专用，定义 colyn 分支类型（type）与 GitHub label 之间的映射关系
+
+**⚠️ 注意**: 该字段为对象映射，**无法通过 `config set` 设置**，必须手动编辑 `.colyn/settings.json`。
+
+**配置示例**:
+
+```jsonc
+{
+  "todo": {
+    "backend": "github",
+    "github": {
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug"
+      }
+    }
+  }
+}
+```
+
+**说明**：上例将 colyn 类型 `feature` 映射到 GitHub label `enhancement`，`bugfix` 映射到 `bug`。未在映射中列出的类型不添加额外 label。
+
+---
+
+### Todo 配置示例
+
+**使用 GitHub Issues 后端（完整配置）**:
+
+```jsonc
+{
+  "version": 3,
+  "todo": {
+    "backend": "github",
+    "autoArchive": true,
+    "github": {
+      "archivedLabel": "archived",
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug"
       }
     }
   }
