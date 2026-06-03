@@ -72,3 +72,35 @@ export async function getCurrentBranch(dir?: string): Promise<string> {
 export async function detectMainBranch(): Promise<string> {
   return await getCurrentBranch();
 }
+
+/**
+ * 判断本地分支是否存在
+ * @param branch 分支名
+ * @param dir 工作目录，默认当前目录
+ */
+export async function localBranchExists(branch: string, dir?: string): Promise<boolean> {
+  const git = simpleGit(dir);
+  try {
+    const summary = await git.branchLocal();
+    return summary.all.includes(branch);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 判断分支是否存在（本地或远端）
+ * @param branch 分支名（不含 remotes/<remote>/ 前缀）
+ * @param dir 工作目录，默认当前目录
+ */
+export async function branchExistsAnywhere(branch: string, dir?: string): Promise<boolean> {
+  const git = simpleGit(dir);
+  try {
+    const summary = await git.branch(['-a']);
+    return summary.all.some(
+      (b) => b === branch || b.endsWith(`/${branch}`)
+    );
+  } catch {
+    return false;
+  }
+}
