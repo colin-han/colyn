@@ -80,3 +80,103 @@ describe('LocalFileBackend.list 归一化', () => {
     expect(await be.list('archived')).toHaveLength(1);
   });
 });
+
+describe('LocalFileBackend 写操作', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    saveTodoFile.mockResolvedValue(undefined);
+    saveArchivedTodoFile.mockResolvedValue(undefined);
+    readArchivedTodoFile.mockResolvedValue({ todos: [] });
+  });
+
+  it('add 新建 pending', async () => {
+    readTodoFile.mockResolvedValue({ todos: [] });
+    const be = new LocalFileBackend('/cfg', false);
+    const item = await be.add({ type: 'feature', name: 'login', message: 'do login' });
+    expect(item.status).toBe('pending');
+    expect(item.name).toBe('login');
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg',
+      { todos: [expect.objectContaining({ type: 'feature', name: 'login', status: 'pending' })] });
+  });
+
+  it('markStarted → in-progress 并写 branch/startedAt', async () => {
+    readTodoFile.mockResolvedValue({ todos: [mk({ status: 'pending', name: 'login' })] });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.markStarted('feature', 'login', 'feature/login');
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ status: 'in-progress', branch: 'feature/login' })],
+    });
+  });
+
+  it('markDone(autoArchive=false) → done，不归档', async () => {
+    readTodoFile.mockResolvedValue({ todos: [mk({ status: 'in-progress', name: 'login' })] });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.markDone('feature', 'login');
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ status: 'done' })],
+    });
+    expect(saveArchivedTodoFile).not.toHaveBeenCalled();
+  });
+
+  it('markDone(autoArchive=true) → 级联归档', async () => {
+    readTodoFile.mockResolvedValue({ todos: [mk({ status: 'in-progress', name: 'login' })] });
+    const be = new LocalFileBackend('/cfg', true);
+    await be.markDone('feature', 'login');
+    expect(saveTodoFile).toHaveBeenLastCalledWith('/cfg', { todos: [] });
+    expect(saveArchivedTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ status: 'done', name: 'login', archivedAt: expect.any(String) })],
+    });
+  });
+
+  it('reopen：done → in-progress', async () => {
+    readTodoFile.mockResolvedValue({ todos: [mk({ status: 'done', name: 'login', branch: 'feature/login' })] });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.reopen('feature', 'login');
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ status: 'in-progress' })],
+    });
+  });
+
+  it('reopen：从 archived 取回 → in-progress 并移出归档', async () => {
+    readTodoFile.mockResolvedValue({ todos: [] });
+    readArchivedTodoFile.mockResolvedValue({
+      todos: [mk({ status: 'done', name: 'login', archivedAt: '2026-02-01T00:00:00Z' })],
+    });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.reopen('feature', 'login');
+    expect(saveArchivedTodoFile).toHaveBeenCalledWith('/cfg', { todos: [] });
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ status: 'in-progress', name: 'login' })],
+    });
+  });
+
+  it('edit 修改 message', async () => {
+    readTodoFile.mockResolvedValue({ todos: [mk({ status: 'pending', name: 'login', message: 'old' })] });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.edit('feature', 'login', 'new msg');
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ message: 'new msg' })],
+    });
+  });
+
+  it('remove 从 active 删除', async () => {
+    readTodoFile.mockResolvedValue({ todos: [mk({ status: 'pending', name: 'login' })] });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.remove('feature', 'login');
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', { todos: [] });
+  });
+
+  it('archive 把所有 done 移入归档', async () => {
+    readTodoFile.mockResolvedValue({
+      todos: [mk({ status: 'done', name: 'a' }), mk({ status: 'pending', name: 'b' })],
+    });
+    const be = new LocalFileBackend('/cfg', false);
+    await be.archive();
+    expect(saveTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ name: 'b', status: 'pending' })],
+    });
+    expect(saveArchivedTodoFile).toHaveBeenCalledWith('/cfg', {
+      todos: [expect.objectContaining({ name: 'a', archivedAt: expect.any(String) })],
+    });
+  });
+});
