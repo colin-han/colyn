@@ -23,6 +23,7 @@ import {
   validateProjectInitialized,
   getLocationInfo
 } from '../core/paths.js';
+import type { ProjectPaths } from '../core/paths.js';
 import {
   getMainBranch,
   discoverWorktrees
@@ -36,14 +37,12 @@ import { isValidBranchName } from './add.helpers.js';
 import { getBranchCategories, resolveAbbr } from '../core/config.js';
 import {
   copyToClipboard,
-  findTodo,
   formatTodoIdLabel,
   parseTodoId,
-  readTodoFile,
-  saveTodoFile,
   selectWithPreview,
   strWidth,
 } from './todo.helpers.js';
+import { getActiveTodoBackend } from '../todo-backends/registry.js';
 import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 import {
   isTmuxAvailable,
@@ -313,7 +312,7 @@ async function promptCreateBranchName(configDir?: string): Promise<string> {
  * 顺序：新建分支 -> pending todo -> 本地分支
  */
 async function selectBranchForCheckout(
-  configDir: string,
+  paths: ProjectPaths,
   worktreePath: string,
   mainBranch: string,
   currentBranch: string,
@@ -355,9 +354,9 @@ async function selectBranchForCheckout(
   );
 
   // 2) pending todo
-  const todoFile = await readTodoFile(configDir);
-  const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
-  const categories = await getBranchCategories(configDir);
+  const backend = await getActiveTodoBackend(paths);
+  const pendingTodos = await backend.list('pending');
+  const categories = await getBranchCategories(paths.configDir);
   const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
   const maxTodoTypeW = pendingTodos.length > 0
     ? Math.max(...pendingTodos.map(item => strWidth(abbrMap.get(item.type) ?? item.type)))
@@ -418,7 +417,7 @@ async function selectBranchForCheckout(
   }
 
   if (selectedChoice.type === 'create') {
-    return { branch: await promptCreateBranchName(configDir) };
+    return { branch: await promptCreateBranchName(paths.configDir) };
   }
 
   if (selectedChoice.type === 'todo') {
@@ -496,7 +495,7 @@ export async function checkoutCommand(
 
     if (!branch) {
       const selected = await selectBranchForCheckout(
-        paths.configDir,
+        paths,
         worktree.path,
         mainBranch,
         worktree.branch,
@@ -688,13 +687,10 @@ export async function checkoutCommand(
     // 由 Todo 入口切换分支时：同步标记完成，并输出 message + 复制剪贴板
     if (selectedTodoMeta) {
       const { type, name } = parseTodoId(selectedTodoMeta.todoId);
-      const todoFile = await readTodoFile(paths.configDir);
-      const todoItem = findTodo(todoFile.todos, type, name);
+      const backend = await getActiveTodoBackend(paths);
+      const todoItem = await backend.find(type, name);
       if (todoItem && todoItem.status === 'pending') {
-        todoItem.status = 'completed';
-        todoItem.startedAt = new Date().toISOString();
-        todoItem.branch = branch;
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.markStarted(type, name, branch);
         outputSuccess(t('commands.todo.start.success', { todoId: selectedTodoMeta.todoId }));
       }
 
