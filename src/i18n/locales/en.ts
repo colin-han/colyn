@@ -963,6 +963,14 @@ Solution:
         messageEmpty: 'Message cannot be empty',
         editorFailed: 'Editor exited unexpectedly, message not updated',
       },
+      migrateLocal: {
+        description: 'Migrate unfinished local todos to the current backend',
+        alreadyLocal: 'Current todo.backend is already "local"; nothing to migrate',
+        noUnfinished: 'No unfinished local todos to migrate',
+        confirmItem: 'Migrate "{{todoId}}" ({{summary}}) to the current backend?',
+        migrated: 'Migrated: {{from}} → {{to}}',
+        summary: 'Migration done: {{migrated}} migrated, {{skipped}} skipped',
+      },
       backend: {
         unknown: 'Unknown todo backend: "{{backend}}"',
         ghNotInstalled: 'gh command not found. Install it with: {{install}}',

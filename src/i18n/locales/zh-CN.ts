@@ -963,6 +963,14 @@ export const zhCN = {
         messageEmpty: '描述不能为空',
         editorFailed: '编辑器异常退出，描述未修改',
       },
+      migrateLocal: {
+        description: '把本地未完成的 Todo 迁移到当前 backend',
+        alreadyLocal: '当前 todo.backend 已是 local，无需迁移',
+        noUnfinished: '没有需要迁移的未完成本地 Todo',
+        confirmItem: '迁移 "{{todoId}}"（{{summary}}）到当前 backend？',
+        migrated: '已迁移：{{from}} → {{to}}',
+        summary: '迁移完成：已迁移 {{migrated}} 项，跳过 {{skipped}} 项',
+      },
       backend: {
         unknown: '未知的 todo backend："{{backend}}"',
         ghNotInstalled: '未检测到 gh 命令。安装方式：{{install}}',

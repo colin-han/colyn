@@ -24,7 +24,7 @@ import {
   getLocationInfo
 } from '../core/paths.js';
 import { t } from '../i18n/index.js';
-import { getBranchCategories, resolveAbbr } from '../core/config.js';
+import { getBranchCategories, resolveAbbr, getTodoConfig } from '../core/config.js';
 import {
   parseTodoId,
   formatTodoTable,
@@ -34,6 +34,7 @@ import {
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
 import { getActiveTodoBackend } from '../todo-backends/registry.js';
+import { LocalFileBackend } from '../todo-backends/local.js';
 
 /**
  * 打开编辑器编辑文本内容，返回编辑后的内容
@@ -694,6 +695,70 @@ export function register(program: Command): void {
 
         outputSuccess(t('commands.todo.complete.success', { todoId: resolvedTodoId }));
         outputLine();
+      } catch (error) {
+        formatError(error);
+        process.exit(1);
+      }
+    });
+
+  // todo migrate-local
+  todo
+    .command('migrate-local')
+    .description(t('commands.todo.migrateLocal.description'))
+    .action(async () => {
+      try {
+        const paths = await getProjectPaths();
+        await validateProjectInitialized(paths);
+
+        // 1. 检查当前 backend 是否已是 local
+        const cfg = await getTodoConfig(paths.configDir);
+        if (cfg.backend === 'local') {
+          outputInfo(t('commands.todo.migrateLocal.alreadyLocal'));
+          return;
+        }
+
+        // 2. 读取本地未完成 todo（直接实例化 LocalFileBackend，不走 getActiveTodoBackend）
+        const local = new LocalFileBackend(paths.configDir);
+        const pending = await local.list('pending');
+        const inProgress = await local.list('in-progress');
+        const unfinished = [...pending, ...inProgress];
+
+        if (unfinished.length === 0) {
+          outputInfo(t('commands.todo.migrateLocal.noUnfinished'));
+          return;
+        }
+
+        // 3. 取当前激活 backend（非 local 的目标）
+        const backend = await getActiveTodoBackend(paths);
+
+        let migratedCount = 0;
+        let skippedCount = 0;
+
+        // 4. 逐项确认并迁移
+        for (const item of unfinished) {
+          const todoId = `${item.type}/${item.name}`;
+          const summary = item.message.split('\n')[0];
+
+          const response = await prompt<{ confirm: boolean }>({
+            type: 'confirm',
+            name: 'confirm',
+            message: t('commands.todo.migrateLocal.confirmItem', { todoId, summary }),
+            initial: true,
+            stdout: process.stderr,
+          });
+
+          if (response.confirm) {
+            const created = await backend.add({ type: item.type, message: item.message });
+            const newTodoId = `${created.type}/${created.name}`;
+            outputSuccess(t('commands.todo.migrateLocal.migrated', { from: todoId, to: newTodoId }));
+            migratedCount++;
+          } else {
+            skippedCount++;
+          }
+        }
+
+        // 5. 汇总
+        outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migratedCount, skipped: skippedCount }));
       } catch (error) {
         formatError(error);
         process.exit(1);
