@@ -191,6 +191,7 @@ _colyn() {
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
                                         'commands.checkout.fetch'
+                                        'todo.backend' 'todo.autoArchive' 'todo.github.archivedLabel'
                                         'branchCategories'
                                     )
                                     _describe 'config keys' keys
@@ -204,6 +205,7 @@ _colyn() {
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
                                         'commands.checkout.fetch'
+                                        'todo.backend' 'todo.autoArchive' 'todo.github.archivedLabel'
                                     )
                                     _describe 'config keys' keys
                                     ;;
@@ -216,6 +218,7 @@ _colyn() {
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
                                         'commands.checkout.fetch'
+                                        'todo.backend' 'todo.autoArchive' 'todo.github.archivedLabel'
                                     )
                                     _describe 'config keys' keys
                                     ;;
@@ -268,6 +271,7 @@ _colyn() {
                         'complete:${e(t('commands.todo.complete.description'))}'
                         'uncomplete:${e(t('commands.todo.uncomplete.description'))}'
                         'edit:${e(t('commands.todo.edit.description'))}'
+                        'migrate-local:${e(t('commands.todo.migrateLocal.description'))}'
                     )
 
                     _arguments -C \\
