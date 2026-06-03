@@ -904,6 +904,9 @@ Solution:
       list: {
         description: 'List Todo tasks',
         completedOption: 'Show completed tasks',
+        doneOption: 'Show done todos',
+        inProgressOption: 'Show in-progress todos',
+        allOption: 'Show todos of all statuses',
         archivedOption: 'Show archived tasks',
         idOnlyOption: 'Output todo IDs only, one per line (for script integration)',
         jsonOption: 'Output in JSON format',
@@ -916,6 +919,8 @@ Solution:
         headerCreatedAt: 'Created',
         statusPending: 'Pending',
         statusCompleted: 'Completed',
+        statusInProgress: 'In progress',
+        statusDone: 'Done',
         statusArchived: 'Archived',
       },
       remove: {

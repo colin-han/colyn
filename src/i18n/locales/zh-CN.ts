@@ -904,6 +904,9 @@ export const zhCN = {
       list: {
         description: '列出 Todo 任务',
         completedOption: '显示已完成的任务',
+        doneOption: '显示已完成（done）的任务',
+        inProgressOption: '显示进行中的任务',
+        allOption: '显示所有状态的任务',
         archivedOption: '显示已归档的任务',
         idOnlyOption: '仅输出 Todo ID，每行一个（用于脚本集成）',
         jsonOption: '以 JSON 格式输出',
@@ -916,6 +919,8 @@ export const zhCN = {
         headerCreatedAt: '创建时间',
         statusPending: '待办',
         statusCompleted: '已完成',
+        statusInProgress: '进行中',
+        statusDone: '已完成',
         statusArchived: '已归档',
       },
       remove: {
