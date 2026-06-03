@@ -209,9 +209,9 @@ export type CommandsConfig = z.infer<typeof CommandsConfigSchema>;
  */
 export const GitHubTodoConfigSchema = z.object({
   /** archived label 名；未配置时所有 closed(done) issue 视为 archived */
-  archivedLabel: z.string().nullable().optional(),
+  archivedLabel: z.string().nullable().default(null),
   /** colyn type ↔ GitHub label 映射；未配置时按同名处理 */
-  typeLabels: z.record(z.string(), z.string()).optional(),
+  typeLabels: z.record(z.string(), z.string()).default({}),
 }).strict().default({});
 
 /**
