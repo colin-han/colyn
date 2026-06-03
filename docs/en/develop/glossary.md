@@ -324,6 +324,63 @@ colyn config get branchCategories
 
 ---
 
+### Todo Backend
+
+**Definition**: The storage abstraction layer for Colyn's Todo feature. Defines a unified `TodoBackend` interface that allows todo data to be stored in different backend systems (local files or IMS).
+
+**Origin**: Introduced in Colyn v3.4
+
+**Usage in Colyn**:
+- Only one backend is active at any time, specified by the `todo.backend` configuration field
+- Two built-in implementations: `local` (default) and `github` (GitHub Issues)
+- All consumers (`todo`/`co`/`add`) only depend on the interface and are unaware of the specific implementation
+
+**Built-in Backends**:
+
+| Name | Description |
+|------|-------------|
+| `local` | Default implementation, stores todos in `.colyn/todo.json` and `.colyn/archived-todo.json` |
+| `github` | Maps todos to GitHub Issues, reads and writes via gh CLI |
+
+**Configuration**:
+```jsonc
+{
+  "todo": {
+    "backend": "local"  // 'local' | 'github'
+  }
+}
+```
+
+**Reference**: `docs/en/develop/design/design-todo-backend.md`
+
+**Related terms**: [IMS / Issues Management System](#ims--issues-management-system), [Todo ID](#todo-id)
+
+---
+
+### IMS / Issues Management System
+
+**Definition**: An external system for tracking and managing software development tasks, bugs, and feature requests — such as GitHub Issues. In Colyn, it represents a category of Todo backend implementation backed by an external issue tracker.
+
+**Origin**: Introduced as a concept in Colyn v3.4
+
+**Usage in Colyn**:
+- Represents the class of implementations that use an external issue management system as the todo storage backend
+- Currently supported IMS: GitHub Issues (`github` backend)
+- IMS backends have `assignsName=true` — the task ID (e.g., issue number) is back-filled by the IMS
+
+**Example**:
+
+```
+colyn type "feature" → GitHub Issues label "enhancement"
+todo ID "feature/42" ← back-filled from GitHub issue #42
+```
+
+**Reference**: `docs/en/develop/design/design-todo-backend.md`
+
+**Related terms**: [Todo Backend](#todo-backend)
+
+---
+
 ### Todo ID
 
 **Definition**: Unique identifier for a Colyn Todo task, with the format `{category}/{name}`.
@@ -698,6 +755,8 @@ if (process.env.WORKTREE === 'main') {
 - Base Port
 - Branch Category
 - Todo ID
+- Todo Backend
+- IMS / Issues Management System
 - Parallel Vibe Coding
 - Minimal Configuration Principle
 - Command Defaults Config

@@ -12,6 +12,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { loadUserConfig, loadConfigFromDir } from './config-loader.js';
+import { TodoConfigSchema, type TodoConfig } from './config-schema.js';
 import type { BranchCategory } from './config-schema.js';
 
 /**
@@ -210,6 +211,31 @@ export async function getBranchCategories(configDir?: string): Promise<BranchCat
     }
   }
   return merged;
+}
+
+/**
+ * 获取有效的 todo backend 配置（项目 > 用户 > 默认）
+ * @param configDir .colyn 目录路径（可选）
+ */
+export async function getTodoConfig(configDir?: string): Promise<TodoConfig> {
+  const [projectSettings, userSettings] = await Promise.all([
+    configDir
+      ? loadConfigFromDir(configDir).then((s: { todo?: unknown } | null) => s?.todo)
+      : Promise.resolve(undefined),
+    loadUserConfig().then((s: { todo?: unknown } | null) => s?.todo),
+  ]);
+
+  // 浅合并：项目覆盖用户；github 子对象单独深一层合并
+  const merged = {
+    ...(userSettings as Record<string, unknown> | undefined),
+    ...(projectSettings as Record<string, unknown> | undefined),
+    github: {
+      ...((userSettings as { github?: Record<string, unknown> } | undefined)?.github),
+      ...((projectSettings as { github?: Record<string, unknown> } | undefined)?.github),
+    },
+  };
+
+  return TodoConfigSchema.parse(merged);
 }
 
 /**

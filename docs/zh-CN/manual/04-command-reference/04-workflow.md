@@ -160,7 +160,7 @@ $ colyn update --no-fetch
 
 ## colyn todo
 
-管理项目的 Todo 任务列表，与并行 Vibe Coding 工作流深度集成。
+管理项目的 Todo 任务列表，与并行 Vibe Coding 工作流深度集成。支持本地文件（默认）和 GitHub Issues 两种 backend。
 
 ### 语法
 
@@ -175,23 +175,43 @@ colyn todo [子命令] [选项]
 | 子命令 | 说明 |
 |--------|------|
 | `add [todoId] [message...]` | 添加 Todo 任务 |
-| `start [todoId]` | 开始执行任务（切换分支 + 复制描述到剪贴板） |
+| `start [todoId]` | 开始执行任务（切换分支 + 复制描述到剪贴板，状态置为 in-progress） |
 | `list` / `ls` | 列出任务（默认显示待办） |
 | `edit [todoId] [message]` | 编辑 Todo 任务的描述 |
 | `remove [todoId]` | 删除任务（省略时交互式选择） |
-| `archive` | 归档所有已完成任务 |
-| `complete [todoId]` | 将待办任务标记为已完成 |
-| `uncomplete [todoId]` | 将已完成任务回退为待办 |
+| `archive` | 归档所有 done 状态的任务 |
+| `complete [todoId]` | 将 in-progress 任务标记为 done |
+| `uncomplete [todoId]` | 将 done 任务回退为 in-progress |
+
+### Todo 生命周期
+
+```
+pending → in-progress → done → archived
+```
+
+| 状态 | 说明 |
+|------|------|
+| `pending` | 等待开始的任务 |
+| `in-progress` | 已建分支、正在开发中 |
+| `done` | 开发完成 |
+| `archived` | 已归档，移出活跃列表 |
 
 ### Todo ID 格式
 
-Todo ID 采用 `{type}/{name}` 格式，与 Git 分支名一致：
+**Local backend**（默认）：Todo ID 采用 `{type}/{name}` 格式，与 Git 分支名一致：
 
 ```
 feature/login
 bugfix/fix-crash
 refactor/auth-module
 document/api-guide
+```
+
+**GitHub backend**：Todo ID 采用 `{type}/{issue-number}` 格式，名称由 GitHub Issue 号自动分配：
+
+```
+feature/42
+bugfix/17
 ```
 
 **支持的类型**：`feature` / `bugfix` / `refactor` / `document`
@@ -212,8 +232,8 @@ colyn todo add [todoId] [message...]
 
 | 参数 | 说明 |
 |------|------|
-| `todoId` | Todo ID（格式：`type/name`），省略时交互式选择 |
-| `message...` | 任务描述，可包含空格且无需引号（多个词会自动拼接）；省略时打开编辑器（支持 Markdown） |
+| `todoId` | Todo ID（格式：`type/name`），省略时交互式选择；GitHub backend 下忽略 name，由 Issue 号自动分配 |
+| `message...` | 任务描述，可包含空格且无需引号（多个词会自动拼接）；省略时打开编辑器（支持 Markdown）；GitHub backend 下首行作为 Issue title |
 
 #### 示例
 
@@ -221,14 +241,20 @@ colyn todo add [todoId] [message...]
 # 完全交互式（选择 type → 输入 name → 编辑器输入描述）
 $ colyn todo add
 
-# 指定 ID，描述通过编辑器输入
+# 指定 ID，描述通过编辑器输入（Local backend）
 $ colyn todo add feature/login
 
-# 全部直接指定（描述可加引号）
+# 全部直接指定（Local backend，描述可加引号）
 $ colyn todo add feature/login "实现用户登录功能"
 
 # 描述也可不加引号，多个词会自动拼接
 $ colyn todo add feature/login 实现用户登录功能
+
+# GitHub backend 下：选择 type 后自动分配 Issue 号
+$ colyn todo add
+? 选择任务类型 › feature
+（打开编辑器输入描述，首行为 Issue title）
+✓ 已创建 Todo: feature/42
 ```
 
 #### 编辑器说明
@@ -257,9 +283,9 @@ colyn todo start [选项] [todoId]
 
 #### 执行过程
 
-1. 若未指定 `todoId`，列出所有 `pending` 任务并交互式选择；无待办任务则退出
-2. 在当前 Worktree 切换到 `{type}/{name}` 分支（若不存在则创建）
-3. 将 todo 状态标记为 `completed`
+1. 若未指定 `todoId`，从当前 active backend 列出所有 `pending` 任务并交互式选择；无待办任务则退出
+2. 在当前 Worktree 切换到对应分支（若不存在则创建）
+3. 将 todo 状态标记为 `in-progress`
 4. 在终端输出任务描述（message）
 5. 将任务描述复制到剪贴板（macOS / Linux / Windows 均支持）
 
@@ -275,7 +301,7 @@ $ colyn todo start
 # 直接指定任务 ID
 $ colyn todo start feature/login
 
-✓ Todo "feature/login" 已标记为完成
+✓ Todo "feature/login" 已置为进行中
 
 任务描述：
 实现用户登录功能，支持邮箱和手机号两种方式
@@ -312,10 +338,14 @@ colyn todo           # 不带子命令时等同于此命令
 
 | 选项 | 说明 |
 |------|------|
-| `--completed` | 显示已完成（`completed`）的任务 |
+| `--in-progress` | 显示进行中（`in-progress`）的任务 |
+| `--done` | 显示已完成（`done`）的任务 |
 | `--archived` | 显示已归档的任务 |
+| `--all` | 显示所有活跃任务（pending + in-progress + done） |
 | `--id-only` | 仅输出 Todo ID（每行一个），用于脚本集成 |
 | `--json` | 以 JSON 格式输出任务列表 |
+
+> 注意：旧版 `--completed` 选项已更名为 `--done`。
 
 #### 示例
 
@@ -323,12 +353,18 @@ colyn todo           # 不带子命令时等同于此命令
 # 显示待办任务（默认）
 $ colyn todo
   Type     Name       Message                    Created
-  ------------------------------------------------------
+  -------------------------------------------------------
   feature  login      实现用户登录功能，支持邮…    2026/02/22 10:00
   bugfix   fix-crash  修复应用崩溃问题              2026/02/22 11:30
 
+# 显示进行中的任务
+$ colyn todo list --in-progress
+
 # 显示已完成任务
-$ colyn todo list --completed
+$ colyn todo list --done
+
+# 显示所有活跃任务
+$ colyn todo list --all
 
 # 仅输出 ID（用于脚本）
 $ colyn todo list --id-only
@@ -348,7 +384,7 @@ $ colyn todo list --json
 ]
 
 # JSON 格式输出已完成任务
-$ colyn todo list --json --completed
+$ colyn todo list --json --done
 
 # JSON 格式输出归档任务（含 archivedAt 字段）
 $ colyn todo list --json --archived
@@ -442,7 +478,7 @@ $ colyn todo remove feature/login -y
 
 ### colyn todo archive
 
-将所有 `completed` 状态的任务批量归档，移入 `.colyn/archived-todo.json`。
+将所有 `done` 状态的任务批量归档，移出活跃列表。
 
 #### 语法
 
@@ -472,7 +508,7 @@ $ colyn todo archive -y
 
 ### colyn todo uncomplete
 
-将 `completed` 状态的任务回退为 `pending`（清除 `startedAt` 和 `branch` 记录）。省略 `todoId` 时，自动使用当前 Worktree 的分支名。
+将 `done` 状态的任务回退为 `in-progress`。省略 `todoId` 时，自动使用当前 Worktree 的分支名。
 
 #### 语法
 
@@ -492,18 +528,18 @@ colyn todo uncomplete [todoId]
 # 在 feature/login Worktree 中直接执行（自动推断）
 $ colyn todo uncomplete
 ℹ 使用当前分支名: feature/login
-✓ Todo "feature/login" 已回退为待办状态
+✓ Todo "feature/login" 已回退为进行中
 
 # 显式指定 ID
 $ colyn todo uncomplete feature/login
-✓ Todo "feature/login" 已回退为待办状态
+✓ Todo "feature/login" 已回退为进行中
 ```
 
 ---
 
 ### colyn todo complete
 
-将 `pending` 状态的任务标记为 `completed`。省略 `todoId` 时，交互式选择待办任务。
+将 `in-progress` 状态的任务标记为 `done`。省略 `todoId` 时，交互式选择进行中的任务。
 
 #### 语法
 
@@ -515,33 +551,97 @@ colyn todo complete [todoId]
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `todoId` | 否 | 要标记完成的 Todo ID；省略时交互式选择 |
+| `todoId` | 否 | 要标记完成的 Todo ID；省略时交互式选择进行中的任务 |
 
 #### 示例
 
 ```bash
-# 交互式选择待办任务
+# 交互式选择进行中的任务
 $ colyn todo complete
 ? 选择要完成的任务
 ❯ feature/login
   bugfix/fix-crash
-✓ Todo "feature/login" 已标记为完成
+✓ Todo "feature/login" 已标记为完成（done）
 
 # 显式指定 ID
 $ colyn todo complete feature/login
-✓ Todo "feature/login" 已标记为完成
+✓ Todo "feature/login" 已标记为完成（done）
 ```
 
 ---
 
 ### 数据存储
 
+**Local backend（默认）**：
+
 | 文件 | 说明 |
 |------|------|
-| `.colyn/todo.json` | 所有活跃 Todo（pending + completed） |
+| `.colyn/todo.json` | 所有活跃 Todo（pending + in-progress + done） |
 | `.colyn/archived-todo.json` | 已归档的 Todo |
 
+**GitHub backend**：数据存储在 GitHub Issues 中，通过 `gh` CLI 实时读写，本地无缓存。
+
 所有 Worktree 共享同一份 todo 数据。
+
+### GitHub Issues 集成
+
+Colyn Todo 支持将 GitHub Issues 作为任务数据源，实现与 GitHub 项目管理的双向同步。
+
+#### 前置条件
+
+- 已安装 GitHub CLI（`gh`）：macOS 用户可运行 `brew install gh`，其他平台见 [cli.github.com](https://cli.github.com)
+- 已完成登录：`gh auth login`
+- 当前项目 origin 为 GitHub 仓库（`origin` URL 含 `github.com`）
+
+#### 启用方法
+
+**方式一**：在 `colyn init` 时选择 GitHub Issues backend（推荐，自动检测并引导）
+
+**方式二**：手动配置
+
+```bash
+colyn config set todo.backend github
+```
+
+#### GitHub 状态映射
+
+| Colyn 状态 | GitHub Issue 状态 |
+|-----------|-----------------|
+| `pending` | open，无对应分支 |
+| `in-progress` | open，有对应分支 |
+| `done` | closed |
+| `archived` | closed + archived label（如已配置） |
+
+#### Todo Backend 配置项
+
+```bash
+# 切换 backend
+colyn config set todo.backend github   # 使用 GitHub Issues
+colyn config set todo.backend local    # 使用本地文件（默认）
+
+# 是否完成后自动归档
+colyn config set todo.autoArchive true
+
+# 设置 archived label（GitHub backend 下区分 done 和 archived）
+colyn config set todo.github.archivedLabel archived
+```
+
+`todo.github.typeLabels`（type↔label 映射）需手动编辑 `.colyn/settings.json`：
+
+```json
+{
+  "todo": {
+    "github": {
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug",
+        "refactor": "refactor",
+        "document": "documentation"
+      }
+    }
+  }
+}
+```
 
 ### 推荐工作流
 
@@ -553,14 +653,17 @@ colyn todo add feature/dashboard "实现数据仪表盘"
 # 2. 查看待办
 colyn todo list
 
-# 3. 开始任务（切换分支并获取任务上下文）
+# 3. 开始任务（切换分支并获取任务上下文，状态置为 in-progress）
 colyn todo start feature/login
 # → 将任务描述粘贴到 Claude Code 输入框
 
-# 4. 开发完成后合并
+# 4. 开发完成后标记为 done
+colyn todo complete feature/login
+
+# 5. 合并代码
 colyn merge feature/login
 
-# 5. 归档已完成任务
+# 6. 归档已完成任务（可选）
 colyn todo archive -y
 ```
 
@@ -570,17 +673,20 @@ colyn todo archive -y
 |---------|---------|---------|
 | Todo ID 格式错误 | `✗ Todo ID 格式错误，应为 {type}/{name}` | 使用正确格式，如 `feature/login` |
 | Todo 不存在 | `✗ Todo "xxx" 不存在` | 先用 `todo add` 添加，或用 `colyn todo list` 查看 |
-| Todo 不是待办状态 | `✗ Todo "xxx" 不是待办状态` | 使用 `colyn todo uncomplete` 回退后再 start |
-| 重复添加 | `✗ Todo "xxx" 已存在` | 每个 type/name 只能添加一次 |
+| Todo 不是 pending 状态 | `✗ Todo "xxx" 不是待办状态` | 检查当前状态；如需回退到 pending 请先 `uncomplete` 再修改状态 |
+| Todo 不是 in-progress 状态 | `✗ Todo "xxx" 不是进行中状态` | 先用 `todo start` 将任务置为进行中 |
+| 重复添加（Local） | `✗ Todo "xxx" 已存在` | 每个 type/name 只能添加一次 |
+| gh 未安装（GitHub backend） | `✗ gh CLI 未安装` | 运行 `brew install gh` 或访问 cli.github.com |
+| gh 未登录（GitHub backend） | `✗ 未登录 GitHub` | 运行 `gh auth login` |
 
 ### 提示
 
 - `colyn todo` 不带任何参数即可查看待办列表，是最常用的调用方式
-- `todo start` 执行的是完整的 `colyn checkout` 流程，包括未提交检查、fetch 远程、归档旧日志等
+- `todo start` 执行的是完整的 `colyn checkout` 流程，包括未提交检查、fetch 远程、归档旧日志等，并将状态置为 `in-progress`
+- `todo complete` 只更新任务状态（in-progress → done），不会触发分支切换与剪贴板复制
 - 需要新建 worktree 时，使用 `colyn add [branch]`；不传 `branch` 可交互选择（新建分支 / Todo 分支 / 本地分支）
 - 复用现有 worktree 时，使用 `colyn checkout [branch]`；不传 `branch` 同样可交互选择（新建分支 / Todo 分支 / 本地分支）
-- 在 `add/checkout` 交互列表中选择 Todo 分支时，也会像 `todo start` 一样输出 message、复制到剪贴板，并将 Todo 标记为完成
-- `todo complete` 只更新任务状态，不会触发分支切换与剪贴板复制
+- 在 `add/checkout` 交互列表中选择 Todo 分支时，也会像 `todo start` 一样输出 message、复制到剪贴板，并将 Todo 置为 `in-progress`
 - 描述（message）支持完整的 Markdown 语法，有助于在 Claude 会话中提供清晰的上下文
 - 定期执行 `colyn todo archive -y` 可保持待办列表整洁
 - 设置 `$EDITOR` 环境变量可以使用自己喜欢的编辑器编辑描述

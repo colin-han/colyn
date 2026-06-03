@@ -1,7 +1,7 @@
 # Repair Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-17
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-06-03 (updated: Todo Backend setup repair)
 **Command**: `colyn repair`
 **Status**: ✅ Implemented
 
@@ -27,7 +27,10 @@ After execution, the system will:
 2. Check and fix all worktree `.env.local` files
 3. Run `git worktree repair` to fix git connections
 4. Run plugin initialization (non-fatal — only shows a warning on failure)
-5. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
+5. **Run setup for the current active Todo Backend** (non-fatal):
+   - Local backend: no additional action
+   - GitHub backend: verify that `gh` is installed and authenticated; if not installed, suggest installation steps; if not authenticated, suggest `gh auth login`
+6. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
 
 ---
 

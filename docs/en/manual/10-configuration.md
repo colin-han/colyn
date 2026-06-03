@@ -15,6 +15,7 @@ This chapter provides a detailed overview of Colyn's configuration system, inclu
 7. [Configuration Management Commands](#configuration-management-commands)
 8. [Configuration Examples](#configuration-examples)
 9. [Configuration Versioning and Migration](#configuration-versioning-and-migration)
+10. [Todo Configuration Options](#todo-configuration-options)
 
 ---
 
@@ -1485,6 +1486,128 @@ Or for a specific branch:
     "main": {
       "tmux": {
         "autoRun": false
+      }
+    }
+  }
+}
+```
+
+---
+
+## Todo Configuration Options
+
+The `todo` configuration group controls the storage backend and related behavior for the `todo` command.
+
+### todo.backend
+
+**Type**: `"local" | "github"`
+**Default**: `"local"`
+**Description**: Select the storage backend for todos
+
+| Value | Description |
+|-------|-------------|
+| `"local"` | Stores todos in a local `todo.json` file under the project directory |
+| `"github"` | Stores todos as GitHub Issues in the current repository |
+
+**Prerequisites (when using `"github"`)**:
+- `gh` (GitHub CLI) is installed and authenticated
+- The `origin` remote of the current repository points to GitHub
+
+**Command-line configuration**:
+
+```bash
+# Switch to the GitHub Issues backend
+colyn config set todo.backend github
+
+# Switch back to the local backend
+colyn config set todo.backend local
+```
+
+---
+
+### todo.autoArchive
+
+**Type**: `boolean`
+**Default**: `false`
+**Description**: When enabled, running `todo complete` to mark a todo as done will also archive it automatically
+
+**Command-line configuration**:
+
+```bash
+# Enable auto-archive
+colyn config set todo.autoArchive true
+
+# Disable auto-archive
+colyn config set todo.autoArchive false
+```
+
+---
+
+### todo.github.archivedLabel
+
+**Type**: `string` (optional)
+**Default**: Not set
+**Description**: GitHub backend only — the name of a GitHub label used to distinguish the "done" state from the "archived" state
+
+**Behavior**:
+
+| Configuration | done | archived |
+|---------------|------|----------|
+| Not set (default) | closed issue | closed issue (all closed issues are treated as archived) |
+| Label name set | closed issue (**without** the label) | closed issue (**with** the label) |
+
+**Command-line configuration**:
+
+```bash
+# Set the archived label (e.g., a label named "archived")
+colyn config set todo.github.archivedLabel archived
+```
+
+---
+
+### todo.github.typeLabels
+
+**Type**: `object` (optional; both keys and values are `string`)
+**Default**: `{}`
+**Description**: GitHub backend only — defines a mapping between colyn branch types and GitHub labels
+
+**Note**: This field is an object map and **cannot be set via `config set`**. You must edit `.colyn/settings.json` directly.
+
+**Configuration example**:
+
+```jsonc
+{
+  "todo": {
+    "backend": "github",
+    "github": {
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug"
+      }
+    }
+  }
+}
+```
+
+**Explanation**: The example above maps the colyn type `feature` to the GitHub label `enhancement` and `bugfix` to `bug`. Types not listed in the mapping will not have any extra label applied.
+
+---
+
+### Todo Configuration Example
+
+**Using the GitHub Issues backend (full configuration)**:
+
+```jsonc
+{
+  "version": 3,
+  "todo": {
+    "backend": "github",
+    "autoArchive": true,
+    "github": {
+      "archivedLabel": "archived",
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug"
       }
     }
   }

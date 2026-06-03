@@ -40,7 +40,8 @@ export interface WorktreeInfo {
 export class ColynError extends Error {
   constructor(
     message: string,
-    public hint?: string
+    public hint?: string,
+    public code?: string
   ) {
     super(message);
     this.name = 'ColynError';
@@ -76,7 +77,7 @@ export interface CommandModule {
 /**
  * Todo 状态
  */
-export type TodoStatus = 'pending' | 'completed';
+export type TodoStatus = 'pending' | 'in-progress' | 'done';
 
 /**
  * Todo 条目

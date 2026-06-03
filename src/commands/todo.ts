@@ -8,7 +8,7 @@ import { openSync, closeSync } from 'fs';
 import * as os from 'os';
 import { writeFile, readFile, unlink } from 'fs/promises';
 import * as path from 'path';
-import type { ArchivedTodoItem, TodoItem } from '../types/index.js';
+import type { TodoItem } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import {
   output,
@@ -24,20 +24,17 @@ import {
   getLocationInfo
 } from '../core/paths.js';
 import { t } from '../i18n/index.js';
-import { getBranchCategories, resolveAbbr } from '../core/config.js';
+import { getBranchCategories, resolveAbbr, getTodoConfig } from '../core/config.js';
 import {
-  readTodoFile,
-  saveTodoFile,
-  readArchivedTodoFile,
-  saveArchivedTodoFile,
   parseTodoId,
-  findTodo,
   formatTodoTable,
   editMessageWithEditor,
   copyToClipboard,
   selectTodo,
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
+import { getActiveTodoBackend } from '../todo-backends/registry.js';
+import { LocalFileBackend } from '../todo-backends/local.js';
 
 /**
  * 打开编辑器编辑文本内容，返回编辑后的内容
@@ -85,7 +82,8 @@ async function editWithEditor(initialContent: string): Promise<string> {
 function getStatusLabels(): Record<string, string> {
   return {
     pending: t('commands.todo.list.statusPending'),
-    completed: t('commands.todo.list.statusCompleted'),
+    'in-progress': t('commands.todo.list.statusInProgress'),
+    done: t('commands.todo.list.statusDone'),
     archived: t('commands.todo.list.statusArchived'),
   };
 }
@@ -93,16 +91,102 @@ function getStatusLabels(): Record<string, string> {
 /**
  * 列出待办任务（默认行为）
  */
-async function listPendingTodos(configDir: string): Promise<void> {
-  const todoFile = await readTodoFile(configDir);
-  const pending = todoFile.todos.filter(item => item.status === 'pending');
+async function listPendingTodos(paths: Awaited<ReturnType<typeof getProjectPaths>>): Promise<void> {
+  const backend = await getActiveTodoBackend(paths);
+  const pending = await backend.list('pending');
   if (pending.length === 0) {
     outputInfo(t('commands.todo.list.empty'));
     return;
   }
-  const categories = await getBranchCategories(configDir);
+  const categories = await getBranchCategories(paths.configDir);
   const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
   output(formatTodoTable(pending, abbrMap));
+}
+
+/**
+ * migrate-local 子命令的核心迁移逻辑（已导出以便测试）。
+ * action 回调负责 getProjectPaths / validateProjectInitialized / try-catch 外壳。
+ */
+export async function migrateLocalTodos(paths: Awaited<ReturnType<typeof getProjectPaths>>): Promise<void> {
+  // 1. 检查当前 backend 是否已是 local
+  const cfg = await getTodoConfig(paths.configDir);
+  if (cfg.backend === 'local') {
+    outputInfo(t('commands.todo.migrateLocal.alreadyLocal'));
+    return;
+  }
+
+  // 2. 读取本地未完成 todo（直接实例化 LocalFileBackend，不走 getActiveTodoBackend）
+  const local = new LocalFileBackend(paths.configDir);
+  const pending = await local.list('pending');
+  const inProgress = await local.list('in-progress');
+  const unfinished = [...pending, ...inProgress];
+
+  if (unfinished.length === 0) {
+    outputInfo(t('commands.todo.migrateLocal.noUnfinished'));
+    return;
+  }
+
+  // 3. 取当前激活 backend（非 local 的目标）
+  const backend = await getActiveTodoBackend(paths);
+
+  // 记录成功迁移的本地项（type/name），用于后续删除
+  const migrated: Array<{ type: string; name: string }> = [];
+  let skippedCount = 0;
+  let failedCount = 0;
+
+  // 4. 逐项确认并迁移
+  for (const item of unfinished) {
+    const todoId = `${item.type}/${item.name}`;
+    const summary = item.message.split('\n')[0];
+
+    const response = await prompt<{ confirm: boolean }>({
+      type: 'confirm',
+      name: 'confirm',
+      message: t('commands.todo.migrateLocal.confirmItem', { todoId, summary }),
+      initial: false,
+      stdout: process.stderr,
+    });
+
+    if (!response.confirm) {
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      const created = await backend.add({ type: item.type, message: item.message });
+      const newTodoId = `${created.type}/${created.name}`;
+      outputSuccess(t('commands.todo.migrateLocal.migrated', { from: todoId, to: newTodoId }));
+      migrated.push({ type: item.type, name: item.name });
+    } catch (error) {
+      // 单项失败不中断整个迁移：打印该项错误后继续处理下一项
+      const message = error instanceof Error ? error.message : String(error);
+      outputError(t('commands.todo.migrateLocal.itemFailed', { todoId, error: message }));
+      failedCount++;
+    }
+  }
+
+  // 5. 汇总
+  outputInfo(t('commands.todo.migrateLocal.summary', { migrated: migrated.length, skipped: skippedCount, failed: failedCount }));
+
+  // 6. 全部迁移完成后，做一次最终确认；确认则从本地删除已迁移的项（破坏性操作，默认否）
+  if (migrated.length > 0) {
+    const deleteResponse = await prompt<{ confirm: boolean }>({
+      type: 'confirm',
+      name: 'confirm',
+      message: t('commands.todo.migrateLocal.confirmDeleteLocal', { count: migrated.length }),
+      initial: false,
+      stdout: process.stderr,
+    });
+
+    if (deleteResponse.confirm) {
+      for (const item of migrated) {
+        await local.remove(item.type, item.name);
+      }
+      outputSuccess(t('commands.todo.migrateLocal.deletedLocal', { count: migrated.length }));
+    } else {
+      outputInfo(t('commands.todo.migrateLocal.keptLocal'));
+    }
+  }
 }
 
 /**
@@ -116,7 +200,7 @@ export function register(program: Command): void {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
-        await listPendingTodos(paths.configDir);
+        await listPendingTodos(paths);
       } catch (error) {
         formatError(error);
         process.exit(1);
@@ -133,81 +217,126 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        let type: string;
-        let name: string;
+        const backend = await getActiveTodoBackend(paths);
 
-        if (todoId) {
-          try {
-            ({ type, name } = parseTodoId(todoId));
-          } catch {
-            throw new ColynError(t('commands.todo.add.invalidFormat'));
+        if (backend.assignsName) {
+          // IMS 分支（如 github）：backend 自行分配 name，用户只需选 type + 提供 message
+          let type: string;
+
+          if (todoId) {
+            // 命令行传入的第一个参数视为 type（IMS 下无需 name）
+            // 若格式为 type/name（误传），取 type 部分
+            const slashIndex = todoId.indexOf('/');
+            type = slashIndex === -1 ? todoId : todoId.substring(0, slashIndex);
+            if (!type) {
+              throw new ColynError(t('commands.todo.add.invalidFormat'));
+            }
+          } else {
+            // 交互式选择 type
+            const categories = await getBranchCategories(paths.configDir);
+            const typeResponse = await prompt<{ type: string }>({
+              type: 'select',
+              name: 'type',
+              message: t('commands.todo.add.selectType'),
+              choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
+              stdout: process.stderr,
+            });
+            type = typeResponse.type;
           }
+
+          let resolvedMessage = message;
+
+          if (!resolvedMessage) {
+            let edited: string | null;
+            try {
+              edited = await editMessageWithEditor(type);
+            } catch (error) {
+              const editor = error instanceof Error ? error.message : 'vim';
+              throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+            }
+            if (edited === null) {
+              output(chalk.gray(t('commands.todo.add.editorCanceled')));
+              return;
+            }
+            resolvedMessage = edited;
+          }
+
+          if (!resolvedMessage.trim()) {
+            throw new ColynError(t('commands.todo.add.emptyMessage'));
+          }
+
+          const created = await backend.add({ type, message: resolvedMessage });
+          const createdTodoId = `${created.type}/${created.name}`;
+
+          outputSuccess(t('commands.todo.add.success', { todoId: createdTodoId, message: created.message.split('\n')[0] }));
         } else {
-          // 交互式选择 type 和输入 name
-          const categories = await getBranchCategories(paths.configDir);
-          const typeResponse = await prompt<{ type: string }>({
-            type: 'select',
-            name: 'type',
-            message: t('commands.todo.add.selectType'),
-            choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
-            stdout: process.stderr,
-          });
-          type = typeResponse.type;
+          // local 分支：维持现有交互流程不变
+          let type: string;
+          let name: string;
 
-          const nameResponse = await prompt<{ name: string }>({
-            type: 'input',
-            name: 'name',
-            message: t('commands.todo.add.inputName'),
-            stdout: process.stderr,
-          });
-          name = nameResponse.name.trim();
+          if (todoId) {
+            try {
+              ({ type, name } = parseTodoId(todoId));
+            } catch {
+              throw new ColynError(t('commands.todo.add.invalidFormat'));
+            }
+          } else {
+            // 交互式选择 type 和输入 name
+            const categories = await getBranchCategories(paths.configDir);
+            const typeResponse = await prompt<{ type: string }>({
+              type: 'select',
+              name: 'type',
+              message: t('commands.todo.add.selectType'),
+              choices: categories.map(c => ({ name: c.name, message: `${resolveAbbr(c)} (${c.name})` })),
+              stdout: process.stderr,
+            });
+            type = typeResponse.type;
 
-          if (!name) {
-            throw new ColynError(t('commands.todo.add.emptyName'));
+            const nameResponse = await prompt<{ name: string }>({
+              type: 'input',
+              name: 'name',
+              message: t('commands.todo.add.inputName'),
+              stdout: process.stderr,
+            });
+            name = nameResponse.name.trim();
+
+            if (!name) {
+              throw new ColynError(t('commands.todo.add.emptyName'));
+            }
           }
-        }
 
-        const resolvedTodoId = `${type}/${name}`;
-        const todoFile = await readTodoFile(paths.configDir);
+          const resolvedTodoId = `${type}/${name}`;
 
-        const existing = findTodo(todoFile.todos, type, name);
-        if (existing) {
-          throw new ColynError(t('commands.todo.add.alreadyExists', { todoId: resolvedTodoId }));
-        }
-
-        let resolvedMessage = message;
-
-        if (!resolvedMessage) {
-          let edited: string | null;
-          try {
-            edited = await editMessageWithEditor(resolvedTodoId);
-          } catch (error) {
-            const editor = error instanceof Error ? error.message : 'vim';
-            throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+          const existing = await backend.find(type, name);
+          if (existing) {
+            throw new ColynError(t('commands.todo.add.alreadyExists', { todoId: resolvedTodoId }));
           }
-          if (edited === null) {
-            output(chalk.gray(t('commands.todo.add.editorCanceled')));
-            return;
+
+          let resolvedMessage = message;
+
+          if (!resolvedMessage) {
+            let edited: string | null;
+            try {
+              edited = await editMessageWithEditor(resolvedTodoId);
+            } catch (error) {
+              const editor = error instanceof Error ? error.message : 'vim';
+              throw new ColynError(t('commands.todo.add.editorFailed', { editor }));
+            }
+            if (edited === null) {
+              output(chalk.gray(t('commands.todo.add.editorCanceled')));
+              return;
+            }
+            resolvedMessage = edited;
           }
-          resolvedMessage = edited;
+
+          if (!resolvedMessage.trim()) {
+            throw new ColynError(t('commands.todo.add.emptyMessage'));
+          }
+
+          await backend.add({ type, name, message: resolvedMessage });
+
+          outputSuccess(t('commands.todo.add.success', { todoId: resolvedTodoId, message: resolvedMessage }));
         }
-
-        if (!resolvedMessage.trim()) {
-          throw new ColynError(t('commands.todo.add.emptyMessage'));
-        }
-
-        const newTodo: TodoItem = {
-          type,
-          name,
-          message: resolvedMessage,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        };
-
-        todoFile.todos.push(newTodo);
-        await saveTodoFile(paths.configDir, todoFile);
-
-        outputSuccess(t('commands.todo.add.success', { todoId: resolvedTodoId, message: resolvedMessage }));
       } catch (error) {
         formatError(error);
         process.exit(1);
@@ -224,8 +353,8 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        const todoFile = await readTodoFile(paths.configDir);
-        const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+        const backend = await getActiveTodoBackend(paths);
+        const pendingTodos = await backend.list('pending');
 
         let resolvedTodoId: string;
 
@@ -253,7 +382,7 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const item = findTodo(todoFile.todos, type, name);
+        const item = await backend.find(type, name);
 
         if (!item) {
           throw new ColynError(t('commands.todo.start.notFound', { todoId: resolvedTodoId }));
@@ -273,10 +402,7 @@ export function register(program: Command): void {
         }
 
         // checkout 成功，更新 todo 状态
-        item.status = 'completed';
-        item.startedAt = new Date().toISOString();
-        item.branch = branch;
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.markStarted(type, name, branch);
 
         outputSuccess(t('commands.todo.start.success', { todoId: resolvedTodoId }));
 
@@ -300,16 +426,18 @@ export function register(program: Command): void {
       }
     });
 
-  // todo list [--completed] [--archived] [--id-only] [--json]
+  // todo list [--done] [--in-progress] [--all] [--archived] [--id-only] [--json]
   todo
     .command('list')
     .alias('ls')
     .description(t('commands.todo.list.description'))
-    .option('--completed', t('commands.todo.list.completedOption'))
+    .option('--done', t('commands.todo.list.doneOption'))
+    .option('--in-progress', t('commands.todo.list.inProgressOption'))
+    .option('--all', t('commands.todo.list.allOption'))
     .option('--archived', t('commands.todo.list.archivedOption'))
     .option('--id-only', t('commands.todo.list.idOnlyOption'))
     .option('--json', t('commands.todo.list.jsonOption'))
-    .action(async (options: { completed?: boolean; archived?: boolean; idOnly?: boolean; json?: boolean }) => {
+    .action(async (options: { done?: boolean; inProgress?: boolean; all?: boolean; archived?: boolean; idOnly?: boolean; json?: boolean }) => {
       try {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
@@ -318,17 +446,26 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.list.jsonConflict'));
         }
 
+        const backend = await getActiveTodoBackend(paths);
+
         if (options.idOnly) {
           let todos: TodoItem[];
           if (options.archived) {
-            const archivedFile = await readArchivedTodoFile(paths.configDir);
-            todos = archivedFile.todos.map(item => ({ ...item, status: 'completed' as const }));
-          } else if (options.completed) {
-            const todoFile = await readTodoFile(paths.configDir);
-            todos = todoFile.todos.filter(item => item.status === 'completed');
+            todos = await backend.list('archived');
+          } else if (options.done) {
+            todos = await backend.list('done');
+          } else if (options.inProgress) {
+            todos = await backend.list('in-progress');
+          } else if (options.all) {
+            const [pending, inProgress, done, archived] = await Promise.all([
+              backend.list('pending'),
+              backend.list('in-progress'),
+              backend.list('done'),
+              backend.list('archived'),
+            ]);
+            todos = [...pending, ...inProgress, ...done, ...archived];
           } else {
-            const todoFile = await readTodoFile(paths.configDir);
-            todos = todoFile.todos.filter(item => item.status === 'pending');
+            todos = await backend.list('pending');
           }
           for (const todo of todos) {
             process.stdout.write(`${todo.type}/${todo.name}\n`);
@@ -339,42 +476,70 @@ export function register(program: Command): void {
         if (options.json) {
           let todos: TodoItem[];
           if (options.archived) {
-            const archivedFile = await readArchivedTodoFile(paths.configDir);
-            todos = archivedFile.todos;
-          } else if (options.completed) {
-            const todoFile = await readTodoFile(paths.configDir);
-            todos = todoFile.todos.filter(item => item.status === 'completed');
+            todos = await backend.list('archived');
+          } else if (options.done) {
+            todos = await backend.list('done');
+          } else if (options.inProgress) {
+            todos = await backend.list('in-progress');
+          } else if (options.all) {
+            const [pending, inProgress, done, archived] = await Promise.all([
+              backend.list('pending'),
+              backend.list('in-progress'),
+              backend.list('done'),
+              backend.list('archived'),
+            ]);
+            todos = [...pending, ...inProgress, ...done, ...archived];
           } else {
-            const todoFile = await readTodoFile(paths.configDir);
-            todos = todoFile.todos.filter(item => item.status === 'pending');
+            todos = await backend.list('pending');
           }
           console.log(JSON.stringify(todos, null, 2));
           return;
         }
 
         if (options.archived) {
-          const archivedFile = await readArchivedTodoFile(paths.configDir);
-          if (archivedFile.todos.length === 0) {
-            outputInfo(t('commands.todo.list.empty'));
-            return;
-          }
-          // ArchivedTodoItem extends TodoItem, display as TodoItem
-          const todoItems: TodoItem[] = archivedFile.todos.map(item => ({ ...item, status: 'completed' as const }));
-          const categories = await getBranchCategories(paths.configDir);
-          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
-          output(formatTodoTable(todoItems, abbrMap));
-        } else if (options.completed) {
-          const todoFile = await readTodoFile(paths.configDir);
-          const completed = todoFile.todos.filter(item => item.status === 'completed');
-          if (completed.length === 0) {
+          const todos = await backend.list('archived');
+          if (todos.length === 0) {
             outputInfo(t('commands.todo.list.empty'));
             return;
           }
           const categories = await getBranchCategories(paths.configDir);
           const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
-          output(formatTodoTable(completed, abbrMap));
+          output(formatTodoTable(todos, abbrMap));
+        } else if (options.done) {
+          const todos = await backend.list('done');
+          if (todos.length === 0) {
+            outputInfo(t('commands.todo.list.empty'));
+            return;
+          }
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
+          output(formatTodoTable(todos, abbrMap));
+        } else if (options.inProgress) {
+          const todos = await backend.list('in-progress');
+          if (todos.length === 0) {
+            outputInfo(t('commands.todo.list.empty'));
+            return;
+          }
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
+          output(formatTodoTable(todos, abbrMap));
+        } else if (options.all) {
+          const [pending, inProgress, done, archived] = await Promise.all([
+            backend.list('pending'),
+            backend.list('in-progress'),
+            backend.list('done'),
+            backend.list('archived'),
+          ]);
+          const todos = [...pending, ...inProgress, ...done, ...archived];
+          if (todos.length === 0) {
+            outputInfo(t('commands.todo.list.empty'));
+            return;
+          }
+          const categories = await getBranchCategories(paths.configDir);
+          const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
+          output(formatTodoTable(todos, abbrMap));
         } else {
-          await listPendingTodos(paths.configDir);
+          await listPendingTodos(paths);
         }
       } catch (error) {
         formatError(error);
@@ -392,18 +557,26 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        const todoFile = await readTodoFile(paths.configDir);
+        const backend = await getActiveTodoBackend(paths);
+
+        // 获取所有任务用于交互式选择
+        const [pending, inProgress, done] = await Promise.all([
+          backend.list('pending'),
+          backend.list('in-progress'),
+          backend.list('done'),
+        ]);
+        const allTodos = [...pending, ...inProgress, ...done];
 
         let resolvedTodoId: string;
 
         if (!todoId) {
-          if (todoFile.todos.length === 0) {
+          if (allTodos.length === 0) {
             outputInfo(t('commands.todo.list.empty'));
             return;
           }
 
           const statusLabels = getStatusLabels();
-          const choices = todoFile.todos.map(item => ({
+          const choices = allTodos.map(item => ({
             name: `${item.type}/${item.name}`,
             message: `${item.type}/${item.name}  (${statusLabels[item.status] ?? item.status})`,
           }));
@@ -429,9 +602,9 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const index = todoFile.todos.findIndex(item => item.type === type && item.name === name);
+        const item = await backend.find(type, name);
 
-        if (index === -1) {
+        if (!item) {
           throw new ColynError(t('commands.todo.remove.notFound', { todoId: resolvedTodoId }));
         }
 
@@ -450,8 +623,7 @@ export function register(program: Command): void {
           }
         }
 
-        todoFile.todos.splice(index, 1);
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.remove(type, name);
 
         outputSuccess(t('commands.todo.remove.success', { todoId: resolvedTodoId }));
       } catch (error) {
@@ -470,10 +642,10 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        const todoFile = await readTodoFile(paths.configDir);
-        const completed = todoFile.todos.filter(t => t.status === 'completed');
+        const backend = await getActiveTodoBackend(paths);
+        const doneTodos = await backend.list('done');
 
-        if (completed.length === 0) {
+        if (doneTodos.length === 0) {
           outputInfo(t('commands.todo.archive.noCompleted'));
           return;
         }
@@ -482,7 +654,7 @@ export function register(program: Command): void {
           const response = await prompt<{ confirm: boolean }>({
             type: 'confirm',
             name: 'confirm',
-            message: t('commands.todo.archive.confirm', { count: completed.length }),
+            message: t('commands.todo.archive.confirm', { count: doneTodos.length }),
             initial: true,
             stdout: process.stderr
           });
@@ -493,21 +665,9 @@ export function register(program: Command): void {
           }
         }
 
-        const archivedFile = await readArchivedTodoFile(paths.configDir);
-        const now = new Date().toISOString();
+        await backend.archive();
 
-        const newArchived: ArchivedTodoItem[] = completed.map(item => ({
-          ...item,
-          archivedAt: now,
-        }));
-
-        archivedFile.todos.push(...newArchived);
-        await saveArchivedTodoFile(paths.configDir, archivedFile);
-
-        todoFile.todos = todoFile.todos.filter(t => t.status !== 'completed');
-        await saveTodoFile(paths.configDir, todoFile);
-
-        outputSuccess(t('commands.todo.archive.success', { count: completed.length }));
+        outputSuccess(t('commands.todo.archive.success', { count: doneTodos.length }));
       } catch (error) {
         formatError(error);
         process.exit(1);
@@ -550,21 +710,18 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const todoFile = await readTodoFile(paths.configDir);
-        const item = findTodo(todoFile.todos, type, name);
+        const backend = await getActiveTodoBackend(paths);
+        const item = await backend.find(type, name);
 
         if (!item) {
           throw new ColynError(t('commands.todo.uncomplete.notFound', { todoId: resolvedTodoId }));
         }
 
-        if (item.status !== 'completed') {
+        if (item.status !== 'done') {
           throw new ColynError(t('commands.todo.uncomplete.notCompleted', { todoId: resolvedTodoId }));
         }
 
-        item.status = 'pending';
-        delete item.startedAt;
-        delete item.branch;
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.reopen(type, name);
 
         outputSuccess(t('commands.todo.uncomplete.success', { todoId: resolvedTodoId }));
         outputLine();
@@ -583,19 +740,19 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        const todoFile = await readTodoFile(paths.configDir);
-        const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+        const backend = await getActiveTodoBackend(paths);
+        const inProgressTodos = await backend.list('in-progress');
 
         let resolvedTodoId: string;
 
         if (!todoId) {
-          if (pendingTodos.length === 0) {
+          if (inProgressTodos.length === 0) {
             outputInfo(t('commands.todo.complete.noPending'));
             return;
           }
           const categories = await getBranchCategories(paths.configDir);
           const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
-          resolvedTodoId = await selectTodo(pendingTodos, {
+          resolvedTodoId = await selectTodo(inProgressTodos, {
             selectMessage: t('commands.todo.complete.selectTodo'),
             abbrMap,
           });
@@ -611,22 +768,34 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const item = findTodo(todoFile.todos, type, name);
+        const item = await backend.find(type, name);
         if (!item) {
           throw new ColynError(t('commands.todo.complete.notFound', { todoId: resolvedTodoId }));
         }
 
-        if (item.status !== 'pending') {
+        if (item.status !== 'in-progress') {
           throw new ColynError(t('commands.todo.complete.notPending', { todoId: resolvedTodoId }));
         }
 
-        item.status = 'completed';
-        item.startedAt = new Date().toISOString();
-        item.branch = `${type}/${name}`;
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.markDone(type, name);
 
         outputSuccess(t('commands.todo.complete.success', { todoId: resolvedTodoId }));
         outputLine();
+      } catch (error) {
+        formatError(error);
+        process.exit(1);
+      }
+    });
+
+  // todo migrate-local
+  todo
+    .command('migrate-local')
+    .description(t('commands.todo.migrateLocal.description'))
+    .action(async () => {
+      try {
+        const paths = await getProjectPaths();
+        await validateProjectInitialized(paths);
+        await migrateLocalTodos(paths);
       } catch (error) {
         formatError(error);
         process.exit(1);
@@ -642,8 +811,15 @@ export function register(program: Command): void {
         const paths = await getProjectPaths();
         await validateProjectInitialized(paths);
 
-        const todoFile = await readTodoFile(paths.configDir);
-        const allTodos = todoFile.todos;
+        const backend = await getActiveTodoBackend(paths);
+
+        // 获取所有任务用于交互式选择
+        const [pending, inProgress, done] = await Promise.all([
+          backend.list('pending'),
+          backend.list('in-progress'),
+          backend.list('done'),
+        ]);
+        const allTodos = [...pending, ...inProgress, ...done];
 
         let resolvedTodoId = todoId;
 
@@ -670,29 +846,9 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
 
-        const item = findTodo(allTodos, type, name);
+        const item = await backend.find(type, name);
         if (!item) {
           throw new ColynError(t('commands.todo.edit.notFound', { todoId: resolvedTodoId }));
-        }
-
-        // 如果 todo 已完成，询问是否改回待办状态
-        if (item.status === 'completed') {
-          const response = await prompt<{ revert: boolean }>({
-            type: 'confirm',
-            name: 'revert',
-            message: t('commands.todo.edit.isCompleted', { todoId: resolvedTodoId }),
-            initial: false,
-            stdout: process.stderr,
-          });
-
-          if (!response.revert) {
-            output(chalk.gray(t('commands.todo.edit.revertCanceled')));
-            process.exit(1);
-          }
-
-          item.status = 'pending';
-          delete item.startedAt;
-          delete item.branch;
         }
 
         // 获取新的 message
@@ -705,8 +861,7 @@ export function register(program: Command): void {
           throw new ColynError(t('commands.todo.edit.messageEmpty'));
         }
 
-        item.message = newMessage.trim();
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.edit(type, name, newMessage.trim());
 
         outputSuccess(t('commands.todo.edit.success', { todoId: resolvedTodoId }));
       } catch (error) {

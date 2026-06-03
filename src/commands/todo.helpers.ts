@@ -7,6 +7,7 @@ import type { StdioOptions } from 'child_process';
 import Enquirer from 'enquirer';
 import chalk from 'chalk';
 import type { TodoFile, ArchivedTodoFile, TodoItem } from '../types/index.js';
+import { t } from '../i18n/index.js';
 
 const TODO_FILE_NAME = 'todo.json';
 const ARCHIVED_TODO_FILE_NAME = 'archived-todo.json';
@@ -67,13 +68,6 @@ export function parseTodoId(todoId: string): { type: string; name: string } {
     throw new Error(`Invalid Todo ID format: "${todoId}"`);
   }
   return { type, name };
-}
-
-/**
- * 查找 Todo 条目
- */
-export function findTodo(todos: TodoItem[], type: string, name: string): TodoItem | undefined {
-  return todos.find(t => t.type === type && t.name === name);
 }
 
 /**
@@ -458,13 +452,18 @@ export function formatTodoTable(todos: TodoItem[], abbrMap?: Map<string, string>
     createdAt: formatDate(item.createdAt),
   }));
 
-  const typeW = Math.max(strWidth('Type'), ...rows.map(r => strWidth(r.type)));
-  const nameW = Math.max(strWidth('Name'), ...rows.map(r => strWidth(r.name)));
-  const createdW = Math.max(strWidth('Created'), ...rows.map(r => strWidth(r.createdAt)));
+  const hType = t('commands.todo.list.headerType');
+  const hName = t('commands.todo.list.headerName');
+  const hMessage = t('commands.todo.list.headerMessage');
+  const hCreatedAt = t('commands.todo.list.headerCreatedAt');
+
+  const typeW = Math.max(strWidth(hType), ...rows.map(r => strWidth(r.type)));
+  const nameW = Math.max(strWidth(hName), ...rows.map(r => strWidth(r.name)));
+  const createdW = Math.max(strWidth(hCreatedAt), ...rows.map(r => strWidth(r.createdAt)));
 
   const termW = process.stdout.columns ?? process.stderr.columns ?? 80;
   // INDENT + typeW + GAP + nameW + GAP + msgW + GAP + createdW = termW
-  const msgW = Math.max(strWidth('Message'), termW - INDENT - typeW - nameW - createdW - GAP * 3);
+  const msgW = Math.max(strWidth(hMessage), termW - INDENT - typeW - nameW - createdW - GAP * 3);
 
   const mkHeaderRow = (type: string, name: string, msg: string, created: string): string =>
     ' '.repeat(INDENT) +
@@ -490,7 +489,7 @@ export function formatTodoTable(todos: TodoItem[], abbrMap?: Map<string, string>
     );
 
   return [
-    mkHeaderRow('Type', 'Name', 'Message', 'Created'),
+    mkHeaderRow(hType, hName, hMessage, hCreatedAt),
     sepRow,
     ...rows.map(r => mkDataRow(r.type, r.name, r.message, r.createdAt)),
   ].join('\n');

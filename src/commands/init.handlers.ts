@@ -36,6 +36,8 @@ import {
   saveRepairSettingsResult,
   type ToolchainContext
 } from '../core/toolchain-resolver.js';
+import { detectProviders, getProvider } from '../todo-backends/registry.js';
+import { setSettingsValueAtPath } from '../core/settings-mutator.js';
 
 /**
  * 处理结果接口
@@ -72,6 +74,50 @@ async function detectAndInitToolchains(
   }
 
   return contexts;
+}
+
+/**
+ * 检测可用 todo backend 并在 init 时引导用户配置
+ * - 仅 local 可用时直接返回（不打扰用户）
+ * - 非交互模式时直接返回（保留默认 local）
+ * - 用户选 local 时无需写入（默认即 local）
+ * - 选非 local 时先 setup，成功后写 settings
+ */
+async function detectAndConfigureTodoBackend(
+  projectRoot: string,
+  mainDirPath: string,
+  nonInteractive: boolean,
+): Promise<void> {
+  const ctx = { projectRoot, mainDirPath, nonInteractive };
+  const detected = await detectProviders(ctx);
+  if (detected.length <= 1) return;
+  if (nonInteractive) return;
+
+  const { backend } = await (Enquirer as unknown as {
+    prompt: (q: unknown) => Promise<{ backend: string }>;
+  }).prompt({
+    type: 'select',
+    name: 'backend',
+    message: t('commands.todo.backend.selectPrompt'),
+    choices: detected.map((p) => ({ name: p.name, message: p.displayName })),
+    stdout: process.stderr,
+  });
+  if (backend === 'local') return;
+
+  const provider = getProvider(backend);
+  if (!provider) return;
+  try {
+    await provider.setup(ctx);
+  } catch (err) {
+    outputWarning(t('commands.todo.backend.setupFailed', {
+      backend,
+      error: err instanceof Error ? err.message : String(err),
+    }));
+    return;
+  }
+  const settingsPath = path.join(projectRoot, '.colyn', 'settings.json');
+  await setSettingsValueAtPath(settingsPath, 'todo.backend', backend);
+  output(t('commands.todo.backend.configured', { backend }));
 }
 
 /**
@@ -225,7 +271,8 @@ function displayTmuxSetupInfo(result: TmuxSetupResult): void {
  */
 export async function handleEmptyDirectory(
   dirInfo: DirectoryInfo,
-  options: { port?: string }
+  options: { port?: string },
+  nonInteractive = false
 ): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
@@ -245,7 +292,10 @@ export async function handleEmptyDirectory(
   spinner.succeed(t('commands.init.structureCreated'));
 
   // 步骤2: 检测工具链并初始化（空目录通常没有工具链）
-  const contexts = await detectAndInitToolchains(mainDirPath, rootDir);
+  const contexts = await detectAndInitToolchains(mainDirPath, rootDir, nonInteractive);
+
+  // 步骤2.5: 检测并配置 todo backend
+  await detectAndConfigureTodoBackend(rootDir, mainDirPath, nonInteractive);
 
   // 步骤3: 如果有 portConfig，询问端口并写入运行时配置
   const port = await configurePortAndEnv(contexts, options, 'main');
@@ -270,7 +320,8 @@ export async function handleEmptyDirectory(
  */
 export async function handleInitializedDirectory(
   dirInfo: DirectoryInfo,
-  options: { port?: string }
+  options: { port?: string },
+  nonInteractive = false
 ): Promise<InitHandlerResult> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
@@ -332,7 +383,10 @@ export async function handleInitializedDirectory(
   }
 
   // 检测工具链并初始化（gitignore 等）
-  const contexts = await detectAndInitToolchains(mainDirPath, rootDir);
+  const contexts = await detectAndInitToolchains(mainDirPath, rootDir, nonInteractive);
+
+  // 检测并配置 todo backend
+  await detectAndConfigureTodoBackend(rootDir, mainDirPath, nonInteractive);
 
   // 如果有 portConfig，询问端口并写入运行时配置
   await configurePortAndEnv(contexts, options, 'main');
@@ -432,7 +486,10 @@ export async function handleExistingProject(
 
   // 步骤9: 检测工具链并初始化（含 .gitignore 配置）
   const mainDirPath = path.join(rootDir, mainDirName);
-  const contexts = await detectAndInitToolchains(mainDirPath, rootDir);
+  const contexts = await detectAndInitToolchains(mainDirPath, rootDir, skipConfirm);
+
+  // 步骤9.5: 检测并配置 todo backend
+  await detectAndConfigureTodoBackend(rootDir, mainDirPath, skipConfirm);
 
   // 步骤10: 如果有 portConfig，询问端口并写入运行时配置
   const port = await configurePortAndEnv(contexts, options, 'main');

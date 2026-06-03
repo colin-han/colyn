@@ -1,7 +1,7 @@
 # Init Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-14
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-06-03 (updated: Todo Backend selection interaction)
 **Command Name**: `colyn init`
 **Status**: ✅ Implemented
 
@@ -128,6 +128,7 @@ Current directory file list:
 ✔ Detected toolchain: npm
 ✔ Plugin initialization complete
 ✔ Config file saved
+✔ Todo Backend configured       ← see Todo Backend selection below
 
 ✓ Initialization successful!
 
@@ -142,6 +143,26 @@ Next steps:
   2. View worktree list:
      colyn list
 ```
+
+#### Todo Backend Selection
+
+When `colyn init` detects that the project origin is a GitHub repository (the `origin` URL contains `github.com`) and the `gh` CLI is available, it interactively asks the user to choose a Todo Backend before finishing initialization:
+
+```
+? GitHub repository detected. Use GitHub Issues as the Todo Backend?
+  ❯ Yes, use GitHub Issues (recommended)
+    No, use local file (default)
+```
+
+**Flow when GitHub Issues is selected**:
+1. Check if the `gh` CLI is installed
+   - macOS: if not installed, suggest `brew install gh`
+   - Other platforms: direct user to `https://cli.github.com`
+2. Check if the user is authenticated (`gh auth status`)
+   - If not authenticated, suggest running `gh auth login`
+3. When prerequisites are met, write `todo.backend = "github"` to `.colyn/settings.json`
+
+**When local file is selected or detection conditions are not met**: Use the default local backend without writing `todo.backend` (default value is already `local`).
 
 ---
 

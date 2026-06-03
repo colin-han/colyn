@@ -1,7 +1,7 @@
 # Add Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-14
-**Last Updated**: 2026-02-23 (updated: no-arg interactive branch selection + auto-complete todo after selection)
+**Last Updated**: 2026-06-03 (updated: pending todo list from active backend; post-action status changed to in-progress) (previously: 2026-02-23: no-arg interactive branch selection + auto-complete todo after selection)
 **Command Name**: `colyn add`
 **Status**: Implemented
 
@@ -164,7 +164,7 @@ $ colyn add
 **Order and rules**:
 
 1. The first item is always `[Create new branch]` and is selected by default
-2. Then branches from `pending` todos
+2. Then `pending` todo branches from the **current active backend** (local or github)
 3. Then existing local branches (excluding the current branch in the main-branch directory)
 4. For local branches:
    - if branch contains `/`: `type` = prefix before last `/`, `name` = last segment
@@ -173,7 +173,7 @@ $ colyn add
 **Post-actions when selecting a Todo branch**:
 
 If the selected item comes from a `pending` todo, `add` performs the same post-actions as `todo start` after success:
-1. Update the todo status from `pending` to `completed`
+1. Update the todo status from `pending` to `in-progress`
 2. Record `startedAt` and `branch`
 3. Print the todo message in terminal
 4. Copy the message to system clipboard

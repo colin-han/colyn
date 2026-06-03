@@ -25,11 +25,11 @@ async function initCommand(options: { port?: string; yes?: boolean }): Promise<v
 
     switch (dirInfo.status) {
       case DirectoryStatus.Empty:
-        handlerResult = await handleEmptyDirectory(dirInfo, options);
+        handlerResult = await handleEmptyDirectory(dirInfo, options, options.yes || false);
         break;
 
       case DirectoryStatus.Initialized:
-        handlerResult = await handleInitializedDirectory(dirInfo, options);
+        handlerResult = await handleInitializedDirectory(dirInfo, options, options.yes || false);
         break;
 
       case DirectoryStatus.ExistingProject:

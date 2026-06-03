@@ -119,7 +119,7 @@ _colyn_completion() {
         config)
             # config [get|set|unset] [key] [value] [--json|--user]
             local config_subcmds="get set unset"
-            local config_keys="lang verbose systemCommands.npm systemCommands.claude commands.merge.build commands.merge.rebase commands.merge.update commands.merge.fetch commands.merge.all commands.update.rebase commands.update.fetch commands.update.all commands.release.update commands.release.build commands.release.tag commands.release.versionUpdate commands.checkout.fetch"
+            local config_keys="lang verbose systemCommands.npm systemCommands.claude commands.merge.build commands.merge.rebase commands.merge.update commands.merge.fetch commands.merge.all commands.update.rebase commands.update.fetch commands.update.all commands.release.update commands.release.build commands.release.tag commands.release.versionUpdate commands.checkout.fetch todo.backend todo.autoArchive todo.github.archivedLabel"
             local config_keys_get="$config_keys branchCategories"
 
             if [[ $cur == -* ]]; then
@@ -200,7 +200,7 @@ _colyn_completion() {
             local subcommand="${words[2]}"
             # 第一级：补全子命令
             if [[ $cword -eq 2 ]]; then
-                COMPREPLY=($(compgen -W "add start list ls remove archive complete uncomplete edit" -- "$cur"))
+                COMPREPLY=($(compgen -W "add start list ls remove archive complete uncomplete edit migrate-local" -- "$cur"))
                 return 0
             fi
             # 第二级：根据子命令补全参数

@@ -18,6 +18,8 @@ import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import { pluginManager } from '../plugins/index.js';
 import { resolveToolchains, saveRepairSettingsResult } from '../core/toolchain-resolver.js';
+import { getTodoConfig } from '../core/config.js';
+import { getProvider } from '../todo-backends/registry.js';
 
 /**
  * 修复结果接口
@@ -587,7 +589,25 @@ export async function repairProject(): Promise<void> {
     }
   }
 
-  // 8. 检测并修复孤儿 worktree 目录
+  // 8. 对当前激活的 todo backend 运行 setup（例如帮助安装 gh）
+  const todoCfg = await getTodoConfig(paths.configDir);
+  try {
+    const provider = getProvider(todoCfg.backend);
+    if (provider) {
+      await provider.setup({
+        projectRoot: paths.rootDir,
+        mainDirPath: paths.mainDir,
+        nonInteractive: false,
+      });
+    }
+  } catch (err) {
+    outputWarning(t('commands.todo.backend.setupFailed', {
+      backend: todoCfg.backend,
+      error: err instanceof Error ? err.message : String(err),
+    }));
+  }
+
+  // 9. 检测并修复孤儿 worktree 目录
   const orphanSpinner = ora({
     text: t('commands.repair.detectingOrphans'),
     stream: process.stderr
@@ -607,6 +627,6 @@ export async function repairProject(): Promise<void> {
     orphanSpinner.warn(t('commands.repair.orphansFound', { count: totalOrphans }));
   }
 
-  // 9. 显示修复摘要
+  // 10. 显示修复摘要
   displayRepairSummary(results, orphanResult);
 }
