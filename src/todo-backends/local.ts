@@ -1,4 +1,4 @@
-import type { TodoItem } from '../types/index.js';
+import type { TodoItem, ArchivedTodoItem } from '../types/index.js';
 import type { TodoBackend, TodoFilter, AddTodoInput } from '../types/todo-backend.js';
 import {
   readTodoFile, saveTodoFile, readArchivedTodoFile, saveArchivedTodoFile,
@@ -105,7 +105,7 @@ export class LocalFileBackend implements TodoBackend {
     const [removed] = archived.todos.splice(idx, 1);
     await saveArchivedTodoFile(this.configDir, archived);
     const itemToRestore: TodoItem = { ...removed, status: 'in-progress' };
-    delete (itemToRestore as Partial<TodoItem>).archivedAt;
+    delete (itemToRestore as Partial<ArchivedTodoItem>).archivedAt;
     file.todos.push(itemToRestore);
     await saveTodoFile(this.configDir, file);
   }
