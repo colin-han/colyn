@@ -15,10 +15,7 @@ export class LocalFileBackend implements TodoBackend {
   readonly displayName = 'Local (todo.json)';
   readonly assignsName = false;
 
-  constructor(
-    private readonly configDir: string,
-    private readonly autoArchive: boolean,
-  ) {}
+  constructor(private readonly configDir: string) {}
 
   /**
    * 读取 active todo 文件，把旧 'completed' 归一化为 in-progress/done，
@@ -88,9 +85,6 @@ export class LocalFileBackend implements TodoBackend {
     if (!item) return;
     item.status = 'done';
     await saveTodoFile(this.configDir, file);
-    if (this.autoArchive) {
-      await this.archive();
-    }
   }
 
   async reopen(type: string, name: string): Promise<void> {
@@ -168,7 +162,7 @@ export const localProvider: TodoBackendProvider = {
   async setup(_ctx: TodoBackendDetectContext): Promise<void> {
     // 无前置依赖，no-op
   },
-  create(paths: ProjectPaths, config: TodoConfig): TodoBackend {
-    return new LocalFileBackend(paths.configDir, config.autoArchive);
+  create(paths: ProjectPaths, _config: TodoConfig): TodoBackend {
+    return new LocalFileBackend(paths.configDir);
   },
 };

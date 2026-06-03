@@ -1,5 +1,7 @@
 import type { TodoItem } from '../types/index.js';
-import type { TodoBackend, TodoFilter, AddTodoInput } from '../types/todo-backend.js';
+import type { TodoBackend, TodoFilter, AddTodoInput, TodoBackendProvider, TodoBackendDetectContext } from '../types/todo-backend.js';
+import type { ProjectPaths } from '../core/paths.js';
+import type { TodoConfig } from '../core/config-schema.js';
 import { runGh, ensureGhRepo } from './gh.js';
 import { branchExistsAnywhere } from '../core/git.js';
 
@@ -185,3 +187,17 @@ export class GitHubIssuesBackend implements TodoBackend {
     }
   }
 }
+
+export const githubProvider: TodoBackendProvider = {
+  name: 'github',
+  displayName: 'GitHub Issues',
+  async detect(_ctx: TodoBackendDetectContext): Promise<boolean> {
+    return false; // 阶段 4 Task 4.2 实现（origin 含 github.com）
+  },
+  async setup(_ctx: TodoBackendDetectContext): Promise<void> {
+    // 阶段 4 Task 4.3 实现（gh 检查/安装/登录提示）
+  },
+  create(_paths: ProjectPaths, config: TodoConfig): TodoBackend {
+    return new GitHubIssuesBackend(config.github);
+  },
+};
