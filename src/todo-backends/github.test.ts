@@ -95,9 +95,9 @@ describe('GitHubIssuesBackend.list', () => {
     expect(items[0].name).toBe('42');
   });
 
-  it('A: wontfix-only label issue → fallback type=issue', async () => {
+  it('A: issue 带非映射 label → type 取 label 原名', async () => {
     runGh.mockReturnValue(JSON.stringify([
-      { number: 43, title: 'Wontfix only', body: '', labels: [{ name: 'bug' }] },
+      { number: 43, title: 'Normal label', body: '', labels: [{ name: 'bug' }] },
     ]));
     branchExistsAnywhere.mockResolvedValue(false);
     const be = new GitHubIssuesBackend({ ...cfg });

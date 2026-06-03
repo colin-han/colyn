@@ -25,6 +25,7 @@ describe('gh wrapper', () => {
     spawnSync.mockReturnValue({ error: Object.assign(new Error('x'), { code: 'ENOENT' }) });
     try {
       runGh(['issue', 'list']);
+      expect.fail('runGh 应抛出异常');
     } catch (e) {
       expect(e).toBeInstanceOf(ColynError);
       expect((e as ColynError).code).toBe(GH_ERR.NOT_INSTALLED);
@@ -40,6 +41,7 @@ describe('gh wrapper', () => {
     spawnSync.mockReturnValue({ status: 1, stdout: '', stderr: 'boom' });
     try {
       runGh(['issue', 'list']);
+      expect.fail('runGh 应抛出异常');
     } catch (e) {
       expect(e).toBeInstanceOf(ColynError);
       expect((e as ColynError).code).toBe(GH_ERR.FAILED);
@@ -50,6 +52,7 @@ describe('gh wrapper', () => {
     spawnSync.mockReturnValue({ status: 1, stdout: '', stderr: 'To get started, run: gh auth login' });
     try {
       runGh(['repo', 'view']);
+      expect.fail('runGh 应抛出异常');
     } catch (e) {
       expect(e).toBeInstanceOf(ColynError);
       expect((e as ColynError).code).toBe(GH_ERR.NOT_AUTHED);
@@ -60,6 +63,7 @@ describe('gh wrapper', () => {
     spawnSync.mockReturnValue({ status: 1, stdout: '', stderr: 'You are not logged in' });
     try {
       runGh(['repo', 'view']);
+      expect.fail('runGh 应抛出异常');
     } catch (e) {
       expect(e).toBeInstanceOf(ColynError);
       expect((e as ColynError).code).toBe(GH_ERR.NOT_AUTHED);
@@ -70,6 +74,7 @@ describe('gh wrapper', () => {
     spawnSync.mockReturnValue({ error: Object.assign(new Error('spawn error'), { code: 'EACCES' }) });
     try {
       runGh(['issue', 'list']);
+      expect.fail('runGh 应抛出异常');
     } catch (e) {
       expect(e).toBeInstanceOf(ColynError);
       expect((e as ColynError).code).toBe(GH_ERR.FAILED);
