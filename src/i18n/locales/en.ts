@@ -990,6 +990,8 @@ Solution:
         selectPrompt: 'Multiple todo backends are available. Choose one:',
         configured: 'Configured todo backend: {{backend}}',
         setupFailed: 'Setup for todo backend "{{backend}}" failed; keeping default local: {{error}}',
+        ghListTruncated: 'GitHub issues may exceed {{limit}}; the list could be incomplete',
+        invalidIssueNumber: 'Invalid GitHub issue number: "{{name}}"',
       },
     },
 

@@ -82,6 +82,38 @@ describe('GitHubIssuesBackend.list', () => {
     const be = new GitHubIssuesBackend({ ...cfg });
     expect(await be.list('pending')).toHaveLength(0);
   });
+
+  it('A: 无 label issue → fallback type=issue', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 42, title: 'No label', body: '', labels: [] },
+    ]));
+    branchExistsAnywhere.mockResolvedValue(false);
+    const be = new GitHubIssuesBackend({ ...cfg });
+    const items = await be.list('pending');
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe('issue');
+    expect(items[0].name).toBe('42');
+  });
+
+  it('A: wontfix-only label issue → fallback type=issue', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 43, title: 'Wontfix only', body: '', labels: [{ name: 'bug' }] },
+    ]));
+    branchExistsAnywhere.mockResolvedValue(false);
+    const be = new GitHubIssuesBackend({ ...cfg });
+    const items = await be.list('pending');
+    expect(items[0].type).toBe('bug');
+  });
+
+  it('B: createdAt 透传', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 44, title: 'With date', body: '', labels: [], createdAt: '2026-01-01T00:00:00Z' },
+    ]));
+    branchExistsAnywhere.mockResolvedValue(false);
+    const be = new GitHubIssuesBackend({ ...cfg });
+    const items = await be.list('pending');
+    expect(items[0].createdAt).toBe('2026-01-01T00:00:00Z');
+  });
 });
 
 describe('GitHubIssuesBackend 写操作', () => {
@@ -134,6 +166,32 @@ describe('GitHubIssuesBackend 写操作', () => {
     const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
     await be.markStarted('feature', '42', 'feature/42');
     expect(runGh).not.toHaveBeenCalled();
+  });
+
+  it('E: remove 传入非数字 name → 抛错且不调用 runGh', async () => {
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await expect(be.remove('feature', 'not-a-number')).rejects.toThrow();
+    expect(runGh).not.toHaveBeenCalled();
+  });
+
+  it('E: markDone 传入非数字 name → 抛错且不调用 runGh', async () => {
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    await expect(be.markDone('feature', '../etc/passwd')).rejects.toThrow();
+    expect(runGh).not.toHaveBeenCalled();
+  });
+
+  it('F: add 单行 message → --body 为空字符串', async () => {
+    runGh.mockReturnValue('https://github.com/owner/repo/issues/99');
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    const item = await be.add({ type: 'bug', message: 'Single line title' });
+    expect(item.name).toBe('99');
+    const call = runGh.mock.calls[0][0] as string[];
+    expect(call).toContain('--title');
+    const titleIdx = call.indexOf('--title');
+    expect(call[titleIdx + 1]).toBe('Single line title');
+    expect(call).toContain('--body');
+    const bodyIdx = call.indexOf('--body');
+    expect(call[bodyIdx + 1]).toBe('');
   });
 
   it('archive(已配置 label)：给所有无 label 的 closed 加 archivedLabel', async () => {
@@ -193,6 +251,18 @@ describe('GitHubIssuesBackend.find', () => {
     runGh.mockImplementation(() => { throw new Error('not found'); });
     const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
     expect(await be.find('feature', '999')).toBeNull();
+  });
+
+  it('E: find 传入非数字 name → null，不调用 runGh', async () => {
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    expect(await be.find('feature', 'not-a-number')).toBeNull();
+    expect(runGh).not.toHaveBeenCalled();
+  });
+
+  it('E: find 传入包含路径的非法 name → null', async () => {
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: {} });
+    expect(await be.find('feature', '../etc/passwd')).toBeNull();
+    expect(runGh).not.toHaveBeenCalled();
   });
 });
 

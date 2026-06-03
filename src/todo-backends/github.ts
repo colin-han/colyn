@@ -14,6 +14,10 @@ const WONTFIX_LABEL = 'wontfix';
 
 const GH_INSTALL_URL = 'https://cli.github.com';
 
+const DEFAULT_TYPE = 'issue';
+
+const ISSUE_FETCH_LIMIT = 1000;
+
 function hasBrew(): boolean {
   try {
     execSync('which brew', { stdio: 'ignore' });
@@ -33,6 +37,7 @@ interface GhIssue {
   title: string;
   body: string;
   labels: Array<{ name: string }>;
+  createdAt?: string;
 }
 
 export class GitHubIssuesBackend implements TodoBackend {
@@ -60,7 +65,7 @@ export class GitHubIssuesBackend implements TodoBackend {
       if (mapped) return mapped;
     }
     const first = labels.find((l) => !managed.has(l));
-    return first ?? '';
+    return first ?? DEFAULT_TYPE;
   }
 
   private issueToTodo(issue: GhIssue, status: TodoItem['status']): TodoItem {
@@ -71,17 +76,27 @@ export class GitHubIssuesBackend implements TodoBackend {
       name: String(issue.number),
       message,
       status,
-      createdAt: '',
+      createdAt: issue.createdAt ?? '',
     };
   }
 
   private fetchIssues(state: 'open' | 'closed'): GhIssue[] {
     ensureGhRepo();
     const out = runGh([
-      'issue', 'list', '--state', state, '--limit', '200',
-      '--json', 'number,title,body,labels',
+      'issue', 'list', '--state', state, '--limit', String(ISSUE_FETCH_LIMIT),
+      '--json', 'number,title,body,labels,createdAt',
     ]);
-    return JSON.parse(out) as GhIssue[];
+    let issues: GhIssue[];
+    try {
+      issues = JSON.parse(out) as GhIssue[];
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'invalid JSON from gh';
+      throw new ColynError(t('commands.todo.backend.ghFailed', { detail }));
+    }
+    if (issues.length >= ISSUE_FETCH_LIMIT) {
+      outputWarning(t('commands.todo.backend.ghListTruncated', { limit: ISSUE_FETCH_LIMIT }));
+    }
+    return issues;
   }
 
   private hasLabel(issue: GhIssue, label: string): boolean {
@@ -123,11 +138,13 @@ export class GitHubIssuesBackend implements TodoBackend {
     return matched.map((i) => this.issueToTodo(i, 'done'));
   }
 
+  /** issue 号校验：非纯数字直接返回 null，避免把非法 name 传给 gh */
   async find(type: string, name: string): Promise<TodoItem | null> {
+    if (!/^\d+$/.test(name)) return null;
     ensureGhRepo();
     try {
       const out = runGh([
-        'issue', 'view', name, '--json', 'number,title,body,labels,state',
+        'issue', 'view', name, '--json', 'number,title,body,labels,state,createdAt',
       ]);
       const issue = JSON.parse(out) as GhIssue & { state: string };
       if (this.hasLabel(issue, WONTFIX_LABEL)) return null;
@@ -140,6 +157,13 @@ export class GitHubIssuesBackend implements TodoBackend {
       return this.issueToTodo(issue, status);
     } catch {
       return null;
+    }
+  }
+
+  /** 校验 name 为纯数字，否则抛错 */
+  private assertIssueNumber(name: string): void {
+    if (!/^\d+$/.test(name)) {
+      throw new ColynError(t('commands.todo.backend.invalidIssueNumber', { name }));
     }
   }
 
@@ -173,22 +197,26 @@ export class GitHubIssuesBackend implements TodoBackend {
 
   async markDone(_type: string, name: string): Promise<void> {
     ensureGhRepo();
+    this.assertIssueNumber(name);
     runGh(['issue', 'close', name]);
   }
 
   async reopen(_type: string, name: string): Promise<void> {
     ensureGhRepo();
+    this.assertIssueNumber(name);
     runGh(['issue', 'reopen', name]);
   }
 
   async edit(_type: string, name: string, message: string): Promise<void> {
     ensureGhRepo();
+    this.assertIssueNumber(name);
     const { title, body } = this.splitMessage(message);
     runGh(['issue', 'edit', name, '--title', title, '--body', body]);
   }
 
   async remove(_type: string, name: string): Promise<void> {
     ensureGhRepo();
+    this.assertIssueNumber(name);
     runGh(['issue', 'edit', name, '--add-label', WONTFIX_LABEL]);
     runGh(['issue', 'close', name]);
   }

@@ -990,6 +990,8 @@ export const zhCN = {
         selectPrompt: '检测到多个可用的 todo backend，请选择一个：',
         configured: '已配置 todo backend：{{backend}}',
         setupFailed: 'todo backend "{{backend}}" 初始化失败，保留默认 local：{{error}}',
+        ghListTruncated: 'GitHub issue 数量可能超过 {{limit}} 条，列表可能不完整',
+        invalidIssueNumber: '无效的 GitHub issue 编号："{{name}}"',
       },
     },
 
