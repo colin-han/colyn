@@ -1,0 +1,74 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { runGh, ensureGhRepo } = vi.hoisted(() => ({ runGh: vi.fn(), ensureGhRepo: vi.fn() }));
+vi.mock('./gh.js', () => ({ runGh, ensureGhRepo }));
+
+const { branchExistsAnywhere } = vi.hoisted(() => ({ branchExistsAnywhere: vi.fn() }));
+vi.mock('../core/git.js', () => ({ branchExistsAnywhere }));
+
+import { GitHubIssuesBackend } from './github.js';
+
+const cfg = { archivedLabel: null as string | null, typeLabels: {} as Record<string, string> };
+
+describe('GitHubIssuesBackend.list', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureGhRepo.mockReturnValue('owner/repo');
+  });
+
+  it('open issue 无分支 → pending；有分支 → in-progress', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 1, title: 'A', body: 'bodyA', labels: [{ name: 'feature' }] },
+      { number: 2, title: 'B', body: 'bodyB', labels: [{ name: 'bug' }] },
+    ]));
+    branchExistsAnywhere.mockImplementation(async (b: string) => b === 'feature/1');
+
+    const be = new GitHubIssuesBackend({ ...cfg });
+    const pending = await be.list('pending');
+    const inProgress = await be.list('in-progress');
+
+    expect(pending.map((t) => t.name)).toEqual(['2']);
+    expect(inProgress.map((t) => t.name)).toEqual(['1']);
+    expect(inProgress[0].message).toBe('A\nbodyA');
+    expect(inProgress[0].type).toBe('feature');
+  });
+
+  it('typeLabels 反向映射：label enhancement → type feature', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 3, title: 'C', body: '', labels: [{ name: 'enhancement' }] },
+    ]));
+    branchExistsAnywhere.mockResolvedValue(false);
+
+    const be = new GitHubIssuesBackend({ archivedLabel: null, typeLabels: { feature: 'enhancement' } });
+    const pending = await be.list('pending');
+    expect(pending[0].type).toBe('feature');
+  });
+
+  it('archivedLabel 未配置：所有 closed 都是 archived，done 为空', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 4, title: 'D', body: '', labels: [] },
+    ]));
+    const be = new GitHubIssuesBackend({ ...cfg });
+    expect(await be.list('archived')).toHaveLength(1);
+    expect(await be.list('done')).toHaveLength(0);
+  });
+
+  it('archivedLabel 已配置：closed 无 label → done；有 label → archived', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 5, title: 'E', body: '', labels: [] },
+      { number: 6, title: 'F', body: '', labels: [{ name: 'colyn-archived' }] },
+    ]));
+    const be = new GitHubIssuesBackend({ archivedLabel: 'colyn-archived', typeLabels: {} });
+    expect((await be.list('done')).map((t) => t.name)).toEqual(['5']);
+    expect((await be.list('archived')).map((t) => t.name)).toEqual(['6']);
+  });
+
+  it('list 过滤掉带 wontfix 的 issue', async () => {
+    runGh.mockReturnValue(JSON.stringify([
+      { number: 7, title: 'G', body: '', labels: [{ name: 'wontfix' }] },
+    ]));
+    branchExistsAnywhere.mockResolvedValue(false);
+    const be = new GitHubIssuesBackend({ ...cfg });
+    expect(await be.list('pending')).toHaveLength(0);
+  });
+});
