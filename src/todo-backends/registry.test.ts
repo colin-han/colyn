@@ -11,8 +11,8 @@ const { readTodoFile, saveTodoFile, readArchivedTodoFile, saveArchivedTodoFile }
 }));
 vi.mock('../commands/todo.helpers.js', () => ({ readTodoFile, saveTodoFile, readArchivedTodoFile, saveArchivedTodoFile }));
 
-const { localBranchExists, branchExistsAnywhere } = vi.hoisted(() => ({ localBranchExists: vi.fn(), branchExistsAnywhere: vi.fn() }));
-vi.mock('../core/git.js', () => ({ localBranchExists, branchExistsAnywhere }));
+const { localBranchExists, branchExistsAnywhere, getOriginUrl } = vi.hoisted(() => ({ localBranchExists: vi.fn(), branchExistsAnywhere: vi.fn(), getOriginUrl: vi.fn().mockResolvedValue(null) }));
+vi.mock('../core/git.js', () => ({ localBranchExists, branchExistsAnywhere, getOriginUrl }));
 
 const { runGh, ensureGhRepo } = vi.hoisted(() => ({ runGh: vi.fn(), ensureGhRepo: vi.fn() }));
 vi.mock('./gh.js', () => ({ runGh, ensureGhRepo }));
