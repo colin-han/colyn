@@ -9,7 +9,7 @@ vi.mock('simple-git', () => ({
 import { localBranchExists, branchExistsAnywhere } from './git.js';
 
 describe('branch existence helpers', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('localBranchExists：命中本地分支返回 true', async () => {
     branchLocal.mockResolvedValue({ all: ['main', 'feature/login'] });
