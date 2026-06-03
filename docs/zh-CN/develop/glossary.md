@@ -324,6 +324,63 @@ colyn config get branchCategories
 
 ---
 
+### Todo Backend（Todo 存储后端）
+
+**定义**：Colyn Todo 功能的存储抽象层，定义了统一的 `TodoBackend` 接口，允许将 todo 数据存储到不同的后端系统（本地文件或 IMS）。
+
+**来源**：Colyn v3.4 引入
+
+**在 Colyn 中的用法**：
+- 任意时刻只有一个 active backend，由 `todo.backend` 配置项指定
+- 内置两种实现：`local`（默认）和 `github`（GitHub Issues）
+- 所有消费方（`todo`/`co`/`add`）只依赖接口，不感知具体实现
+
+**内置 Backend**：
+
+| 名称 | 说明 |
+|------|------|
+| `local` | 默认实现，将 todo 存储在 `.colyn/todo.json` 与 `.colyn/archived-todo.json` |
+| `github` | 将 todo 映射到 GitHub Issues，通过 gh CLI 读写 |
+
+**配置**：
+```jsonc
+{
+  "todo": {
+    "backend": "local"  // 'local' | 'github'
+  }
+}
+```
+
+**参考文档**：`docs/zh-CN/develop/design/design-todo-backend.md`
+
+**相关术语**：[IMS / Issues Management System](#ims--issues-management-system问题管理系统)、[Todo ID](#todo-id)
+
+---
+
+### IMS / Issues Management System（问题管理系统）
+
+**定义**：用于跟踪和管理软件开发任务、Bug 和功能请求的外部系统，如 GitHub Issues。在 Colyn 中作为 Todo backend 的一种实现类型。
+
+**来源**：Colyn v3.4 引入的概念
+
+**在 Colyn 中的用法**：
+- 代表以外部问题管理系统作为 todo 存储后端的一类实现
+- 当前支持的 IMS：GitHub Issues（`github` backend）
+- IMS backend 的特点：`assignsName=true`（由 IMS 回填任务 ID，如 issue 号）
+
+**示例**：
+
+```
+colyn type "feature" → GitHub Issues label "enhancement"
+todo ID "feature/42" ← GitHub issue #42 回填
+```
+
+**参考文档**：`docs/zh-CN/develop/design/design-todo-backend.md`
+
+**相关术语**：[Todo Backend](#todo-backend-todo-存储后端)
+
+---
+
 ### Todo ID
 
 **定义**：Colyn Todo 任务的唯一标识符，格式为 `{category}/{name}`。
@@ -698,6 +755,8 @@ if (process.env.WORKTREE === 'main') {
 - Base Port
 - Branch Category
 - Todo ID
+- Todo Backend
+- IMS / Issues Management System
 - 并行 Vibe Coding
 - 最小配置原则
 - 命令默认值配置
