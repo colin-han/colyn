@@ -876,6 +876,7 @@ Solution:
     // todo command
     todo: {
       description: 'Manage Todo tasks',
+      ambiguousId: 'Todo ID "{{name}}" matches multiple tasks; please specify type/name. Candidates: {{candidates}}',
       add: {
         description: 'Add a Todo task',
         invalidFormat: 'Invalid Todo ID format, expected {type}/{name}',

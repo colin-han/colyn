@@ -7,7 +7,12 @@ import type { StdioOptions } from 'child_process';
 import Enquirer from 'enquirer';
 import chalk from 'chalk';
 import type { TodoFile, ArchivedTodoFile, TodoItem } from '../types/index.js';
+import { ColynError } from '../types/index.js';
+import type { TodoBackend } from '../types/todo-backend.js';
 import { t } from '../i18n/index.js';
+
+/** add 命令在仅提供 name（未指定 type）时使用的默认 type */
+export const DEFAULT_TODO_TYPE = 'feature';
 
 const TODO_FILE_NAME = 'todo.json';
 const ARCHIVED_TODO_FILE_NAME = 'archived-todo.json';
@@ -55,12 +60,19 @@ export async function saveArchivedTodoFile(configDir: string, file: ArchivedTodo
 }
 
 /**
- * 解析 Todo ID（格式：type/name）
+ * 解析 Todo ID。
+ * - `type/name`：返回拆分后的 type 与 name
+ * - 仅 `name`（不含 "/"）：返回 type 为 undefined，由调用方补全（add 默认 feature，
+ *   查找类命令按 name 跨 type 解析，见 {@link resolveTodoId}）
  */
-export function parseTodoId(todoId: string): { type: string; name: string } {
+export function parseTodoId(todoId: string): { type?: string; name: string } {
   const slashIndex = todoId.indexOf('/');
   if (slashIndex === -1) {
-    throw new Error(`Invalid Todo ID format: "${todoId}"`);
+    const name = todoId.trim();
+    if (!name) {
+      throw new Error(`Invalid Todo ID format: "${todoId}"`);
+    }
+    return { name };
   }
   const type = todoId.substring(0, slashIndex);
   const name = todoId.substring(slashIndex + 1);
@@ -68,6 +80,48 @@ export function parseTodoId(todoId: string): { type: string; name: string } {
     throw new Error(`Invalid Todo ID format: "${todoId}"`);
   }
   return { type, name };
+}
+
+/**
+ * 汇总 backend 中所有状态的任务（pending + in-progress + done + archived）。
+ */
+export async function listAllTodos(backend: TodoBackend): Promise<TodoItem[]> {
+  const [pending, inProgress, done, archived] = await Promise.all([
+    backend.list('pending'),
+    backend.list('in-progress'),
+    backend.list('done'),
+    backend.list('archived'),
+  ]);
+  return [...pending, ...inProgress, ...done, ...archived];
+}
+
+/**
+ * 将用户输入的 todoId 解析为具体的 { type, name }，供查找类命令使用。
+ * - 含 "/"：直接拆分返回。
+ * - 仅 name：跨所有任务按 name 查找：
+ *   - 唯一匹配 → 返回其 type
+ *   - 多个不同 type 同名 → 抛 ColynError（歧义，列出候选）
+ *   - 无匹配 → type 返回空串，交由调用方按各自的 notFound 处理
+ */
+export async function resolveTodoId(
+  backend: TodoBackend,
+  todoId: string,
+): Promise<{ type: string; name: string }> {
+  const parsed = parseTodoId(todoId);
+  if (parsed.type !== undefined) {
+    return { type: parsed.type, name: parsed.name };
+  }
+
+  const all = await listAllTodos(backend);
+  const matches = all.filter(item => item.name === parsed.name);
+  const types = [...new Set(matches.map(item => item.type))];
+
+  if (types.length > 1) {
+    const candidates = matches.map(item => `${item.type}/${item.name}`).join(', ');
+    throw new ColynError(t('commands.todo.ambiguousId', { name: parsed.name, candidates }));
+  }
+
+  return { type: types[0] ?? '', name: parsed.name };
 }
 
 /**

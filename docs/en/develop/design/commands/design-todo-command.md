@@ -120,6 +120,18 @@ pending ──(todo start)──► in-progress ──(todo complete)──► d
 
 ## 5. Subcommand Design
 
+### todoId convention
+
+Every subcommand that accepts `todoId` supports two forms:
+
+- **`type/name`**: full form with an explicit type.
+- **`name` only** (no `/`): the type is omitted and completed automatically by the command.
+  - `add`: defaults the type to `feature` (i.e. `colyn todo add login "..."` is equivalent to `colyn todo add feature/login "..."`).
+  - Lookup commands (`start` / `complete` / `uncomplete` / `remove` / `edit`): resolve an existing task by name across all types.
+    - Unique match → used directly.
+    - Multiple tasks with the same name under different types (e.g. `feature/login` and `bugfix/login`) → error listing the candidates, asking the user to use the full `type/name`.
+    - No match → handled by each command's existing "task not found" message.
+
 ### 5.1 `colyn todo add [todoId] [message...]`
 
 Add a new todo task. All arguments are optional; fully interactive when no arguments are provided. `message` is a variadic argument (commander's `[message...]`): it accepts multiple unquoted words, joined internally with spaces into the full description.
@@ -127,9 +139,11 @@ Add a new todo task. All arguments are optional; fully interactive when no argum
 **Local backend behavior**:
 
 ```
-No todoId   → Interactive: select type + input name (joined as type/name)
-No message  → Open editor ($VISUAL / $EDITOR / vim)
-Has message → Multiple words joined with spaces into the description
+No todoId        → Interactive: select type + input name (joined as type/name)
+todoId name only → type defaults to feature (feature/<name>)
+todoId type/name → Create under the given type/name
+No message       → Open editor ($VISUAL / $EDITOR / vim)
+Has message      → Multiple words joined with spaces into the description
 ```
 
 **GitHub backend behavior**:
@@ -395,7 +409,9 @@ Key exports from `todo.helpers.ts`:
 
 | Function | Description |
 |----------|-------------|
-| `parseTodoId` | Parse `type/name` format |
+| `parseTodoId` | Parse a todoId: split `type/name`; returns undefined type when only `name` is given |
+| `resolveTodoId` | Resolve a todoId to a concrete `{ type, name }`: completes the type by name lookup across types, throws an ambiguity error on multiple same-name matches |
+| `listAllTodos` | Aggregate todos across all statuses (pending/in-progress/done/archived) |
 | `findTodo` | Find a todo item in the list |
 | `editMessageWithEditor` | Open editor to interactively edit message |
 | `copyToClipboard` | Copy text to system clipboard |

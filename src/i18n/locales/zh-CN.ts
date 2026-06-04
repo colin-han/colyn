@@ -876,6 +876,7 @@ export const zhCN = {
     // todo command
     todo: {
       description: '管理 Todo 任务',
+      ambiguousId: 'Todo ID "{{name}}" 存在多个同名任务，请指定 type/name。候选：{{candidates}}',
       add: {
         description: '添加 Todo 任务',
         invalidFormat: 'Todo ID 格式错误，应为 {type}/{name}',

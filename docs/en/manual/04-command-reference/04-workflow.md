@@ -216,6 +216,13 @@ bugfix/17
 
 **Supported types**: `feature` / `bugfix` / `refactor` / `document`
 
+#### Omitting the type (name only)
+
+Every command that accepts `todoId` also accepts a bare `name` (no `/`):
+
+- `add`: the type defaults to `feature`, i.e. `colyn todo add login "..."` is equivalent to `colyn todo add feature/login "..."`.
+- `start` / `complete` / `uncomplete` / `remove` / `edit`: resolve an existing task by name across all types. A unique match is used directly; if multiple tasks under different types share the name (e.g. `feature/login` and `bugfix/login`), an error lists the candidates and asks you to use the full `type/name`.
+
 ---
 
 ### colyn todo add
@@ -232,7 +239,7 @@ colyn todo add [todoId] [message...]
 
 | Parameter | Description |
 |-----------|-------------|
-| `todoId` | Todo ID (format: `type/name`); interactive selection if omitted; GitHub backend: `name` is auto-assigned from Issue number |
+| `todoId` | Todo ID (format: `type/name`, or just `name`—the type then defaults to `feature`); interactive selection if omitted; GitHub backend: `name` is auto-assigned from Issue number |
 | `message...` | Task description; may contain spaces without quotes (multiple words are joined automatically); opens editor if omitted (supports Markdown); GitHub backend: first line becomes Issue title |
 
 #### Examples
@@ -249,6 +256,9 @@ $ colyn todo add feature/login "Implement user login feature"
 
 # The description can also be unquoted; multiple words are joined automatically
 $ colyn todo add feature/login Implement user login feature
+
+# Omit the type; defaults to feature (equivalent to feature/login)
+$ colyn todo add login "Implement user login feature"
 
 # GitHub backend: select type, Issue number auto-assigned
 $ colyn todo add

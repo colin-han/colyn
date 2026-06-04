@@ -38,7 +38,7 @@ import { getBranchCategories, resolveAbbr } from '../core/config.js';
 import {
   copyToClipboard,
   formatTodoIdLabel,
-  parseTodoId,
+  resolveTodoId,
   selectWithPreview,
   strWidth,
 } from './todo.helpers.js';
@@ -686,8 +686,8 @@ export async function checkoutCommand(
 
     // 由 Todo 入口切换分支时：同步标记完成，并输出 message + 复制剪贴板
     if (selectedTodoMeta) {
-      const { type, name } = parseTodoId(selectedTodoMeta.todoId);
       const backend = await getActiveTodoBackend(paths);
+      const { type, name } = await resolveTodoId(backend, selectedTodoMeta.todoId);
       const todoItem = await backend.find(type, name);
       if (todoItem && todoItem.status === 'pending') {
         await backend.markStarted(type, name, branch);
