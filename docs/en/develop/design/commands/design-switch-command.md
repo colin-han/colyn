@@ -14,8 +14,11 @@ Relation to other commands:
 ## Syntax
 
 ```bash
-# Full command
+# Switch mode: jump to the target worktree directory
 colyn <number>
+
+# Exec mode: execute a command in the target worktree directory, stay in current directory afterwards
+colyn <number> <command...>
 ```
 
 ### Parameters
@@ -23,6 +26,7 @@ colyn <number>
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `number` | Yes | Target worktree ID; `0` means the main directory, `N>=1` means `worktrees/task-N` |
+| `command...` | Optional | Command and its arguments to execute in the target directory; when omitted, enters switch mode |
 
 ### User-facing behavior
 
@@ -31,6 +35,9 @@ colyn <number>
 | `colyn 0` | Jump to the main directory (main worktree) |
 | `colyn 1` | Jump to `worktrees/task-1` |
 | `colyn N` | Jump to `worktrees/task-N` |
+| `colyn 0 git push` | Execute `git push` in the main directory, stay in current directory |
+| `colyn 1 git rebase` | Execute `git rebase` in `task-1` directory, stay in current directory |
+| `colyn 1 npm run build` | Execute `npm run build` in `task-1` directory, stay in current directory |
 | `colyn 9` (not existing) | Print error + available worktrees, exit 1 |
 | `colyn` | Unchanged (commander's default — shows help) |
 | `colyn add` / `colyn list` etc. | Unchanged |
@@ -70,6 +77,47 @@ If a real-world session has window indexes that no longer match worktree IDs (e.
 
 If the current directory is not inside a colyn project, `colyn <N>` errors out with "current directory is not inside a colyn project".
 
+## Exec Mode
+
+When `colyn <N>` is followed by additional arguments, it enters exec mode: the specified command is executed in the target worktree directory, and the current directory remains unchanged after execution.
+
+### Design Decision: Node.js Executes Commands Directly
+
+The shell wrapper is only responsible for operations that require the current process (`cd` to change directory, `exec tmux attach-session`). Command execution does not need to modify the current shell state, so it is handled directly by Node.js via `child_process.spawn`. Command output is forwarded to stderr (following the project's dual-layer architecture: stdout is reserved for the JSON control protocol, stderr is for user-visible output).
+
+Advantages:
+- Commands execute correctly regardless of whether called through the shell wrapper or directly
+- Running `./bin/colyn 0 echo hello` directly shows output without requiring the shell wrapper
+- stdin passthrough, signal forwarding (Ctrl+C), and exit code passthrough are natively supported by spawn
+
+### Behavior Rules
+
+- The command executes in the target worktree directory (`cwd: targetDir`); the current shell's working directory does not change
+- The command's stdin is passed through directly (`stdio: 'inherit'`), supporting interactive commands
+- The command's stdout and stderr are forwarded to the Node.js process's stderr, ensuring user visibility without polluting stdout
+- The command's exit code is passed through directly (`process.exit(code)`)
+- Even inside tmux, the command runs in the current pane, without switching tmux windows
+- If the target directory does not exist, an error is reported and no command is executed
+
+### Implementation
+
+```typescript
+const child = spawn(commandArgs.join(' '), {
+  cwd: target,
+  stdio: ['inherit', 'pipe', 'pipe'],
+  shell: true,
+});
+
+child.stdout.pipe(process.stderr);
+child.stderr.pipe(process.stderr);
+
+child.on('close', (code) => {
+  process.exit(code ?? 1);
+});
+```
+
+Note: `shell: true` is used to support shell features like pipes and redirections.
+
 ## Internal Implementation
 
 ### Overall dispatch
@@ -99,18 +147,42 @@ Trigger conditions:
 
 Counter-examples that must NOT trigger:
 - `colyn add` (not digits)
-- `colyn 1 2` (multiple non-option args)
 - `colyn 1 --foo` (with options — keep conservative to avoid future conflicts)
 - `colyn 12abc` (not pure digits)
+
+#### Step 1 (extended): argv preprocessing for exec mode
+
+When there are 2+ non-option args and the first is pure digits, enter exec mode:
+
+```ts
+const nonOptionArgs = args.filter(a => !a.startsWith('-'));
+
+// Exec mode: colyn <N> <cmd...>
+if (nonOptionArgs.length >= 2 && /^\d+$/.test(nonOptionArgs[0])) {
+  const idx = args.indexOf(nonOptionArgs[0]);
+  result.splice(idx + 2, 0, 'switch');
+  return result;
+}
+
+// Switch mode: colyn <N> (original logic)
+if (nonOptionArgs.length === 1 && /^\d+$/.test(nonOptionArgs[0])) {
+  // ... keep existing hasOptionAfterDigit guard ...
+}
+```
+
+New trigger examples:
+- `colyn 0 git push` → `colyn switch 0 git push`
+- `colyn 1 npm run build` → `colyn switch 1 npm run build`
+- `colyn 1 git push -f` → `colyn switch 1 git push -f` (`-f` is a command arg)
 
 #### Step 2: commander registration (`src/commands/switch.ts`)
 
 ```ts
 program
-  .command('switch <number>', { hidden: true })
+  .command('switch <number> [commandArgs...]', { hidden: true })
   .description(t('commands.switch.description'))
-  .action(async (numberArg: string) => {
-    await handleSwitch(numberArg);
+  .action(async (numberArg: string, commandArgs: string[] | undefined) => {
+    await handleSwitch(numberArg, commandArgs);
   });
 ```
 
@@ -119,7 +191,7 @@ program
 Pseudocode:
 
 ```
-function handleSwitch(numberArg) {
+function handleSwitch(numberArg, commandArgs) {
   // 1. Parse number → worktreeId
   const id = parseInt(numberArg, 10);
 
@@ -134,34 +206,41 @@ function handleSwitch(numberArg) {
   // 4. Compute display path
   const displayPath = relativeTo(home, target);
 
-  // 5. Inspect tmux state (reuse utilities from src/core/tmux.ts)
+  // 5. Exec mode: Node.js executes the command directly
+  if (commandArgs && commandArgs.length > 0) {
+    spawn(commandArgs.join(' '), { cwd: target, stdio: ['inherit', 'pipe', 'pipe'], shell: true });
+    child.stdout.pipe(process.stderr);
+    child.stderr.pipe(process.stderr);
+    child.on('close', (code) => process.exit(code ?? 1));
+    return;
+  }
+
+  // 6. Switch mode: original tmux switching logic
   const sessionName = projectName;
   const inTmux = isInTmux();
   const currentSession = inTmux ? getCurrentSession() : null;
   const hasSession = sessionExists(sessionName);
   const hasWindow = hasSession && windowExists(sessionName, id);
 
-  // 6. Decide
   if (!hasWindow) {
-    // Degrade to cd: session or window missing
     outputResult({ success: true, targetDir: target, displayPath });
     return;
   }
 
   if (inTmux && currentSession === sessionName) {
-    // Same session — switch directly in Node, no shell protocol
     switchWindow(sessionName, id, projectName, branchName);
     return;
   }
 
-  // Outside tmux, or inside a different session — let shell attach
   outputResult({ success: true, attachSession: sessionName, attachWindow: id });
 }
 ```
 
 ### Shell control-message protocol (`shell/colyn.sh`)
 
-#### Existing fields
+The shell wrapper is only responsible for operations that require the current process: `cd` to change directory and `exec tmux attach-session`. Exec mode is handled directly by Node.js and does not involve the shell wrapper.
+
+#### Fields
 
 | Field | Type | Meaning |
 |-------|------|---------|
@@ -169,14 +248,7 @@ function handleSwitch(numberArg) {
 | `targetDir` | string | Absolute path to cd into |
 | `displayPath` | string | Human-friendly path |
 | `attachSession` | string | tmux session name |
-
-#### New fields
-
-| Field | Type | Meaning |
-|-------|------|---------|
 | `attachWindow` | number | Used with `attachSession`; window index to select after attach |
-
-Only one new field. "Switch window inside the same session" is handled by a Node-side `switchWindow()` call rather than the shell protocol.
 
 #### Processing priority
 
@@ -195,7 +267,11 @@ fi
 
 ### Control-message examples
 
-**Case A: outside tmux, no session**
+**Case A: exec mode (`colyn 1 git push`)**
+
+No control message is output. Node.js executes the command directly, forwarding command output to stderr.
+
+**Case B: outside tmux, no session**
 
 ```json
 {
@@ -307,6 +383,9 @@ Add `src/commands/switch.test.ts` (matching the project's existing test layout),
 | 5 | `colyn 9`, task-9 missing | stderr contains error+list, stdout has no control message, exit 1 |
 | 6 | `colyn 99999` | same as #5 |
 | 7 | Not inside a colyn project | stderr error, exit 1 |
+| 8 | `colyn 1 git push`, task-1 exists | control message with `targetDir` + `command: "git push"` |
+| 9 | `colyn 0 npm run build`, main dir exists | control message with `command: "npm run build"` |
+| 10 | `colyn 9 git push`, task-9 missing | stderr error, exit 1 (no command executed) |
 
 argv preprocessing logic tested separately:
 
@@ -314,10 +393,13 @@ argv preprocessing logic tested separately:
 |---|-----------|----------|
 | 1 | `["1"]` | rewritten to `["switch", "1"]` |
 | 2 | `["add"]` | not rewritten |
-| 3 | `["1", "2"]` | not rewritten |
-| 4 | `["1", "--foo"]` | not rewritten |
+| 3 | `["1", "2"]` | rewritten to `["switch", "1", "2"]` (exec mode) |
+| 4 | `["1", "--foo"]` | not rewritten (option guard) |
 | 5 | `["--help"]` | not rewritten |
 | 6 | `["12abc"]` | not rewritten |
+| 7 | `["1", "git", "push"]` | rewritten to `["switch", "1", "git", "push"]` (exec mode) |
+| 8 | `["1", "git", "push", "-f"]` | rewritten to `["switch", "1", "git", "push", "-f"]` (`-f` as command arg) |
+| 9 | `["0", "npm", "run", "build"]` | rewritten to `["switch", "0", "npm", "run", "build"]` (exec mode) |
 
 ## Compatibility
 

@@ -77,7 +77,7 @@ describe('handleSwitch — cd 与错误处理', () => {
     vi.mocked(getProjectPaths).mockResolvedValue(PATHS);
     vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
 
-    await handleSwitch('0');
+    await handleSwitch('0', undefined);
 
     const writes = stdoutCalls.join('');
     const lastLine = writes.trim().split('\n').pop()!;
@@ -92,7 +92,7 @@ describe('handleSwitch — cd 与错误处理', () => {
     vi.mocked(getProjectPaths).mockResolvedValue(PATHS);
     vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
 
-    await handleSwitch('3');
+    await handleSwitch('3', undefined);
 
     const writes = stdoutCalls.join('');
     const parsed = JSON.parse(writes.trim().split('\n').pop()!);
@@ -110,7 +110,7 @@ describe('handleSwitch — cd 与错误处理', () => {
     ]);
     vi.mocked(getMainBranch).mockResolvedValue('main');
 
-    await expect(handleSwitch('9')).rejects.toThrow('process.exit:1');
+    await expect(handleSwitch('9', undefined)).rejects.toThrow('process.exit:1');
 
     const stderr = stderrCalls.join('');
     expect(stderr).toContain('task-9');
@@ -125,7 +125,7 @@ describe('handleSwitch — cd 与错误处理', () => {
   it('不在 colyn 项目中：报错 + exit 1', async () => {
     vi.mocked(getProjectPaths).mockRejectedValue(new Error('not in project'));
 
-    await expect(handleSwitch('1')).rejects.toThrow('process.exit:1');
+    await expect(handleSwitch('1', undefined)).rejects.toThrow('process.exit:1');
 
     const stderr = stderrCalls.join('');
     expect(stderr).toContain('colyn');
@@ -163,7 +163,7 @@ describe('handleSwitch — tmux 智能切换', () => {
     vi.mocked(isInTmux).mockReturnValue(false);
     vi.mocked(sessionExists).mockReturnValue(false);
 
-    await handleSwitch('1');
+    await handleSwitch('1', undefined);
 
     const stdout = stdoutCalls.join('');
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
@@ -177,7 +177,7 @@ describe('handleSwitch — tmux 智能切换', () => {
     vi.mocked(sessionExists).mockReturnValue(true);
     vi.mocked(windowExists).mockReturnValue(false);
 
-    await handleSwitch('1');
+    await handleSwitch('1', undefined);
 
     const stdout = stdoutCalls.join('');
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
@@ -190,7 +190,7 @@ describe('handleSwitch — tmux 智能切换', () => {
     vi.mocked(sessionExists).mockReturnValue(true);
     vi.mocked(windowExists).mockReturnValue(true);
 
-    await handleSwitch('2');
+    await handleSwitch('2', undefined);
 
     const stdout = stdoutCalls.join('');
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
@@ -208,7 +208,7 @@ describe('handleSwitch — tmux 智能切换', () => {
     vi.mocked(sessionExists).mockReturnValue(true);
     vi.mocked(windowExists).mockReturnValue(true);
 
-    await handleSwitch('1');
+    await handleSwitch('1', undefined);
 
     expect(vi.mocked(switchWindow)).toHaveBeenCalledWith('colyn', 1, expect.any(String), expect.any(String));
     const stdout = stdoutCalls.join('').trim();
@@ -221,7 +221,7 @@ describe('handleSwitch — tmux 智能切换', () => {
     vi.mocked(sessionExists).mockReturnValue(true);
     vi.mocked(windowExists).mockReturnValue(true);
 
-    await handleSwitch('1');
+    await handleSwitch('1', undefined);
 
     const stdout = stdoutCalls.join('');
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!);

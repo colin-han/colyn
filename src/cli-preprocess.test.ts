@@ -16,8 +16,8 @@ describe('preprocessArgv', () => {
     expect(preprocessArgv([...BASE, 'add'])).toEqual([...BASE, 'add']);
   });
 
-  it('多个非选项参数不重写', () => {
-    expect(preprocessArgv([...BASE, '1', '2'])).toEqual([...BASE, '1', '2']);
+  it('数字 + 非选项参数（"2"）重写为执行模式', () => {
+    expect(preprocessArgv([...BASE, '1', '2'])).toEqual([...BASE, 'switch', '1', '2']);
   });
 
   it('数字 + 选项的组合不重写', () => {
@@ -42,6 +42,38 @@ describe('preprocessArgv', () => {
       '--no-color',
       'switch',
       '1',
+    ]);
+  });
+
+  it('数字 + 非选项参数重写为执行模式', () => {
+    expect(preprocessArgv([...BASE, '1', 'git', 'push'])).toEqual([
+      ...BASE,
+      'switch',
+      '1',
+      'git',
+      'push',
+    ]);
+  });
+
+  it('数字 + 非选项参数 + 选项参数（选项是命令参数）重写为执行模式', () => {
+    expect(preprocessArgv([...BASE, '1', 'git', 'push', '-f'])).toEqual([
+      ...BASE,
+      'switch',
+      '1',
+      'git',
+      'push',
+      '-f',
+    ]);
+  });
+
+  it('colyn 0 npm run build 重写为执行模式', () => {
+    expect(preprocessArgv([...BASE, '0', 'npm', 'run', 'build'])).toEqual([
+      ...BASE,
+      'switch',
+      '0',
+      'npm',
+      'run',
+      'build',
     ]);
   });
 });

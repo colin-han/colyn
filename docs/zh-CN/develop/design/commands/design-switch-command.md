@@ -14,8 +14,11 @@
 ## 命令语法
 
 ```bash
-# 完整命令
+# 切换模式：跳转到目标 worktree 目录
 colyn <number>
+
+# 执行模式：在目标 worktree 目录下执行命令，执行完留在当前目录
+colyn <number> <command...>
 ```
 
 ### 参数说明
@@ -23,6 +26,7 @@ colyn <number>
 | 参数 | 必需 | 说明 |
 |------|------|------|
 | `number` | 必需 | 目标 worktree ID；`0` 表示主目录，`N>=1` 表示 `worktrees/task-N` |
+| `command...` | 可选 | 要在目标目录下执行的命令及其参数；不提供时为切换模式 |
 
 ### 用户视角
 
@@ -31,6 +35,9 @@ colyn <number>
 | `colyn 0` | 跳转到主目录（main worktree） |
 | `colyn 1` | 跳转到 `worktrees/task-1` |
 | `colyn N` | 跳转到 `worktrees/task-N` |
+| `colyn 0 git push` | 在主目录下执行 `git push`，执行完留在当前目录 |
+| `colyn 1 git rebase` | 在 `task-1` 目录下执行 `git rebase`，执行完留在当前目录 |
+| `colyn 1 npm run build` | 在 `task-1` 目录下执行 `npm run build`，执行完留在当前目录 |
 | `colyn 9`（不存在） | 报错并列出可用 worktree，exit 1 |
 | `colyn` | 不变（走 commander 原有逻辑，显示 help） |
 | `colyn add` / `colyn list` 等 | 不变 |
@@ -70,6 +77,51 @@ colyn <number>
 
 如果当前目录不在任何 colyn 项目内，`colyn <N>` 报错退出，提示"当前目录不在 colyn 项目中"。
 
+## 执行模式
+
+当 `colyn <N>` 后跟额外参数时，进入执行模式：在目标 worktree 目录下执行指定命令，执行完成后当前目录不变。
+
+### 设计决策
+
+**由 Node.js 执行命令，不经过 shell wrapper。**
+
+Shell wrapper 仅负责需要当前进程参与的操作（`cd` 切换目录、`exec tmux attach-session`）。命令执行不需要修改当前 shell 状态，由 Node.js 通过 `child_process.spawn` 直接完成，输出转发到 stderr（遵循项目的双层架构：stdout 保留给 JSON 控制协议，stderr 用于用户可见输出）。
+
+优势：
+- 无论是否通过 shell wrapper 调用，命令都能正确执行
+- 直接运行 `./bin/colyn 0 echo hello` 即可看到输出，无需依赖 shell wrapper
+- stdin 透传、信号转发（Ctrl+C）、退出码透传由 spawn 原生支持
+
+### 行为规则
+
+- 命令在目标 worktree 目录下执行（`cwd: targetDir`），当前 shell 的工作目录不变
+- 命令的 stdin 直接透传（`stdio: 'inherit'`），支持交互式命令
+- 命令的 stdout 和 stderr 转发到 Node.js 进程的 stderr，确保用户可见且不污染 stdout
+- 命令的退出码直接透传（`process.exit(code)`）
+- 即使在 tmux 中，也在当前 pane 执行，不切换 tmux window
+- 目标目录不存在时，报错退出，不执行命令
+
+### 实现方式
+
+```typescript
+const child = spawn(commandArgs.join(' '), {
+  cwd: target,
+  stdio: ['inherit', 'pipe', 'pipe'],
+  shell: true,
+});
+
+child.stdout.pipe(process.stderr);
+child.stderr.pipe(process.stderr);
+
+child.on('close', (code) => {
+  process.exit(code ?? 1);
+});
+```
+
+注意：使用 `shell: true` 以支持管道、重定向等 shell 特性。
+
+如果当前目录不在任何 colyn 项目内，`colyn <N>` 报错退出，提示"当前目录不在 colyn 项目中"。
+
 ## 内部实现
 
 ### 整体分派机制
@@ -100,18 +152,42 @@ if (rest.length === 1 && /^\d+$/.test(rest[0])) {
 
 不触发的反例：
 - `colyn add`（非数字）
-- `colyn 1 2`（多个非选项参数）
 - `colyn 1 --foo`（带选项时，避免与未来扩展冲突，保守不重写）
 - `colyn 12abc`（非纯数字）
+
+#### 第一步（扩展）：argv 预处理支持执行模式
+
+当有 2+ 个非选项参数且第一个是纯数字时，进入执行模式：
+
+```ts
+const nonOptionArgs = args.filter(a => !a.startsWith('-'));
+
+// 执行模式：colyn <N> <cmd...>
+if (nonOptionArgs.length >= 2 && /^\d+$/.test(nonOptionArgs[0])) {
+  const idx = args.indexOf(nonOptionArgs[0]);
+  result.splice(idx + 2, 0, 'switch');
+  return result;
+}
+
+// 切换模式：colyn <N>（原有逻辑）
+if (nonOptionArgs.length === 1 && /^\d+$/.test(nonOptionArgs[0])) {
+  // ... 保持原有 hasOptionAfterDigit 保护 ...
+}
+```
+
+新增触发示例：
+- `colyn 0 git push` → `colyn switch 0 git push`
+- `colyn 1 npm run build` → `colyn switch 1 npm run build`
+- `colyn 1 git push -f` → `colyn switch 1 git push -f`（`-f` 是命令参数）
 
 #### 第二步：commander 注册（`src/commands/switch.ts`）
 
 ```ts
 program
-  .command('switch <number>', { hidden: true })
+  .command('switch <number> [commandArgs...]', { hidden: true })
   .description(t('commands.switch.description'))
-  .action(async (numberArg: string) => {
-    await handleSwitch(numberArg);
+  .action(async (numberArg: string, commandArgs: string[] | undefined) => {
+    await handleSwitch(numberArg, commandArgs);
   });
 ```
 
@@ -120,7 +196,7 @@ program
 伪代码：
 
 ```
-function handleSwitch(numberArg) {
+function handleSwitch(numberArg, commandArgs) {
   // 1. 解析数字 → worktreeId
   const id = parseInt(numberArg, 10);
 
@@ -135,34 +211,41 @@ function handleSwitch(numberArg) {
   // 4. 计算显示路径
   const displayPath = relativeTo(home, target);
 
-  // 5. tmux 状态检测（复用 src/core/tmux.ts 已有工具）
+  // 5. 执行模式：Node.js 直接执行命令
+  if (commandArgs && commandArgs.length > 0) {
+    spawn(commandArgs.join(' '), { cwd: target, stdio: ['inherit', 'pipe', 'pipe'], shell: true });
+    child.stdout.pipe(process.stderr);
+    child.stderr.pipe(process.stderr);
+    child.on('close', (code) => process.exit(code ?? 1));
+    return;
+  }
+
+  // 6. 切换模式：原有 tmux 切换逻辑
   const sessionName = projectName;
   const inTmux = isInTmux();
   const currentSession = inTmux ? getCurrentSession() : null;
   const hasSession = sessionExists(sessionName);
   const hasWindow = hasSession && windowExists(sessionName, id);
 
-  // 6. 决策
   if (!hasWindow) {
-    // 降级为 cd：session 或 window 不存在
     outputResult({ success: true, targetDir: target, displayPath });
     return;
   }
 
   if (inTmux && currentSession === sessionName) {
-    // 同 session 内：直接 Node 调用，不走 shell 协议
     switchWindow(sessionName, id, projectName, branchName);
     return;
   }
 
-  // tmux 外，或在其他 session 中：让 shell 执行 attach
   outputResult({ success: true, attachSession: sessionName, attachWindow: id });
 }
 ```
 
-### Shell 控制协议扩展（`shell/colyn.sh`）
+### Shell 控制协议（`shell/colyn.sh`）
 
-#### 现有字段
+Shell wrapper 仅负责需要当前进程参与的操作：`cd` 切换目录和 `exec tmux attach-session`。执行模式由 Node.js 直接处理，不经过 shell wrapper。
+
+#### 字段
 
 | 字段 | 类型 | 含义 |
 |------|------|------|
@@ -170,14 +253,7 @@ function handleSwitch(numberArg) {
 | `targetDir` | string | 切换目录的绝对路径 |
 | `displayPath` | string | 用户友好显示路径 |
 | `attachSession` | string | tmux session 名 |
-
-#### 新增字段
-
-| 字段 | 类型 | 含义 |
-|------|------|------|
 | `attachWindow` | number | 与 `attachSession` 搭配，attach 后选中的 window index |
-
-仅一个新增字段。"在 tmux 内同 session 切 window"由 Node 端直接调用 `switchWindow()` 完成，不通过 shell 协议。
 
 #### 处理优先级
 
@@ -196,7 +272,11 @@ fi
 
 ### 控制消息示例
 
-**场景 A：tmux 外，session 不存在**
+**场景 A：执行模式（`colyn 1 git push`）**
+
+不输出控制消息。Node.js 直接执行命令，命令输出转发到 stderr。
+
+**场景 B：tmux 外，session 不存在**
 
 ```json
 {
@@ -206,11 +286,11 @@ fi
 }
 ```
 
-**场景 B：tmux 内（同 session），切换 window**
+**场景 B：tmux 外，session 不存在**
 
-不输出控制消息——Node 端调用 `switchWindow()` 已完成切换。
+**场景 D：tmux 外，session+window 都存在**
 
-**场景 C：tmux 外，session+window 都存在**
+**场景 C：tmux 内（同 session），切换 window**
 
 ```json
 {
@@ -219,6 +299,8 @@ fi
   "attachWindow": 1
 }
 ```
+
+不输出控制消息——Node 端调用 `switchWindow()` 已完成切换。
 
 ## 错误处理
 
@@ -308,6 +390,9 @@ switch: {
 | 5 | `colyn 9`，task-9 不存在 | stderr 含错误+列表，stdout 无控制消息，exit 1 |
 | 6 | `colyn 99999` | 同 #5 |
 | 7 | 不在 colyn 项目中 | stderr 错误，exit 1 |
+| 8 | `colyn 1 git push`，task-1 存在 | 控制消息含 `targetDir` + `command: "git push"` |
+| 9 | `colyn 0 npm run build`，主目录存在 | 控制消息含 `command: "npm run build"` |
+| 10 | `colyn 9 git push`，task-9 不存在 | stderr 含错误，exit 1（不执行命令） |
 
 argv 预处理逻辑单独测试：
 
@@ -315,10 +400,13 @@ argv 预处理逻辑单独测试：
 |---|----------|------|
 | 1 | `["1"]` | 重写为 `["switch", "1"]` |
 | 2 | `["add"]` | 不重写 |
-| 3 | `["1", "2"]` | 不重写 |
-| 4 | `["1", "--foo"]` | 不重写 |
+| 3 | `["1", "2"]` | 重写为 `["switch", "1", "2"]`（执行模式） |
+| 4 | `["1", "--foo"]` | 不重写（选项保护） |
 | 5 | `["--help"]` | 不重写 |
 | 6 | `["12abc"]` | 不重写 |
+| 7 | `["1", "git", "push"]` | 重写为 `["switch", "1", "git", "push"]`（执行模式） |
+| 8 | `["1", "git", "push", "-f"]` | 重写为 `["switch", "1", "git", "push", "-f"]`（`-f` 作为命令参数） |
+| 9 | `["0", "npm", "run", "build"]` | 重写为 `["switch", "0", "npm", "run", "build"]`（执行模式） |
 
 ## 兼容性
 

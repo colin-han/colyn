@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import path from 'path';
+import { spawn } from 'child_process';
 import * as fsp from 'fs/promises';
 import os from 'os';
 import { t } from '../i18n/index.js';
@@ -76,7 +77,7 @@ async function printAvailableWorktrees(paths: {
   }
 }
 
-export async function handleSwitch(numberArg: string): Promise<void> {
+export async function handleSwitch(numberArg: string, commandArgs: string[] | undefined): Promise<void> {
   let paths: Awaited<ReturnType<typeof getProjectPaths>>;
   try {
     paths = await getProjectPaths();
@@ -99,6 +100,24 @@ export async function handleSwitch(numberArg: string): Promise<void> {
   }
 
   const displayPath = toDisplayPath(target);
+
+  // 执行模式：Node.js 直接执行命令，输出转发到 stderr
+  if (commandArgs && commandArgs.length > 0) {
+    const child = spawn(commandArgs.join(' '), {
+      cwd: target,
+      stdio: ['inherit', 'pipe', 'pipe'],
+      shell: true,
+    });
+
+    child.stdout.pipe(process.stderr);
+    child.stderr.pipe(process.stderr);
+
+    child.on('close', (code) => {
+      process.exit(code ?? 1);
+    });
+
+    return;
+  }
 
   // 项目名 = 主目录名 = tmux session 名
   const sessionName = paths.mainDirName;
@@ -136,9 +155,9 @@ export async function handleSwitch(numberArg: string): Promise<void> {
 
 export function register(program: Command): void {
   program
-    .command('switch <number>', { hidden: true })
+    .command('switch <number> [commandArgs...]', { hidden: true })
     .description(t('commands.switch.description'))
-    .action(async (numberArg: string) => {
-      await handleSwitch(numberArg);
+    .action(async (numberArg: string, commandArgs: string[] | undefined) => {
+      await handleSwitch(numberArg, commandArgs);
     });
 }
