@@ -1,7 +1,7 @@
 # Repair Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-17
-**Last Updated**: 2026-02-21
+**Last Updated**: 2026-06-03 (updated: Todo Backend setup repair)
 **Command**: `colyn repair`
 **Status**: ✅ Implemented
 
@@ -27,7 +27,10 @@ After execution, the system will:
 2. Check and fix all worktree `.env.local` files
 3. Run `git worktree repair` to fix git connections
 4. Run plugin initialization (non-fatal — only shows a warning on failure)
-5. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
+5. **Run setup for the current active Todo Backend** (non-fatal):
+   - Local backend: no additional action
+   - GitHub backend: verify that `gh` is installed and authenticated; if not installed, suggest installation steps; if not authenticated, suggest `gh auth login`
+6. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
 
 ---
 
@@ -206,12 +209,12 @@ graph TD
 
 ```mermaid
 graph TD
-    Start[Check main branch .env.local] --> FileExists{File exists?}
+    Start[Check main branch .env.local] --> ReadFile{Read succeeded?}
 
-    FileExists -->|No| CreateFile[Create default .env.local]
-    FileExists -->|Yes| CheckVars[Check environment variables]
+    ReadFile -->|No| ReadFail[✗ Mark failed and report error<br/>Do not create default file]
+    ReadFile -->|Yes| CheckVars[Check environment variables]
 
-    CreateFile --> End[✗ Created]
+    ReadFail --> End
 
     CheckVars --> HasPort{Has PORT?}
     HasPort -->|No| AddPort[Add PORT]
@@ -230,7 +233,7 @@ graph TD
     FixWT --> End
     AllOK --> End2[✔ No fix needed]
 
-    style CreateFile fill:#FFD700
+    style ReadFail fill:#FF6B6B
     style AddPort fill:#FFD700
     style AddWT fill:#FFD700
     style FixWT fill:#FFD700
@@ -244,11 +247,7 @@ graph TD
 graph TD
     Start[Check worktree .env.local] --> GetID[Extract ID from directory name<br/>task-N → ID=N]
 
-    GetID --> FileExists{File exists?}
-    FileExists -->|No| CreateFile[Create default .env.local]
-    FileExists -->|Yes| CheckVars[Check environment variables]
-
-    CreateFile --> End[✗ Created]
+    GetID --> CheckVars[Read and check environment variables]
 
     CheckVars --> HasPort{Has PORT?}
     HasPort -->|No| AddPort[Add PORT]
@@ -257,7 +256,7 @@ graph TD
     PortCorrect -->|No| FixPort[Correct PORT]
     PortCorrect -->|Yes| HasWT{Has WORKTREE?}
 
-    AddPort --> HasWT
+    AddPort --> NeedFix
     FixPort --> HasWT
 
     HasWT -->|No| AddWT[Add WORKTREE=ID]
@@ -266,15 +265,21 @@ graph TD
     WTCorrect -->|No| FixWT[Correct WORKTREE]
     WTCorrect -->|Yes| AllOK[✔ Config correct]
 
-    AddWT --> End
-    FixWT --> End
+    AddWT --> NeedFix
+    FixWT --> NeedFix
+
+    NeedFix[Needs fix] --> FileMissing{File missing?}
+    FileMissing -->|Yes| CopyFromMain[Copy .env.local from main branch]
+    FileMissing -->|No| WriteFix[Write corrected values]
+    CopyFromMain --> WriteFix
+    WriteFix --> End[✗ Fixed]
     AllOK --> End2[✔ No fix needed]
 
-    style CreateFile fill:#FFD700
     style AddPort fill:#FFD700
     style FixPort fill:#FFD700
     style AddWT fill:#FFD700
     style FixWT fill:#FFD700
+    style CopyFromMain fill:#FFD700
     style AllOK fill:#90EE90
     style End2 fill:#90EE90
 ```
@@ -336,7 +341,7 @@ Details:
 | **Not a git repository** | Error and exit | ✗ Main branch directory is not a git repository<br/>Hint: Please run in a git project |
 | **git worktree repair failed** | Log error, continue other checks | ⚠ Git worktree repair failed<br/>Error: [git error]<br/>Suggestion: Manually run git worktree repair |
 | **Plugin initialization failed** | Log warning, continue other checks | ⚠ Plugin initialization failed (non-fatal)<br/>Error: [error message] |
-| **Cannot read .env.local** | Try to create new file | ⚠ Cannot read .env.local, created new file |
+| **Cannot read main branch .env.local** | Mark this check item as failed, do not create file | ✗ Main branch .env.local check failed<br/>Error: [read error] |
 | **Cannot write .env.local** | Log error, continue other checks | ⚠ Cannot fix worktree task-1 .env.local<br/>Error: Permission denied |
 
 ### 5.2 Error Handling Principles
@@ -356,7 +361,7 @@ Details:
 - `WORKTREE`: Must be `"main"`
 
 **Fix strategy**:
-- If file doesn't exist: Create file, use default PORT (from user config)
+- If file read fails (missing or unreadable): Mark this check item as failed and report an error; **do not create a default file**
 - If missing variables: Add missing variables
 - If WORKTREE is not "main": Correct to "main"
 
@@ -370,7 +375,7 @@ Details:
 - `WORKTREE`: Must be `ID` (numeric string)
 
 **Fix strategy**:
-- If file doesn't exist: Copy `.env.local` from main branch and update PORT and WORKTREE
+- Only when a fix is needed (PORT or WORKTREE incorrect) and the file is missing: Copy `.env.local` from main branch, then write the correct PORT and WORKTREE
 - If PORT is wrong: Correct to `base port + ID`
 - If WORKTREE is wrong: Correct to `ID`
 
@@ -566,7 +571,7 @@ A: No. repair only fixes management files and environment variable configuration
 | `checkMainEnv` | Check main branch .env.local | mainDir, mainPort | RepairResult |
 | `checkWorktreeEnv` | Check worktree .env.local | wtPath, wtId, mainPort | RepairResult |
 | `repairGitWorktree` | Repair git worktree connections | mainDir | RepairResult |
-| `findOrphanWorktrees` | Find orphan worktree directories | worktreesDir, gitWorktrees | string[] |
+| `detectAndRepairOrphans` | Detect and repair orphan worktree directories | mainDir, worktreesDir | OrphanDetectionResult |
 | `displayRepairSummary` | Display repair summary | results[] | void |
 
 ### 11.3 Data Structures
@@ -583,6 +588,15 @@ interface RepairResult {
   details?: string[];
   /** Error message */
   error?: string;
+}
+
+interface OrphanDetectionResult {
+  /** Repaired orphans (invalid path type) */
+  repairedOrphans: string[];
+  /** True orphans (git completely doesn't recognize) */
+  trueOrphans: string[];
+  /** Failed repairs */
+  repairFailed: Array<{ dir: string; error: string }>;
 }
 ```
 

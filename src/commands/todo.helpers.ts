@@ -7,6 +7,12 @@ import type { StdioOptions } from 'child_process';
 import Enquirer from 'enquirer';
 import chalk from 'chalk';
 import type { TodoFile, ArchivedTodoFile, TodoItem } from '../types/index.js';
+import { ColynError } from '../types/index.js';
+import type { TodoBackend } from '../types/todo-backend.js';
+import { t } from '../i18n/index.js';
+
+/** add 命令在仅提供 name（未指定 type）时使用的默认 type */
+export const DEFAULT_TODO_TYPE = 'feature';
 
 const TODO_FILE_NAME = 'todo.json';
 const ARCHIVED_TODO_FILE_NAME = 'archived-todo.json';
@@ -54,12 +60,19 @@ export async function saveArchivedTodoFile(configDir: string, file: ArchivedTodo
 }
 
 /**
- * 解析 Todo ID（格式：type/name）
+ * 解析 Todo ID。
+ * - `type/name`：返回拆分后的 type 与 name
+ * - 仅 `name`（不含 "/"）：返回 type 为 undefined，由调用方补全（add 默认 feature，
+ *   查找类命令按 name 跨 type 解析，见 {@link resolveTodoId}）
  */
-export function parseTodoId(todoId: string): { type: string; name: string } {
+export function parseTodoId(todoId: string): { type?: string; name: string } {
   const slashIndex = todoId.indexOf('/');
   if (slashIndex === -1) {
-    throw new Error(`Invalid Todo ID format: "${todoId}"`);
+    const name = todoId.trim();
+    if (!name) {
+      throw new Error(`Invalid Todo ID format: "${todoId}"`);
+    }
+    return { name };
   }
   const type = todoId.substring(0, slashIndex);
   const name = todoId.substring(slashIndex + 1);
@@ -70,10 +83,45 @@ export function parseTodoId(todoId: string): { type: string; name: string } {
 }
 
 /**
- * 查找 Todo 条目
+ * 汇总 backend 中所有状态的任务（pending + in-progress + done + archived）。
  */
-export function findTodo(todos: TodoItem[], type: string, name: string): TodoItem | undefined {
-  return todos.find(t => t.type === type && t.name === name);
+export async function listAllTodos(backend: TodoBackend): Promise<TodoItem[]> {
+  const [pending, inProgress, done, archived] = await Promise.all([
+    backend.list('pending'),
+    backend.list('in-progress'),
+    backend.list('done'),
+    backend.list('archived'),
+  ]);
+  return [...pending, ...inProgress, ...done, ...archived];
+}
+
+/**
+ * 将用户输入的 todoId 解析为具体的 { type, name }，供查找类命令使用。
+ * - 含 "/"：直接拆分返回。
+ * - 仅 name：跨所有任务按 name 查找：
+ *   - 唯一匹配 → 返回其 type
+ *   - 多个不同 type 同名 → 抛 ColynError（歧义，列出候选）
+ *   - 无匹配 → type 返回空串，交由调用方按各自的 notFound 处理
+ */
+export async function resolveTodoId(
+  backend: TodoBackend,
+  todoId: string,
+): Promise<{ type: string; name: string }> {
+  const parsed = parseTodoId(todoId);
+  if (parsed.type !== undefined) {
+    return { type: parsed.type, name: parsed.name };
+  }
+
+  const all = await listAllTodos(backend);
+  const matches = all.filter(item => item.name === parsed.name);
+  const types = [...new Set(matches.map(item => item.type))];
+
+  if (types.length > 1) {
+    const candidates = matches.map(item => `${item.type}/${item.name}`).join(', ');
+    throw new ColynError(t('commands.todo.ambiguousId', { name: parsed.name, candidates }));
+  }
+
+  return { type: types[0] ?? '', name: parsed.name };
 }
 
 /**
@@ -197,11 +245,69 @@ function isWideCodePoint(code: number): boolean {
   );
 }
 
+/**
+ * 判断 Unicode 码点是否默认按 emoji 宽度（终端显示 2 列）渲染。
+ *
+ * 仅包含 Emoji_Presentation=Yes 的码点。文本默认符号（如 ♻ U+267B，
+ * Emoji_Presentation=No）不在此列——它们只有在跟随变体选择符 U+FE0F 时
+ * 才按 emoji 宽度渲染，而 U+FE0F 本身按 1 列计入，恰好补足这 1 列宽度，
+ * 因此无需在此特殊处理变体选择符。
+ */
+function isEmojiCodePoint(code: number): boolean {
+  return (
+    // 补充平面常见 emoji 区块
+    (code >= 0x1f300 && code <= 0x1f64f) || // 杂项符号/象形文字、表情
+    (code >= 0x1f680 && code <= 0x1f6ff) || // 交通与地图符号
+    (code >= 0x1f900 && code <= 0x1f9ff) || // 补充符号与象形文字
+    (code >= 0x1fa70 && code <= 0x1faff) || // 符号与象形文字扩展-A
+    (code >= 0x1f1e6 && code <= 0x1f1ff) || // 区域指示符（旗帜）
+    // BMP 中 Emoji_Presentation=Yes 的码点
+    (code >= 0x231a && code <= 0x231b) ||
+    (code >= 0x23e9 && code <= 0x23ec) ||
+    code === 0x23f0 ||
+    code === 0x23f3 ||
+    (code >= 0x25fd && code <= 0x25fe) ||
+    (code >= 0x2614 && code <= 0x2615) ||
+    (code >= 0x2648 && code <= 0x2653) ||
+    code === 0x267f ||
+    code === 0x2693 ||
+    code === 0x26a1 ||
+    (code >= 0x26aa && code <= 0x26ab) ||
+    (code >= 0x26bd && code <= 0x26be) ||
+    (code >= 0x26c4 && code <= 0x26c5) ||
+    code === 0x26ce ||
+    code === 0x26d4 ||
+    code === 0x26ea ||
+    (code >= 0x26f2 && code <= 0x26f3) ||
+    code === 0x26f5 ||
+    code === 0x26fa ||
+    code === 0x26fd ||
+    code === 0x2705 ||
+    (code >= 0x270a && code <= 0x270b) ||
+    code === 0x2728 || // ✨（默认 abbr 用到）
+    code === 0x274c ||
+    code === 0x274e ||
+    (code >= 0x2753 && code <= 0x2755) ||
+    code === 0x2757 ||
+    (code >= 0x2795 && code <= 0x2797) ||
+    code === 0x27b0 ||
+    code === 0x27bf ||
+    (code >= 0x2b1b && code <= 0x2b1c) ||
+    code === 0x2b50 ||
+    code === 0x2b55
+  );
+}
+
+/** 计算单个 Unicode 码点的终端显示宽度（1 或 2 列） */
+function codePointWidth(code: number): number {
+  return isWideCodePoint(code) || isEmojiCodePoint(code) ? 2 : 1;
+}
+
 /** 计算字符串在终端中的显示宽度 */
 export function strWidth(s: string): number {
   let w = 0;
   for (const ch of s) {
-    w += isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    w += codePointWidth(ch.codePointAt(0) ?? 0);
   }
   return w;
 }
@@ -217,7 +323,7 @@ function truncWidth(s: string, maxW: number): string {
   let w = 0;
   let result = '';
   for (const ch of s) {
-    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    const cw = codePointWidth(ch.codePointAt(0) ?? 0);
     if (w + cw + 1 > maxW) break; // 保留 1 格放省略号
     result += ch;
     w += cw;
@@ -231,7 +337,7 @@ function truncStr(s: string, maxW: number): string {
   let w = 0;
   let result = '';
   for (const ch of s) {
-    const cw = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    const cw = codePointWidth(ch.codePointAt(0) ?? 0);
     if (w + cw + 1 > maxW) break;
     result += ch;
     w += cw;
@@ -249,7 +355,7 @@ function wrapByWidth(s: string, maxW: number): string[] {
   let width = 0;
 
   for (const ch of s) {
-    const chWidth = isWideCodePoint(ch.codePointAt(0) ?? 0) ? 2 : 1;
+    const chWidth = codePointWidth(ch.codePointAt(0) ?? 0);
 
     if (width > 0 && width + chWidth > maxW) {
       lines.push(current);
@@ -458,13 +564,18 @@ export function formatTodoTable(todos: TodoItem[], abbrMap?: Map<string, string>
     createdAt: formatDate(item.createdAt),
   }));
 
-  const typeW = Math.max(strWidth('Type'), ...rows.map(r => strWidth(r.type)));
-  const nameW = Math.max(strWidth('Name'), ...rows.map(r => strWidth(r.name)));
-  const createdW = Math.max(strWidth('Created'), ...rows.map(r => strWidth(r.createdAt)));
+  const hType = t('commands.todo.list.headerType');
+  const hName = t('commands.todo.list.headerName');
+  const hMessage = t('commands.todo.list.headerMessage');
+  const hCreatedAt = t('commands.todo.list.headerCreatedAt');
+
+  const typeW = Math.max(strWidth(hType), ...rows.map(r => strWidth(r.type)));
+  const nameW = Math.max(strWidth(hName), ...rows.map(r => strWidth(r.name)));
+  const createdW = Math.max(strWidth(hCreatedAt), ...rows.map(r => strWidth(r.createdAt)));
 
   const termW = process.stdout.columns ?? process.stderr.columns ?? 80;
   // INDENT + typeW + GAP + nameW + GAP + msgW + GAP + createdW = termW
-  const msgW = Math.max(strWidth('Message'), termW - INDENT - typeW - nameW - createdW - GAP * 3);
+  const msgW = Math.max(strWidth(hMessage), termW - INDENT - typeW - nameW - createdW - GAP * 3);
 
   const mkHeaderRow = (type: string, name: string, msg: string, created: string): string =>
     ' '.repeat(INDENT) +
@@ -490,7 +601,7 @@ export function formatTodoTable(todos: TodoItem[], abbrMap?: Map<string, string>
     );
 
   return [
-    mkHeaderRow('Type', 'Name', 'Message', 'Created'),
+    mkHeaderRow(hType, hName, hMessage, hCreatedAt),
     sepRow,
     ...rows.map(r => mkDataRow(r.type, r.name, r.message, r.createdAt)),
   ].join('\n');

@@ -288,8 +288,8 @@ git pull origin main
 # 2. If there are conflicts, resolve them and push
 git push origin main
 
-# Or use colyn merge's --push option
-colyn merge 1 --push
+# Or use colyn merge to merge
+colyn merge 1
 ```
 
 ---

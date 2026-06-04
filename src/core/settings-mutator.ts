@@ -42,6 +42,11 @@ export const SETTINGS_KEYS = {
   'commands.release.tag': 'boolean',
   'commands.release.versionUpdate': 'boolean',
   'commands.checkout.fetch': 'boolean',
+
+  // Todo backend
+  'todo.backend': 'string',
+  'todo.autoArchive': 'boolean',
+  'todo.github.archivedLabel': 'string',
 } as const;
 
 export type SettingsKey = keyof typeof SETTINGS_KEYS;

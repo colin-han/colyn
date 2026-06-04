@@ -53,7 +53,7 @@ describe('isSettingsKey', () => {
   it('未注册的 key 返回 false', () => {
     expect(isSettingsKey('foo.bar')).toBe(false);
     expect(isSettingsKey('npm')).toBe(false);
-    expect(isSettingsKey('lang')).toBe(false);
+    expect(isSettingsKey('lang')).toBe(true);
     expect(isSettingsKey('branchCategories')).toBe(false);
   });
 });

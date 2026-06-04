@@ -1,7 +1,7 @@
 # Add 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-14
-**最后更新**：2026-02-23（更新：无参交互式分支选择 + Todo 选择后自动完成）
+**最后更新**：2026-06-03（更新：无参交互式分支选择 + Todo 选择后置动作改为 in-progress；pending todo 来自当前 active backend）
 **命令名称**：`colyn add`
 **状态**：✅ 已实现
 
@@ -47,8 +47,7 @@ $ colyn add feature/login
 ✔ 使用本地分支: feature/login
 ✔ Worktree 创建完成: task-1
 ✔ 环境变量配置完成
-✔ 安装项目依赖完成
-✔ 配置文件更新完成
+✔ 依赖安装完成
 
 ✓ Worktree 创建成功！
 
@@ -110,7 +109,6 @@ $ colyn add feature/payment
 ✔ 已从远程创建分支: feature/payment
 ✔ Worktree 创建完成: task-3
 ✔ 环境变量配置完成
-✔ 配置文件更新完成
 
 ✓ Worktree 创建成功！
 ```
@@ -164,14 +162,14 @@ $ colyn add
 **列表顺序与规则**：
 
 1. 第一项固定为 `[新建分支]`，且默认选中
-2. 第二组为 `pending` 状态 Todo 对应分支
+2. 第二组为来自**当前 active backend** 的 `pending` 状态 Todo 对应分支
 3. 第三组为本地已存在分支（过滤主分支目录当前分支）
 4. 本地分支若包含 `/`：最后一段为 `name`，前缀为 `type`；不包含 `/`：`type` 为空，全部为 `name`
 
 **选择 Todo 分支时的后置动作**：
 
 当选择项来自 `pending` Todo 时，`add` 成功后会执行与 `todo start` 对齐的行为：
-1. 将对应 Todo 状态从 `pending` 更新为 `completed`
+1. 将对应 Todo 状态从 `pending` 更新为 `in-progress`
 2. 记录 `startedAt` 和 `branch`
 3. 在终端输出该 Todo 的 message
 4. 将 message 复制到系统剪贴板
@@ -321,8 +319,7 @@ $ colyn add feature/new-button
 ✔ 使用本地分支: feature/login
 ✔ Worktree 创建完成: task-1
 ✔ 环境变量配置完成
-✔ 安装项目依赖完成
-✔ 配置文件更新完成
+✔ 依赖安装完成
 ```
 
 > 注：依赖安装步骤由工具链插件驱动。若项目未配置插件（`plugins: []`），则跳过此步骤。
@@ -534,131 +531,58 @@ graph TD
 
 ---
 
-## 9. 特殊情况：自动进入 Worktree 目录
+## 9. 自动进入 Worktree 目录
 
-### 9.1 用户期望
+### 9.1 行为
 
-用户希望 `colyn add` 命令执行后自动切换到新创建的 worktree 目录：
+`colyn add` 执行成功后会自动切换到新创建的 worktree 目录：
 
 ```bash
 $ colyn add feature/login
 ✓ Worktree 创建成功！
-$ pwd
-/path/to/worktrees/task-1  # 自动切换到这里
-```
-
-### 9.2 技术限制
-
-**无法实现**：Node.js 子进程无法改变父 shell 的当前目录。
-
-```mermaid
-graph TD
-    User[用户 Shell] --> Spawn[启动 Node.js 进程]
-    Spawn --> Execute[执行 colyn add]
-    Execute --> Try[尝试改变目录]
-    Try --> Limit[❌ 无法影响父 Shell]
-    Limit --> Return[返回用户 Shell]
-    Return --> Same[仍在原目录]
-
-    style Limit fill:#ffcccc
-```
-
-这是操作系统的基本限制，不是 Colyn 的问题。
-
-### 9.3 解决方案
-
-#### 方案 1：Shell 函数封装（推荐）
-
-在 `~/.bashrc` 或 `~/.zshrc` 中添加：
-
-```bash
-colyn-add() {
-  # 调用 colyn add 并捕获输出
-  local output=$(colyn add "$@" 2>&1)
-  local exit_code=$?
-
-  # 显示输出
-  echo "$output"
-
-  # 如果成功，提取路径并切换目录
-  if [ $exit_code -eq 0 ]; then
-    local worktree_path=$(echo "$output" | grep "路径:" | awk '{print $2}')
-    if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
-      cd "$worktree_path"
-      echo "已切换到: $worktree_path"
-    fi
-  fi
-
-  return $exit_code
-}
-```
-
-**使用**：
-```bash
-$ colyn-add feature/login
-✓ Worktree 创建成功！
-已切换到: /path/to/worktrees/task-1
-
+📂 已切换到: worktrees/task-1
 $ pwd
 /path/to/worktrees/task-1
 ```
 
----
+### 9.2 实现原理（双层架构）
 
-#### 方案 2：手动复制 cd 命令
+Node.js 子进程无法直接改变父 shell 的当前目录，因此 Colyn 采用 **Bash + Node.js 双层架构**实现自动切换：
 
-用户看到成功信息后，复制并执行 `cd` 命令：
+1. **Node.js 层**：`add` 命令成功后向 stdout 输出控制 JSON（含目标目录）：
 
-```bash
-$ colyn add feature/login
-✓ Worktree 创建成功！
+   ```json
+   { "success": true, "targetDir": "/path/to/worktrees/task-1", "displayPath": "worktrees/task-1" }
+   ```
 
-后续操作：
-  1. 进入 worktree 目录：
-     cd /path/to/worktrees/task-1    # 复制这一行
+2. **Shell 层**：`shell/colyn.sh` 提供的 `colyn()` 函数捕获该 JSON，读取 `targetDir` 字段后在**父 shell** 中执行 `cd`，并打印 `📂 已切换到: <displayPath>`。
 
-$ cd /path/to/worktrees/task-1  # 粘贴执行
+```mermaid
+graph TD
+    User[用户 Shell colyn 函数] --> Spawn[启动 Node.js 进程]
+    Spawn --> Execute[执行 colyn add]
+    Execute --> Output[输出控制 JSON targetDir]
+    Output --> Capture[colyn 函数捕获 JSON]
+    Capture --> Cd[在父 Shell 执行 cd]
+    Cd --> Done[✓ 已切换到 worktree 目录]
+
+    style Done fill:#ccffcc
 ```
 
----
+> 该机制对所有涉及目录切换的命令（`add`、`checkout`、`<N>` 等）统一生效，由通用的 `colyn()` 函数处理，无需为每个命令单独封装。
 
-#### 方案 3：使用别名配合 eval
+### 9.3 启用条件
 
-在 `~/.bashrc` 或 `~/.zshrc` 中添加：
-
-```bash
-alias colyn-add='colyn add'
-```
-
-然后使用自定义脚本：
+自动切换依赖 shell 集成。用户需在 `~/.bashrc` 或 `~/.zshrc` 中 source 包装器（运行 `colyn setup` 会自动完成此配置）：
 
 ```bash
-#!/bin/bash
-# ~/bin/colyn-cd-add.sh
-
-output=$(colyn add "$@" 2>&1)
-echo "$output"
-
-if [ $? -eq 0 ]; then
-  path=$(echo "$output" | grep "路径:" | awk '{print $2}')
-  [ -n "$path" ] && echo "cd \"$path\""
-fi
+source /path/to/colyn/shell/colyn.sh
 ```
 
-**使用**：
-```bash
-$ eval $(~/bin/colyn-cd-add.sh feature/login)
-✓ Worktree 创建成功！
-# 自动切换目录
-```
-
----
-
-### 9.4 推荐实践
-
-1. **使用 Shell 函数**（方案 1）：最方便，一次配置永久使用
-2. **提供配置脚本**：在安装时提示用户是否添加 shell 函数
-3. **文档说明**：在 README 中明确说明限制和解决方案
+| 场景 | 行为 |
+|------|------|
+| 已启用 shell 集成 | `colyn add` 成功后自动切换到 worktree 目录，并打印 `📂 已切换到: ...` |
+| 未启用（直接调用 `bin/colyn`） | 不会切换目录；命令仅输出后续操作提示，用户可手动 `cd` |
 
 ---
 
@@ -666,7 +590,7 @@ $ eval $(~/bin/colyn-cd-add.sh feature/login)
 
 ### Q1: 创建 worktree 后如何切换到新目录？
 
-A: 复制成功信息中的 `cd` 命令并执行，或者配置 Shell 函数（见第 9 节）。
+A: 启用 shell 集成后（运行 `colyn setup`，或 source `shell/colyn.sh`），`colyn add` 会自动切换到新目录（见第 9 节）。若未启用 shell 集成，可复制成功信息中的 `cd` 命令手动执行。
 
 ### Q2: 端口号如何确定？
 

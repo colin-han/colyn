@@ -57,12 +57,11 @@ import chalk from 'chalk';
 import ora from 'ora';
 import {
   copyToClipboard,
-  findTodo,
-  parseTodoId,
-  readTodoFile,
-  saveTodoFile,
+  resolveTodoId,
   strWidth,
 } from './todo.helpers.js';
+import { getActiveTodoBackend } from '../todo-backends/registry.js';
+import type { ProjectPaths } from '../core/paths.js';
 import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 const { prompt } = Enquirer;
 
@@ -263,11 +262,12 @@ interface AddBranchSelectionResult {
 }
 
 async function selectBranchForAdd(
-  configDir: string,
+  paths: ProjectPaths,
   mainDir: string,
   worktreesDir: string,
   mainBranch: string,
 ): Promise<AddBranchSelectionResult> {
+  const configDir = paths.configDir;
   type Choice =
     | { type: 'branch'; branch: string }
     | { type: 'create' }
@@ -305,8 +305,8 @@ async function selectBranchForAdd(
     t('commands.add.selectCreateBranchSummary'),
   );
 
-  const todoFile = await readTodoFile(configDir);
-  const pendingTodos = todoFile.todos.filter(item => item.status === 'pending');
+  const backend = await getActiveTodoBackend(paths);
+  const pendingTodos = await backend.list('pending');
   const categories = await getBranchCategories(configDir);
   const abbrMap = new Map(categories.map(c => [c.name, resolveAbbr(c)]));
   const maxTodoTypeW = pendingTodos.length > 0
@@ -409,7 +409,7 @@ async function addCommand(branchName?: string): Promise<void> {
     let resolvedBranchName = branchName;
     let selectedTodoMeta: SelectedTodoMeta | undefined;
     if (!resolvedBranchName) {
-      const selected = await selectBranchForAdd(paths.configDir, paths.mainDir, paths.worktreesDir, mainBranch);
+      const selected = await selectBranchForAdd(paths, paths.mainDir, paths.worktreesDir, mainBranch);
       resolvedBranchName = selected.branch;
       selectedTodoMeta = selected.selectedTodo;
     }
@@ -525,14 +525,11 @@ async function addCommand(branchName?: string): Promise<void> {
 
     // 由 Todo 入口创建分支时：同步标记完成，并输出 message + 复制剪贴板
     if (selectedTodoMeta) {
-      const { type, name } = parseTodoId(selectedTodoMeta.todoId);
-      const todoFile = await readTodoFile(paths.configDir);
-      const todoItem = findTodo(todoFile.todos, type, name);
+      const backend = await getActiveTodoBackend(paths);
+      const { type, name } = await resolveTodoId(backend, selectedTodoMeta.todoId);
+      const todoItem = await backend.find(type, name);
       if (todoItem && todoItem.status === 'pending') {
-        todoItem.status = 'completed';
-        todoItem.startedAt = new Date().toISOString();
-        todoItem.branch = cleanBranchName;
-        await saveTodoFile(paths.configDir, todoFile);
+        await backend.markStarted(type, name, cleanBranchName);
         outputSuccess(t('commands.todo.start.success', { todoId: selectedTodoMeta.todoId }));
       }
 

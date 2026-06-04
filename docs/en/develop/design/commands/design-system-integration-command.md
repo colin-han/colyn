@@ -11,7 +11,7 @@
 
 ### 1.1 Background
 
-After users install colyn globally via `npm install -g colyn`, the colyn command is available but lacks the following features:
+After users install colyn globally via `npm install -g colyn-cli`, the colyn command is available but lacks the following features:
 - Shell function wrapper (supporting `cd` directory switching)
 - Command auto-completion (Tab key completion)
 
@@ -25,7 +25,7 @@ Provide a simple command that automatically completes shell integration and comp
 
 - ✅ **One-click configuration**: No manual editing of shell config files
 - ✅ **Smart detection**: Automatically detect shell type and config file
-- ✅ **Completion support**: Auto-configure corresponding completion script (bash/zsh)
+- ✅ **Completion support**: Dynamically generate the completion script and cache it to `~/.config/colyn/completion.zsh`, sourced from the shell config (bash uses a static script)
 - ✅ **Safe updates**: Won't add duplicate configs, supports updating existing configs
 - ✅ **Clear prompts**: Inform users of configuration results and next steps
 
@@ -39,7 +39,7 @@ Provide a simple command that automatically completes shell integration and comp
 
 ```bash
 # Install colyn
-$ npm install -g colyn
+$ npm install -g colyn-cli
 
 # Configure shell integration
 $ colyn setup
@@ -51,7 +51,7 @@ Detecting system environment...
 
 Configuring shell integration...
 ✓ Added shell integration to ~/.zshrc
-✓ Added completion script to ~/.zshrc
+✓ Generated completion script cached to ~/.config/colyn/completion.zsh and sourced it in ~/.zshrc
 
 ✓ Installation complete!
 
@@ -78,7 +78,7 @@ Detecting system environment...
 
 Configuring shell integration...
 ✓ Updated shell integration config in ~/.zshrc
-✓ Updated completion script config
+✓ Regenerated completion script cache at ~/.config/colyn/completion.zsh
 
 ✓ Update complete!
 
@@ -212,6 +212,19 @@ Three phases:
      ✓ Use Tab key to auto-complete commands and arguments
    ```
 
+### 3.4 Claude Code Integration
+
+Besides shell integration, `colyn setup` also configures Claude Code integration (both are non-fatal: on failure they only warn and do not interrupt the flow):
+
+1. **Status hooks**: writes three hooks into `~/.claude/settings.json` so Claude Code session state syncs to worktree status in real time:
+   - `UserPromptSubmit` → `colyn status set running`
+   - `PreToolUse` (matcher `AskUserQuestion`) → `colyn status set waiting-confirm`
+   - `Stop` → `colyn status set finish`
+
+   These statuses appear in the status column of `colyn list`. The hook commands use the absolute path to the colyn binary, wrapped with `2>/dev/null || true` to avoid interfering with Claude Code.
+
+2. **Claude skills installation**: recursively copies Colyn's bundled `skills/<skill-name>/` directories into `~/.claude/skills/`, rewriting the `colyn` command in `SKILL.md` bash blocks to an absolute path.
+
 ---
 
 ## 4. Input and Output
@@ -245,7 +258,7 @@ Three phases:
 
 | Error Scenario | User Sees | How to Resolve |
 |---------------|-----------|----------------|
-| **Cannot find colyn.sh** | ✗ Cannot find shell integration script<br/>Path: /path/to/shell/colyn.sh | Check if colyn installation is complete<br/>Reinstall: npm install -g colyn |
+| **Cannot find colyn.sh** | ✗ Cannot find shell integration script<br/>Path: /path/to/shell/colyn.sh | Check if colyn installation is complete<br/>Reinstall: npm install -g colyn-cli |
 | **Cannot write config file** | ✗ Cannot write config file<br/>File: ~/.zshrc<br/>Error: Permission denied | Check file permissions<br/>Or manually add configuration |
 | **Windows platform** | ⚠ Windows platform auto-configuration not yet supported<br/>Please refer to documentation for manual configuration | See Windows configuration instructions in README.md |
 
@@ -282,6 +295,8 @@ Three phases:
 - [x] First-time configuration: Add source command to config file
 - [x] Update configuration: Replace existing source command path
 - [x] Auto-create config file when it doesn't exist
+- [x] Configure Claude Code status hooks (written to `~/.claude/settings.json`)
+- [x] Install Colyn's bundled Claude skills (copied to `~/.claude/skills/`)
 
 ### 7.2 Output Information
 
@@ -345,23 +360,24 @@ A: You need to reload the config file. You can:
 
 ```
 src/commands/
-  install.ts              # install command main file
-  install.helpers.ts      # helper functions
+  system-integration.ts          # setup command main file
+  system-integration.helpers.ts  # helper functions
 ```
 
 ### 10.2 Core Functions
 
 ```typescript
-// Detect shell config file
-async function detectShellConfig(): Promise<string>
+// Detect shell type and config file, returns ShellConfig (shellType / configPath / configExists)
+async function detectShellConfig(): Promise<ShellConfig>
 
 // Locate colyn.sh path
 function getColynShellPath(): string
 
-// Add/update configuration
+// Add/update configuration (completionPath is the optional completion-script cache path)
 async function updateShellConfig(
   configPath: string,
-  colynShellPath: string
+  colynShellPath: string,
+  completionPath?: string
 ): Promise<'added' | 'updated'>
 ```
 

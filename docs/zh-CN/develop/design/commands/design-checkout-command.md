@@ -30,13 +30,13 @@ colyn co [worktree-id] [branch]
 当未提供 `branch` 时，进入交互式选择器，列表顺序如下：
 
 1. `[新建分支]`（默认选中）
-2. `pending` Todo 对应分支
+2. 来自**当前 active backend** 的 `pending` Todo 对应分支
 3. 本地已存在分支（过滤主分支目录当前分支）
 
 交互式创建分支时，会先选择 `type`，再输入 `name`，最终拼接为 `type/name`。
 
 如果在列表中选择的是 `pending` Todo 对应分支，`checkout` 成功后会追加以下动作（与 `todo start` 对齐）：
-- 将该 Todo 标记为 `completed`
+- 将该 Todo 标记为 `in-progress`
 - 写入 `startedAt` 和 `branch`
 - 在终端输出该 Todo 的 message
 - 将 message 复制到系统剪贴板
@@ -111,7 +111,7 @@ colyn co [worktree-id] [branch]
 ### 执行后行为
 
 - 自动切换到目标 worktree 目录（通过 shell 函数）
-- 若分支来自 `pending` Todo 选择项，会自动完成该 Todo，并输出/复制 message
+- 若分支来自 `pending` Todo 选择项，会将该 Todo 置为 `in-progress`，并输出/复制 message
 
 ## 命令流程
 
@@ -243,7 +243,5 @@ flowchart TD
 | 退出码 | 说明 |
 |--------|------|
 | 0 | 成功 |
-| 1 | 有未提交的更改 / Git 操作失败 |
-| 2 | 目标分支是主分支 |
-| 3 | 目标分支已被其他 worktree 使用 |
-| 4 | 用户取消操作 |
+| 1 | 错误统一返回 1（有未提交的更改 / 目标分支是主分支 / 目标分支已被其他 worktree 使用 / Git 操作失败等） |
+| 4 | 用户取消未合并切换 |

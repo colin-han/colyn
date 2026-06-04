@@ -205,6 +205,30 @@ export const CommandsConfigSchema = z
 export type CommandsConfig = z.infer<typeof CommandsConfigSchema>;
 
 /**
+ * GitHub backend 专属配置
+ */
+export const GitHubTodoConfigSchema = z.object({
+  /** archived label 名；未配置时所有 closed(done) issue 视为 archived */
+  archivedLabel: z.string().nullable().default(null),
+  /** colyn type ↔ GitHub label 映射；未配置时按同名处理 */
+  typeLabels: z.record(z.string(), z.string()).default({}),
+});
+
+/**
+ * Todo backend 配置
+ */
+export const TodoConfigSchema = z.object({
+  /** 激活的 backend 名，默认 'local' */
+  backend: z.string().default('local'),
+  /** complete 标记 done 时是否自动归档，默认 false */
+  autoArchive: z.boolean().default(false),
+  /** GitHub backend 配置 */
+  github: GitHubTodoConfigSchema.default({ archivedLabel: null, typeLabels: {} }),
+});
+
+export type TodoConfig = z.infer<typeof TodoConfigSchema>;
+
+/**
  * Settings Schema 基础部分（不包含递归的 branchOverrides）
  */
 const SettingsSchemaBase = z.object({
@@ -238,6 +262,8 @@ const SettingsSchemaBase = z.object({
   branchCategories: z.array(BranchCategorySchema).optional(),
   /** 子命令的默认值配置 */
   commands: CommandsConfigSchema.optional(),
+  /** Todo backend 配置 */
+  todo: TodoConfigSchema.optional(),
 });
 
 /**

@@ -385,8 +385,11 @@ async function getProjectWorktrees(
   mainBranchPath: string
 ): Promise<ListItem[]>
 
-// 获取所有项目信息
-async function getAllProjects(): Promise<ProjectInfo[]>
+// 获取所有项目的概览信息（默认模式，不含 worktree 详情）
+async function getAllProjectSummaries(): Promise<ProjectSummary[]>
+
+// 获取所有项目的详情信息（--details 模式，含 worktree 列表）
+async function getAllProjectDetails(): Promise<ProjectDetail[]>
 ```
 
 ### 5.2 数据流
@@ -398,7 +401,8 @@ async function getAllProjects(): Promise<ProjectInfo[]>
   ↓
 校验项目目录结构
   ↓
-使用 getProjectWorktrees() 获取 worktree 列表
+默认模式：getAllProjectSummaries() 获取项目概览
+--details/--paths 模式：getAllProjectDetails() 经 getProjectWorktrees() 获取 worktree 列表
   ↓
 输出（表格/JSON/路径）
 ```

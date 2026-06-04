@@ -49,6 +49,7 @@ colyn release [version-type] [选项]
 - `--no-version-update` - 跳过读取版本、更新版本号、commit 和打 tag，仅推送当前分支（用于只想触发部署流水线的场景）
 - `--no-tag` - 仅跳过打 tag，版本号仍会更新并推送分支（用于由 CI 统一打 tag 的场景）
 - `--verbose` / `-v` - install/lint/build 失败时显示完整命令输出
+- `--no-verbose` - 显式关闭详细输出（用于覆盖已配置的默认值）
 
 示例：
 ```bash

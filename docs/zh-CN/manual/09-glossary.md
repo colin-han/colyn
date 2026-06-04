@@ -71,7 +71,7 @@ main                   # 主分支
 **定义**：Colyn 为每个 worktree 分配的唯一数字标识符。
 
 **在 Colyn 中的用法**：
-- 主分支固定显示为 ID `0-main`
+- 主分支固定为 ID `0`：`colyn list` 中显示为 `0`；`colyn list-project` 的 worktree 详情表中显示为 `0-main`
 - 其他 worktree 从 `1` 开始递增
 - ID 用于目录命名（`task-1`、`task-2` 等）
 - ID 用于端口分配（base port + ID）
@@ -84,7 +84,7 @@ colyn list
 ┌────────┬─────────────────────┬──────┐
 │ ID     │ 分支                │ 端口 │
 ├────────┼─────────────────────┼──────┤
-│ 0-main │ main                │ 3000 │
+│ 0      │ main                │ 3000 │
 │ 1      │ feature/auth        │ 3001 │
 │ 2      │ feature/tasks       │ 3002 │
 └────────┴─────────────────────┴──────┘

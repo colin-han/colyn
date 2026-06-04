@@ -64,8 +64,8 @@ Worktree      → tmux window (window index = worktree ID)
 | `colyn add` | 创建 window + 切换 | 正常创建 worktree |
 | `colyn checkout` | 更新 window 名称 | 切换目录 |
 | `colyn list` | 显示 window 编号 | 显示 ID 列 |
-| `colyn repair` | 修复缺失的 window | 创建 session + 修复 |
-| `colyn tmux` | tmux 修复/管理 | tmux 修复/管理 |
+| `colyn tmux start` | 启动 / 修复 session 和 window | 创建 session（detached）+ 修复缺失的 window |
+| `colyn tmux stop` | 结束当前项目的 session | `-f/--force` 跳过确认 |
 
 ---
 

@@ -11,7 +11,7 @@
 
 ### 1.1 背景
 
-用户通过 `npm install -g colyn` 全局安装后，colyn 命令虽然可用，但缺少以下功能：
+用户通过 `npm install -g colyn-cli` 全局安装后，colyn 命令虽然可用，但缺少以下功能：
 - Shell 函数封装（支持 `cd` 目录切换）
 - 命令自动完成（Tab 键补全）
 
@@ -25,7 +25,7 @@
 
 - ✅ **一键配置**：无需手动编辑 shell 配置文件
 - ✅ **智能检测**：自动检测 shell 类型和配置文件
-- ✅ **补全支持**：自动配置对应的补全脚本（bash/zsh）
+- ✅ **补全支持**：动态生成补全脚本并缓存到 `~/.config/colyn/completion.zsh`，在 shell 配置中 source（bash 使用静态脚本）
 - ✅ **安全更新**：不会重复添加配置，支持更新已有配置
 - ✅ **清晰提示**：告知用户配置结果和后续操作
 
@@ -39,7 +39,7 @@
 
 ```bash
 # 安装 colyn
-$ npm install -g colyn
+$ npm install -g colyn-cli
 
 # 配置 shell 集成
 $ colyn setup
@@ -51,7 +51,7 @@ $ colyn setup
 
 配置 shell 集成...
 ✓ 已添加 shell 集成到 ~/.zshrc
-✓ 已添加补全脚本到 ~/.zshrc
+✓ 已生成补全脚本缓存到 ~/.config/colyn/completion.zsh 并在 ~/.zshrc 中 source
 
 ✓ 安装完成！
 
@@ -78,7 +78,7 @@ $ colyn setup
 
 配置 shell 集成...
 ✓ 已更新 ~/.zshrc 中的 shell 集成配置
-✓ 已更新补全脚本配置
+✓ 已重新生成补全脚本缓存到 ~/.config/colyn/completion.zsh
 
 ✓ 更新完成！
 
@@ -212,6 +212,19 @@ source "/path/to/colyn/shell/colyn.sh"
      ✓ 使用 Tab 键可自动完成命令和参数
    ```
 
+### 3.4 Claude Code 集成
+
+除 shell 集成外，`colyn setup` 还会配置与 Claude Code 的集成（均为非致命操作，失败仅警告、不中断流程）：
+
+1. **状态 hooks**：在 `~/.claude/settings.json` 中写入三个 hook，使 Claude Code 会话状态实时同步到 worktree 状态：
+   - `UserPromptSubmit` → `colyn status set running`
+   - `PreToolUse`（matcher 为 `AskUserQuestion`）→ `colyn status set waiting-confirm`
+   - `Stop` → `colyn status set finish`
+
+   这些状态会显示在 `colyn list` 的状态列中。hook 命令使用 colyn 可执行文件的绝对路径，并以 `2>/dev/null || true` 包裹，避免影响 Claude Code 正常运行。
+
+2. **Claude skills 安装**：将 Colyn 内置的 `skills/<skill-name>/` 目录递归复制到 `~/.claude/skills/`，并把 `SKILL.md` 中 bash 代码块里的 `colyn` 命令替换为绝对路径。
+
 ---
 
 ## 4. 输入与输出
@@ -245,7 +258,7 @@ source "/path/to/colyn/shell/colyn.sh"
 
 | 错误场景 | 用户看到 | 如何解决 |
 |---------|---------|---------|
-| **找不到 colyn.sh** | ✗ 找不到 shell 集成脚本<br/>路径: /path/to/shell/colyn.sh | 检查 colyn 安装是否完整<br/>重新安装：npm install -g colyn |
+| **找不到 colyn.sh** | ✗ 找不到 shell 集成脚本<br/>路径: /path/to/shell/colyn.sh | 检查 colyn 安装是否完整<br/>重新安装：npm install -g colyn-cli |
 | **无法写入配置文件** | ✗ 无法写入配置文件<br/>文件: ~/.zshrc<br/>错误: Permission denied | 检查文件权限<br/>或手动添加配置 |
 | **Windows 平台** | ⚠ Windows 平台暂不支持自动配置<br/>请参考文档手动配置 | 查看 README.md 中的 Windows 配置说明 |
 
@@ -282,6 +295,8 @@ source "/path/to/colyn/shell/colyn.sh"
 - [x] 首次配置：添加 source 命令到配置文件
 - [x] 更新配置：替换现有的 source 命令路径
 - [x] 配置文件不存在时自动创建
+- [x] 配置 Claude Code 状态 hooks（写入 `~/.claude/settings.json`）
+- [x] 安装 Colyn 内置的 Claude skills（复制到 `~/.claude/skills/`）
 
 ### 7.2 输出信息
 
@@ -318,7 +333,7 @@ A: Windows 的 shell 环境（PowerShell/CMD）与 Unix shell 差异较大，需
 
 ### Q2: 如果我有多个 shell 配置文件怎么办？
 
-A: 命令会按优先级选择第一个存在的配置文件。如果你使用多个 shell，可以多次运行 `colyn install`，或手动添加配置到其他文件。
+A: 命令会按优先级选择第一个存在的配置文件。如果你使用多个 shell，可以多次运行 `colyn setup`，或手动添加配置到其他文件。
 
 ### Q3: 配置会不会破坏我现有的 shell 配置？
 
@@ -345,23 +360,24 @@ A: 需要重新加载配置文件。可以：
 
 ```
 src/commands/
-  install.ts              # install 命令主文件
-  install.helpers.ts      # 辅助函数
+  system-integration.ts          # setup 命令主文件
+  system-integration.helpers.ts  # 辅助函数
 ```
 
 ### 10.2 核心函数
 
 ```typescript
-// 检测 shell 配置文件
-async function detectShellConfig(): Promise<string>
+// 检测 shell 类型与配置文件，返回 ShellConfig（shellType / configPath / configExists）
+async function detectShellConfig(): Promise<ShellConfig>
 
 // 定位 colyn.sh 路径
 function getColynShellPath(): string
 
-// 添加/更新配置
+// 添加/更新配置（completionPath 为可选的补全脚本缓存路径）
 async function updateShellConfig(
   configPath: string,
-  colynShellPath: string
+  colynShellPath: string,
+  completionPath?: string
 ): Promise<'added' | 'updated'>
 ```
 
@@ -369,7 +385,7 @@ async function updateShellConfig(
 
 ## 11. 总结
 
-`colyn install` 命令核心价值：
+`colyn setup` 命令核心价值：
 
 ✅ **一键配置**：自动完成 shell 集成
 ✅ **智能检测**：自动识别 shell 类型和配置文件

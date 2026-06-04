@@ -15,6 +15,7 @@ This chapter provides a detailed overview of Colyn's configuration system, inclu
 7. [Configuration Management Commands](#configuration-management-commands)
 8. [Configuration Examples](#configuration-examples)
 9. [Configuration Versioning and Migration](#configuration-versioning-and-migration)
+10. [Todo Configuration Options](#todo-configuration-options)
 
 ---
 
@@ -85,7 +86,7 @@ mkdir -p ~/.config/colyn
 # Create user-level configuration file (JSON5 format)
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -95,7 +96,7 @@ EOF
 
 # Or use YAML format
 cat > ~/.config/colyn/settings.yaml << 'EOF'
-version: 3
+version: 4
 lang: zh-CN
 systemCommands:
   npm: yarn
@@ -105,7 +106,7 @@ EOF
 mkdir -p .colyn
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -223,7 +224,7 @@ The complete configuration file structure is as follows:
 ```typescript
 {
   // Configuration file version number (used for automatic migration)
-  "version": 3,
+  "version": 4,
 
   // Interface language
   "lang": "zh-CN" | "en",
@@ -289,7 +290,7 @@ The complete configuration file structure is as follows:
 ### version
 
 **Type**: `number`
-**Default**: `3` (current version)
+**Default**: `4` (current version)
 **Description**: Configuration file version number, used for automatic migration
 
 **Warning**: Do not modify this field manually; the system manages it automatically
@@ -397,10 +398,10 @@ cat .colyn/settings.json
 
 ```bash
 # Set user-level default package manager
-colyn config set npm yarn --user
+colyn config set systemCommands.npm yarn --user
 
 # Set project-level package manager
-colyn config set npm pnpm
+colyn config set systemCommands.npm pnpm
 ```
 
 #### systemCommands.claude
@@ -875,7 +876,7 @@ Colyn provides **system built-in default configuration** for certain branches, w
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true
@@ -905,7 +906,7 @@ Colyn provides **system built-in default configuration** for certain branches, w
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "en",
   "systemCommands": {
     "npm": "npm"
@@ -957,7 +958,7 @@ User-level Config:
   Status: Exists
   Content:
     {
-      "version": 3,
+      "version": 4,
       "lang": "zh-CN"
     }
 
@@ -966,7 +967,7 @@ Project-level Config:
   Status: Exists
   Content:
     {
-      "version": 3,
+      "version": 4,
       "tmux": {
         "layout": "three-pane"
       }
@@ -993,15 +994,19 @@ colyn config get <key> --user
 ```
 
 **Supported keys**:
-- `npm` - Package manager
 - `lang` - Interface language
-- `branchCategories` - Branch type list (returns the merged complete list, in JSON format)
+- `verbose` - Whether to show verbose output by default
+- `systemCommands.npm` / `systemCommands.claude` - System commands (package manager / Claude CLI)
+- `commands.merge.*` / `commands.update.*` / `commands.release.*` / `commands.checkout.fetch` - Default values for each command's switches
+- `branchCategories` - Branch type list (`get` only, returns the merged complete list, in JSON format)
+
+> See [Command Reference · config](04-command-reference/03-system-config.md) for the full list of configuration keys.
 
 **Examples**:
 
 ```bash
 # View the package manager for the current project
-colyn config get npm
+colyn config get systemCommands.npm
 
 # View the user-level language setting
 colyn config get lang --user
@@ -1027,13 +1032,16 @@ colyn config set <key> <value> --user
 colyn config set lang zh-CN --user
 
 # Set project-level package manager to yarn
-colyn config set npm yarn
+colyn config set systemCommands.npm yarn
 
 # Set user-level package manager to pnpm
-colyn config set npm pnpm --user
+colyn config set systemCommands.npm pnpm --user
+
+# Remove a configuration item, reverting to the built-in default
+colyn config unset systemCommands.npm
 ```
 
-**Note**: The `config set` command only supports the `npm` and `lang` configuration options. Tmux-related configuration requires manual editing of the configuration file.
+**Note**: `config set` / `config unset` support dotted keys such as `lang`, `verbose`, `systemCommands.*`, and `commands.*` (see [Command Reference · config](04-command-reference/03-system-config.md) for the full list). Tmux-related configuration requires manual editing of the configuration file.
 
 ---
 
@@ -1045,7 +1053,7 @@ If you are satisfied with the defaults, you do not need to create any configurat
 
 ```json
 {
-  "version": 3
+  "version": 4
 }
 ```
 
@@ -1060,7 +1068,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1072,7 +1080,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "layout": "three-pane",
     "autoRun": true,
@@ -1096,7 +1104,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1143,7 +1151,7 @@ If you do not want any commands to run automatically:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "autoRun": false,
     "layout": "three-pane"
@@ -1157,7 +1165,7 @@ Project-level configuration can be committed to version control so that team mem
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": {
     "npm": "pnpm",
     "claude": "claude --dangerously-skip-permissions"
@@ -1204,7 +1212,7 @@ git commit -m "Add team tmux configuration"
 
 Colyn uses version numbers to manage the evolution of configuration files. When the configuration structure changes, the system will **automatically migrate** your configuration.
 
-**Current version**: `3`
+**Current version**: `4`
 
 ### Configuration File Formats
 
@@ -1290,7 +1298,7 @@ Colyn supports multiple configuration file formats:
 }
 ```
 
-#### Version 2 to Version 3 (current version)
+#### Version 2 to Version 3
 
 **Date**: 2026-02-20
 
@@ -1375,7 +1383,7 @@ mv ~/.config/colyn/settings.json ~/.config/colyn/settings.json.bak
 # Create a new configuration
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "lang": "zh-CN"
 }
 EOF
@@ -1409,7 +1417,7 @@ rm ~/.config/colyn/settings.json  # user-level
 rm .colyn/settings.json           # project-level
 
 # Or set to empty configuration
-echo '{"version": 3}' > ~/.config/colyn/settings.json
+echo '{"version": 4}' > ~/.config/colyn/settings.json
 ```
 
 ### 3. Branch override configuration not taking effect?
@@ -1444,7 +1452,7 @@ echo '{"version": 3}' > ~/.config/colyn/settings.json
 cd project-a
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": { "npm": "yarn" }
 }
 EOF
@@ -1452,7 +1460,7 @@ EOF
 cd project-b
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 3,
+  "version": 4,
   "systemCommands": { "npm": "pnpm" }
 }
 EOF
@@ -1462,7 +1470,7 @@ EOF
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "tmux": {
     "autoRun": false
   }
@@ -1473,11 +1481,133 @@ Or for a specific branch:
 
 ```json
 {
-  "version": 3,
+  "version": 4,
   "branchOverrides": {
     "main": {
       "tmux": {
         "autoRun": false
+      }
+    }
+  }
+}
+```
+
+---
+
+## Todo Configuration Options
+
+The `todo` configuration group controls the storage backend and related behavior for the `todo` command.
+
+### todo.backend
+
+**Type**: `"local" | "github"`
+**Default**: `"local"`
+**Description**: Select the storage backend for todos
+
+| Value | Description |
+|-------|-------------|
+| `"local"` | Stores todos in a local `todo.json` file under the project directory |
+| `"github"` | Stores todos as GitHub Issues in the current repository |
+
+**Prerequisites (when using `"github"`)**:
+- `gh` (GitHub CLI) is installed and authenticated
+- The `origin` remote of the current repository points to GitHub
+
+**Command-line configuration**:
+
+```bash
+# Switch to the GitHub Issues backend
+colyn config set todo.backend github
+
+# Switch back to the local backend
+colyn config set todo.backend local
+```
+
+---
+
+### todo.autoArchive
+
+**Type**: `boolean`
+**Default**: `false`
+**Description**: When enabled, running `todo complete` to mark a todo as done will also archive it automatically
+
+**Command-line configuration**:
+
+```bash
+# Enable auto-archive
+colyn config set todo.autoArchive true
+
+# Disable auto-archive
+colyn config set todo.autoArchive false
+```
+
+---
+
+### todo.github.archivedLabel
+
+**Type**: `string` (optional)
+**Default**: Not set
+**Description**: GitHub backend only — the name of a GitHub label used to distinguish the "done" state from the "archived" state
+
+**Behavior**:
+
+| Configuration | done | archived |
+|---------------|------|----------|
+| Not set (default) | closed issue | closed issue (all closed issues are treated as archived) |
+| Label name set | closed issue (**without** the label) | closed issue (**with** the label) |
+
+**Command-line configuration**:
+
+```bash
+# Set the archived label (e.g., a label named "archived")
+colyn config set todo.github.archivedLabel archived
+```
+
+---
+
+### todo.github.typeLabels
+
+**Type**: `object` (optional; both keys and values are `string`)
+**Default**: `{}`
+**Description**: GitHub backend only — defines a mapping between colyn branch types and GitHub labels
+
+**Note**: This field is an object map and **cannot be set via `config set`**. You must edit `.colyn/settings.json` directly.
+
+**Configuration example**:
+
+```jsonc
+{
+  "todo": {
+    "backend": "github",
+    "github": {
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug"
+      }
+    }
+  }
+}
+```
+
+**Explanation**: The example above maps the colyn type `feature` to the GitHub label `enhancement` and `bugfix` to `bug`. Types not listed in the mapping will not have any extra label applied.
+
+---
+
+### Todo Configuration Example
+
+**Using the GitHub Issues backend (full configuration)**:
+
+```jsonc
+{
+  "version": 3,
+  "todo": {
+    "backend": "github",
+    "autoArchive": true,
+    "github": {
+      "archivedLabel": "archived",
+      "typeLabels": {
+        "feature": "enhancement",
+        "bugfix": "bug"
       }
     }
   }
@@ -1527,7 +1657,7 @@ Since v3.3, you can set project-level or user-level defaults for boolean options
 
 | Field | Default | CLI On | CLI Off | Description |
 |-------|---------|--------|---------|-------------|
-| `update` | `true` | `--update` | `--no-update` | Update dependencies before release |
+| `update` | `true` | `--update` | `--no-update` | Automatically update all worktrees after a successful release |
 | `build` | `true` | `--build` | `--no-build` | Run build before release |
 | `tag` | `true` | `--tag` | `--no-tag` | Create git tag |
 | `versionUpdate` | `true` | `--version-update` | `--no-version-update` | Update version number |

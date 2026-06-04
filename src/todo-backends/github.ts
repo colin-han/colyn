@@ -1,0 +1,283 @@
+import { execSync } from 'child_process';
+import type { TodoItem } from '../types/index.js';
+import { ColynError } from '../types/index.js';
+import type { TodoBackend, TodoFilter, AddTodoInput, TodoBackendProvider, TodoBackendDetectContext } from '../types/todo-backend.js';
+import type { ProjectPaths } from '../core/paths.js';
+import type { TodoConfig } from '../core/config-schema.js';
+import { runGh, ensureGhRepo, isGhInstalled, isGhAuthed, ghInstallHint } from './gh.js';
+import { branchExistsAnywhere, getOriginUrl } from '../core/git.js';
+import { outputInfo, outputWarning } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
+import Enquirer from 'enquirer';
+
+const WONTFIX_LABEL = 'wontfix';
+
+const GH_INSTALL_URL = 'https://cli.github.com';
+
+const DEFAULT_TYPE = 'issue';
+
+const ISSUE_FETCH_LIMIT = 1000;
+
+function hasBrew(): boolean {
+  try {
+    execSync('which brew', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+interface GhConfig {
+  archivedLabel: string | null;
+  typeLabels: Record<string, string>;
+}
+
+interface GhIssue {
+  number: number;
+  title: string;
+  body: string;
+  labels: Array<{ name: string }>;
+  createdAt?: string;
+}
+
+export class GitHubIssuesBackend implements TodoBackend {
+  readonly name = 'github';
+  readonly displayName = 'GitHub Issues';
+  readonly assignsName = true;
+
+  constructor(private readonly config: GhConfig) {}
+
+  /** colyn type → GitHub label（有映射用映射值，否则原样返回 type）*/
+  private typeToLabel(type: string): string {
+    return this.config.typeLabels[type] ?? type;
+  }
+
+  /** GitHub label 列表 → colyn type（取首个命中映射或同名的 label）*/
+  private labelsToType(labels: string[]): string {
+    const reverse = new Map(
+      Object.entries(this.config.typeLabels).map(([t, l]) => [l, t])
+    );
+    const managed = new Set<string>([WONTFIX_LABEL]);
+    if (this.config.archivedLabel) managed.add(this.config.archivedLabel);
+    for (const label of labels) {
+      if (managed.has(label)) continue;
+      const mapped = reverse.get(label);
+      if (mapped) return mapped;
+    }
+    const first = labels.find((l) => !managed.has(l));
+    return first ?? DEFAULT_TYPE;
+  }
+
+  private issueToTodo(issue: GhIssue, status: TodoItem['status']): TodoItem {
+    const labelNames = issue.labels.map((l) => l.name);
+    const message = issue.body ? `${issue.title}\n${issue.body}` : issue.title;
+    return {
+      type: this.labelsToType(labelNames),
+      name: String(issue.number),
+      message,
+      status,
+      createdAt: issue.createdAt ?? '',
+    };
+  }
+
+  private fetchIssues(state: 'open' | 'closed'): GhIssue[] {
+    ensureGhRepo();
+    const out = runGh([
+      'issue', 'list', '--state', state, '--limit', String(ISSUE_FETCH_LIMIT),
+      '--json', 'number,title,body,labels,createdAt',
+    ]);
+    let issues: GhIssue[];
+    try {
+      issues = JSON.parse(out) as GhIssue[];
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'invalid JSON from gh';
+      throw new ColynError(t('commands.todo.backend.ghFailed', { detail }));
+    }
+    if (issues.length >= ISSUE_FETCH_LIMIT) {
+      outputWarning(t('commands.todo.backend.ghListTruncated', { limit: ISSUE_FETCH_LIMIT }));
+    }
+    return issues;
+  }
+
+  private hasLabel(issue: GhIssue, label: string): boolean {
+    return issue.labels.some((l) => l.name === label);
+  }
+
+  async list(filter: TodoFilter): Promise<TodoItem[]> {
+    if (filter === 'pending' || filter === 'in-progress') {
+      const open = this.fetchIssues('open').filter(
+        (i) => !this.hasLabel(i, WONTFIX_LABEL)
+      );
+      const result: TodoItem[] = [];
+      for (const issue of open) {
+        const type = this.labelsToType(issue.labels.map((l) => l.name));
+        const branch = `${type}/${issue.number}`;
+        const started = await branchExistsAnywhere(branch);
+        const status: TodoItem['status'] = started ? 'in-progress' : 'pending';
+        if (status === filter) result.push(this.issueToTodo(issue, status));
+      }
+      return result;
+    }
+
+    // done / archived
+    const closed = this.fetchIssues('closed').filter(
+      (i) => !this.hasLabel(i, WONTFIX_LABEL)
+    );
+    if (!this.config.archivedLabel) {
+      // archivedLabel 未配置：所有 closed 都归为 archived，done 为空
+      if (filter === 'archived') {
+        return closed.map((i) => this.issueToTodo(i, 'done'));
+      }
+      return [];
+    }
+    const label = this.config.archivedLabel;
+    const matched =
+      filter === 'archived'
+        ? closed.filter((i) => this.hasLabel(i, label))
+        : closed.filter((i) => !this.hasLabel(i, label));
+    return matched.map((i) => this.issueToTodo(i, 'done'));
+  }
+
+  /** issue 号校验：非纯数字直接返回 null，避免把非法 name 传给 gh */
+  async find(type: string, name: string): Promise<TodoItem | null> {
+    if (!/^\d+$/.test(name)) return null;
+    ensureGhRepo();
+    try {
+      const out = runGh([
+        'issue', 'view', name, '--json', 'number,title,body,labels,state,createdAt',
+      ]);
+      const issue = JSON.parse(out) as GhIssue & { state: string };
+      if (this.hasLabel(issue, WONTFIX_LABEL)) return null;
+      const isClosed = issue.state.toLowerCase() === 'closed';
+      const status: TodoItem['status'] = isClosed
+        ? 'done'
+        : (await branchExistsAnywhere(`${type}/${name}`))
+          ? 'in-progress'
+          : 'pending';
+      return this.issueToTodo(issue, status);
+    } catch {
+      return null;
+    }
+  }
+
+  /** 校验 name 为纯数字，否则抛错 */
+  private assertIssueNumber(name: string): void {
+    if (!/^\d+$/.test(name)) {
+      throw new ColynError(t('commands.todo.backend.invalidIssueNumber', { name }));
+    }
+  }
+
+  /** 拆分 message 为 title（首行）和 body（其余） */
+  private splitMessage(message: string): { title: string; body: string } {
+    const idx = message.indexOf('\n');
+    if (idx === -1) return { title: message, body: '' };
+    return { title: message.slice(0, idx), body: message.slice(idx + 1) };
+  }
+
+  async add(input: AddTodoInput): Promise<TodoItem> {
+    ensureGhRepo();
+    const { title, body } = this.splitMessage(input.message);
+    const out = runGh([
+      'issue', 'create', '--title', title, '--body', body,
+      '--label', this.typeToLabel(input.type),
+    ]);
+    const number = out.split('/').pop()?.trim() ?? '';
+    return {
+      type: input.type,
+      name: number,
+      message: input.message,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  async markStarted(_type: string, _name: string, _branch: string): Promise<void> {
+    // in-progress 靠分支推断，IMS 侧无需操作
+  }
+
+  async markDone(_type: string, name: string): Promise<void> {
+    ensureGhRepo();
+    this.assertIssueNumber(name);
+    runGh(['issue', 'close', name]);
+  }
+
+  async reopen(_type: string, name: string): Promise<void> {
+    ensureGhRepo();
+    this.assertIssueNumber(name);
+    runGh(['issue', 'reopen', name]);
+  }
+
+  async edit(_type: string, name: string, message: string): Promise<void> {
+    ensureGhRepo();
+    this.assertIssueNumber(name);
+    const { title, body } = this.splitMessage(message);
+    runGh(['issue', 'edit', name, '--title', title, '--body', body]);
+  }
+
+  async remove(_type: string, name: string): Promise<void> {
+    ensureGhRepo();
+    this.assertIssueNumber(name);
+    runGh(['issue', 'edit', name, '--add-label', WONTFIX_LABEL]);
+    runGh(['issue', 'close', name]);
+  }
+
+  async archive(): Promise<void> {
+    const label = this.config.archivedLabel;
+    if (!label) return;
+    const closed = this.fetchIssues('closed')
+      .filter((i) => !this.hasLabel(i, WONTFIX_LABEL) && !this.hasLabel(i, label));
+    for (const issue of closed) {
+      runGh(['issue', 'edit', String(issue.number), '--add-label', label]);
+    }
+  }
+}
+
+export const githubProvider: TodoBackendProvider = {
+  name: 'github',
+  displayName: 'GitHub Issues',
+  async detect(ctx: TodoBackendDetectContext): Promise<boolean> {
+    const url = await getOriginUrl(ctx.mainDirPath);
+    return !!url && url.includes('github.com');
+  },
+  async setup(ctx: TodoBackendDetectContext): Promise<void> {
+    if (!isGhInstalled()) {
+      if (ctx.nonInteractive) {
+        throw new ColynError(t('commands.todo.backend.ghNotInstalled', { install: ghInstallHint() }));
+      }
+      if (process.platform === 'darwin' && hasBrew()) {
+        const { confirmed } = await (Enquirer as unknown as {
+          prompt: (q: unknown) => Promise<{ confirmed: boolean }>;
+        }).prompt({
+          type: 'confirm',
+          name: 'confirmed',
+          message: t('commands.todo.backend.ghInstallPrompt'),
+          initial: true,
+          stdout: process.stderr,
+        });
+        if (confirmed) {
+          outputInfo(t('commands.todo.backend.ghInstalling'));
+          try {
+            execSync('brew install gh', { stdio: 'inherit' });
+          } catch {
+            throw new ColynError(t('commands.todo.backend.ghInstallFailed', { url: GH_INSTALL_URL }));
+          }
+        }
+      } else {
+        outputInfo(t('commands.todo.backend.ghInstallGuide', { url: GH_INSTALL_URL }));
+      }
+      if (!isGhInstalled()) {
+        throw new ColynError(t('commands.todo.backend.ghNotInstalled', { install: ghInstallHint() }));
+      }
+    }
+    if (!isGhAuthed()) {
+      outputWarning(t('commands.todo.backend.ghAuthHint'));
+      return;
+    }
+    if (!ctx.nonInteractive) {
+      outputInfo(t('commands.todo.backend.ghReady'));
+    }
+  },
+  create(_paths: ProjectPaths, config: TodoConfig): TodoBackend {
+    return new GitHubIssuesBackend(config.github);
+  },
+};

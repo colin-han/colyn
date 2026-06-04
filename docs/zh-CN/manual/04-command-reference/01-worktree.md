@@ -158,7 +158,7 @@ colyn add [branch]
 - 自动分配 ID（递增）
 - 自动分配端口号（主端口 + ID）
 - 复制主分支环境变量并更新 PORT 和 WORKTREE
-- 执行后自动切换到 Worktree 目录
+- 执行后自动切换到 Worktree 目录（需启用 shell 集成）
 
 **tmux 集成**（如果在 tmux 中）：
 - 自动创建新的 tmux window
@@ -192,25 +192,29 @@ $ pwd
 ✔ 使用本地分支: feature/login
 ✔ Worktree 创建完成: task-1
 ✔ 环境变量配置完成
-✔ 配置文件更新完成
 
 ✓ Worktree 创建成功！
 
 Worktree 信息：
   ID: 1
   分支: feature/login
-  路径: /path/to/worktrees/task-1
+  路径: worktrees/task-1
   端口: 10001
 
 后续操作：
-  1. 启动开发服务器（端口已自动配置）：
+  1. 进入 worktree 目录：
+     cd worktrees/task-1
+
+  2. 启动开发服务器（端口已自动配置）：
      npm run dev
 
-  2. 查看所有 worktree：
+  3. 查看所有 worktree：
      colyn list
 
-📂 已切换到: /path/to/worktrees/task-1
+📂 已切换到: worktrees/task-1
 ```
+
+> 说明：若已启用 shell 集成，命令会自动切换到 worktree 目录（即末尾的 `📂 已切换到`），上面第 1 步的 `cd` 可省略；未启用 shell 集成时则需手动执行该 `cd`。
 
 创建后的目录结构：
 
@@ -239,7 +243,7 @@ my-project/
 - 分支名会自动去除 `origin/` 前缀
 - 交互选择器中的本地分支会自动忽略主分支目录当前分支
 - 交互选择器中若选择 Todo 分支，会自动完成 Todo 并复制 message 到剪贴板
-- 命令执行后会自动切换到新创建的 worktree 目录
+- 启用 shell 集成后（运行 `colyn setup` 即可配置），命令执行后会自动切换到新创建的 worktree 目录；未启用时不会切换，可按提示手动 `cd`
 
 ---
 
@@ -339,8 +343,8 @@ colyn list [选项]
 #### 1. 表格格式（默认）
 - 彩色输出，美观易读
 - 当前所在 worktree 用 `→` 箭头标识
-- 主分支 ID 显示为 `0-main`
-- 显示 `Git`（工作区变更）、`Diff`（与主分支差异）、`Status`（工作流状态）
+- 主分支 ID 显示为 `0`
+- 显示 `Git`（工作区变更）、`Diff`（与主分支差异）、`Remote`（与远程分支差异）、`Status`（工作流状态）
 - 响应式布局：根据终端宽度自动调整显示列
 
 #### 2. JSON 格式（`--json`）
@@ -364,16 +368,19 @@ colyn list [选项]
 ```bash
 $ colyn list
 
-ID      Branch            Port   Git       Diff    Path              Status
-  0-main main             10000            -       my-app
-  1      feature/login    10001  M:3 S:1   ↑2 ↓1   worktrees/task-1  running
-→ 2      feature/ui       10002            ✓       worktrees/task-2
+ID   Branch            Port   Git       Diff    Remote  Path              Status
+  0  main              10000            -       ✓       my-app
+  1  feature/login     10001  M:3 S:1   ↑2 ↓1   ↑1      worktrees/task-1  running
+→ 2  feature/ui        10002            ✓       -       worktrees/task-2
 ```
 
 **说明：**
+- 列顺序：`ID` / `Branch` / `Port` / `Git` / `Diff` / `Remote` / `Path` / `Status`
 - `→` 箭头标识当前所在的 worktree，整行青色高亮
+- 主分支 ID 显示为 `0`
 - `Git`: 未提交修改统计（`M` 已修改，`S` 已暂存，`?` 未跟踪）
 - `Diff`: 与主分支的提交差异（↑领先 ↓落后 ✓已同步）
+- `Remote`: 与远程跟踪分支的提交差异（↑领先 ↓落后 ✓已同步，无远程分支时为 `-`）
 - `Status`: 工作流状态（`idle` 时为空，其他为 `running` / `waiting-confirm` / `finish`）
 - 窄屏时 `Status` 会压缩为 `st.` 列，符号为 `▶ / ? / ✓`
 
@@ -394,6 +401,7 @@ $ colyn list --json
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
     "diff": { "ahead": 0, "behind": 0 },
+    "remoteDiff": { "ahead": 0, "behind": 0 },
     "worktreeStatus": "idle"
   },
   {
@@ -405,6 +413,7 @@ $ colyn list --json
     "isCurrent": false,
     "status": { "modified": 3, "staged": 1, "untracked": 2 },
     "diff": { "ahead": 2, "behind": 1 },
+    "remoteDiff": { "ahead": 1, "behind": 0 },
     "worktreeStatus": "running"
   }
 ]
@@ -456,7 +465,7 @@ $ colyn list --json | jq '.[] | select(.isMain == false) | .path'
 
 - 可以在项目的任意位置运行
 - 路径输出为相对于项目根目录的相对路径
-- 主分支的 ID 显示为 `0-main`
+- 主分支的 ID 显示为 `0`
 - 终端窄时表格会按实现自动切换显示模式（`full` → `no-port` → `no-path` → `compress-wt` → `simple-git` → `no-git` → `no-diff` → `minimal`）
 
 ---
@@ -480,15 +489,17 @@ colyn lsp [选项]        # 使用别名
 |------|--------|------|--------|
 | `--json` | - | 以 JSON 格式输出 | 否 |
 | `--paths` | `-p` | 只输出路径（每行一个） | 否 |
+| `--details` | `-d` | 显示各项目的 Worktree 详情 | 否（仅显示项目概览） |
 
 ### 功能说明
 
-`colyn list-project` 通过全局状态索引文件 `~/.colyn-status.json` 获取项目列表，并显示每个项目的 worktree 信息。
+`colyn list-project` 通过全局状态索引文件 `~/.colyn-status.json` 获取项目列表，并显示项目信息。
 
 **核心特性：**
 - 跨项目查看：一次性查看全局状态索引中的 colyn 项目
 - 完全复用 `list` 命令的数据结构和输出格式
 - 支持三种输出模式：表格、JSON、路径
+- 默认只输出项目概览表；加上 `--details` 才额外输出各项目的 Worktree 详情表
 
 **与 `list` 命令的区别：**
 - `list` - 查看**当前项目**的所有 worktree
@@ -500,7 +511,7 @@ colyn lsp [选项]        # 使用别名
 
 ### 示例
 
-**表格格式（默认）：**
+**表格格式（默认）：** 默认只输出项目概览表，不含 Worktree 详情。
 
 ```bash
 $ colyn list-project
@@ -511,14 +522,27 @@ $ colyn list-project
 │ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
 │ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
 └─────────┴──────────────────┴───────────┴─────────────────────┘
+```
+
+**详情格式（`--details`）：** 在项目概览表之外，额外输出各项目的 Worktree 详情表。
+
+```bash
+$ colyn list-project --details
+
+┌─────────┬──────────────────┬───────────┬─────────────────────┐
+│ Project │ Path             │ Worktrees │ Updated             │
+├─────────┼──────────────────┼───────────┼─────────────────────┤
+│ backend │ /path/to/backend │ 2         │ 2026/02/23 20:30:00 │
+│ colyn   │ /path/to/colyn   │ 4         │ 2026/02/23 20:28:11 │
+└─────────┴──────────────────┴───────────┴─────────────────────┘
 
 backend 的 Worktrees:
-┌──────────┬──────────────┬──────┬────────┬──────┬──────────────────┐
-│ ID       │ Branch       │ Port │ Status │ Diff │ Path             │
-├──────────┼──────────────┼──────┼────────┼──────┼──────────────────┤
-│   0-main │ develop      │ 3010 │        │ -    │ backend          │
-│   1      │ feature/auth │ 3011 │        │ ✓    │ worktrees/task-1 │
-└──────────┴──────────────┴──────┴────────┴──────┴──────────────────┘
+┌──────────┬──────────────┬──────┬─────┬──────┬──────────────────┐
+│ ID       │ Branch       │ Port │ Git │ Diff │ Path             │
+├──────────┼──────────────┼──────┼─────┼──────┼──────────────────┤
+│   0-main │ develop      │ 3010 │     │ -    │ backend          │
+│   1      │ feature/auth │ 3011 │     │ ✓    │ worktrees/task-1 │
+└──────────┴──────────────┴──────┴─────┴──────┴──────────────────┘
 ```
 
 **路径格式：**
@@ -571,14 +595,16 @@ colyn merge [target] [选项]
 
 ### 选项
 
-| 选项 | 说明 |
-|------|------|
-| `--no-rebase` | 使用 merge 而非 rebase 更新 worktree |
-| `--no-update` | 合并后不自动更新当前 worktree |
-| `--update-all` | 合并后更新所有 worktrees |
-| `--no-fetch` | 跳过从远程拉取主分支最新代码 |
-| `--skip-build` | 跳过 lint 和 build 检查 |
-| `--verbose` / `-v` | 显示 lint/build 的完整命令输出（失败时） |
+所有开关型选项都有正 / 反两种形式，默认值可通过 `.colyn/settings.json` 的 `commands.merge.*` 覆盖（见配置手册）。
+
+| 选项 | 默认 | 说明 |
+|------|------|------|
+| `--build` / `--no-build` | `--build` | 是否运行工具链插件的 lint 和 build 检查；`--no-build` 跳过 |
+| `--rebase` / `--no-rebase` | `--rebase` | 更新 worktree 时使用 rebase；`--no-rebase` 改用 merge |
+| `--update` / `--no-update` | `--update` | 合并后是否用主分支最新代码自动更新 worktree |
+| `--fetch` / `--no-fetch` | `--fetch` | 更新前是否从远程 fetch 主分支最新代码 |
+| `--all` / `--no-all`（别名 `--current-only`） | `--all` | 更新范围：所有 worktree 还是仅当前 worktree（仅在 `--update` 生效时有意义） |
+| `-v, --verbose` / `--no-verbose` | `--no-verbose` | 是否显示 lint/build 的完整命令输出（失败时） |
 
 ### 功能说明
 
@@ -591,6 +617,10 @@ colyn merge [target] [选项]
 **步骤 2：在主分支中合并 Worktree 分支**
 - 在主分支中执行 `git merge --no-ff <branch>`
 - 强制创建合并提交，保持清晰的分支历史
+
+**步骤 3：合并后自动更新 worktree（默认行为）**
+- 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）
+- 默认更新**所有** worktree，使其同步主分支最新代码（`--current-only` 仅更新当前 worktree；`--no-update` 完全跳过更新，此时 `--all` 不生效）
 
 **前置检查：**
 - 主分支工作目录必须干净

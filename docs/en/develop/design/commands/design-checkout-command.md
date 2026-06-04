@@ -30,13 +30,13 @@ colyn co [worktree-id] [branch]
 When `branch` is omitted, checkout enters an interactive selector with this order:
 
 1. `[Create new branch]` (default selected)
-2. Branches from `pending` todos
+2. `pending` todo branches from the **current active backend** (local or github)
 3. Existing local branches (excluding the current branch in the main-branch directory)
 
 When creating a new branch interactively, it first asks for `type`, then `name`, and combines them as `type/name`.
 
 If the selected item comes from a `pending` todo, `checkout` performs post-actions aligned with `todo start` after success:
-- Mark the todo as `completed`
+- Mark the todo as `in-progress`
 - Record `startedAt` and `branch`
 - Print the todo message in terminal
 - Copy the message to system clipboard
@@ -101,7 +101,7 @@ After successful switch, if the old branch has been merged to main, prompt user 
 ### Post-execution Behavior
 
 - Automatically switch to target worktree directory (via shell function)
-- If the branch comes from a pending todo selection, automatically complete that todo and print/copy its message
+- If the branch comes from a `pending` todo selection, mark that todo as `in-progress` and print/copy its message
 
 ## Command Flow
 
@@ -233,7 +233,5 @@ Hint: Please use the main branch directory directly
 | Exit Code | Description |
 |-----------|-------------|
 | 0 | Success |
-| 1 | Uncommitted changes / Git operation failed |
-| 2 | Target branch is main branch |
-| 3 | Target branch already used by another worktree |
-| 4 | User cancelled operation |
+| 1 | All errors return 1 (uncommitted changes / target branch is main branch / target branch already used by another worktree / Git operation failed, etc.) |
+| 4 | User cancelled an unmerged switch |

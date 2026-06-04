@@ -56,10 +56,10 @@ If your project uses yarn or pnpm:
 
 ```bash
 # Set the user-level default package manager
-colyn config set npm yarn --user
+colyn config set systemCommands.npm yarn --user
 
 # Set for a specific project
-colyn config set npm pnpm
+colyn config set systemCommands.npm pnpm
 ```
 
 ### Viewing Configuration Values
@@ -69,7 +69,7 @@ colyn config set npm pnpm
 colyn config get lang
 
 # View the user-level package manager setting
-colyn config get npm --user
+colyn config get systemCommands.npm --user
 ```
 
 ---
@@ -101,7 +101,7 @@ colyn list
 # ┌────────┬──────────────────────┬──────┐
 # │ ID     │ Branch               │ Port │
 # ├────────┼──────────────────────┼──────┤
-# │ 0-main │ main                 │ 3000 │
+# │ 0      │ main                 │ 3000 │
 # │ 1      │ feature/auth       * │ 3001 │
 # │ 2      │ feature/dashboard    │ 3002 │
 # │ 3      │ feature/notifications│ 3003 │
@@ -131,14 +131,14 @@ Example output:
 ```json
 [
   {
-    "id": "0-main",
+    "id": null,
     "branch": "main",
     "port": 3000,
     "path": "/path/to/project/my-project",
     "isCurrent": false
   },
   {
-    "id": "1",
+    "id": 1,
     "branch": "feature/login",
     "port": 3001,
     "path": "/path/to/project/worktrees/task-1",
@@ -444,17 +444,17 @@ $ colyn repair
 colyn merge 1
 ```
 
-**Merge and push**:
+**Merge**:
 
 ```bash
-colyn merge 1 --push
+colyn merge 1
 ```
 
 **Auto-detection in the worktree directory**:
 
 ```bash
 cd worktrees/task-1
-colyn merge --push
+colyn merge
 ```
 
 ### Advanced Usage of the Remove Command
@@ -626,7 +626,7 @@ alias cr='colyn remove'
 alias co='colyn checkout'  # Note: colyn already has a built-in co alias
 
 # Aliases with options
-alias cmp='colyn merge --push'    # Merge and push
+alias cmp='colyn merge'    # Merge
 alias clj='colyn list --json'     # JSON format list
 alias cln='colyn list --no-color' # No-color list
 ```
@@ -635,7 +635,7 @@ Using aliases:
 
 ```bash
 ca feature/new-feature  # Same as colyn add feature/new-feature
-cmp 1                   # Same as colyn merge 1 --push
+cmp 1                   # Same as colyn merge 1
 ```
 
 ---
@@ -653,7 +653,7 @@ colyn add feature/user-profile
 # Develop...
 
 # Merge when done
-colyn merge feature/user-profile --push
+colyn merge feature/user-profile
 
 # Clean up
 colyn remove feature/user-profile
@@ -667,8 +667,8 @@ colyn add hotfix/security-patch
 
 # Fix...
 
-# Quickly merge and push
-colyn merge hotfix/security-patch --push
+# Quickly merge
+colyn merge hotfix/security-patch
 
 # Remove immediately
 colyn remove hotfix/security-patch -y
@@ -683,7 +683,7 @@ colyn add release/v1.2.0
 # Version preparation, testing...
 
 # Merge to Main branch
-colyn merge release/v1.2.0 --push
+colyn merge release/v1.2.0
 ```
 
 ---

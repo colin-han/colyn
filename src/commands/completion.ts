@@ -191,6 +191,7 @@ _colyn() {
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
                                         'commands.checkout.fetch'
+                                        'todo.backend' 'todo.autoArchive' 'todo.github.archivedLabel'
                                         'branchCategories'
                                     )
                                     _describe 'config keys' keys
@@ -204,6 +205,7 @@ _colyn() {
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
                                         'commands.checkout.fetch'
+                                        'todo.backend' 'todo.autoArchive' 'todo.github.archivedLabel'
                                     )
                                     _describe 'config keys' keys
                                     ;;
@@ -216,6 +218,7 @@ _colyn() {
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
                                         'commands.checkout.fetch'
+                                        'todo.backend' 'todo.autoArchive' 'todo.github.archivedLabel'
                                     )
                                     _describe 'config keys' keys
                                     ;;
@@ -268,6 +271,7 @@ _colyn() {
                         'complete:${e(t('commands.todo.complete.description'))}'
                         'uncomplete:${e(t('commands.todo.uncomplete.description'))}'
                         'edit:${e(t('commands.todo.edit.description'))}'
+                        'migrate-local:${e(t('commands.todo.migrateLocal.description'))}'
                     )
 
                     _arguments -C \\
@@ -293,7 +297,9 @@ _colyn() {
                                     ;;
                                 list|ls)
                                     _arguments \\
-                                        '--completed[${e(t('commands.todo.list.completedOption'))}]' \\
+                                        '--done[${e(t('commands.todo.list.doneOption'))}]' \\
+                                        '--in-progress[${e(t('commands.todo.list.inProgressOption'))}]' \\
+                                        '--all[${e(t('commands.todo.list.allOption'))}]' \\
                                         '--archived[${e(t('commands.todo.list.archivedOption'))}]' \\
                                         '--id-only[${e(t('commands.todo.list.idOnlyOption'))}]'
                                     ;;
@@ -308,11 +314,11 @@ _colyn() {
                                     ;;
                                 complete)
                                     _arguments \\
-                                        '1: :_colyn_todo_ids'
+                                        '1: :_colyn_todo_in_progress_ids'
                                     ;;
                                 uncomplete)
                                     _arguments \\
-                                        '1: :_colyn_todo_completed_ids'
+                                        '1: :_colyn_todo_done_ids'
                                     ;;
                             esac
                             ;;
@@ -330,11 +336,18 @@ _colyn_todo_ids() {
     _describe 'todo IDs' todos
 }
 
-# Todo completed ID completion
-_colyn_todo_completed_ids() {
+# Todo in-progress ID completion
+_colyn_todo_in_progress_ids() {
     local -a todos
-    todos=(\${(f)"$(colyn todo list --completed --id-only 2>/dev/null)"})
-    _describe 'completed todo IDs' todos
+    todos=(\${(f)"$(colyn todo list --in-progress --id-only 2>/dev/null)"})
+    _describe 'in-progress todo IDs' todos
+}
+
+# Todo done ID completion
+_colyn_todo_done_ids() {
+    local -a todos
+    todos=(\${(f)"$(colyn todo list --done --id-only 2>/dev/null)"})
+    _describe 'done todo IDs' todos
 }
 
 # Git branch completion
