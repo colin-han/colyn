@@ -27,10 +27,12 @@ import { t } from '../i18n/index.js';
 import { getBranchCategories, resolveAbbr, getTodoConfig } from '../core/config.js';
 import {
   parseTodoId,
+  resolveTodoId,
   formatTodoTable,
   editMessageWithEditor,
   copyToClipboard,
   selectTodo,
+  DEFAULT_TODO_TYPE,
 } from './todo.helpers.js';
 import { checkoutCommand } from './checkout.js';
 import { getActiveTodoBackend } from '../todo-backends/registry.js';
@@ -275,11 +277,15 @@ export function register(program: Command): void {
           let name: string;
 
           if (todoId) {
+            let parsed: { type?: string; name: string };
             try {
-              ({ type, name } = parseTodoId(todoId));
+              parsed = parseTodoId(todoId);
             } catch {
               throw new ColynError(t('commands.todo.add.invalidFormat'));
             }
+            // 仅提供 name（不含 type）时，默认使用 feature 作为 type
+            type = parsed.type ?? DEFAULT_TODO_TYPE;
+            name = parsed.name;
           } else {
             // 交互式选择 type 和输入 name
             const categories = await getBranchCategories(paths.configDir);
@@ -377,10 +383,12 @@ export function register(program: Command): void {
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(resolvedTodoId));
-        } catch {
+          ({ type, name } = await resolveTodoId(backend, resolvedTodoId));
+        } catch (error) {
+          if (error instanceof ColynError) throw error;
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
+        if (type) resolvedTodoId = `${type}/${name}`;
 
         const item = await backend.find(type, name);
 
@@ -597,10 +605,12 @@ export function register(program: Command): void {
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(resolvedTodoId));
-        } catch {
+          ({ type, name } = await resolveTodoId(backend, resolvedTodoId));
+        } catch (error) {
+          if (error instanceof ColynError) throw error;
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
+        if (type) resolvedTodoId = `${type}/${name}`;
 
         const item = await backend.find(type, name);
 
@@ -702,15 +712,18 @@ export function register(program: Command): void {
           }
         }
 
+        const backend = await getActiveTodoBackend(paths);
+
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(resolvedTodoId));
-        } catch {
+          ({ type, name } = await resolveTodoId(backend, resolvedTodoId));
+        } catch (error) {
+          if (error instanceof ColynError) throw error;
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
+        if (type) resolvedTodoId = `${type}/${name}`;
 
-        const backend = await getActiveTodoBackend(paths);
         const item = await backend.find(type, name);
 
         if (!item) {
@@ -763,10 +776,12 @@ export function register(program: Command): void {
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(resolvedTodoId));
-        } catch {
+          ({ type, name } = await resolveTodoId(backend, resolvedTodoId));
+        } catch (error) {
+          if (error instanceof ColynError) throw error;
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
+        if (type) resolvedTodoId = `${type}/${name}`;
 
         const item = await backend.find(type, name);
         if (!item) {
@@ -841,10 +856,12 @@ export function register(program: Command): void {
         let type: string;
         let name: string;
         try {
-          ({ type, name } = parseTodoId(resolvedTodoId));
-        } catch {
+          ({ type, name } = await resolveTodoId(backend, resolvedTodoId));
+        } catch (error) {
+          if (error instanceof ColynError) throw error;
           throw new ColynError(t('commands.todo.add.invalidFormat'));
         }
+        if (type) resolvedTodoId = `${type}/${name}`;
 
         const item = await backend.find(type, name);
         if (!item) {

@@ -216,6 +216,13 @@ bugfix/17
 
 **支持的类型**：`feature` / `bugfix` / `refactor` / `document`
 
+#### 省略 type（仅 name）
+
+所有接受 `todoId` 的命令都支持只传 `name`（不含 `/`）：
+
+- `add`：type 默认为 `feature`，即 `colyn todo add login "..."` 等价于 `colyn todo add feature/login "..."`。
+- `start` / `complete` / `uncomplete` / `remove` / `edit`：按 name 跨 type 查找现有任务。唯一匹配则直接使用；若多个不同 type 同名（如 `feature/login` 与 `bugfix/login`），会报错并列出候选，请改用完整 `type/name`。
+
 ---
 
 ### colyn todo add
@@ -232,7 +239,7 @@ colyn todo add [todoId] [message...]
 
 | 参数 | 说明 |
 |------|------|
-| `todoId` | Todo ID（格式：`type/name`），省略时交互式选择；GitHub backend 下忽略 name，由 Issue 号自动分配 |
+| `todoId` | Todo ID（格式：`type/name`，或仅 `name`——此时 type 默认 `feature`），省略时交互式选择；GitHub backend 下忽略 name，由 Issue 号自动分配 |
 | `message...` | 任务描述，可包含空格且无需引号（多个词会自动拼接）；省略时打开编辑器（支持 Markdown）；GitHub backend 下首行作为 Issue title |
 
 #### 示例
@@ -249,6 +256,9 @@ $ colyn todo add feature/login "实现用户登录功能"
 
 # 描述也可不加引号，多个词会自动拼接
 $ colyn todo add feature/login 实现用户登录功能
+
+# 省略 type，默认 feature（等价于 feature/login）
+$ colyn todo add login "实现用户登录功能"
 
 # GitHub backend 下：选择 type 后自动分配 Issue 号
 $ colyn todo add

@@ -120,6 +120,18 @@ pending ──(todo start)──► in-progress ──(todo complete)──► d
 
 ## 5. 子命令设计
 
+### todoId 通用约定
+
+所有接受 `todoId` 的子命令均支持两种形式：
+
+- **`type/name`**：完整形式，明确指定 type。
+- **仅 `name`**（不含 `/`）：省略 type，由命令自动补全。
+  - `add` 命令：默认使用 `feature` 作为 type（即 `colyn todo add login "..."` 等价于 `colyn todo add feature/login "..."`）。
+  - 查找类命令（`start` / `complete` / `uncomplete` / `remove` / `edit`）：跨所有 type 按 name 查找现有任务。
+    - 唯一匹配 → 直接使用。
+    - 多个不同 type 同名（如 `feature/login` 与 `bugfix/login`）→ 报错并列出候选，要求用户改用完整 `type/name`。
+    - 无匹配 → 按各命令原有的"任务不存在"提示处理。
+
 ### 5.1 `colyn todo add [todoId] [message...]`
 
 添加新的待办任务。所有参数均为可选，无参数时完全交互式。`message` 为变长参数（commander 的 `[message...]`），可不加引号传入多个词，内部以空格拼接为完整描述。
@@ -127,9 +139,11 @@ pending ──(todo start)──► in-progress ──(todo complete)──► d
 **Local 后端行为**：
 
 ```
-无 todoId → 交互式选择 type + 输入 name（拼接为 type/name）
-无 message → 打开编辑器（$VISUAL / $EDITOR / vim）
-有 message → 多个词以空格拼接为任务描述
+无 todoId       → 交互式选择 type + 输入 name（拼接为 type/name）
+todoId 仅 name  → type 默认 feature（feature/<name>）
+todoId type/name→ 按指定 type/name 创建
+无 message      → 打开编辑器（$VISUAL / $EDITOR / vim）
+有 message      → 多个词以空格拼接为任务描述
 ```
 
 **GitHub 后端行为**：
@@ -396,7 +410,9 @@ src/
 
 | 函数 | 说明 |
 |------|------|
-| `parseTodoId` | 解析 `type/name` 格式 |
+| `parseTodoId` | 解析 todoId：`type/name` 拆分；仅 `name` 时 type 返回 undefined |
+| `resolveTodoId` | 将 todoId 解析为具体 `{ type, name }`：仅 name 时跨 type 查找补全，多个同名抛歧义错误 |
+| `listAllTodos` | 汇总所有状态（pending/in-progress/done/archived）的任务 |
 | `findTodo` | 在列表中查找条目 |
 | `editMessageWithEditor` | 打开编辑器交互式编辑 message |
 | `copyToClipboard` | 复制文本到系统剪贴板 |

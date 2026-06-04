@@ -57,7 +57,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import {
   copyToClipboard,
-  parseTodoId,
+  resolveTodoId,
   strWidth,
 } from './todo.helpers.js';
 import { getActiveTodoBackend } from '../todo-backends/registry.js';
@@ -525,8 +525,8 @@ async function addCommand(branchName?: string): Promise<void> {
 
     // 由 Todo 入口创建分支时：同步标记完成，并输出 message + 复制剪贴板
     if (selectedTodoMeta) {
-      const { type, name } = parseTodoId(selectedTodoMeta.todoId);
       const backend = await getActiveTodoBackend(paths);
+      const { type, name } = await resolveTodoId(backend, selectedTodoMeta.todoId);
       const todoItem = await backend.find(type, name);
       if (todoItem && todoItem.status === 'pending') {
         await backend.markStarted(type, name, cleanBranchName);
