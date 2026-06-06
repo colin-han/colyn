@@ -809,7 +809,7 @@
   <!-- ═══════════════════════════════════════════════════════════════
        第 15 页 · 3.4 colyn checkout 切换任务
        ═══════════════════════════════════════════════════════════════ -->
-  <section class="slide" data-chapter="3" data-steps="7">
+  <section class="slide" data-chapter="3" data-steps="6">
     <div class="kicker"><span class="ch">03 ·</span> Worktree 复用</div>
     <h2><code>colyn checkout</code>，<span class="accent">换任务不换环境</span></h2>
     <div class="grow" style="align-items:center;">
@@ -842,39 +842,25 @@
         box.querySelector('.tmux-step-right').style.width='50%';
         function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
         function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const cmdHtml='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn checkout</div>';
         const keyHint=(key)=>'<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(15,22,41,.92);border:1px solid var(--line);border-radius:8px;padding:4px 16px;font-size:.9rem;color:var(--accent);z-index:2;">'+key+'</div>';
         const steps=[
           ()=>{showBubble('💬','想挑一个新任务做');},
-          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn checkout</div>';},
+          ()=>{hideBubble();el.innerHTML=cmdHtml;},
           ()=>{el.innerHTML+=
 '<div class="tmux-output"></div>'+
 '<div class="tmux-output">选择目标分支（或新建分支）</div>'+
 '<div class="tmux-output"><span class="hl">›</span> <span class="hl">[新建分支]</span>                                     按 type/name 创建新分支</div>'+
 '<div class="tmux-output">  feature/reset-password                        Todo: 实现密码重置功能</div>'+
 '<div class="tmux-output">  feature/tags                                  Todo: 实现任务标签系统</div>';},
-          ()=>{el.innerHTML=
+          ()=>{el.innerHTML=cmdHtml+
 '<div class="tmux-output">选择目标分支（或新建分支）</div>'+
 '<div class="tmux-output">  [新建分支]                                     按 type/name 创建新分支</div>'+
 '<div class="tmux-output"><span class="hl">›</span> <span class="hl">feature/reset-password</span>                        Todo: 实现密码重置功能</div>'+
 '<div class="tmux-output">  feature/tags                                  Todo: 实现任务标签系统</div>'+
 keyHint('↓');},
-          ()=>{el.innerHTML=
-'<div class="tmux-output">选择目标分支（或新建分支）</div>'+
-'<div class="tmux-output">  [新建分支]                                     按 type/name 创建新分支</div>'+
-'<div class="tmux-output"><span class="hl">›</span> <span class="hl">feature/reset-password</span>                        Todo: 实现密码重置功能</div>'+
-'<div class="tmux-output">  feature/tags                                  Todo: 实现任务标签系统</div>'+
-keyHint('⏎');},
-          ()=>{el.innerHTML=
-'<div class="tmux-output"><span class="hl">›</span> <span class="hl">[新建分支]</span>                                     按 type/name 创建新分支</div>'+
-'<div class="tmux-output">  feature/reset-password                        Todo: 实现密码重置功能</div>'+
-'<div class="tmux-output">  feature/tags                                  Todo: 实现任务标签系统</div>';},
-          ()=>{el.innerHTML=
-'<div class="tmux-output">选择目标分支（或新建分支）</div>'+
-'<div class="tmux-output">  [新建分支]                                     按 type/name 创建新分支</div>'+
-'<div class="tmux-output"><span class="hl">›</span> <span class="hl">feature/reset-password</span>                        Todo: 实现密码重置功能</div>'+
-'<div class="tmux-output">  feature/tags                                  Todo: 实现任务标签系统</div>'+
-'<div class="tmux-key-hint" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(15,22,41,.92);border:1px solid var(--line);border-radius:8px;padding:4px 14px;font-size:.85rem;color:var(--accent);z-index:2;">↓</div>';},
-          ()=>{el.innerHTML=
+          ()=>{el.lastElementChild?.remove();el.innerHTML+=
+keyHint('⏎')+
 '<div class="tmux-output">检查工作目录状态...</div>'+
 '<div class="tmux-output">工作目录干净</div>'+
 '<div class="tmux-output">切换到分支 feature/reset-password...</div>'+
@@ -926,6 +912,9 @@ keyHint('⏎');},
       (function(){
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s16-content');
+        const box=document.getElementById('s16');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
+        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn add feature/tasks</div>';},
           ()=>{el.innerHTML+=
@@ -946,15 +935,10 @@ keyHint('⏎');},
 '<div class="tmux-cmd-line"><span class="prompt">$</span> colyn list</div>'+
 '<div class="tmux-output"></div>'+
 '<div class="tmux-output"> ID  Branch             Port  Path               St.</div>'+
-'<div class="tmux-output"><span class="run">→</span>0  main               3000  .                     idle</div>'+
+'<div class="tmux-output">  0  main               3000  .                     idle</div>'+
 '<div class="tmux-output">  1  feature/auth       3001  worktrees/task-1     idle</div>'+
 '<div class="tmux-output">  2  feature/tasks      3002  worktrees/task-2     idle</div>'+
-'<div class="tmux-output">  3  feature/dashboard  3003  worktrees/task-3     idle</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">浏览器同时打开三个端口验证：</div>'+
-'<div class="tmux-output">  <span class="run">http://localhost:3001</span>  ← 认证功能</div>'+
-'<div class="tmux-output">  <span class="run">http://localhost:3002</span>  ← 任务管理</div>'+
-'<div class="tmux-output">  <span class="run">http://localhost:3003</span>  ← 数据仪表盘</div>';},
+'<div class="tmux-output"><span class="run">→</span>3  feature/dashboard  3003  worktrees/task-3     idle</div>';showBubble('🌐','浏览器同时打开三个端口验证：localhost:3001 认证 · localhost:3002 任务 · localhost:3003 仪表盘');},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -995,7 +979,7 @@ keyHint('⏎');},
         const steps=[
           ()=>{showBubble('💬','feature/auth 已合并到 main，其他 worktree 需要同步最新代码');},
           ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn update</div>';},
-          ()=>{el.lastElementChild?.remove();el.innerHTML+=
+          ()=>{el.innerHTML+=
 '<div class="tmux-output">拉取主分支最新代码...</div>'+
 '<div class="tmux-output"><span class="ok">主分支已更新</span></div>'+
 '<div class="tmux-output"></div>'+
@@ -1055,7 +1039,7 @@ keyHint('⏎');},
         const steps=[
           ()=>{showBubble('💬','三个功能都开发完了，准备发布一个版本');},
           ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn release minor</div>';},
-          ()=>{el.lastElementChild?.remove();el.innerHTML+=
+          ()=>{el.innerHTML+=
 '<div class="tmux-output">步骤 1: 检查 git 状态</div>'+
 '<div class="tmux-output">当前分支: main</div>'+
 '<div class="tmux-output"><span class="ok">✓</span> 工作区干净</div>'+
