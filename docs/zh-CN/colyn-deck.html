@@ -224,6 +224,11 @@
   .ov-cell.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 10px 28px -10px var(--accent);transform:translateY(-2px);}
   .ov-cell .ov-n{font-family:var(--mono);font-size:.72rem;color:var(--accent);}
   .ov-cell .ov-t{font-size:.92rem;color:var(--txt);line-height:1.35;font-weight:600;}
+  @media(max-width:899px){#chrome,.nav-hint{display:none}}
+  #mobile-hint{display:none;position:fixed;bottom:0;left:0;right:0;height:54px;z-index:10;font-family:var(--mono);font-size:.78rem;color:var(--txt-dim);background:rgba(8,12,24,.92);border-top:1px solid var(--line);align-items:center;justify-content:space-between;padding:0 2.2vw;}
+  #mobile-hint span{flex:1;text-align:center;padding:6px 0;}
+  @media(max-width:899px){#mobile-hint{display:flex}}
+  #deck.mobile .tmux-step,#deck.mobile .tmux-demo{width:100%;max-width:100%;}
 </style>
 </head>
 <body>
@@ -734,7 +739,7 @@
     <div class="kicker"><span class="ch">03 ·</span> 一个任务搞完了</div>
     <h2><code>colyn merge</code>，<span class="accent">自动把关</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s14">
+      <div class="tmux-step" id="s14" style="height:400px;">
         <div class="tmux-step-left tmux-dim-pane">
           <div class="tmux-pane-title">Claude Code</div>
           <div class="tmux-step-claude">
@@ -1298,6 +1303,7 @@ keyHint('⏎')+
 <div id="comments-layer"></div>
 <div id="cm-banner">批注模式 · 点击页面任意处留言 · Enter / Esc 退出</div>
 <div id="cm-json"><div class="cm-jtitle">Comments JSON · 编辑或整段粘贴后点「应用」 · Esc 关闭</div><textarea id="cm-json-ta" spellcheck="false"></textarea><div class="cm-jbar"><span class="cm-jbtn" id="cm-json-apply">应用</span><span class="cm-jerr" id="cm-json-err"></span><span class="cm-jbtn cm-jclear" id="cm-json-clear">清除全部</span></div></div>
+<div id="mobile-hint"><span>← 上一页</span><span>点击翻页</span><span>下一页 →</span></div>
 
 <script>
   const slides = Array.from(document.querySelectorAll('.slide'));
@@ -1630,15 +1636,26 @@ keyHint('⏎')+
     else if (e.key === 'j' || e.key === 'J') { e.preventDefault(); openJson(); }
   });
 
-  document.getElementById('deck').addEventListener('click', (e) => {
+  // ── 点击 / 触摸导航 ──
+  function handleClick(e) {
     if (e.target.closest('.bubble.human')) return;   // 揭示答案，不翻页
     if (e.target.closest('a')) return;               // 让链接正常打开
-    if (e.clientY > window.innerHeight - 70) return; // 底部 chrome 区
-    advance();                                       // 有步骤先推进，推完再翻页
-  });
-  let tx = 0;
-  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
-  document.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx; if (dx < -50) next(); else if (dx > 50) prev(); }, { passive: true });
+    if (window.innerWidth >= 900 && e.clientY > window.innerHeight - 70) return; // 桌面端底部 chrome 区
+    if (window.innerWidth < 900) {
+      // 移动端：左 1/3 上一页，右 2/3 下一步
+      if (e.clientX < window.innerWidth / 3) prev(); else advance();
+    } else {
+      advance();
+    }
+  }
+  document.addEventListener('click', handleClick);
+  let tx = 0, ty = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) { if (dx < 0) next(); else prev(); return; }  // 滑动翻页保留
+    // 轻触由 click 处理（handleClick 已含区域逻辑）
+  }, { passive: true });
 
   // ── 粒子背景（翻页方向性 whoosh）──
   (function () {
@@ -1706,6 +1723,31 @@ keyHint('⏎')+
     addEventListener('resize', () => { resize(); init(); });
     document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) frame(); else cancelAnimationFrame(raf); });
   })();
+
+  // ── 移动端缩放：窄屏下等比缩小内容，居中显示（背景保持全屏）──
+  function fitViewport() {
+    const deck = document.getElementById('deck');
+    const vw = window.innerWidth, vh = window.innerHeight;
+    if (vw >= 900) {
+      deck.classList.remove('mobile');
+      deck.style.width = ''; deck.style.height = '';
+      deck.style.transform = ''; deck.style.transformOrigin = '';
+      deck.style.marginLeft = ''; deck.style.marginTop = '';
+      return;
+    }
+    deck.classList.add('mobile');
+    const W = 1024, H = 576;
+    const hintH = 54; // 底部提示条高度
+    const availH = vh - hintH;
+    const s = Math.min(vw / W, availH / H);
+    deck.style.width = W + 'px'; deck.style.height = H + 'px';
+    deck.style.transform = 'scale(' + s + ')';
+    deck.style.transformOrigin = '0 0';
+    deck.style.marginLeft = ((vw - W * s) / 2) + 'px';
+    deck.style.marginTop = ((availH - H * s) / 2) + 'px';
+  }
+  window.addEventListener('resize', fitViewport);
+  fitViewport();
 
   applyHash();   // 启动：按 URL #p<N>，否则第 1 页
 </script>
