@@ -14,6 +14,8 @@ Colyn lets you command multiple AIs developing different features in parallel �
 
 **[→ See it in action: User Story](docs/en/manual/00-user-story.md)**
 
+**[→ Live Preview: Presentation Deck](https://raw.githack.com/colin-han/colyn/main/docs/en/colyn-deck.html)**
+
 ---
 
 ## Core Capabilities

@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<!--
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  coslides · Single-file presentation template                         │
+  │  Usage: Only add <section class="slide"> pages inside #deck below.  │
+  │  Do not modify <style> / <script> (only top :root config for theme). │
+  │  See references/COMPONENTS.md for components, references/demo-deck.html for examples. │
+  └─────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ↓ Change here: deck title (browser tab + share title) -->
+<title>Colyn · From One Person to an AI Team</title>
+<style>
+  :root {
+    /* ═══ coslides config: change these lines to switch theme/style ═══ */
+    --accent:   #38e0d0;   /* Primary accent: kicker / progress bar / highlight / brand dot */
+    --accent-2: #4ade80;   /* Secondary accent: success / emphasis */
+    --bg:       #0b1020;   /* Background base color */
+    /* ═══ Derived colors / font stacks below, generally no need to change ═══ */
+    --bg-2:#0f1629; --panel:#151d33; --panel-2:#1b2540; --line:#283452;
+    --txt:#e6edf7; --txt-dim:#9fb0cc; --txt-faint:#5f6f8f;
+    --cyan:var(--accent); --emerald:var(--accent-2);
+    --amber:#fbbf24; --violet:#a78bfa; --rose:#fb7185; --blue:#60a5fa;
+    --mono:"SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased;}
+  body::before{content:"";position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(56,224,208,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(56,224,208,.035) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;}
+  body::after{content:"";position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(96,165,250,.10),transparent 60%);pointer-events:none;}
+  #bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
+  #deck{position:relative;height:100%;width:100%;z-index:1;}
+
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;padding:5vh 6vw 8vh;opacity:0;transition:opacity .35s ease;overflow:hidden;}
+  .slide.active{display:flex;opacity:1;}
+
+  /* ── Text ── */
+  .kicker{font-family:var(--mono);font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:.8rem;display:flex;align-items:center;gap:.6rem;}
+  .kicker::before{content:"";width:26px;height:2px;background:var(--accent);display:inline-block;}
+  .kicker .ch{color:var(--txt-faint);}
+  h1{font-size:3.4rem;line-height:1.08;font-weight:750;letter-spacing:-.01em;}
+  h2{font-size:2.1rem;line-height:1.15;font-weight:700;letter-spacing:-.01em;margin-bottom:1.4rem;}
+  h2 .accent,.accent{color:var(--accent);}
+  .sub{color:var(--txt-dim);font-size:1.15rem;line-height:1.6;max-width:62ch;}
+  .lead{font-size:1.25rem;color:var(--txt-dim);line-height:1.7;max-width:72ch;}
+  .lead strong{color:var(--txt);font-weight:650;}
+  .grow{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;}
+  .hl{color:var(--amber);font-weight:600;}
+  .ref{font-family:var(--mono);font-size:.9em;color:var(--violet);}
+  code{font-family:var(--mono);color:var(--accent);}
+
+  /* ── card grid ── */
+  .cards{display:grid;gap:1.1rem;}
+  .cards.c2{grid-template-columns:repeat(2,1fr);}
+  .cards.c3{grid-template-columns:repeat(3,1fr);}
+  .card{background:linear-gradient(160deg,var(--panel),var(--bg-2));border:1px solid var(--line);border-radius:14px;padding:1.3rem 1.45rem;position:relative;overflow:hidden;will-change:transform;transition:transform .25s,border-color .25s,box-shadow .25s;}
+  .card:hover{transform:translateY(-4px);border-color:rgba(56,224,208,.5);box-shadow:0 14px 40px -18px rgba(56,224,208,.5);}
+  .card .top{position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);}
+  .card.b-emerald .top{background:var(--emerald);} .card.b-amber .top{background:var(--amber);}
+  .card.b-violet .top{background:var(--violet);} .card.b-blue .top{background:var(--blue);} .card.b-rose .top{background:var(--rose);}
+  .card .tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;color:var(--txt-faint);text-transform:uppercase;}
+  .card h3{font-size:1.18rem;margin:.35rem 0 .5rem;font-weight:680;}
+  .card p{color:var(--txt-dim);font-size:.95rem;line-height:1.55;}
+  .card .icon{font-family:var(--mono);font-size:1.4rem;color:var(--accent);}
+  .b-emerald .icon{color:var(--emerald);} .b-amber .icon{color:var(--amber);} .b-violet .icon{color:var(--violet);} .b-blue .icon{color:var(--blue);} .b-rose .icon{color:var(--rose);}
+
+  /* ── feat feature list ── */
+  ul.feat{list-style:none;display:flex;flex-direction:column;gap:.8rem;}
+  ul.feat li{display:flex;gap:.9rem;align-items:flex-start;font-size:1.06rem;line-height:1.5;}
+  ul.feat li .mk{color:var(--accent);font-family:var(--mono);font-weight:700;flex-shrink:0;}
+  ul.feat li b{color:var(--txt);} ul.feat li span.dim{color:var(--txt-dim);}
+
+  /* ── note-card callout box ── */
+  .note-card{max-width:780px;margin:0 auto;background:linear-gradient(160deg,rgba(74,222,128,.08),var(--bg-2));border:1px solid rgba(74,222,128,.35);border-radius:14px;padding:1.6rem 1.8rem;font-size:1.2rem;line-height:1.7;color:var(--txt-dim);}
+  .note-card strong{color:var(--emerald);}
+
+  /* ── term terminal mockup ── */
+  .term{font-family:var(--mono);font-size:.92rem;line-height:1.75;background:#070b16;border:1px solid var(--line);border-radius:12px;padding:1.3rem 1.6rem;max-width:880px;width:100%;}
+  .term .bar{display:flex;gap:.5rem;margin-bottom:.9rem;}
+  .term .bar i{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .term .bar .r{background:#ff5f56;} .term .bar .y{background:#ffbd2e;} .term .bar .g{background:#27c93f;}
+  .term .ln{white-space:pre;color:var(--txt-dim);}
+  .term .ln .ok{color:var(--emerald);} .term .ln .run{color:var(--accent);} .term .ln .dim{color:var(--txt-faint);} .term .ln .warn{color:var(--amber);}
+
+  /* ── tree directory tree ── */
+  .tree{font-family:var(--mono);font-size:.92rem;line-height:1.8;color:var(--txt-dim);background:#080c18;border:1px solid var(--line);border-radius:12px;padding:1.4rem 1.7rem;max-width:1100px;white-space:pre;overflow-x:auto;}
+  .tree .d{color:var(--accent);} .tree .hl{color:var(--emerald);} .tree .cm{color:var(--txt-faint);} .tree .pl{color:var(--violet);}
+  .tree b{color:var(--txt);font-weight:600;}
+
+  /* ── code code block ── */
+  pre.code{font-family:var(--mono);font-size:.92rem;line-height:1.7;color:var(--txt-dim);background:#080c18;border:1px solid var(--line);border-radius:12px;padding:1.3rem 1.6rem;max-width:1000px;width:100%;white-space:pre;overflow-x:auto;}
+  pre.code .k{color:var(--violet);} pre.code .s{color:var(--emerald);} pre.code .c{color:var(--txt-faint);} pre.code .f{color:var(--accent);}
+
+  /* ── chips ── */
+  .chips{display:flex;flex-wrap:wrap;gap:.5rem;max-width:840px;}
+  .chip{font-family:var(--mono);font-size:.8rem;padding:.35rem .7rem;border-radius:7px;border:1px solid var(--line);color:var(--accent);background:rgba(56,224,208,.05);}
+
+  /* ── pipeline flow bar ── */
+  .pipe{display:flex;align-items:stretch;justify-content:center;gap:0;width:100%;margin-top:.5rem;flex-wrap:wrap;}
+  .pnode{flex:1;min-width:150px;max-width:210px;border:1px solid var(--line);border-radius:12px;padding:1rem;background:var(--panel);text-align:center;}
+  .pnode .pc{font-family:var(--mono);font-size:.95rem;color:var(--accent);font-weight:600;}
+  .pnode .pd{font-size:.82rem;color:var(--txt-dim);margin-top:.35rem;line-height:1.45;}
+  .psep{display:flex;align-items:center;padding:0 .5rem;color:var(--accent);font-size:1.4rem;}
+
+  /* ── flow decision flowchart ── */
+  .flow-node{font-family:var(--mono);font-size:1rem;padding:.8rem 1.5rem;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--txt);}
+  .flow-node code{color:var(--accent);}
+  .flow-arr{color:var(--txt-faint);font-family:var(--mono);font-size:.9rem;letter-spacing:.12em;}
+  .flow-decide{text-align:center;padding:.95rem 1.8rem;border:1.5px solid rgba(251,191,36,.5);border-radius:12px;background:rgba(251,191,36,.06);font-size:1.15rem;font-weight:650;color:var(--amber);}
+  .flow-decide .sub2{font-size:.82rem;font-weight:400;color:var(--txt-dim);margin-top:.3rem;}
+  .flow-branch{flex:1;border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;background:var(--panel);}
+  .flow-branch .bl{font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;margin-bottom:.35rem;}
+  .flow-branch .bt{font-weight:680;font-size:1.05rem;margin-bottom:.35rem;color:var(--txt);}
+  .flow-branch .bd{font-size:.86rem;color:var(--txt-dim);line-height:1.5;}
+  .flow-branch.warn{border-color:rgba(251,191,36,.45);} .flow-branch.warn .bl{color:var(--amber);}
+  .flow-branch.ok{border-color:rgba(74,222,128,.45);} .flow-branch.ok .bl{color:var(--emerald);}
+  .flow-out{flex:1;text-align:center;font-weight:680;font-size:1.15rem;padding:.9rem;border-radius:12px;border:1.5px solid;}
+  .flow-out.a{color:var(--accent);border-color:var(--accent);background:rgba(56,224,208,.07);}
+  .flow-out.b{color:var(--violet);border-color:var(--violet);background:rgba(167,139,250,.07);}
+
+  /* ── chat click-to-reveal bubble ── */
+  .chat{display:flex;flex-direction:column;gap:1.1rem;max-width:860px;margin:0 auto;width:100%;}
+  .bubble{border-radius:14px;padding:1.1rem 1.3rem;border:1px solid var(--line);}
+  .bubble .who{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;margin-bottom:.5rem;}
+  .bubble.ai{background:linear-gradient(160deg,var(--panel),var(--bg-2));align-self:flex-start;max-width:86%;}
+  .bubble.ai .who{color:var(--accent);}
+  .bubble.ai .text{font-size:1.08rem;line-height:1.6;color:var(--txt);}
+  .bubble.human{background:rgba(74,222,128,.06);border-color:rgba(74,222,128,.35);align-self:flex-end;max-width:78%;cursor:pointer;position:relative;transition:background .2s;}
+  .bubble.human:hover{background:rgba(74,222,128,.11);}
+  .bubble.human .who{color:var(--emerald);}
+  .bubble.human .answer{font-size:1.05rem;color:var(--txt);display:none;}
+  .bubble.human .placeholder{font-size:.95rem;color:var(--txt-faint);font-style:italic;display:flex;align-items:center;gap:.5rem;}
+  .bubble.human .placeholder::before{content:"▸";color:var(--emerald);}
+  .bubble.human.revealed .answer{display:block;animation:fadein .35s ease;}
+  .bubble.human.revealed .placeholder{display:none;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  /* ── two-col two columns ── */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;}
+
+  .footnote{font-family:var(--mono);font-size:.74rem;color:var(--txt-faint);margin-top:1.2rem;}
+  .nb{white-space:nowrap;}
+  .card p,.lead{line-break:strict;}
+
+  /* ── Slide type: chapter divider ── */
+  .slide.chapter{justify-content:center;align-items:flex-start;}
+  .chapter .chap-tag{font-family:var(--mono);font-size:.95rem;letter-spacing:.22em;text-transform:uppercase;margin-bottom:1.3rem;display:flex;align-items:center;gap:.7rem;color:var(--accent);}
+  .chapter .chap-tag::before{content:"";width:42px;height:2px;background:currentColor;display:inline-block;}
+  .chapter h1{font-size:5rem;line-height:1.04;font-weight:760;letter-spacing:-.02em;}
+  .chapter .chap-sub{margin-top:1.6rem;font-size:1.4rem;color:var(--txt-dim);line-height:1.6;max-width:62ch;}
+  .chapter .chap-sub strong{font-weight:650;}
+
+  /* ── Slide type: title / agenda / closing ── */
+  .title-slide{justify-content:center;align-items:flex-start;}
+  .title-slide h1{font-size:4.4rem;max-width:20ch;}
+  .title-slide .sub{font-size:1.4rem;margin-top:1.4rem;}
+  .title-meta{margin-top:3rem;display:flex;gap:2.5rem;font-family:var(--mono);font-size:.85rem;color:var(--txt-faint);}
+  .title-meta b{color:var(--accent);font-weight:600;}
+  .agenda{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;max-width:980px;}
+  .ag-item{display:flex;gap:1rem;align-items:center;border:1px solid var(--line);border-radius:12px;padding:1rem 1.3rem;background:var(--panel);transition:transform .2s,border-color .2s;}
+  .ag-item:hover{transform:translateX(5px);border-color:rgba(56,224,208,.5);}
+  .ag-item .n{font-family:var(--mono);font-size:1.5rem;font-weight:700;color:var(--accent);min-width:2ch;}
+  .ag-item .t{font-weight:650;font-size:1.1rem;} .ag-item .d{font-size:.85rem;color:var(--txt-faint);}
+  .closing{justify-content:center;align-items:center;text-align:center;}
+  .closing h1{font-size:3.4rem;max-width:22ch;}
+  .closing .sub{font-size:1.25rem;margin-top:1.3rem;text-align:center;}
+
+  /* ── chrome bottom bar / progress / dots ── */
+  #chrome{position:fixed;bottom:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 2.2vw;z-index:10;font-family:var(--mono);font-size:.78rem;color:var(--txt-faint);background:linear-gradient(transparent,rgba(8,12,24,.85));}
+  #brand{display:flex;align-items:center;gap:.6rem;} #brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:blink 2s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+  #chapname{color:var(--txt-dim);}
+  #dots{display:flex;gap:6px;flex-wrap:wrap;max-width:55vw;justify-content:center;align-items:center;}
+  #dots .d{width:7px;height:7px;border-radius:50%;background:var(--line);cursor:pointer;transition:all .2s;}
+  #dots .d.on{background:var(--accent);transform:scale(1.3);}
+  #dots .gap{width:10px;}
+  #counter b{color:var(--txt);}
+  #progress{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:11;transition:width .35s ease,background .35s ease;}
+  .nav-hint{position:fixed;bottom:64px;right:2.2vw;font-family:var(--mono);font-size:.72rem;color:var(--txt-faint);z-index:10;opacity:.7;}
+  kbd{border:1px solid var(--line);border-radius:4px;padding:.05rem .4rem;color:var(--txt-dim);}
+
+  /* ── reveal staggered entrance ── */
+  .reveal-item{opacity:0;transform:translate(var(--enter-x,0px),var(--enter-y,20px));filter:blur(2px);will-change:transform,opacity,filter;transition:opacity .5s cubic-bezier(.2,.7,.2,1),transform .5s cubic-bezier(.2,.7,.2,1),filter .5s ease;}
+  .slide.active .reveal-item.in{opacity:1;transform:none;filter:none;}
+  @media (prefers-reduced-motion:reduce){.reveal-item{transition:none;opacity:1;transform:none;filter:none;}#brand .dot{animation:none;}}
+
+  /* ── step-by-step: hidden by default, framework adds .shown to Nth on advance ── */
+  .step{opacity:0;transform:translateY(18px);filter:blur(2px);will-change:transform,opacity,filter;transition:opacity .45s cubic-bezier(.2,.7,.2,1),transform .45s cubic-bezier(.2,.7,.2,1),filter .45s ease;}
+  .step.shown{opacity:1;transform:none;filter:none;}
+  @media (prefers-reduced-motion:reduce){.step{transition:none;}}
+
+  /* ── comments annotation layer (review tool) ── */
+  body.commenting{cursor:crosshair;}
+  #comments-layer{position:fixed;inset:0;z-index:25;pointer-events:none;}
+  #comments-layer .cm-marker{position:absolute;pointer-events:auto;transform:translate(-50%,-50%);min-width:22px;height:22px;padding:0 5px;border-radius:50% 50% 50% 3px;background:var(--accent);color:#08111f;font-family:var(--mono);font-size:.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px -4px var(--accent);}
+  #comments-layer .cm-input{position:absolute;pointer-events:auto;width:280px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:.5rem;box-shadow:0 14px 44px -12px #000;}
+  #comments-layer .cm-input textarea{width:100%;height:88px;resize:none;background:#070b16;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:.5rem;font-family:var(--sans);font-size:.95rem;line-height:1.5;outline:none;cursor:text;}
+  #comments-layer .cm-input .cm-hint{font-family:var(--mono);font-size:.66rem;color:var(--txt-faint);margin-top:.35rem;}
+  #comments-layer .cm-pop{position:absolute;pointer-events:auto;transform:translate(-50%,10px);max-width:300px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.7rem .9rem;font-size:.95rem;line-height:1.5;color:var(--txt);white-space:pre-wrap;box-shadow:0 14px 44px -12px #000;}
+  #cm-banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:27;display:none;font-family:var(--mono);font-size:.74rem;color:var(--accent);background:rgba(8,12,24,.92);border:1px solid var(--accent);border-radius:20px;padding:.32rem .95rem;}
+  body.commenting #cm-banner{display:block;}
+  #cm-json{position:fixed;inset:0;z-index:30;background:rgba(8,12,24,.96);backdrop-filter:blur(6px);display:none;flex-direction:column;padding:5vh 8vw;}
+  #cm-json.show{display:flex;}
+  #cm-json .cm-jtitle{font-family:var(--mono);font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem;}
+  #cm-json textarea{flex:1;background:#070b16;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:1rem;font-family:var(--mono);font-size:.85rem;line-height:1.6;resize:none;outline:none;}
+  #cm-json .cm-jbar{display:flex;gap:1rem;align-items:center;margin-top:1rem;}
+  #cm-json .cm-jbtn{font-family:var(--mono);font-size:.8rem;padding:.5rem 1.3rem;border-radius:8px;border:1px solid var(--accent);color:var(--accent);background:rgba(56,224,208,.07);cursor:pointer;}
+  #cm-json .cm-jerr{font-family:var(--mono);font-size:.78rem;color:var(--rose);}
+  #cm-json .cm-jclear{border-color:var(--rose);color:var(--rose);background:rgba(251,113,133,.07);margin-left:auto;}
+
+  /* ── overview thumbnail grid (added) ── */
+  #overview{position:fixed;inset:0;z-index:30;background:rgba(8,12,24,.96);backdrop-filter:blur(6px);display:none;flex-direction:column;padding:4vh 5vw;overflow-y:auto;}
+  #overview.show{display:flex;}
+  #overview .ov-title{font-family:var(--mono);font-size:.85rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:1.6rem;}
+  .ov-chapter{margin-bottom:1.8rem;}
+  .ov-chapter .ov-ch-name{font-family:var(--mono);font-size:.8rem;letter-spacing:.1em;color:var(--txt-faint);margin-bottom:.7rem;text-transform:uppercase;}
+  .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.8rem;}
+  .ov-cell{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:.8rem 1rem;cursor:pointer;transition:transform .15s,border-color .15s;min-height:74px;display:flex;flex-direction:column;justify-content:space-between;}
+  .ov-cell:hover{transform:translateY(-3px);border-color:var(--accent);}
+  .ov-cell.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+  .ov-cell.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 10px 28px -10px var(--accent);transform:translateY(-2px);}
+  .ov-cell .ov-n{font-family:var(--mono);font-size:.72rem;color:var(--accent);}
+  .ov-cell .ov-t{font-size:.92rem;color:var(--txt);line-height:1.35;font-weight:600;}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="progress"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     ↓↓↓ Only edit this #deck area ↓↓↓
+     · One <section class="slide"> per page; add "active" to the first page.
+     · Chapters use data-chapter="N"; chapter title pages also add data-chapter-title="…".
+       Optional data-chapter-color="#rrggbb" for a chapter theme color (highlights/progress/dots follow).
+     · Cover / agenda / closing are not part of any chapter, no data-chapter.
+     · Elements needing staggered entrance: add class="reveal-item".
+     · Elements needing space-bar step-by-step: add class="step" (hidden by default, revealed one per space).
+       For complex interactions see references/COMPONENTS.md "Interactions & Steps": data-steps / coslides:step events.
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="deck">
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 1 · Cover
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide title-slide active">
+    <div class="kicker">Parallel Vibe Coding Tool</div>
+    <h1>From One Person to an <span class="accent">AI Team</span></h1>
+    <div class="sub">Colyn lets you orchestrate multiple AIs developing in parallel — each with its own code, port, and runtime environment.<br>With just <span class="accent">a single command</span>.</div>
+    <div class="title-meta">
+      <div>Scope · <b>4 Chapters</b></div>
+      <div>Tool · <b>Colyn CLI</b></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 2 · Agenda
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide">
+    <div class="kicker">Agenda</div>
+    <h2>Four chapters, <span class="accent">from pain points to practice</span></h2>
+    <div class="grow">
+      <div class="agenda">
+        <div class="ag-item reveal-item"><div class="n">1</div><div><div class="t">Bottleneck</div><div class="d">Solo sequential development — AI productivity is capped by your attention</div></div></div>
+        <div class="ag-item reveal-item"><div class="n">2</div><div><div class="t">Getting Started with Colyn</div><div class="d">Five-minute install, zero-config onboarding</div></div></div>
+        <div class="ag-item reveal-item"><div class="n">3</div><div><div class="t">Taking Off in Parallel</div><div class="d">Core workflow: todo, merge, checkout, release</div></div></div>
+        <div class="ag-item reveal-item"><div class="n">4</div><div><div class="t">More Features</div><div class="d">Repair, completion, configuration & multi-stack support</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 3 · Chapter 1 "Bottleneck" + Canvas animation
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="1" data-chapter-title="Bottleneck" data-chapter-color="#60a5fa">
+    <style>
+      #s3-layout{display:flex;gap:3vw;flex:1;min-height:0;align-items:center;}
+      #s3-left{flex:0 0 32%;display:flex;flex-direction:column;justify-content:center;}
+      #s3-left h1{font-size:4.2rem;line-height:1.05;font-weight:760;letter-spacing:-.02em;}
+      #s3-left .chap-tag{font-family:var(--mono);font-size:.85rem;letter-spacing:.2em;text-transform:uppercase;color:#60a5fa;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;}
+      #s3-left .chap-tag::before{content:"";width:32px;height:2px;background:#60a5fa;}
+      #s3-left .sub{margin-top:1.4rem;font-size:1.1rem;line-height:1.7;color:var(--txt-dim);}
+      #s3-left .sub strong{color:var(--txt);font-weight:650;}
+      #s3-right{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+      #bottleneck-canvas{border-radius:14px;max-width:100%;max-height:100%;}
+    </style>
+    <div id="s3-layout">
+      <div id="s3-left">
+        <div class="chap-tag">PART · 01</div>
+        <h1>Bottleneck</h1>
+        <div class="sub">AI can work in parallel, but you can't — <strong>productivity is capped by your attention bandwidth</strong>.<br><br>You have 3 features to build and 3 Claude Codes waiting for instructions — why do them one at a time?</div>
+      </div>
+      <div id="s3-right">
+        <canvas id="bottleneck-canvas" width="620" height="400"></canvas>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const canvas = document.getElementById('bottleneck-canvas');
+        const ctx = canvas.getContext('2d');
+        const W = 620, H = 400;
+        let animFrame = null;
+
+        const aiNodes = [
+          {x:100,y:55,label:'AI 1',color:'#60a5fa'},
+          {x:310,y:55,label:'AI 2',color:'#60a5fa'},
+          {x:520,y:55,label:'AI 3',color:'#60a5fa'},
+        ];
+        const queueItems = ['Reviewing auth module...','Reviewing task mgmt...','Reviewing dashboard...','Waiting for review...','Waiting for review...'];
+
+        function drawBg(){
+          ctx.fillStyle='#070b16';
+          ctx.fillRect(0,0,W,H);
+        }
+
+        function drawAINodes(){
+          const t = Date.now()/1000;
+          aiNodes.forEach((n,i)=>{
+            const pulse = .6 + .4*Math.sin(t*2+i);
+            // glow
+            ctx.beginPath();
+            ctx.arc(n.x,n.y,32,0,Math.PI*2);
+            ctx.fillStyle='rgba(96,165,250,.08)';
+            ctx.fill();
+            // main circle
+            ctx.beginPath();
+            ctx.arc(n.x,n.y,24,0,Math.PI*2);
+            ctx.fillStyle='rgba(96,165,250,.15)';
+            ctx.fill();
+            ctx.strokeStyle=n.color;
+            ctx.lineWidth=1.5;
+            ctx.stroke();
+            // pulse ring
+            ctx.beginPath();
+            ctx.arc(n.x,n.y,24+pulse*10,0,Math.PI*2);
+            ctx.strokeStyle='rgba(96,165,250,.2)';
+            ctx.lineWidth=1;
+            ctx.stroke();
+            // progress bar
+            const pw=36, px=n.x-pw/2, py=n.y+34;
+            ctx.fillStyle='#151d33';
+            ctx.fillRect(px,py,pw,4);
+            ctx.fillStyle=n.color;
+            ctx.fillRect(px,py,(t*20+i*30)%pw,4);
+            // label
+            ctx.fillStyle='#e6edf7';
+            ctx.font='bold 12px monospace';
+            ctx.textAlign='center';
+            ctx.fillText(n.label,n.x,n.y+4);
+          });
+        }
+
+        function drawFunnel(){
+          const topW=500,botW=70,cx=310,fy=120,fh=70;
+          // funnel shape
+          ctx.beginPath();
+          ctx.moveTo(cx-topW/2,fy);
+          ctx.lineTo(cx-botW/2,fy+fh);
+          ctx.lineTo(cx+botW/2,fy+fh);
+          ctx.lineTo(cx+topW/2,fy);
+          ctx.closePath();
+          ctx.fillStyle='rgba(251,113,133,.06)';
+          ctx.fill();
+          ctx.strokeStyle='#fb7185';
+          ctx.lineWidth=1.5;
+          ctx.stroke();
+          // narrow point label
+          const pulse=.5+.5*Math.sin(Date.now()/400);
+          ctx.fillStyle='rgba(251,113,133,'+(0.5+pulse*0.4)+')';
+          ctx.font='bold 15px sans-serif';
+          ctx.textAlign='center';
+          ctx.fillText('You',cx,fy+fh+22);
+          ctx.font='10px monospace';
+          ctx.fillStyle='#5f6f8f';
+          ctx.fillText('<- Bottleneck ->',cx,fy+fh+38);
+          // flow lines
+          aiNodes.forEach(n=>{
+            ctx.beginPath();
+            ctx.moveTo(n.x,n.y+38);
+            ctx.bezierCurveTo(n.x,fy+15,cx,fy+5,cx,fy+fh);
+            ctx.strokeStyle='rgba(251,113,133,.2)';
+            ctx.lineWidth=1.2;
+            ctx.stroke();
+          });
+        }
+
+        function drawQueue(){
+          const qx=110,qy=268;
+          ctx.fillStyle='#fb7185';
+          ctx.font='bold 12px monospace';
+          ctx.textAlign='left';
+          ctx.fillText('Task Queue:',qx,qy);
+          queueItems.forEach((item,i)=>{
+            ctx.fillStyle='rgba(251,113,133,.75)';
+            ctx.font='11px monospace';
+            ctx.fillText('⏳ '+item,qx+10,qy+18+i*18);
+          });
+        }
+
+        function render(){
+          drawBg();
+          drawAINodes();
+          drawFunnel();
+          drawQueue();
+          animFrame = requestAnimationFrame(render);
+        }
+
+        render();
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 5 · 1.2 Problems with cloning three copies
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="1">
+    <div class="kicker"><span class="ch">01 ·</span> Want to go parallel, but new problems arise</div>
+    <h2>Clone three copies of the repo? <span class="accent">A host of new problems</span></h2>
+    <div class="grow">
+      <div class="cards c3">
+        <div class="card b-blue reveal-item"><div class="top"></div><div class="icon">💾</div><h3>Wasted Storage</h3><p>Same code cloned three times, triple the disk usage. Especially noticeable as projects grow</p></div>
+        <div class="card b-amber reveal-item"><div class="top"></div><div class="icon">🔌</div><h3>Port Conflicts</h3><p>Three dev servers running at once, ports collide. Manually assigning 3001, 3002, 3003 is error-prone</p></div>
+        <div class="card b-rose reveal-item"><div class="top"></div><div class="icon">🔀</div><h3>Merge Headaches</h3><p>Three separate Git repos, merging code requires going through a remote — time-consuming, error-prone</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 6 · 1.3 Limitations of Git Worktree
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="1">
+    <div class="kicker"><span class="ch">01 ·</span> Worktree solves some problems</div>
+    <h2>Git Worktree solves storage, <span class="accent">but still has barriers</span></h2>
+    <div class="grow two-col">
+      <div class="term reveal-item">
+        <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <div class="ln"><span class="dim">$</span> git worktree add ../my-project-auth <span class="run">feature/auth</span></div>
+        <div class="ln"><span class="dim">$</span> git worktree add ../my-project-tasks <span class="run">feature/tasks</span></div>
+        <div class="ln"><span class="dim">$</span> git worktree add ../my-project-dashboard <span class="run">feature/dashboard</span></div>
+      </div>
+      <div>
+        <ul class="feat">
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Verbose, error-prone commands</b> <span class="dim">— Paths and branch names manually specified, typos cause failures</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Manual port conflict management</b> <span class="dim">— No auto-assignment, editing .env is all on you</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Dependencies need reinstalling</b> <span class="dim">— Each worktree has independent node_modules, manual npm install</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Terminal windows are hard to track</b> <span class="dim">— Three terminals open, which is which?</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Manual cleanup needed</b> <span class="dim">— git worktree remove is easily forgotten, leftover dirs and branches pile up</span></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 7 · Chapter 2 divider "Getting Started with Colyn"
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide chapter" data-chapter="2" data-chapter-title="Getting Started with Colyn" data-chapter-color="#4ade80">
+    <div class="chap-tag">PART · 02</div>
+    <h1>Getting Started with Colyn</h1>
+    <div class="chap-sub">Five minutes to install, <strong>zero config</strong> to get started — no configuration needed, just works.</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 8 · 2.1 Install to ready in three steps
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="2">
+    <div class="kicker"><span class="ch">02 ·</span> Install & initialize</div>
+    <h2>Install to ready, <span class="accent">three steps</span></h2>
+    <div class="grow two-col">
+      <div class="term reveal-item">
+        <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <div class="ln" style="opacity:.5"><span class="dim"># Install Colyn</span></div>
+        <div class="ln" style="opacity:.5"><span class="dim">$</span> npm install -g colyn-cli</div>
+        <div class="ln" style="opacity:.5"><span class="dim">$</span> colyn setup</div>
+        <div class="ln" style="opacity:.5"><span class="dim">$</span> source ~/.zshrc</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="dim"># Initialize current project</span></div>
+        <div class="ln"><span class="dim">$</span> colyn init -p <span class="run">3000</span></div>
+        <div class="ln"><span class="ok">✓</span> Project initialized</div>
+      </div>
+      <div>
+        <div class="tree reveal-item"><b><span class="d">my-task-app/</span></b>
+├── <span class="d">.colyn/</span>
+├── <span class="d">my-task-app/</span>          <span class="cm"># Main branch (PORT=3000)</span>
+│   ├── <span class="d">src/</span>
+│   ├── package.json
+│   └── <span class="hl">.env.local</span>        <span class="cm"># PORT=3000</span>
+└── <span class="d">worktrees/</span>             <span class="cm"># Worktree directory</span></div>
+        <ul class="feat" style="margin-top:1rem;">
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Zero config</b> <span class="dim">— Project name inferred from directory, port written to .env.local, auto-detects package.json</span></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 9 · 2.2 Create your first Worktree
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="2">
+    <div class="kicker"><span class="ch">02 ·</span> One command, ready to go</div>
+    <h2><code>colyn add</code>, <span class="accent">handles everything automatically</span></h2>
+    <div class="grow">
+      <div class="term reveal-item" style="max-width:600px;">
+        <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <div class="ln"><span class="dim">$</span> colyn add <span class="run">feature/auth</span></div>
+        <div class="ln"></div>
+        <div class="ln"><span class="ok">✅</span> Worktree created successfully!</div>
+        <div class="ln">  ID:     <span class="hl">1</span>    Branch:   <span class="run">feature/auth</span></div>
+        <div class="ln">  Path:   worktrees/task-1    Port:   <span class="hl">3001</span></div>
+        <div class="ln"></div>
+        <div class="ln"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="ok">📂</span> Switched to: worktrees/task-1</div>
+      </div>
+      <ul class="feat" style="margin-top:1.2rem;">
+        <li class="reveal-item"><span class="mk">▸</span><span><b>Auto port assignment</b> <span class="dim">— 3001, 3002, 3003... no conflicts</span></span></li>
+        <li class="reveal-item"><span class="mk">▸</span><span><b>Auto dependency install</b> <span class="dim">— Ready to run npm run dev right away</span></span></li>
+        <li class="reveal-item"><span class="mk">▸</span><span><b>Auto directory switch</b> <span class="dim">— Shell integration handles cd for you, no manual steps</span></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 10 · 2.3 My daily dev interface
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="2">
+    <div class="kicker"><span class="ch">02 ·</span> My daily dev interface</div>
+    <h2>One Worktree, <span class="accent">three-pane terminal</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-demo">
+        <div class="tmux-left">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-claude">
+            <div class="tmux-line"><span class="tmux-user">╭─</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">✦ Tell me about this project's structure</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">This is a Next.js app...</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Here's the main directory structure:</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/app/     - Page routes</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/components/ - Components</span></div>
+            <div class="tmux-line"><span class="tmux-user">╰─</span></div>
+          </div>
+        </div>
+        <div class="tmux-right">
+          <div class="tmux-right-top">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-line"><span class="tmux-path">~/worktrees/task-1</span></div>
+            <div class="tmux-line"><span class="tmux-prompt">$</span> <span class="tmux-cursor">▌</span></div>
+          </div>
+          <div class="tmux-right-bottom">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">$</span> <span class="tmux-run">npm run dev</span></div>
+            <div class="tmux-line"><span class="tmux-dim">  ▲ Next.js 15.1.0</span></div>
+            <div class="tmux-line"><span class="tmux-dim">  - Local:</span> <span class="tmux-url">http://localhost:3001</span></div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready in 1.2s</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footnote" style="text-align:center;">Three-pane layout — vibe coding on the left, dev server & logs on the bottom right, terminal console on the top right</div>
+    <style>
+      .tmux-demo{display:flex;width:1050px;max-width:94vw;height:460px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#070b16;font-family:var(--mono);font-size:.78rem;line-height:1.65;}
+      .tmux-left{width:50%;border-right:1px solid var(--line);display:flex;flex-direction:column;}
+      .tmux-right{width:50%;display:flex;flex-direction:column;}
+      .tmux-right-top{flex:7;border-bottom:1px solid var(--line);display:flex;flex-direction:column;}
+      .tmux-right-bottom{flex:3;display:flex;flex-direction:column;}
+      .tmux-pane-title{font-size:.65rem;color:var(--txt-faint);padding:4px 10px;background:rgba(40,52,82,.4);border-bottom:1px solid var(--line);}
+      .tmux-claude{padding:6px 10px;overflow:hidden;}
+      .tmux-right-top,.tmux-right-bottom{padding:0;overflow:hidden;display:flex;flex-direction:column;}
+      .tmux-line{white-space:pre;overflow:hidden;}
+      .tmux-user{color:#4ade80;}
+      .tmux-ai{color:var(--txt-dim);}
+      .tmux-dim{color:var(--txt-faint);}
+      .tmux-path{color:#60a5fa;}
+      .tmux-prompt{color:var(--accent);}
+      .tmux-cursor{color:var(--accent);animation:blink 1s infinite;}
+      .tmux-run{color:var(--accent);}
+      .tmux-url{color:#60a5fa;text-decoration:underline;}
+    </style>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 11 · Chapter 3 divider "Taking Off in Parallel"
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide chapter" data-chapter="3" data-chapter-title="Taking Off in Parallel" data-chapter-color="#a78bfa">
+    <div class="chap-tag">PART · 03</div>
+    <h1>Taking Off in Parallel</h1>
+    <div class="chap-sub">Ideas keep flowing, <strong>AI never stops</strong> — three lines working at the same time.</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 12 · 3.1 Planning tasks
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="5">
+    <div class="kicker"><span class="ch">03 ·</span> Capture ideas anytime</div>
+    <h2><code>colyn todo</code>, <span class="accent">never miss an idea</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s12">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s12-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready in 1.2s</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      .tmux-step{display:flex;width:1050px;max-width:94vw;height:460px;border-radius:12px;overflow:visible;border:1px solid var(--line);background:#070b16;font-family:var(--mono);font-size:.78rem;line-height:1.65;position:relative;}
+      .tmux-step>*{border-radius:0;} .tmux-step>.tmux-step-left:first-child{border-radius:12px 0 0 12px;} .tmux-step>.tmux-step-right:last-child{border-radius:0 12px 12px 0;overflow:hidden;}
+      .tmux-float-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 14px;color:var(--txt);font-size:.82rem;display:flex;align-items:center;gap:6px;white-space:nowrap;animation:tmux-bubble-in .3s ease;position:absolute;top:-44px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;}
+      @keyframes tmux-bubble-in{from{opacity:0;}to{opacity:1;}}
+      .tmux-step-left{width:30%;border-right:1px solid var(--line);display:flex;flex-direction:column;}
+      .tmux-step-right{width:70%;display:flex;flex-direction:column;}
+      .tmux-step-rtop{flex:7;border-bottom:1px solid var(--line);display:flex;flex-direction:column;}
+      .tmux-step-rbottom{flex:3;display:flex;flex-direction:column;}
+      .tmux-step-claude{padding:6px 10px;overflow:hidden;}
+      .tmux-step-rtop,.tmux-step-rbottom{padding:0;overflow:hidden;}
+      .tmux-step-content{flex:1;overflow-y:auto;white-space:pre;padding:6px 10px;}
+      .tmux-dim-pane{opacity:.4;}
+      .tmux-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 12px;margin:6px 0;color:var(--txt);font-size:.78rem;display:flex;align-items:center;gap:6px;animation:fadein .3s ease;}
+      .tmux-bubble-icon{font-size:1rem;}
+      .tmux-cmd-line{color:var(--txt-dim);margin:2px 0;}
+      .tmux-cmd-line .prompt{color:var(--accent);}
+      .tmux-output{color:var(--txt-dim);margin:1px 0;}
+      .tmux-output .ok{color:var(--emerald);}
+      .tmux-output .hl{color:var(--amber);}
+      .tmux-output .run{color:var(--accent);}
+      .tmux-output .dim{color:var(--txt-faint);}
+    </style>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const content=document.getElementById('s12-content');
+        const box=document.getElementById('s12');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{showBubble('💬','I want to plan my dev tasks');},
+          ()=>{hideBubble();content.innerHTML=
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/auth "User auth: email login/signup, JWT"</div>'+
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/tasks "Task list page with pagination"</div>'+
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/dashboard "Data dashboard: stats, trend charts"</div>';},
+          ()=>{showBubble('💬','Let me see what other tasks are pending');},
+          ()=>{hideBubble();content.innerHTML+='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo</div>';},
+          ()=>{content.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">  Type     Name             Message                    Status</div>'+
+'<div class="tmux-output">  ──────────────────────────────────────────────────────</div>'+
+'<div class="tmux-output">  feature  auth             Email login/signup, JWT      <span class="ok">Todo</span></div>'+
+'<div class="tmux-output">  feature  tasks            Task list page, pagination  <span class="ok">Todo</span></div>'+
+'<div class="tmux-output">  feature  dashboard        Data dashboard: stats, trends <span class="ok">Todo</span></div>';},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 13 · 3.2 Capture inspiration
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="5">
+    <div class="kicker"><span class="ch">03 ·</span> Inspiration without interruption</div>
+    <h2>One command, <span class="accent">capture the idea</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s13">
+        <div class="tmux-step-left">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude">
+            <div class="tmux-line"><span class="tmux-user">╭─</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Writing auth module...</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  Generating code...</span></div>
+            <div class="tmux-line"><span class="tmux-user">╰─</span></div>
+          </div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s13-content" style="overflow:hidden;"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready in 1.2s</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s13-content');
+        const box=document.getElementById('s13');
+        box.querySelector('.tmux-step-left').style.width='50%';
+        box.querySelector('.tmux-step-left').style.opacity='1';
+        box.querySelector('.tmux-step-right').style.width='50%';
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{showBubble('💡','While vibing, I suddenly had an idea');},
+          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line" style="white-space:normal;word-break:break-all;"><span class="prompt">$</span> colyn todo add feature/idea I have a brilliant idea to prove this, but there is not enough room to write it all here...</div>';},
+          ()=>{showBubble('💬','You can skip the message body — I\'ll launch a vi editor for you to capture all your thoughts, so they\'ll never get cut off.');},
+          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/idea</div>';},
+          ()=>{el.innerHTML=
+'<div class="tmux-output" style="color:var(--txt);"></div>'+
+'<div class="tmux-output" style="color:var(--txt);">  1 <span style="color:var(--emerald);">## Task Description</span></div>'+
+'<div class="tmux-output" style="color:var(--txt);">  2 <span style="color:var(--txt);">- Click "Forgot Password" -> Enter email -> Send reset link</span></div>'+
+'<div class="tmux-output" style="color:var(--txt);">  3 <span style="color:var(--txt);">- Reset link valid for 24 hours</span></div>'+
+'<div class="tmux-output" style="color:var(--txt);">  4 <span style="color:var(--txt);">- New password cannot be the same as old password</span></div>'+
+'<div class="tmux-output" style="color:var(--txt);">  5 </div>'+
+'<div class="tmux-output" style="color:var(--txt-faint);">  6 <span style="color:var(--txt-faint);"># Todo: feature/idea</span></div>'+
+'<div class="tmux-output" style="color:var(--txt-faint);">  7 <span style="color:var(--txt-faint);"># Enter task description above, save and exit when done (:wq)</span></div>'+
+'<div class="tmux-output" style="color:var(--txt-faint);">  8 <span style="color:var(--txt-faint);"># Markdown supported; lines starting with \'# \' are treated as comments</span></div>'+
+'<div class="tmux-output" style="color:#555;">~</div>'+
+'<div class="tmux-output" style="color:#555;">~</div>'+
+'<div class="tmux-output" style="color:var(--txt-dim);background:#223322;padding:0 4px;display:inline-block;">"feature-idea.md" [New File]                         1,1           All</div>';},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 14 · 3.3 colyn merge
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="3">
+    <div class="kicker"><span class="ch">03 ·</span> A task is done</div>
+    <h2><code>colyn merge</code>, <span class="accent">automated quality gate</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s14">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude">
+            <div class="tmux-line"><span class="tmux-user">╭─</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">✦ Auth module development complete</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Files created:</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/auth/login.ts</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/auth/register.ts</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/auth/jwt.ts</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span></div>
+            <div class="tmux-line"><span class="tmux-user">│</span> <span style="color:var(--emerald);">✓ All tests passing</span></div>
+            <div class="tmux-line"><span class="tmux-user">╰─</span></div>
+          </div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s14-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s14-content');
+        const box=document.getElementById('s14');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{showBubble('💬','A task is done, time to merge into the main branch');},
+          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn merge</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output">Running pre-merge checks...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Pre-merge checks passed</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Main branch working directory clean</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Worktree working directory clean</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Running lint check...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Lint check passed</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Running build check...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Build successful</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 1/2: Update main branch in worktree</div>'+
+'<div class="tmux-output">  Directory: worktrees/task-1</div>'+
+'<div class="tmux-output">  Running: <span class="run">git rebase main</span></div>'+
+'<div class="tmux-output">Rebasing main branch into worktree...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Main branch rebased into worktree</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 2/2: Merge worktree branch into main branch</div>'+
+'<div class="tmux-output">  Directory: my-task-app</div>'+
+'<div class="tmux-output">  Running: <span class="run">git merge --no-ff feature/auth</span></div>'+
+'<div class="tmux-output">Merging worktree into main branch...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Worktree merged into main branch</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Updating all worktrees...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">✓ Merge complete!</span></div>';},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 15 · 3.4 colyn checkout switch tasks
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="6">
+    <div class="kicker"><span class="ch">03 ·</span> Worktree reuse</div>
+    <h2><code>colyn checkout</code>, <span class="accent">switch tasks, keep the environment</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s15" style="position:relative;">
+        <div class="tmux-step-left">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude">
+            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Auth module complete...</span></div>
+          </div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s15-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s15-content');
+        const box=document.getElementById('s15');
+        box.querySelector('.tmux-step-left').style.width='50%';
+        box.querySelector('.tmux-step-left').style.opacity='1';
+        box.querySelector('.tmux-step-right').style.width='50%';
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const cmdHtml='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn checkout</div>';
+        const keyHint=(key)=>'<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(15,22,41,.92);border:1px solid var(--line);border-radius:8px;padding:4px 16px;font-size:.9rem;color:var(--accent);z-index:2;">'+key+'</div>';
+        const steps=[
+          ()=>{showBubble('💬','Time to pick a new task');},
+          ()=>{hideBubble();el.innerHTML=cmdHtml;},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Select target branch (or create a new one)</div>'+
+'<div class="tmux-output"><span class="hl">›</span> <span class="hl">[Create new branch]</span>                                     Type name to create</div>'+
+'<div class="tmux-output">  feature/reset-password                        Todo: Implement password reset</div>'+
+'<div class="tmux-output">  feature/tags                                  Todo: Implement task tags</div>';},
+          ()=>{el.innerHTML=cmdHtml+
+'<div class="tmux-output">Select target branch (or create a new one)</div>'+
+'<div class="tmux-output">  [Create new branch]                                     Type name to create</div>'+
+'<div class="tmux-output"><span class="hl">›</span> <span class="hl">feature/reset-password</span>                        Todo: Implement password reset</div>'+
+'<div class="tmux-output">  feature/tags                                  Todo: Implement task tags</div>'+
+keyHint('↓');},
+          ()=>{el.lastElementChild?.remove();el.innerHTML+=
+keyHint('⏎')+
+'<div class="tmux-output">Checking working directory status...</div>'+
+'<div class="tmux-output">Working directory clean</div>'+
+'<div class="tmux-output">Switching to branch feature/reset-password...</div>'+
+'<div class="tmux-output"><span class="ok">Created and switched to new branch feature/reset-password</span></div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Branch feature/auth merged into main branch</div>'+
+'<div class="tmux-output">Delete old branch feature/auth? <span class="hl">y</span></div>'+
+'<div class="tmux-output">Deleting branch feature/auth...</div>'+
+'<div class="tmux-output"><span class="ok">Deleted branch feature/auth</span></div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Logs archived to: .claude/logs/archived/feature-auth/ (3 items)</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Current status:</div>'+
+'<div class="tmux-output">  Worktree: task-1</div>'+
+'<div class="tmux-output">  Branch: feature/reset-password</div>'+
+'<div class="tmux-output">  Path: worktrees/task-1</div>';},
+          ()=>{showBubble('💬','Branch created and ready — time to start the new task');},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 16 · 3.5 Three parallel lines
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="5">
+    <div class="kicker"><span class="ch">03 ·</span> Building parallel lines step by step</div>
+    <h2>Three Worktrees, <span class="accent">three parallel lines</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s16">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s16-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s16-content');
+        const box=document.getElementById('s16');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn add feature/tasks</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">✅</span> Worktree created successfully!</div>'+
+'<div class="tmux-output">  ID: <span class="hl">2</span>  Branch: <span class="run">feature/tasks</span>  Path: worktrees/task-2  Port: <span class="hl">3002</span></div>'+
+'<div class="tmux-output"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>'+
+'<div class="tmux-output"><span class="ok">📂</span> Switched to: worktrees/task-2</div>';},
+          ()=>{el.innerHTML+='<div class="tmux-output"></div><div class="tmux-cmd-line"><span class="prompt">$</span> colyn add feature/dashboard</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">✅</span> Worktree created successfully!</div>'+
+'<div class="tmux-output">  ID: <span class="hl">3</span>  Branch: <span class="run">feature/dashboard</span>  Path: worktrees/task-3  Port: <span class="hl">3003</span></div>'+
+'<div class="tmux-output"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>'+
+'<div class="tmux-output"><span class="ok">📂</span> Switched to: worktrees/task-3</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn list</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"> ID  Branch             Port  Path               St.</div>'+
+'<div class="tmux-output">  0  main               3000  .                     idle</div>'+
+'<div class="tmux-output">  1  feature/auth       3001  worktrees/task-1     idle</div>'+
+'<div class="tmux-output">  2  feature/tasks      3002  worktrees/task-2     idle</div>'+
+'<div class="tmux-output"><span class="run">→</span>3  feature/dashboard  3003  worktrees/task-3     idle</div>';showBubble('🌐','Open all three ports in the browser to verify: localhost:3001 auth · localhost:3002 tasks · localhost:3003 dashboard');},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 17 · 3.6 colyn update sync
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="3">
+    <div class="kicker"><span class="ch">03 ·</span> Main branch updated, what about the rest</div>
+    <h2><code>colyn update</code>, <span class="accent">one-click sync</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s17">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s17-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s17-content');
+        const box=document.getElementById('s17');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{showBubble('💬','feature/auth has been merged into main, other worktrees need to sync latest code');},
+          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn update</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output">Pulling latest code from main branch...</div>'+
+'<div class="tmux-output"><span class="ok">Main branch updated</span></div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Found 2 worktrees:</div>'+
+'<div class="tmux-output">1. task-2 (feature/tasks)</div>'+
+'<div class="tmux-output">2. task-3 (feature/dashboard)</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Batch updating (strategy: rebase)...</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="tmux-output">  Main branch (main) → feature/tasks</div>'+
+'<div class="tmux-output">  Strategy: rebase</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="tmux-output">  Main branch (main) → feature/dashboard</div>'+
+'<div class="tmux-output">  Strategy: rebase</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Update results:</div>'+
+'<div class="tmux-output"><span class="ok">✓ 2 worktrees updated successfully</span></div>';},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 18 · 3.7 colyn release
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="4">
+    <div class="kicker"><span class="ch">03 ·</span> All features done, time to release</div>
+    <h2><code>colyn release</code>, <span class="accent">ship with a single command</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s18">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s18-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s18-content');
+        const box=document.getElementById('s18');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{showBubble('💬','All three features are done, time to ship a release');},
+          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn release minor</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output">Step 1: Check git status</div>'+
+'<div class="tmux-output">Current branch: main</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Working tree clean</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 2: Determine new version</div>'+
+'<div class="tmux-output">Current version: 1.0.0</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> New version: 1.0.0 -> 1.1.0</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 3: Install dependencies</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Dependencies installed</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 4: Run lint check</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Lint check passed</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 5: Build project</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Build successful</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 6: Update version number</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Version updated: 1.0.0 -> 1.1.0</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 7: Create git commit</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Commit created: chore: release v1.1.0</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 8: Create git tag</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Tag created: v1.1.0</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Step 9: Push to remote</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Pushed to remote</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output">Updating all worktrees...</div>'+
+'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="tmux-output"></div>'+
+'<div class="tmux-output"><span class="ok">Release complete!</span></div>'+
+'<div class="tmux-output">Version: v1.1.0  Branch: main  Tag: v1.1.0</div>';},
+          ()=>{showBubble('💬','Choose from three release levels: patch for bug fixes, minor for new features, major for breaking changes');},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 19 · 3.8 Quick switch & remote execution
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="3" data-steps="5">
+    <div class="kicker"><span class="ch">03 ·</span> More efficient worktree management</div>
+    <h2><code>colyn 0</code>, <code>colyn 1</code>, <span class="accent">minimal operations</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s19">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s19-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s19-content');
+        const box=document.getElementById('s19');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{showBubble('💬','Switching between multiple worktrees, cd-ing every time is tedious');},
+          ()=>{hideBubble();el.innerHTML=
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn 1</div>'+
+'<div class="tmux-output"><span class="ok">📂</span> Switched to: worktrees/task-1</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn 0</div>'+
+'<div class="tmux-output"><span class="ok">📂</span> Switched to: my-task-app</div>';},
+          ()=>{showBubble('💬','You can also run commands directly in a specific worktree');},
+          ()=>{hideBubble();el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn 0 git push</div>'+
+'<div class="tmux-output">Enumerating objects: 12, done.</div>'+
+'<div class="tmux-output">Counting objects: 100% (12/12), done.</div>'+
+'<div class="tmux-output">Delta compression using up to 4 threads</div>'+
+'<div class="tmux-output">Compressing objects: 100% (8/8), done.</div>'+
+'<div class="tmux-output">Writing objects: 100% (8/8), 2.34 KiB | 2.34 MiB/s, done.</div>'+
+'<div class="tmux-output">To github.com:xiaoming/my-task-app.git</div>'+
+'<div class="tmux-output">   a1b2c3d..e4f5g6h  main -> main</div>';},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 20 · Chapter 4 divider "More Features"
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide chapter" data-chapter="4" data-chapter-title="More Features" data-chapter-color="#fb7185">
+    <div class="chap-tag">PART · 04</div>
+    <h1>More Features</h1>
+    <div class="chap-sub">Repair, completion & multi-stack support — <strong>Colyn is more than just a Node.js tool</strong>.</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 21 · 4.1 colyn repair
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="4">
+    <div class="kicker"><span class="ch">04 ·</span> Not afraid of moving</div>
+    <h2><code>colyn repair</code>, <span class="accent">one-click fix</span></h2>
+    <div class="grow two-col">
+      <div>
+        <ul class="feat">
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Project directory moved</b> <span class="dim">— All Git worktree path references are broken</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>.env.local corrupted</b> <span class="dim">— Port configuration lost</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Orphaned worktree directories</b> <span class="dim">— Leftover dirs wasting space</span></span></li>
+        </ul>
+      </div>
+      <div class="term reveal-item">
+        <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <div class="ln"><span class="dim">$</span> colyn repair</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="ok">✔</span> Checking main branch .env.local...</div>
+        <div class="ln"><span class="ok">✔</span> Fixing git worktree connections...</div>
+        <div class="ln"><span class="ok">✔</span> Detecting and fixing orphaned worktree directories...</div>
+        <div class="ln"><span class="ok">✓</span> Repair complete!</div>
+      </div>
+    </div>
+    <div class="note-card reveal-item" style="margin-top:1rem;">One command, automatically fixes all path references and environment variable files.</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 22 · 4.2 Auto completion
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="4" data-steps="3">
+    <div class="kicker"><span class="ch">04 ·</span> Tab completion, doubled efficiency</div>
+    <h2><code>colyn setup</code> auto-installs, <span class="accent">Tab to complete</span></h2>
+    <div class="grow" style="align-items:center;">
+      <div class="tmux-step" id="s22">
+        <div class="tmux-step-left tmux-dim-pane">
+          <div class="tmux-pane-title">Claude Code</div>
+          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+        </div>
+        <div class="tmux-step-right">
+          <div class="tmux-step-rtop">
+            <div class="tmux-pane-title">Terminal</div>
+            <div class="tmux-step-content" id="s22-content"></div>
+          </div>
+          <div class="tmux-step-rbottom tmux-dim-pane">
+            <div class="tmux-pane-title">dev server</div>
+            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const sec=document.currentScript.parentElement;
+        const el=document.getElementById('s22-content');
+        const box=document.getElementById('s22');
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        const steps=[
+          ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn config set --user lang en</div>';},
+          ()=>{el.innerHTML+=
+'<div class="tmux-output"></div>'+
+'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn add <span class="hl">⇥</span></div>'+
+'<div class="tmux-output"><span class="run">feature/auth</span>     <span class="run">feature/dashboard</span>   <span class="run">feature/tasks</span></div>';},
+          ()=>{showBubble('💬','merge, update, remove, checkout, todo and other commands all support Tab completion — branch names, Worktree IDs, todo task names, no manual typing needed');},
+        ];
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
+      })();
+    </script>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 23 · 4.3 colyn set/get configuration
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="4">
+    <div class="kicker"><span class="ch">04 ·</span> Customize on demand</div>
+    <h2><code>colyn set/get</code>, <span class="accent">flexible configuration</span></h2>
+    <div class="grow two-col">
+      <div class="term reveal-item">
+        <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <div class="ln"><span class="dim">$</span> colyn set lang en</div>
+        <div class="ln"><span class="ok">✓</span> Config set: lang = en (user)</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="dim">$</span> colyn set commands.merge.build <span class="run">false</span></div>
+        <div class="ln"><span class="ok">✓</span> Config set: commands.merge.build = false (project)</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="dim">$</span> colyn get lang</div>
+        <div class="ln">en</div>
+        <div class="ln"></div>
+        <div class="ln"><span class="dim">$</span> colyn unset verbose</div>
+        <div class="ln"><span class="ok">✓</span> Deleted verbose (user)</div>
+      </div>
+      <div>
+        <ul class="feat">
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Language setting</b> <span class="dim">— lang: Chinese / English</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Command behavior</b> <span class="dim">— commands.merge.*, commands.release.* override defaults</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>System commands</b> <span class="dim">— systemCommands.npm, systemCommands.claude custom paths</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Todo backend</b> <span class="dim">— todo.backend supports local files or GitHub Issues</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>Scope</b> <span class="dim">— User-level (global) or project-level; project takes priority</span></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 24 · 4.4 Multi-stack support
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide" data-chapter="4">
+    <div class="kicker"><span class="ch">04 ·</span> More than just Node.js</div>
+    <h2>Colyn supports <span class="accent">multiple tech stacks</span></h2>
+    <div class="grow">
+      <div class="chips reveal-item" style="margin-bottom:1.2rem;">
+        <span class="chip">Node.js</span>
+        <span class="chip">Python</span>
+        <span class="chip">Java Spring Boot</span>
+        <span class="chip">Gradle</span>
+        <span class="chip">Xcode</span>
+        <span class="chip">Mono Repo</span>
+      </div>
+      <ul class="feat" style="margin-bottom:1.2rem;">
+        <li class="reveal-item"><span class="mk">▸</span><span><b>Auto-detection</b> <span class="dim">— Recognizes package.json, pom.xml, requirements.txt and other project files</span></span></li>
+        <li class="reveal-item"><span class="mk">▸</span><span><b>Adaptive ports</b> <span class="dim">— Node.js defaults to 3000, Spring Boot to 8080, auto-writes to the right config file</span></span></li>
+        <li class="reveal-item"><span class="mk">▸</span><span><b>Mono Repo</b> <span class="dim">— Auto-scans subdirectories, each sub-project managed independently</span></span></li>
+      </ul>
+      <div class="note-card reveal-item">No matter what language you use, the Colyn parallel Vibe Coding workflow stays the same — <strong>add -> vibe -> merge</strong>.</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       Page 25 · Closing
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="slide closing">
+    <div class="kicker" style="justify-content:center;">Summary</div>
+    <h1>From "coding alone" to "leading an <span class="accent">AI team</span>" — all it takes is <code>colyn init</code></h1>
+    <div class="sub">Colyn — giving solo developers the superpower of parallel Vibe Coding.</div>
+  </section>
+
+</div>
+<!-- ↑↑↑ Only edit the #deck area above ↑↑↑ -->
+
+<div class="nav-hint">Click / <kbd>Space</kbd> advance · <kbd>→</kbd> next · <kbd>←</kbd> prev · <kbd>1-9</kbd> jump to chapter · <kbd>Esc</kbd> overview · <kbd>C</kbd> comment · <kbd>J</kbd> view annotations · <kbd>F</kbd> fullscreen</div>
+<div id="chrome">
+  <!-- Change here: brand name -->
+  <div id="brand"><span class="dot"></span> <span id="brandname">Colyn</span> <span id="chapname"></span></div>
+  <div id="dots"></div>
+  <div id="counter"><b id="cur">1</b> / <span id="total">1</span></div>
+</div>
+<div id="overview"><div class="ov-title">Overview · <kbd>↑↓←→</kbd> navigate · <kbd>Enter</kbd> jump · Click / <kbd>Esc</kbd> close</div><div id="ov-body"></div></div>
+<div id="comments-layer"></div>
+<div id="cm-banner">Comment mode · Click anywhere on the page to leave a note · Enter / Esc to exit</div>
+<div id="cm-json"><div class="cm-jtitle">Comments JSON · Edit or paste then click "Apply" · Esc to close</div><textarea id="cm-json-ta" spellcheck="false"></textarea><div class="cm-jbar"><span class="cm-jbtn" id="cm-json-apply">Apply</span><span class="cm-jerr" id="cm-json-err"></span><span class="cm-jbtn cm-jclear" id="cm-json-clear">Clear All</span></div></div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsWrap = document.getElementById('dots');
+  const progress = document.getElementById('progress');
+  const curEl = document.getElementById('cur');
+  const totalEl = document.getElementById('total');
+  const chapEl = document.getElementById('chapname');
+  const overview = document.getElementById('overview');
+  const ovBody = document.getElementById('ov-body');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let idx = 0;
+  totalEl.textContent = slides.length;
+
+  // ── Chapter index: grouped by data-chapter ──
+  // chapters: [{num, title, start, color}] ; used for number-key chapter jump / chapter name / chapter theme color.
+  const chapters = [];
+  const chapterSet = new Set();
+  slides.forEach((s, i) => {
+    const c = s.dataset.chapter;
+    if (!c || chapterSet.has(c)) return;
+    chapterSet.add(c);
+    chapters.push({ num: c, title: s.dataset.chapterTitle || ('Chapter ' + c), start: i, color: s.dataset.chapterColor || null });
+  });
+  const chapterMap = new Map(chapters.map(c => [c.num, c]));
+
+  // ── Bottom dots: grouped by chapter (gap between chapters) ──
+  const dots = [];
+  let prevChapter = slides[0] ? slides[0].dataset.chapter : undefined;
+  slides.forEach((s, i) => {
+    if (i > 0 && s.dataset.chapter !== prevChapter) {
+      const gap = document.createElement('span');
+      gap.className = 'gap';
+      dotsWrap.appendChild(gap);
+    }
+    prevChapter = s.dataset.chapter;
+    const d = document.createElement('div');
+    d.className = 'd' + (i === 0 ? ' on' : '');
+    d.addEventListener('click', () => go(i));
+    dotsWrap.appendChild(d);
+    dots.push(d);
+  });
+
+  // ── Overview thumbnail grid: grouped by chapter ──
+  const slideTitles = slides.map(s => {
+    const el = s.querySelector('h1, h2, .chap-tag, .kicker');
+    return el ? el.textContent.trim().replace(/\s+/g, ' ').slice(0, 48) : '(untitled)';
+  });
+  let overviewBuilt = false;
+  function buildOverview() {
+    if (overviewBuilt) {
+      ovBody.querySelectorAll('.ov-cell').forEach((el, i) => el.classList.toggle('cur', i === idx));
+      return;
+    }
+    ovBody.innerHTML = '';
+    let group = null, groupChapter = '__none__';
+    slides.forEach((s, i) => {
+      const ch = s.dataset.chapter || '';
+      if (ch !== groupChapter) {
+        groupChapter = ch;
+        group = document.createElement('div');
+        group.className = 'ov-chapter';
+        const name = document.createElement('div');
+        name.className = 'ov-ch-name';
+        const meta = chapterMap.get(ch);
+        name.textContent = ch ? (meta ? meta.title : ('Chapter ' + ch)) : '— Intro / Outro —';
+        group.appendChild(name);
+        const grid = document.createElement('div');
+        grid.className = 'ov-grid';
+        group.appendChild(grid);
+        ovBody.appendChild(group);
+      }
+      const grid = group.querySelector('.ov-grid');
+      const cell = document.createElement('div');
+      cell.className = 'ov-cell' + (i === idx ? ' cur' : '');
+      cell.dataset.idx = i;
+      cell.innerHTML = '<div class="ov-n">' + (i + 1) + '</div><div class="ov-t">' + slideTitles[i] + '</div>';
+      grid.appendChild(cell);
+    });
+    overviewBuilt = true;
+  }
+  // Overview event delegation: handle clicks on ovBody
+  ovBody.addEventListener('click', (e) => {
+    const cell = e.target.closest('.ov-cell');
+    if (!cell) return;
+    closeOverview(); go(+cell.dataset.idx);
+  });
+  let ovSel = 0;
+  function ovCells() { return Array.from(ovBody.querySelectorAll('.ov-cell')); }
+  function updateOvSel() {
+    const cells = ovCells();
+    cells.forEach((el, i) => el.classList.toggle('sel', i === ovSel));
+    if (cells[ovSel]) cells[ovSel].scrollIntoView({ block: 'nearest' });
+  }
+  function moveOvSel(dx, dy) {
+    const cells = ovCells();
+    if (!cells.length) return;
+    const rects = cells.map(el => el.getBoundingClientRect());
+    const ci = Math.min(ovSel, rects.length - 1);
+    const cr = rects[ci] || rects[0];
+    const ccx = cr.left + cr.width / 2, ccy = cr.top + cr.height / 2;
+    let best = -1, bestScore = Infinity;
+    for (let i = 0; i < cells.length; i++) {
+      if (i === ci) continue;
+      const r = rects[i];
+      const ex = (r.left + r.width / 2) - ccx, ey = (r.top + r.height / 2) - ccy;
+      if (dx === 1 && ex <= 4) continue;
+      if (dx === -1 && ex >= -4) continue;
+      if (dy === 1 && ey <= 4) continue;
+      if (dy === -1 && ey >= -4) continue;
+      const score = dx !== 0 ? Math.abs(ex) + Math.abs(ey) * 3 : Math.abs(ey) + Math.abs(ex) * 3;
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    if (best >= 0) { ovSel = best; updateOvSel(); }
+  }
+  function openOverview() { ovSel = idx; buildOverview(); overview.classList.add('show'); updateOvSel(); if (window.__pauseBg) __pauseBg(); }
+  function closeOverview() { overview.classList.remove('show'); if (window.__resumeBg) __resumeBg(); }
+  function toggleOverview() { overview.classList.contains('show') ? closeOverview() : openOverview(); }
+
+  // ── comments annotation (review tool): C to enter comment mode, J to view/edit JSON. Memory only, import/export via JSON ──
+  // Coordinates x/y are viewport ratios (0~1), page is 1-based page number; markers show on corresponding page, click to view.
+  let comments = [], cmId = 0, commenting = false, cmInput = null;
+  const cmLayer = document.getElementById('comments-layer');
+  const cmJson = document.getElementById('cm-json');
+  const cmJsonTa = document.getElementById('cm-json-ta');
+  const cmJsonErr = document.getElementById('cm-json-err');
+
+  function renderMarkers() {
+    cmLayer.querySelectorAll('.cm-marker, .cm-pop').forEach(e => e.remove());
+    const page = idx + 1;
+    comments.filter(c => c.page === page).forEach(c => {
+      const m = document.createElement('div');
+      m.className = 'cm-marker';
+      m.style.left = (c.x * 100) + '%'; m.style.top = (c.y * 100) + '%';
+      m.textContent = c.id; m.title = 'Click to view comment';
+      m.addEventListener('click', (e) => { e.stopPropagation(); showCommentPop(c); });
+      cmLayer.appendChild(m);
+    });
+  }
+  function showCommentPop(c) {
+    cmLayer.querySelectorAll('.cm-pop').forEach(e => e.remove());
+    const p = document.createElement('div');
+    p.className = 'cm-pop';
+    p.style.left = (c.x * 100) + '%'; p.style.top = (c.y * 100) + '%';
+    p.textContent = c.text;
+    p.addEventListener('click', e => e.stopPropagation());
+    cmLayer.appendChild(p);
+    setTimeout(() => {
+      const close = (ev) => { if (!p.contains(ev.target)) { p.remove(); document.removeEventListener('click', close, true); } };
+      document.addEventListener('click', close, true);
+    }, 0);
+  }
+  function confirmInput() {
+    if (!cmInput) return;
+    const text = cmInput.querySelector('textarea').value.trim();
+    const x = parseFloat(cmInput.dataset.x), y = parseFloat(cmInput.dataset.y);
+    cmInput.remove(); cmInput = null;
+    if (text) { comments.push({ id: ++cmId, page: idx + 1, x, y, text }); renderMarkers(); }
+  }
+  function closeInput(commit) {
+    if (!cmInput) return;
+    if (commit) { confirmInput(); return; }
+    cmInput.remove(); cmInput = null;
+  }
+  function openInput(x, y) {
+    closeInput(true);   // Click elsewhere -> submit current first
+    const box = document.createElement('div');
+    box.className = 'cm-input';
+    box.style.left = (x * 100) + '%'; box.style.top = (y * 100) + '%';
+    box.dataset.x = x; box.dataset.y = y;
+    box.innerHTML = '<textarea></textarea><div class="cm-hint">Enter to confirm · Shift+Enter for newline · Esc to cancel</div>';
+    cmLayer.appendChild(box);
+    cmInput = box;
+    const ta = box.querySelector('textarea');
+    ta.addEventListener('keydown', (e) => {
+      e.stopPropagation();   // Don't trigger global shortcuts while typing
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmInput(); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeInput(false); }
+    });
+    ta.focus();
+  }
+  function enterCommenting() { commenting = true; document.body.classList.add('commenting'); cmLayer.style.pointerEvents = 'auto'; }
+  function exitCommenting() { closeInput(false); commenting = false; document.body.classList.remove('commenting'); cmLayer.style.pointerEvents = 'none'; }
+  cmLayer.addEventListener('click', (e) => {
+    if (!commenting) return;
+    if (e.target.closest('.cm-marker') || e.target.closest('.cm-input') || e.target.closest('.cm-pop')) return;
+    openInput(e.clientX / window.innerWidth, e.clientY / window.innerHeight);
+  });
+
+  function openJson() { cmJsonTa.value = JSON.stringify(comments, null, 2); cmJsonErr.textContent = ''; cmJson.classList.add('show'); cmJsonTa.focus(); cmJsonTa.select(); }
+  function closeJson() { cmJson.classList.remove('show'); }
+  function applyJson() {
+    try {
+      const data = JSON.parse(cmJsonTa.value || '[]');
+      if (!Array.isArray(data)) throw new Error('Top level should be an array');
+      comments = data.map((c, i) => ({ id: c.id != null ? c.id : (i + 1), page: parseInt(c.page, 10) || 1, x: +c.x || 0, y: +c.y || 0, text: String(c.text == null ? '' : c.text) }));
+      cmId = comments.reduce((m, c) => Math.max(m, +c.id || 0), 0);
+      closeJson();
+      if (comments.length) go(comments[0].page - 1); else renderMarkers();
+    } catch (err) { cmJsonErr.textContent = 'Parse error: ' + err.message; }
+  }
+  document.getElementById('cm-json-apply').addEventListener('click', applyJson);
+  document.getElementById('cm-json-clear').addEventListener('click', () => { comments = []; cmId = 0; renderMarkers(); closeJson(); });
+  cmJson.addEventListener('click', (e) => { if (e.target === cmJson) closeJson(); });
+
+  // ── reveal entrance ──
+  const REVEAL_SEL = '.reveal-item';
+  let timers = [];
+  function clearT() { timers.forEach(clearTimeout); timers = []; }
+  function runReveal(slide, dir) {
+    if (dir > 0) { slide.style.setProperty('--enter-x', '-36px'); slide.style.setProperty('--enter-y', '0px'); }
+    else if (dir < 0) { slide.style.setProperty('--enter-x', '36px'); slide.style.setProperty('--enter-y', '0px'); }
+    else { slide.style.setProperty('--enter-x', '0px'); slide.style.setProperty('--enter-y', '20px'); }
+    const items = Array.from(slide.querySelectorAll(REVEAL_SEL));
+    items.forEach(el => el.classList.remove('in'));
+    if (reduceMotion) { items.forEach(el => el.classList.add('in')); return; }
+    const step = items.length > 12 ? 50 : 85;
+    items.forEach((el, i) => timers.push(setTimeout(() => el.classList.add('in'), 90 + i * step)));
+  }
+
+  // ── Current chapter name ──
+  function updateChapName() {
+    const ch = slides[idx].dataset.chapter;
+    const meta = ch && chapterMap.get(ch);
+    chapEl.textContent = meta ? ('· ' + meta.title) : '';
+  }
+
+  // ── Chapter theme color: set global --accent when entering a chapter ──
+  // Highlight elements / progress bar / dots all reference --accent, will follow; no-chapter pages fall back to default.
+  const rootStyle = document.documentElement.style;
+  const defaultAccent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#38e0d0').trim();
+  function hexToRgb(hex) {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((hex || '').trim());
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [56, 224, 208];
+  }
+  let accentRGB = hexToRgb(defaultAccent);   // Background particles read this -> follows chapter theme
+  function applyTheme() {
+    const ch = slides[idx].dataset.chapter;
+    const meta = ch && chapterMap.get(ch);
+    const color = (meta && meta.color) || defaultAccent;
+    rootStyle.setProperty('--accent', color);
+    accentRGB = hexToRgb(color);
+  }
+
+  // ── Steps: space / click advances within a page, then turns to next page (Keynote builds) ──
+  // Step count = data-steps="N", otherwise count .step elements in the page. On advance: add
+  // .shown to the Nth .step, write data-step="N" on section, dispatch coslides:step event (detail:{step,total,dir}).
+  let curStep = 0, curTotal = 0;
+  function slideTotal(s) {
+    if (s.dataset.steps != null) return parseInt(s.dataset.steps, 10) || 0;
+    return s.querySelectorAll('.step').length;
+  }
+  function applyStepState(s, fire, dir) {
+    s.dataset.step = curStep;
+    s.querySelectorAll('.step').forEach((el, i) => el.classList.toggle('shown', i < curStep));
+    if (fire && curTotal > 0) s.dispatchEvent(new CustomEvent('coslides:step', { detail: { step: curStep, total: curTotal, dir: dir || 0 } }));
+  }
+  function initSteps(dir) {
+    const s = slides[idx];
+    curTotal = slideTotal(s);
+    if (curTotal === 0) { curStep = 0; return; }
+    if (dir < 0) { curStep = curTotal; applyStepState(s, true, -1); return; }
+    // Forward / jump: reset to step 0 first, then advance to step 1
+    curStep = 0; applyStepState(s, true, 0);
+    curStep = 1; applyStepState(s, true, 1);
+  }
+  function advance() {
+    if (curStep < curTotal) { curStep++; applyStepState(slides[idx], true, 1); }
+    else next();
+  }
+
+  let suppressHash = false;
+  function go(n) {
+    const from = idx;
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    const dir = idx === from ? 0 : (idx > from ? 1 : -1);
+    clearT();
+    if (from >= 0 && from < slides.length) slides[from].classList.remove('active');
+    slides[idx].classList.add('active');
+    dots.forEach((d, i) => d.classList.toggle('on', i === idx));
+    curEl.textContent = idx + 1;
+    progress.style.width = ((idx + 1) / slides.length * 100) + '%';
+    updateChapName();
+    applyTheme();
+    initSteps(dir);
+    renderMarkers();
+    runReveal(slides[idx], dir);
+    if (dir !== 0 && window.__kickBg) window.__kickBg(dir);
+    const want = 'p' + (idx + 1);
+    if (location.hash.slice(1) !== want) { suppressHash = true; location.hash = want; }
+  }
+  function next() { go(idx + 1); }
+  function prev() { go(idx - 1); }
+  function gotoChapter(n) { if (chapters[n]) go(chapters[n].start); }
+
+  function applyHash() {
+    if (suppressHash) { suppressHash = false; return; }
+    const m = /^#p(\d+)$/.exec(location.hash);
+    go(m ? parseInt(m[1], 10) - 1 : 0);
+  }
+  window.addEventListener('hashchange', applyHash);
+
+  document.addEventListener('keydown', (e) => {
+    if (cmJson.classList.contains('show')) {
+      if (e.key === 'Escape') { e.preventDefault(); closeJson(); }
+      return;
+    }
+    if (commenting) {   // Comment mode: disable other shortcuts; Enter/Esc to exit when no input
+      if (!cmInput && (e.key === 'Enter' || e.key === 'Escape')) { e.preventDefault(); exitCommenting(); }
+      return;
+    }
+    if (overview.classList.contains('show')) {
+      if (e.key === 'Escape' || e.key === 'o' || e.key === 'O') { e.preventDefault(); closeOverview(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); moveOvSel(1, 0); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); moveOvSel(-1, 0); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); moveOvSel(0, 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); moveOvSel(0, -1); }
+      else if (e.key === 'Enter') { e.preventDefault(); const t = ovSel; closeOverview(); go(t); }
+      return;
+    }
+    if (e.key === ' ') { e.preventDefault(); advance(); }
+    else if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key === 'Escape' || e.key === 'o' || e.key === 'O') { e.preventDefault(); toggleOverview(); }
+    else if (e.key >= '1' && e.key <= '9') { e.preventDefault(); gotoChapter(parseInt(e.key, 10) - 1); }
+    else if (e.key === 'f' || e.key === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+    else if (e.key === 'c' || e.key === 'C') { e.preventDefault(); enterCommenting(); }
+    else if (e.key === 'j' || e.key === 'J') { e.preventDefault(); openJson(); }
+  });
+
+  document.getElementById('deck').addEventListener('click', (e) => {
+    if (e.target.closest('.bubble.human')) return;   // Reveal answer, don't turn page
+    if (e.target.closest('a')) return;               // Let links open normally
+    if (e.clientY > window.innerHeight - 70) return; // Bottom chrome area
+    advance();                                       // Advance steps first, then turn page
+  });
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx; if (dx < -50) next(); else if (dx > 50) prev(); }, { passive: true });
+
+  // ── Particle background (directional whoosh on page turn) ──
+  (function () {
+    if (reduceMotion) { window.__kickBg = null; return; }
+    const canvas = document.getElementById('bg'), ctx = canvas.getContext('2d');
+    let w, h, pts, raf, running = true; const COUNT = 52, LINK = 150;
+    let boost = 0, dir = 0;
+    let curRGB = accentRGB.slice();   // Current particle color, smoothly approaches accentRGB each frame
+    window.__kickBg = (d) => {
+      dir = d; boost = 1;
+      for (const p of pts) { p.vx += dir * (0.7 + Math.random() * 0.9) * devicePixelRatio; p.vy += (Math.random() - .5) * 1.0 * devicePixelRatio; }
+    };
+    window.__pauseBg = () => { running = false; cancelAnimationFrame(raf); };
+    window.__resumeBg = () => { if (!running && !document.hidden) { running = true; frame(); } };
+    function resize() { w = canvas.width = innerWidth * devicePixelRatio; h = canvas.height = innerHeight * devicePixelRatio; canvas.style.width = innerWidth + 'px'; canvas.style.height = innerHeight + 'px'; }
+    function init() { pts = Array.from({ length: COUNT }, () => ({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .22 * devicePixelRatio, vy: (Math.random() - .5) * .22 * devicePixelRatio, r: (Math.random() * 1.5 + .5) * devicePixelRatio })); }
+    const FPS_INTERVAL = 1000 / 30;   // Cap at 30fps
+    let lastFrame = 0;
+    function frame(ts) {
+      if (!running) return;
+      raf = requestAnimationFrame(frame);
+      if (!ts || ts - lastFrame < FPS_INTERVAL) return;
+      lastFrame = ts;
+      ctx.clearRect(0, 0, w, h); const link = LINK * devicePixelRatio;
+      const sweep = dir * boost * 3.2 * devicePixelRatio;
+      for (let k = 0; k < 3; k++) curRGB[k] += (accentRGB[k] - curRGB[k]) * 0.08;
+      const cr = curRGB[0] | 0, cg = curRGB[1] | 0, cb = curRGB[2] | 0;
+      // Bucket by opacity for batch line drawing (reduce stroke calls)
+      const BUCKETS = 5;
+      const bucketLines = Array.from({ length: BUCKETS }, () => []);
+      const bucketAlpha = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        p.x += p.vx + sweep; p.y += p.vy;
+        if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w;
+        if (p.y < 0) p.y += h; else if (p.y > h) p.y -= h;
+        p.vx += ((Math.sign(p.vx) || 1) * 0.22 * devicePixelRatio - p.vx) * 0.04;
+        p.vy += ((Math.sign(p.vy) || 1) * 0.22 * devicePixelRatio - p.vy) * 0.04;
+        for (let j = i + 1; j < pts.length; j++) {
+          const q = pts[j], dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy);
+          if (d < link) {
+            const alpha = (1 - d / link) * (.15 + boost * .35);
+            const bi = Math.min(BUCKETS - 1, (alpha * BUCKETS) | 0);
+            bucketLines[bi].push(p.x, p.y, q.x, q.y);
+          }
+        }
+      }
+      ctx.lineWidth = devicePixelRatio * (.6 + boost * .5);
+      for (let bi = 0; bi < BUCKETS; bi++) {
+        const lines = bucketLines[bi];
+        if (!lines.length) continue;
+        const a = ((bi + 0.5) / BUCKETS).toFixed(3);
+        ctx.strokeStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + a + ')';
+        ctx.beginPath();
+        for (let k = 0; k < lines.length; k += 4) {
+          ctx.moveTo(lines[k], lines[k + 1]);
+          ctx.lineTo(lines[k + 2], lines[k + 3]);
+        }
+        ctx.stroke();
+      }
+      for (const p of pts) { ctx.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + (.5 + boost * .4) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + boost * .6), 0, Math.PI * 2); ctx.fill(); }
+      boost *= 0.90; if (boost < 0.01) boost = 0;
+    }
+    resize(); init(); frame();
+    addEventListener('resize', () => { resize(); init(); });
+    document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) frame(); else cancelAnimationFrame(raf); });
+  })();
+
+  applyHash();   // Startup: follow URL #p<N>, otherwise page 1
+</script>
+</body>
+</html>
