@@ -14,6 +14,8 @@ Colyn 让你同时指挥多个 AI 并行开发不同功能——每个 worktree 
 
 **[→ 看完整的使用场景：用户故事](docs/zh-CN/manual/00-user-story.md)**
 
+**[→ 在线预览演示文稿](https://raw.githack.com/colin-han/colyn/main/docs/zh-CN/colyn-deck.html)**
+
 ---
 
 ## 核心能力
