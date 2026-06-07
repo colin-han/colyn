@@ -616,7 +616,7 @@
     <style>
       .tmux-step{display:flex;width:1050px;max-width:94vw;height:460px;border-radius:12px;overflow:visible;border:1px solid var(--line);background:#070b16;font-family:var(--mono);font-size:.78rem;line-height:1.65;position:relative;}
       .tmux-step>*{border-radius:0;} .tmux-step>.tmux-step-left:first-child{border-radius:12px 0 0 12px;} .tmux-step>.tmux-step-right:last-child{border-radius:0 12px 12px 0;overflow:hidden;}
-      .tmux-float-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 14px;color:var(--txt);font-size:.82rem;display:flex;align-items:center;gap:6px;white-space:nowrap;animation:tmux-bubble-in .3s ease;margin-bottom:8px;flex-shrink:0;}
+      .tmux-float-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 14px;color:var(--txt);font-size:.82rem;display:flex;align-items:center;gap:6px;white-space:nowrap;animation:tmux-bubble-in .3s ease;position:absolute;top:-44px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;}
       @keyframes tmux-bubble-in{from{opacity:0;}to{opacity:1;}}
       .tmux-step-left{width:30%;border-right:1px solid var(--line);display:flex;flex-direction:column;}
       .tmux-step-right{width:70%;display:flex;flex-direction:column;}
@@ -641,8 +641,8 @@
         const sec=document.currentScript.parentElement;
         const content=document.getElementById('s12-content');
         const box=document.getElementById('s12');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','我要规划开发任务');},
           ()=>{hideBubble();content.innerHTML=
@@ -659,7 +659,7 @@
 '<div class="tmux-output">  feature  tasks            任务列表页面，支持分页       <span class="ok">待办</span></div>'+
 '<div class="tmux-output">  feature  dashboard        数据仪表盘：统计、趋势图     <span class="ok">待办</span></div>';},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -701,8 +701,8 @@
         box.querySelector('.tmux-step-left').style.width='50%';
         box.querySelector('.tmux-step-left').style.opacity='1';
         box.querySelector('.tmux-step-right').style.width='50%';
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💡','Vibe 过程中，我突然有一个灵感');},
           ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line" style="white-space:normal;word-break:break-all;"><span class="prompt">$</span> colyn todo add feature/idea 我有一个绝妙的主意证明这个问题，不过这里写不下了…</div>';},
@@ -722,7 +722,7 @@
 '<div class="tmux-output" style="color:#555;">~</div>'+
 '<div class="tmux-output" style="color:var(--txt-dim);background:#223322;padding:0 4px;display:inline-block;">"feature-idea.md" [New File]                         1,1           All</div>';},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -767,8 +767,8 @@
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s14-content');
         const box=document.getElementById('s14');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','一个任务搞完了，需要合并到主分支去了');},
           ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn merge</div>';},
@@ -801,7 +801,7 @@
 '<div class="tmux-output"></div>'+
 '<div class="tmux-output"><span class="ok">✓ 合并完成！</span></div>';},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -840,8 +840,8 @@
         box.querySelector('.tmux-step-left').style.width='50%';
         box.querySelector('.tmux-step-left').style.opacity='1';
         box.querySelector('.tmux-step-right').style.width='50%';
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const cmdHtml='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn checkout</div>';
         const keyHint=(key)=>'<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(15,22,41,.92);border:1px solid var(--line);border-radius:8px;padding:4px 16px;font-size:.9rem;color:var(--accent);z-index:2;">'+key+'</div>';
         const steps=[
@@ -879,7 +879,7 @@ keyHint('⏎')+
 '<div class="tmux-output">  路径: worktrees/task-1</div>';},
           ()=>{showBubble('💬','代码分支已经创建，可以开始新任务的开发了');},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -913,8 +913,8 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s16-content');
         const box=document.getElementById('s16');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn add feature/tasks</div>';},
           ()=>{el.innerHTML+=
@@ -940,7 +940,7 @@ keyHint('⏎')+
 '<div class="tmux-output">  2  feature/tasks      3002  worktrees/task-2     idle</div>'+
 '<div class="tmux-output"><span class="run">→</span>3  feature/dashboard  3003  worktrees/task-3     idle</div>';showBubble('🌐','浏览器同时打开三个端口验证：localhost:3001 认证 · localhost:3002 任务 · localhost:3003 仪表盘');},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -974,8 +974,8 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s17-content');
         const box=document.getElementById('s17');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','feature/auth 已合并到 main，其他 worktree 需要同步最新代码');},
           ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn update</div>';},
@@ -1000,7 +1000,7 @@ keyHint('⏎')+
 '<div class="tmux-output">更新结果:</div>'+
 '<div class="tmux-output"><span class="ok">✓ 2 个 worktree 更新成功</span></div>';},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -1034,8 +1034,8 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s18-content');
         const box=document.getElementById('s18');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','三个功能都开发完了，准备发布一个版本');},
           ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn release minor</div>';},
@@ -1076,7 +1076,7 @@ keyHint('⏎')+
 '<div class="tmux-output">版本: v1.1.0  分支: main  标签: v1.1.0</div>';},
           ()=>{showBubble('💬','可以选择 patch、minor、major 三种版本级别。patch 修 bug，minor 加功能，major 破坏性变更');},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -1110,8 +1110,8 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s19-content');
         const box=document.getElementById('s19');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','多个 worktree 来回切换，每次都 cd 太麻烦了');},
           ()=>{hideBubble();el.innerHTML=
@@ -1133,7 +1133,7 @@ keyHint('⏎')+
 '<div class="tmux-output">To github.com:xiaoming/my-task-app.git</div>'+
 '<div class="tmux-output">   a1b2c3d..e4f5g6h  main -> main</div>';},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -1203,8 +1203,8 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s22-content');
         const box=document.getElementById('s22');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.parentElement.insertBefore(b,box);}
-        function hideBubble(){const b=box.previousElementSibling;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
         const steps=[
           ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn config set --user lang zh-CN</div>';},
           ()=>{el.innerHTML+=
@@ -1213,7 +1213,7 @@ keyHint('⏎')+
 '<div class="tmux-output"><span class="run">feature/auth</span>     <span class="run">feature/dashboard</span>   <span class="run">feature/tasks</span></div>';},
           ()=>{showBubble('💬','merge、update、remove、checkout、todo 等命令都支持 Tab 补全——分支名、Worktree ID、Todo 任务名，不用手打');},
         ];
-        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s>0&&s<=steps.length)steps[s-1]();});
+        sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
     </script>
   </section>
@@ -1558,8 +1558,11 @@ keyHint('⏎')+
   function initSteps(dir) {
     const s = slides[idx];
     curTotal = slideTotal(s);
-    curStep = dir < 0 ? curTotal : 0;   // 反向进入 → 全部展开；正向 / 跳转 → 从第 0 步
-    applyStepState(s, curTotal > 0, 0);
+    if (curTotal === 0) { curStep = 0; return; }
+    if (dir < 0) { curStep = curTotal; applyStepState(s, true, -1); return; }
+    // 正向 / 跳转：先 step 0 重置，再 step 1 进入
+    curStep = 0; applyStepState(s, true, 0);
+    curStep = 1; applyStepState(s, true, 1);
   }
   function advance() {
     if (curStep < curTotal) { curStep++; applyStepState(slides[idx], true, 1); }
