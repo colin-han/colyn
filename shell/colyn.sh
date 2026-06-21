@@ -21,7 +21,7 @@ colyn() {
   # 使用 source 时解析好的安装目录
   local COLYN_SHELL_DIR="${_COLYN_SHELL_DIR}"
 
-  local COLYN_BIN="${COLYN_SHELL_DIR}/../../colyn"
+  local COLYN_BIN="${COLYN_SHELL_DIR}/../bin/colyn"
 
   if [[ ! -f "$COLYN_BIN" ]]; then
     echo "错误: 找不到 colyn" >&2

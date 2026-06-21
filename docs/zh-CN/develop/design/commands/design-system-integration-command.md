@@ -221,7 +221,7 @@ source "/path/to/colyn/shell/colyn.sh"
    - `PreToolUse`（matcher 为 `AskUserQuestion`）→ `colyn status set waiting-confirm`
    - `Stop` → `colyn status set finish`
 
-   这些状态会显示在 `colyn list` 的状态列中。hook 命令使用 colyn 可执行文件的绝对路径，并以 `2>/dev/null || true` 包裹，避免影响 Claude Code 正常运行。
+   这些状态会显示在 `colyn list` 的状态列中。hook 命令使用 colyn 可执行文件的绝对路径，并以 `2>/dev/null || true` 包裹，避免影响 Claude Code 正常运行。该绝对路径由 `getColynBinPath()` 基于模块位置（`import.meta.url`）推断为 `<安装根>/bin/colyn`——安装环境下即 `colyn.d/bin/colyn`（wrapper 真身），与开发环境 `<repo>/bin/colyn` 同构，因此运行时无需区分环境。
 
 2. **Claude skills 安装**：将 Colyn 内置的 `skills/<skill-name>/` 目录递归复制到 `~/.claude/skills/`，并把 `SKILL.md` 中 bash 代码块里的 `colyn` 命令替换为绝对路径。
 

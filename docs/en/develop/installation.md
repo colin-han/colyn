@@ -65,8 +65,8 @@ colyn add feature/test
 Create symbolic link to system path:
 
 ```bash
-# macOS/Linux
-sudo ln -s ~/my-tools/colyn/colyn /usr/local/bin/colyn
+# macOS/Linux (point to the real wrapper)
+sudo ln -s ~/my-tools/colyn/colyn.d/bin/colyn /usr/local/bin/colyn
 
 # Then run from anywhere
 colyn --version
@@ -338,7 +338,7 @@ scripts/install.js
    - `README.md` (optional)
 3. **Install dependencies**: Execute `npm install --production` in target directory
 4. **Create launcher scripts** (by platform):
-   - **macOS/Linux**: Create `colyn` (executable script)
+   - **macOS/Linux**: Copy the wrapper to `colyn.d/bin/colyn` (mirrors the dev environment `bin/colyn`), and create a symlink `colyn → colyn.d/bin/colyn` in the target directory
    - **Windows**: Create `colyn.cmd` (batch script)
 5. **Configure shell integration** (macOS/Linux only):
    - Automatically call `colyn setup` command
@@ -353,11 +353,14 @@ scripts/install.js
 ```
 <target-directory>/
 ├── colyn.d/           # Program files directory
+│   ├── bin/           # Wrapper directory
+│   │   └── colyn      # Launcher script (real file, = source bin/colyn)
 │   ├── dist/          # Compiled code
 │   ├── node_modules/  # Production dependencies
-│   ├── colyn.sh       # Shell integration script
+│   ├── shell/         # Shell integration scripts
+│   │   └── colyn.sh   # Shell integration script
 │   └── package.json   # Package config
-└── colyn              # Unix launcher script
+└── colyn              # Symlink → colyn.d/bin/colyn
 ```
 
 **Windows**:

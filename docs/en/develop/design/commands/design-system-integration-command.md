@@ -221,7 +221,7 @@ Besides shell integration, `colyn setup` also configures Claude Code integration
    - `PreToolUse` (matcher `AskUserQuestion`) → `colyn status set waiting-confirm`
    - `Stop` → `colyn status set finish`
 
-   These statuses appear in the status column of `colyn list`. The hook commands use the absolute path to the colyn binary, wrapped with `2>/dev/null || true` to avoid interfering with Claude Code.
+   These statuses appear in the status column of `colyn list`. The hook commands use the absolute path to the colyn binary, wrapped with `2>/dev/null || true` to avoid interfering with Claude Code. This absolute path is derived by `getColynBinPath()` from the module location (`import.meta.url`) as `<install-root>/bin/colyn` — in the installed environment this is `colyn.d/bin/colyn` (the real wrapper), mirroring the dev environment's `<repo>/bin/colyn`, so no runtime environment detection is needed.
 
 2. **Claude skills installation**: recursively copies Colyn's bundled `skills/<skill-name>/` directories into `~/.claude/skills/`, rewriting the `colyn` command in `SKILL.md` bash blocks to an absolute path.
 

@@ -65,8 +65,8 @@ colyn add feature/test
 创建符号链接到系统路径：
 
 ```bash
-# macOS/Linux
-sudo ln -s ~/my-tools/colyn/colyn /usr/local/bin/colyn
+# macOS/Linux（指向 wrapper 真身）
+sudo ln -s ~/my-tools/colyn/colyn.d/bin/colyn /usr/local/bin/colyn
 
 # 然后在任意位置运行
 colyn --version
@@ -338,7 +338,7 @@ scripts/install.js
    - `README.md`（可选）
 3. **安装依赖**：在目标目录执行 `npm install --production`
 4. **创建启动脚本**（根据平台）：
-   - **macOS/Linux**：创建 `colyn`（可执行脚本）
+   - **macOS/Linux**：将 wrapper 复制到 `colyn.d/bin/colyn`（与开发环境 `bin/colyn` 同构），并在目标目录创建软链接 `colyn → colyn.d/bin/colyn`
    - **Windows**：创建 `colyn.cmd`（批处理脚本）
 5. **配置 shell 集成**（仅 macOS/Linux）：
    - 自动调用 `colyn setup` 命令
@@ -353,11 +353,14 @@ scripts/install.js
 ```
 <目标目录>/
 ├── colyn.d/           # 程序文件目录
+│   ├── bin/           # wrapper 目录
+│   │   └── colyn      # 启动脚本真身（= 源码 bin/colyn）
 │   ├── dist/          # 编译后的代码
 │   ├── node_modules/  # 生产依赖
-│   ├── colyn.sh       # Shell 集成脚本
+│   ├── shell/         # Shell 集成脚本目录
+│   │   └── colyn.sh   # Shell 集成脚本
 │   └── package.json   # 包配置
-└── colyn              # Unix 启动脚本
+└── colyn              # 软链接 → colyn.d/bin/colyn
 ```
 
 **Windows**：

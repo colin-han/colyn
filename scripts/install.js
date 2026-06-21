@@ -258,6 +258,10 @@ async function main() {
   info(`检测到系统平台: ${platform}`);
 
   if (platform === 'win32') {
+    // TODO(Windows): 当前仍在 targetDir 直接生成 colyn.cmd，未按新结构
+    // （colyn.d/bin/colyn.cmd 真身 + targetDir 链接/复制）统一处理。
+    // 原因：Windows 创建符号链接需管理员/开发者模式权限，fs.symlink 默认会失败。
+    // 后续需单独处理 Windows 下 getColynBinPath() 的正确性与 wrapper 部署。
     // Windows 脚本
     const windowsScriptContent = `@echo off
 REM Colyn CLI 启动脚本 (Windows)
@@ -278,33 +282,26 @@ node "%~dp0colyn.d\\dist\\index.js" %*
       process.exit(1);
     }
   } else {
-    // Unix/Linux/macOS bash 脚本
-    const unixScriptContent = `#!/bin/bash
-
-# Colyn CLI 启动脚本
-# 自动生成 - 请勿手动修改
-# 如需目录切换功能，请 source colyn.d/colyn.sh
-
-USER_CWD="$(pwd)"
-SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-COLYN_CORE="\${SCRIPT_DIR}/colyn.d/dist/index.js"
-
-if [[ ! -f "\${COLYN_CORE}" ]]; then
-  echo "错误: 找不到 colyn 核心文件" >&2
-  exit 1
-fi
-
-COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
-`;
-
-    const unixScriptPath = path.join(targetDir, 'colyn');
+    // Unix/Linux/macOS：wrapper 真身放在 colyn.d/bin/colyn（与开发环境 bin/colyn 同构），
+    // targetDir/colyn 用软链接指向它。这样 getColynBinPath() 推断的 <root>/bin/colyn
+    // 在安装环境直接成立，开发/安装环境共用同一份 wrapper 源码，无需运行时区分环境。
+    const wrapperSrc = path.join(projectRoot, 'bin', 'colyn');
+    const wrapperDest = path.join(colynDir, 'bin', 'colyn');
+    const symlinkPath = path.join(targetDir, 'colyn');
 
     try {
-      await fs.writeFile(unixScriptPath, unixScriptContent, 'utf-8');
-      await fs.chmod(unixScriptPath, 0o755); // 添加执行权限
+      // 1. 复制源码 wrapper 到 colyn.d/bin/colyn
+      await fs.mkdir(path.dirname(wrapperDest), { recursive: true });
+      await fs.copyFile(wrapperSrc, wrapperDest);
+      await fs.chmod(wrapperDest, 0o755);
+
+      // 2. targetDir/colyn 软链接 → colyn.d/bin/colyn（相对路径，整体搬迁不断链）
+      // 覆盖安装：旧版 targetDir/colyn 是真身 wrapper，需先清理再创建软链接
+      await fs.rm(symlinkPath, { force: true });
+      await fs.symlink('colyn.d/bin/colyn', symlinkPath);
 
       const platformName = platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : 'Unix';
-      success(`启动脚本创建完成: colyn (${platformName})`);
+      success(`启动脚本创建完成: colyn (${platformName}, 软链接 → colyn.d/bin/colyn)`);
     } catch (err) {
       error(`创建启动脚本失败: ${err.message}`);
       process.exit(1);
@@ -355,19 +352,26 @@ COLYN_USER_CWD="$USER_CWD" node "\${COLYN_CORE}" "$@"
 
   log('目标目录结构:', 'cyan');
   info(targetDir);
-  info('├── colyn.d/           # 程序文件');
-  info('│   ├── dist/          # 编译后的代码');
-  info('│   ├── node_modules/  # 依赖包');
-  info('│   ├── shell/         # Shell 集成脚本');
-  info('│   │   ├── colyn.sh   # Shell 集成脚本');
-  info('│   │   ├── completion.bash # Bash 补全脚本');
-  info('│   │   └── completion.zsh  # Zsh 补全脚本');
-  info('│   └── package.json   # 包配置');
 
   if (platform === 'win32') {
+    info('├── colyn.d/           # 程序文件');
+    info('│   ├── dist/          # 编译后的代码');
+    info('│   ├── node_modules/  # 依赖包');
+    info('│   ├── shell/         # Shell 集成脚本');
+    info('│   └── package.json   # 包配置');
     info('└── colyn.cmd          # Windows 启动脚本');
   } else {
-    info('└── colyn              # Unix/Linux/macOS 启动脚本');
+    info('├── colyn.d/           # 程序文件');
+    info('│   ├── bin/           # wrapper 目录');
+    info('│   │   └── colyn      # 启动脚本真身（= 源码 bin/colyn）');
+    info('│   ├── dist/          # 编译后的代码');
+    info('│   ├── node_modules/  # 依赖包');
+    info('│   ├── shell/         # Shell 集成脚本');
+    info('│   │   ├── colyn.sh   # Shell 集成脚本');
+    info('│   │   ├── completion.bash # Bash 补全脚本');
+    info('│   │   └── completion.zsh  # Zsh 补全脚本');
+    info('│   └── package.json   # 包配置');
+    info('└── colyn              # 软链接 → colyn.d/bin/colyn');
   }
   console.log('');
 
