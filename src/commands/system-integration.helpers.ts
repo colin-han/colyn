@@ -291,28 +291,30 @@ function addOrUpdateSimpleHook(
 }
 
 /**
- * 在 PreToolUse 事件的 AskUserQuestion matcher 下添加或更新 hook
+ * 在指定事件的某个 matcher 下添加或更新 hook
  * 返回 true 表示新增，false 表示更新
  */
-function addOrUpdatePreToolUseHook(
+function addOrUpdateMatcherHook(
   hooksRecord: Record<string, ClaudeHookConfig[]>,
+  event: string,
+  matcher: string,
   command: string,
   marker: string
 ): boolean {
-  if (!hooksRecord['PreToolUse']) {
-    hooksRecord['PreToolUse'] = [];
+  if (!hooksRecord[event]) {
+    hooksRecord[event] = [];
   }
-  const configs = hooksRecord['PreToolUse'];
+  const configs = hooksRecord[event];
 
   if (findAndUpdateHook(configs, marker, command)) {
     return false;
   }
 
-  const matcherConfig = configs.find(c => c.matcher === 'AskUserQuestion');
+  const matcherConfig = configs.find(c => c.matcher === matcher);
   if (matcherConfig) {
     matcherConfig.hooks.push({ type: 'command', command });
   } else {
-    configs.push({ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command }] });
+    configs.push({ matcher, hooks: [{ type: 'command', command }] });
   }
   return true;
 }
@@ -320,10 +322,21 @@ function addOrUpdatePreToolUseHook(
 /**
  * 在 ~/.claude/settings.json 中添加或更新 colyn status hooks
  *
- * 配置三个 hooks：
+ * 配置完整状态机的 hooks，使 Claude Code 会话状态实时同步到 worktree 状态：
+ * - SessionStart (startup|clear): colyn status set idle
  * - UserPromptSubmit: colyn status set running
  * - PreToolUse (AskUserQuestion): colyn status set waiting-confirm
+ * - PostToolUse (AskUserQuestion): colyn status set running
+ * - Notification: colyn status set waiting-confirm
  * - Stop: colyn status set finish
+ * - SessionEnd: colyn status set idle
+ *
+ * 状态机说明：
+ * - `PostToolUse(AskUserQuestion)` 修复用户提交答案后未回到 running 的问题
+ * - `Notification` 用于捕获权限确认等待（PreToolUse 在授权后才触发，
+ *   权限等待期间无其他信号，只能靠 Notification 捕获）
+ * - `SessionStart` 仅在 startup|clear 时重置为 idle，避开 resume/compact，
+ *   以保留正在进行的会话状态
  *
  * @param colynBinPath - colyn 二进制文件的绝对路径
  * @returns 'added' | 'updated'
@@ -351,22 +364,57 @@ export async function updateClaudeHooks(colynBinPath: string): Promise<'added' |
   const makeCommand = (status: string): string =>
     `${colynBinPath} status set ${status} 2>/dev/null || true`;
 
+  // 会话开始（新会话 / 清空）→ idle；resume/compact 不重置以保留进行中状态
+  const sessionStartAdded = addOrUpdateMatcherHook(
+    hooksRecord,
+    'SessionStart',
+    'startup|clear',
+    makeCommand('idle'),
+    'status set idle'
+  );
+  // 用户提交 prompt → running
   const runningAdded = addOrUpdateSimpleHook(
     hooksRecord,
     'UserPromptSubmit',
     makeCommand('running'),
     'status set running'
   );
-  const waitingAdded = addOrUpdatePreToolUseHook(
+  // AskUserQuestion 弹出 → waiting-confirm
+  const waitingAdded = addOrUpdateMatcherHook(
     hooksRecord,
+    'PreToolUse',
+    'AskUserQuestion',
     makeCommand('waiting-confirm'),
     'status set waiting-confirm'
   );
+  // AskUserQuestion 答案提交 → running（修复状态卡在 waiting-confirm）
+  const postQuestionAdded = addOrUpdateMatcherHook(
+    hooksRecord,
+    'PostToolUse',
+    'AskUserQuestion',
+    makeCommand('running'),
+    'status set running'
+  );
+  // 权限确认 / 等待输入 → waiting-confirm
+  const notificationAdded = addOrUpdateSimpleHook(
+    hooksRecord,
+    'Notification',
+    makeCommand('waiting-confirm'),
+    'status set waiting-confirm'
+  );
+  // 响应结束 → finish
   const finishAdded = addOrUpdateSimpleHook(
     hooksRecord,
     'Stop',
     makeCommand('finish'),
     'status set finish'
+  );
+  // 会话结束 → idle
+  const sessionEndAdded = addOrUpdateSimpleHook(
+    hooksRecord,
+    'SessionEnd',
+    makeCommand('idle'),
+    'status set idle'
   );
 
   const newSettings: Record<string, unknown> = { ...rawSettings, hooks: hooksRecord };
@@ -374,7 +422,10 @@ export async function updateClaudeHooks(colynBinPath: string): Promise<'added' |
   await fs.mkdir(path.dirname(settingsPath), { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(newSettings, null, 2) + '\n', 'utf-8');
 
-  return runningAdded || waitingAdded || finishAdded ? 'added' : 'updated';
+  return sessionStartAdded || runningAdded || waitingAdded || postQuestionAdded
+    || notificationAdded || finishAdded || sessionEndAdded
+    ? 'added'
+    : 'updated';
 }
 
 /**

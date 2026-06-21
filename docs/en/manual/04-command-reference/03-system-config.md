@@ -310,7 +310,7 @@ colyn setup
 6. Install the Claude skills bundled with Colyn (copied to `~/.claude/skills/`)
 
 **Claude Code integration (steps 5–6):**
-- **Status hooks**: writes three hooks so Claude Code session state syncs to worktree status in real time — set to `running` on prompt submit, `waiting-confirm` on a confirmation prompt (AskUserQuestion), and `finish` when the session stops. These show up in the status column of `colyn list`.
+- **Status hooks**: writes a set of hooks forming a complete state machine so Claude Code session state syncs to worktree status in real time — `idle` on session start/end, `running` on prompt submit or after answering, `waiting-confirm` on a confirmation prompt (AskUserQuestion) or when permission is required, and `finish` when the session stops. These show up in the status column of `colyn list`.
 - **Claude skills**: copies Colyn's bundled skills into `~/.claude/skills/`, rewriting the `colyn` command inside them to an absolute path.
 - Both steps are non-fatal: on failure they only print a warning and do not interrupt setup.
 

@@ -216,12 +216,24 @@ source "/path/to/colyn/shell/colyn.sh"
 
 除 shell 集成外，`colyn setup` 还会配置与 Claude Code 的集成（均为非致命操作，失败仅警告、不中断流程）：
 
-1. **状态 hooks**：在 `~/.claude/settings.json` 中写入三个 hook，使 Claude Code 会话状态实时同步到 worktree 状态：
-   - `UserPromptSubmit` → `colyn status set running`
-   - `PreToolUse`（matcher 为 `AskUserQuestion`）→ `colyn status set waiting-confirm`
-   - `Stop` → `colyn status set finish`
+1. **状态 hooks**：在 `~/.claude/settings.json` 中写入一组 hook，构成完整状态机，使 Claude Code 会话状态实时同步到 worktree 状态：
 
-   这些状态会显示在 `colyn list` 的状态列中。hook 命令使用 colyn 可执行文件的绝对路径，并以 `2>/dev/null || true` 包裹，避免影响 Claude Code 正常运行。
+   | Hook 事件 | matcher | 目标状态 | 触发时机 |
+   |---------|---------|---------|---------|
+   | `SessionStart` | `startup\|clear` | `idle` | 新会话启动 / 清空上下文（resume、compact 不重置，以保留进行中状态） |
+   | `UserPromptSubmit` | — | `running` | 用户提交 prompt |
+   | `PreToolUse` | `AskUserQuestion` | `waiting-confirm` | Claude 弹出选择题、等待用户作答前 |
+   | `PostToolUse` | `AskUserQuestion` | `running` | 用户作答并提交后（修复状态卡在 `waiting-confirm` 的问题） |
+   | `Notification` | — | `waiting-confirm` | Claude Code 发出通知（如需要权限确认） |
+   | `Stop` | — | `finish` | Claude 结束当前响应 |
+   | `SessionEnd` | — | `idle` | 会话结束，清理状态 |
+
+   设计要点：
+   - **`PostToolUse(AskUserQuestion)`**：`AskUserQuestion` 本质是一个工具。`PreToolUse` 在工具执行**前**触发，`PostToolUse` 在工具执行**后**（即用户提交答案后）触发。缺少后者会导致用户作答后状态一直停在 `waiting-confirm`，直到下一次 `UserPromptSubmit` 才被覆盖。
+   - **`Notification`**：当 Claude 要执行需授权的工具（Bash/Write 等）时，权限弹窗期间 Claude 处于「等待用户授权」状态，但 `PreToolUse` hook 是在**授权之后**才执行的，所以权限等待期间无其他信号。`Notification` hook（Claude Code 发送 `Claude needs your permission...` 时触发）是捕获该状态的唯一途径。
+   - **`SessionStart` 的 matcher**：仅匹配 `startup|clear`，避免 `resume`（恢复一个正在运行的会话）和 `compact`（仅压缩上下文）误把状态重置为 `idle`。
+
+   这些状态会显示在 `colyn list` 的状态列中。hook 命令使用 colyn 可执行文件的绝对路径，并以 `2>/dev/null || true` 包裹，避免影响 Claude Code 正常运行。该绝对路径由 `getColynBinPath()` 基于模块位置（`import.meta.url`）推断为 `<安装根>/bin/colyn`——安装环境下即 `colyn.d/bin/colyn`（wrapper 真身），与开发环境 `<repo>/bin/colyn` 同构，因此运行时无需区分环境。
 
 2. **Claude skills 安装**：将 Colyn 内置的 `skills/<skill-name>/` 目录递归复制到 `~/.claude/skills/`，并把 `SKILL.md` 中 bash 代码块里的 `colyn` 命令替换为绝对路径。
 
