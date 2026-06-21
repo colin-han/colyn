@@ -216,10 +216,22 @@ Three phases:
 
 Besides shell integration, `colyn setup` also configures Claude Code integration (both are non-fatal: on failure they only warn and do not interrupt the flow):
 
-1. **Status hooks**: writes three hooks into `~/.claude/settings.json` so Claude Code session state syncs to worktree status in real time:
-   - `UserPromptSubmit` → `colyn status set running`
-   - `PreToolUse` (matcher `AskUserQuestion`) → `colyn status set waiting-confirm`
-   - `Stop` → `colyn status set finish`
+1. **Status hooks**: writes a set of hooks into `~/.claude/settings.json` forming a complete state machine, so Claude Code session state syncs to worktree status in real time:
+
+   | Hook event | matcher | Target status | When it fires |
+   |------------|---------|---------------|---------------|
+   | `SessionStart` | `startup\|clear` | `idle` | New session / context cleared (resume and compact do not reset, to preserve in-flight state) |
+   | `UserPromptSubmit` | — | `running` | User submits a prompt |
+   | `PreToolUse` | `AskUserQuestion` | `waiting-confirm` | Before Claude presents a choice and waits for the user's answer |
+   | `PostToolUse` | `AskUserQuestion` | `running` | After the user answers and submits (fixes the status getting stuck at `waiting-confirm`) |
+   | `Notification` | — | `waiting-confirm` | Claude Code emits a notification (e.g. permission required) |
+   | `Stop` | — | `finish` | Claude finishes the current response |
+   | `SessionEnd` | — | `idle` | Session ends; cleans up status |
+
+   Design notes:
+   - **`PostToolUse(AskUserQuestion)`**: `AskUserQuestion` is fundamentally a tool. `PreToolUse` fires **before** the tool runs, `PostToolUse` fires **after** (i.e. after the user submits an answer). Missing the latter leaves the status stuck at `waiting-confirm` until the next `UserPromptSubmit` overwrites it.
+   - **`Notification`**: When Claude wants to run a tool that requires authorization (Bash/Write, etc.), Claude is "waiting for the user to grant permission" while the permission dialog is up — but the `PreToolUse` hook only fires **after** authorization, so there is no other signal during that wait. The `Notification` hook (fires when Claude Code sends `Claude needs your permission...`) is the only way to capture this state.
+   - **`SessionStart` matcher**: only matches `startup|clear`, so `resume` (resuming a running session) and `compact` (only compresses context) do not wrongly reset the status to `idle`.
 
    These statuses appear in the status column of `colyn list`. The hook commands use the absolute path to the colyn binary, wrapped with `2>/dev/null || true` to avoid interfering with Claude Code. This absolute path is derived by `getColynBinPath()` from the module location (`import.meta.url`) as `<install-root>/bin/colyn` — in the installed environment this is `colyn.d/bin/colyn` (the real wrapper), mirroring the dev environment's `<repo>/bin/colyn`, so no runtime environment detection is needed.
 

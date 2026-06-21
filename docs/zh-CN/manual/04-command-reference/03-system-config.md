@@ -310,7 +310,7 @@ colyn setup
 6. 安装 Colyn 提供的 Claude skills（复制到 `~/.claude/skills/`）
 
 **Claude Code 集成（步骤 5–6）：**
-- **状态 hooks**：写入三个 hook，让 Claude Code 会话状态实时同步到 worktree 状态——提交提示时设为 `running`、弹出确认（AskUserQuestion）时设为 `waiting-confirm`、会话停止时设为 `finish`。这些状态会显示在 `colyn list` 的状态列中。
+- **状态 hooks**：写入一组构成完整状态机的 hook，让 Claude Code 会话状态实时同步到 worktree 状态——会话开始/结束时设为 `idle`、提交提示或作答后设为 `running`、弹出确认（AskUserQuestion）或需要权限确认时设为 `waiting-confirm`、会话停止时设为 `finish`。这些状态会显示在 `colyn list` 的状态列中。
 - **Claude skills**：把 Colyn 内置的 skills 复制到 `~/.claude/skills/`，并将其中的 `colyn` 命令替换为绝对路径。
 - 这两步为非致命操作：失败时仅显示警告，不中断 setup。
 
