@@ -18,10 +18,11 @@ import {
 } from '../utils/logger.js';
 import { ColynError } from '../types/index.js';
 import { discoverProjectInfo, getMainBranch, getMainPort } from '../core/discovery.js';
-import { listGlobalStatusProjects } from '../core/worktree-status.js';
+import { getWorktreeStatus, listGlobalStatusProjects, type WorktreeStatus } from '../core/worktree-status.js';
 import {
   getGitStatus,
   getGitDiff,
+  getGitRemoteDiff,
   formatStatus,
   formatDiff,
   type GitStatus,
@@ -40,6 +41,8 @@ interface ListItem {
   isCurrent: boolean;
   status: GitStatus;
   diff: GitDiff;
+  remoteDiff: GitDiff | null;
+  worktreeStatus: WorktreeStatus;
 }
 
 /**
@@ -90,12 +93,14 @@ function isCurrentDirectory(targetPath: string): boolean {
  */
 async function getProjectWorktrees(projectPath: string, mainBranchPath: string): Promise<ListItem[]> {
   const items: ListItem[] = [];
+  const configDir = path.join(projectPath, '.colyn');
 
   // 获取主分支信息
   const mainBranch = await getMainBranch(mainBranchPath);
   const mainPort = await getMainPort(mainBranchPath);
 
   // 添加主分支
+  const { status: mainWtStatus } = await getWorktreeStatus(configDir, 'main');
   items.push({
     id: null,
     branch: mainBranch,
@@ -104,15 +109,18 @@ async function getProjectWorktrees(projectPath: string, mainBranchPath: string):
     isMain: true,
     isCurrent: isCurrentDirectory(mainBranchPath),
     status: getGitStatus(mainBranchPath),
-    diff: { ahead: 0, behind: 0 }  // 主分支没有差异
+    diff: { ahead: 0, behind: 0 },  // 主分支没有差异
+    remoteDiff: getGitRemoteDiff(mainBranchPath),
+    worktreeStatus: mainWtStatus
   });
 
-  // 获取所有任务 worktree
+  // 获取所有任务 worktree（并行获取 worktree 状态）
   const worktreesDir = path.join(projectPath, 'worktrees');
   const projectInfo = await discoverProjectInfo(mainBranchPath, worktreesDir);
 
-  for (const wt of projectInfo.worktrees) {
-    items.push({
+  const wtItems = await Promise.all(projectInfo.worktrees.map(async (wt) => {
+    const { status: wtStatus } = await getWorktreeStatus(configDir, `task-${wt.id}`);
+    return {
       id: wt.id,
       branch: wt.branch,
       port: wt.port,
@@ -120,9 +128,12 @@ async function getProjectWorktrees(projectPath: string, mainBranchPath: string):
       isMain: false,
       isCurrent: isCurrentDirectory(wt.path),
       status: getGitStatus(wt.path),
-      diff: getGitDiff(wt.path, mainBranch)
-    });
-  }
+      diff: getGitDiff(wt.path, mainBranch),
+      remoteDiff: getGitRemoteDiff(wt.path),
+      worktreeStatus: wtStatus
+    };
+  }));
+  items.push(...wtItems);
 
   return items;
 }

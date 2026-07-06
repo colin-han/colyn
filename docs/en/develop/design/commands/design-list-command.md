@@ -138,7 +138,8 @@ $ colyn list --json
     "isCurrent": false,
     "status": { "modified": 0, "staged": 0, "untracked": 0 },
     "diff": { "ahead": 0, "behind": 0 },
-    "remoteDiff": { "ahead": 0, "behind": 0 }
+    "remoteDiff": { "ahead": 0, "behind": 0 },
+    "worktreeStatus": "idle"
   },
   {
     "id": 1,
@@ -149,7 +150,8 @@ $ colyn list --json
     "isCurrent": false,
     "status": { "modified": 3, "staged": 1, "untracked": 2 },
     "diff": { "ahead": 2, "behind": 1 },
-    "remoteDiff": null
+    "remoteDiff": null,
+    "worktreeStatus": "running"
   }
 ]
 ```
