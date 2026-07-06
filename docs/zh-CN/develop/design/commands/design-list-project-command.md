@@ -258,7 +258,9 @@ $ colyn list-project --json --details | jq '.'
         "isMain": true,
         "isCurrent": false,
         "status": { "modified": 0, "staged": 0, "untracked": 0 },
-        "diff": { "ahead": 0, "behind": 0 }
+        "diff": { "ahead": 0, "behind": 0 },
+        "remoteDiff": { "ahead": 0, "behind": 0 },
+        "worktreeStatus": "idle"
       }
     ]
   }
@@ -345,6 +347,8 @@ $ colyn list-project --json --details | jq '.'
 | `status.untracked` | `number` | 未跟踪的文件数 |
 | `diff.ahead` | `number` | 领先主分支的提交数 |
 | `diff.behind` | `number` | 落后主分支的提交数 |
+| `remoteDiff` | `GitDiff \| null` | 与同名远端分支差异（`ahead/behind`）；远端不存在同名分支时为 `null` |
+| `worktreeStatus` | `WorktreeStatus` | 工作流状态（`idle/running/waiting-confirm/finish`） |
 
 #### 4.2.3 路径格式 (`--paths`)
 

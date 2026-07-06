@@ -258,7 +258,9 @@ $ colyn list-project --json --details | jq '.'
         "isMain": true,
         "isCurrent": false,
         "status": { "modified": 0, "staged": 0, "untracked": 0 },
-        "diff": { "ahead": 0, "behind": 0 }
+        "diff": { "ahead": 0, "behind": 0 },
+        "remoteDiff": { "ahead": 0, "behind": 0 },
+        "worktreeStatus": "idle"
       }
     ]
   }
@@ -345,6 +347,8 @@ $ colyn list-project --json --details | jq '.'
 | `status.untracked` | `number` | Number of untracked files |
 | `diff.ahead` | `number` | Commits ahead of main branch |
 | `diff.behind` | `number` | Commits behind main branch |
+| `remoteDiff` | `GitDiff \| null` | Diff against the same-name remote branch (`ahead/behind`); `null` when no same-name remote branch exists |
+| `worktreeStatus` | `WorktreeStatus` | Workflow status (`idle/running/waiting-confirm/finish`) |
 
 #### 4.2.3 Path Format (`--paths`)
 
