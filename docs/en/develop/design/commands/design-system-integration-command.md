@@ -223,13 +223,13 @@ Besides shell integration, `colyn setup` also configures Claude Code integration
    | `SessionStart` | `startup\|clear` | `idle` | New session / context cleared (resume and compact do not reset, to preserve in-flight state) |
    | `UserPromptSubmit` | — | `running` | User submits a prompt |
    | `PreToolUse` | `AskUserQuestion` | `waiting-confirm` | Before Claude presents a choice and waits for the user's answer |
-   | `PostToolUse` | `AskUserQuestion` | `running` | After the user answers and submits (fixes the status getting stuck at `waiting-confirm`) |
+   | `PostToolUse` | — | `running` | After any tool finishes (covers all tools, ensuring status returns to `running` after authorization/answering) |
    | `Notification` | — | `waiting-confirm` | Claude Code emits a notification (e.g. permission required) |
    | `Stop` | — | `finish` | Claude finishes the current response |
    | `SessionEnd` | — | `idle` | Session ends; cleans up status |
 
    Design notes:
-   - **`PostToolUse(AskUserQuestion)`**: `AskUserQuestion` is fundamentally a tool. `PreToolUse` fires **before** the tool runs, `PostToolUse` fires **after** (i.e. after the user submits an answer). Missing the latter leaves the status stuck at `waiting-confirm` until the next `UserPromptSubmit` overwrites it.
+   - **`PostToolUse` (no matcher, covers all tools)**: Not only does `AskUserQuestion` need to return to `running` after the user answers, but tools that require authorization (Bash/Write, etc.) also need to return to `running` once permission is granted and the tool finishes. During the permission wait the status is set to `waiting-confirm` by `Notification`; if `PostToolUse` did not cover these tools, the status would stay stuck at `waiting-confirm` until the next `UserPromptSubmit`. `PostToolUse` fires **after the tool completes**, by which point the agent has resumed working, so `running` is semantically correct.
    - **`Notification`**: When Claude wants to run a tool that requires authorization (Bash/Write, etc.), Claude is "waiting for the user to grant permission" while the permission dialog is up — but the `PreToolUse` hook only fires **after** authorization, so there is no other signal during that wait. The `Notification` hook (fires when Claude Code sends `Claude needs your permission...`) is the only way to capture this state.
    - **`SessionStart` matcher**: only matches `startup|clear`, so `resume` (resuming a running session) and `compact` (only compresses context) do not wrongly reset the status to `idle`.
 

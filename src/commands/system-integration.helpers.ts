@@ -291,6 +291,28 @@ function addOrUpdateSimpleHook(
 }
 
 /**
+ * 从指定 event 的所有 config 中移除包含 marker 的 hook，并清理变空的 config
+ *
+ * 用于把旧版本由 colyn 注册的 hook 清理掉，以便按新结构重新安装
+ * （例如把 PostToolUse 从 AskUserQuestion 专属 matcher 迁移为无 matcher）。
+ * 仅删除命令本身，绝不改动用户自行配置的 hook。
+ */
+function removeHooksByMarker(
+  hooksRecord: Record<string, ClaudeHookConfig[]>,
+  event: string,
+  marker: string
+): void {
+  const configs = hooksRecord[event];
+  if (!configs) {
+    return;
+  }
+  for (const config of configs) {
+    config.hooks = config.hooks.filter(h => !h.command.includes(marker));
+  }
+  hooksRecord[event] = configs.filter(c => c.hooks.length > 0);
+}
+
+/**
  * 在指定事件的某个 matcher 下添加或更新 hook
  * 返回 true 表示新增，false 表示更新
  */
@@ -326,13 +348,16 @@ function addOrUpdateMatcherHook(
  * - SessionStart (startup|clear): colyn status set idle
  * - UserPromptSubmit: colyn status set running
  * - PreToolUse (AskUserQuestion): colyn status set waiting-confirm
- * - PostToolUse (AskUserQuestion): colyn status set running
+ * - PostToolUse (无 matcher，覆盖所有工具): colyn status set running
  * - Notification: colyn status set waiting-confirm
  * - Stop: colyn status set finish
  * - SessionEnd: colyn status set idle
  *
  * 状态机说明：
- * - `PostToolUse(AskUserQuestion)` 修复用户提交答案后未回到 running 的问题
+ * - `PostToolUse` 覆盖所有工具：不仅 `AskUserQuestion` 作答后需回到 `running`，
+ *   `Bash`/`Write` 等需授权工具在权限确认授权、执行完毕后也需回到 `running`。
+ *   否则状态会一直停留在 `waiting-confirm`（由 Notification 设置），直到下一次
+ *   `UserPromptSubmit` 或 `Stop` 才被覆盖。
  * - `Notification` 用于捕获权限确认等待（PreToolUse 在授权后才触发，
  *   权限等待期间无其他信号，只能靠 Notification 捕获）
  * - `SessionStart` 仅在 startup|clear 时重置为 idle，避开 resume/compact，
@@ -387,11 +412,15 @@ export async function updateClaudeHooks(colynBinPath: string): Promise<'added' |
     makeCommand('waiting-confirm'),
     'status set waiting-confirm'
   );
-  // AskUserQuestion 答案提交 → running（修复状态卡在 waiting-confirm）
-  const postQuestionAdded = addOrUpdateMatcherHook(
+  // 工具执行完毕 → running（覆盖所有工具）
+  // 修复：权限确认授权、工具执行完毕后状态需回到 running，否则会停留在
+  // waiting-confirm（由 Notification 设置）直到下一次 UserPromptSubmit。
+  // 迁移：旧版本仅匹配 AskUserQuestion，先清理由 colyn 注册的旧 hook
+  // （marker 命中即可，无论挂在哪个 matcher 下），再以无 matcher 方式重装。
+  removeHooksByMarker(hooksRecord, 'PostToolUse', 'status set running');
+  const postToolUseAdded = addOrUpdateSimpleHook(
     hooksRecord,
     'PostToolUse',
-    'AskUserQuestion',
     makeCommand('running'),
     'status set running'
   );
@@ -422,7 +451,7 @@ export async function updateClaudeHooks(colynBinPath: string): Promise<'added' |
   await fs.mkdir(path.dirname(settingsPath), { recursive: true });
   await fs.writeFile(settingsPath, JSON.stringify(newSettings, null, 2) + '\n', 'utf-8');
 
-  return sessionStartAdded || runningAdded || waitingAdded || postQuestionAdded
+  return sessionStartAdded || runningAdded || waitingAdded || postToolUseAdded
     || notificationAdded || finishAdded || sessionEndAdded
     ? 'added'
     : 'updated';
