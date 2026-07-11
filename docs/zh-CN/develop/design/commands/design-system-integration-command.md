@@ -223,13 +223,13 @@ source "/path/to/colyn/shell/colyn.sh"
    | `SessionStart` | `startup\|clear` | `idle` | 新会话启动 / 清空上下文（resume、compact 不重置，以保留进行中状态） |
    | `UserPromptSubmit` | — | `running` | 用户提交 prompt |
    | `PreToolUse` | `AskUserQuestion` | `waiting-confirm` | Claude 弹出选择题、等待用户作答前 |
-   | `PostToolUse` | `AskUserQuestion` | `running` | 用户作答并提交后（修复状态卡在 `waiting-confirm` 的问题） |
+   | `PostToolUse` | — | `running` | 任意工具执行完毕后（覆盖所有工具，确保授权/作答后状态回到 `running`） |
    | `Notification` | — | `waiting-confirm` | Claude Code 发出通知（如需要权限确认） |
    | `Stop` | — | `finish` | Claude 结束当前响应 |
    | `SessionEnd` | — | `idle` | 会话结束，清理状态 |
 
    设计要点：
-   - **`PostToolUse(AskUserQuestion)`**：`AskUserQuestion` 本质是一个工具。`PreToolUse` 在工具执行**前**触发，`PostToolUse` 在工具执行**后**（即用户提交答案后）触发。缺少后者会导致用户作答后状态一直停在 `waiting-confirm`，直到下一次 `UserPromptSubmit` 才被覆盖。
+   - **`PostToolUse`（无 matcher，覆盖所有工具）**：不仅 `AskUserQuestion` 作答后需要回到 `running`，`Bash`/`Write` 等需授权工具在权限确认授权、执行完毕后同样需要回到 `running`。权限等待期间状态由 `Notification` 设为 `waiting-confirm`，若 `PostToolUse` 不覆盖这些工具，状态会一直停留在 `waiting-confirm`，直到下一次 `UserPromptSubmit` 才被覆盖。`PostToolUse` 在工具**执行完毕**后触发，此时 agent 已继续工作，设为 `running` 语义正确。
    - **`Notification`**：当 Claude 要执行需授权的工具（Bash/Write 等）时，权限弹窗期间 Claude 处于「等待用户授权」状态，但 `PreToolUse` hook 是在**授权之后**才执行的，所以权限等待期间无其他信号。`Notification` hook（Claude Code 发送 `Claude needs your permission...` 时触发）是捕获该状态的唯一途径。
    - **`SessionStart` 的 matcher**：仅匹配 `startup|clear`，避免 `resume`（恢复一个正在运行的会话）和 `compact`（仅压缩上下文）误把状态重置为 `idle`。
 
