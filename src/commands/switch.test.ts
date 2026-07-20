@@ -257,7 +257,9 @@ describe('computeRelativeSubpath', () => {
 });
 
 describe('resolveDeepestExisting', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('完整子路径存在 → 返回 join(root, rel)', async () => {
     vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
