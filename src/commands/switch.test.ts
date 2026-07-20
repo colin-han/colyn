@@ -299,3 +299,85 @@ describe('resolveDeepestExisting', () => {
     expect(r).toBe('/proj/worktrees/task-2');
   });
 });
+
+describe('handleSwitch — 相对子路径', () => {
+  let stderrCalls: string[];
+  let stdoutCalls: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stderrCalls = [];
+    stdoutCalls = [];
+    vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderrCalls.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      stdoutCalls.push(String(chunk));
+      return true;
+    });
+    process.env.COLYN_OUTPUT_JSON = '1';
+    vi.mocked(getProjectPaths).mockResolvedValue(PATHS);
+  });
+
+  it('cd 模式：cwd 在 task-1/a/b，colyn 2 且 task-2/a/b 存在 → targetDir 带子路径', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1/a/b');
+    // 所有 stat 都成功：target 存在 + 子路径存在
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('2', undefined);
+
+    const parsed = JSON.parse(stdoutCalls.join('').trim().split('\n').pop()!);
+    expect(parsed.targetDir).toBe(path.join('/proj/worktrees/task-2', 'a', 'b'));
+  });
+
+  it('cd 模式：子路径缺失 → 上溯到 task-2 根并打印回退提示', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1/a/b');
+    const targetRoot = '/proj/worktrees/task-2';
+    // target 根存在，子路径均不存在
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === targetRoot) return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('2', undefined);
+
+    const parsed = JSON.parse(stdoutCalls.join('').trim().split('\n').pop()!);
+    expect(parsed.targetDir).toBe(targetRoot);
+    // 打印了回退提示到 stderr
+    expect(stderrCalls.join('')).not.toBe('');
+  });
+
+  it('exec 模式：子目录不存在 → exit 1 且不 spawn', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1/a/b');
+    const targetRoot = '/proj/worktrees/task-2';
+    // target 根存在，子路径 a/b 不存在
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === targetRoot) return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    await expect(handleSwitch('2', ['pwd'])).rejects.toThrow('process.exit:1');
+    // 未产生 stdout 控制消息
+    expect(stdoutCalls.join('').trim()).toBe('');
+  });
+
+  it('cwd 在 worktree 根（rel 为空）：targetDir 等于目标根（回归）', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1');
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('2', undefined);
+
+    const parsed = JSON.parse(stdoutCalls.join('').trim().split('\n').pop()!);
+    expect(parsed.targetDir).toBe('/proj/worktrees/task-2');
+  });
+});

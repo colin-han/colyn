@@ -148,12 +148,19 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
     process.exit(1);
   }
 
-  const displayPath = toDisplayPath(target);
+  const rel = computeRelativeSubpath(process.cwd(), paths);
 
   // 执行模式：Node.js 直接执行命令，输出转发到 stderr
   if (commandArgs && commandArgs.length > 0) {
+    // exec 模式严格要求子目录存在，否则报错退出，不执行命令
+    const execTarget = path.join(target, rel);
+    if (!(await dirExists(execTarget))) {
+      outputError(t('commands.switch.subdirNotFound', { sub: rel || '.' }));
+      process.exit(1);
+    }
+
     const child = spawn(commandArgs.join(' '), {
-      cwd: target,
+      cwd: execTarget,
       stdio: ['inherit', 'pipe', 'pipe'],
       shell: true,
     });
@@ -179,8 +186,22 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
   const hasWindow = hasSession && windowExists(sessionName, id);
 
   if (!hasWindow) {
-    // session 或 window 不存在，降级为 cd
-    outputResult({ success: true, targetDir: target, displayPath });
+    // session 或 window 不存在，降级为 cd（保持相对子路径，缺失则上溯）
+    const resolved = await resolveDeepestExisting(target, rel);
+    const idealTarget = path.join(target, rel);
+    if (rel && resolved !== idealTarget) {
+      process.stderr.write(
+        t('commands.switch.subdirFallback', {
+          expected: toDisplayPath(idealTarget),
+          actual: toDisplayPath(resolved),
+        }) + '\n'
+      );
+    }
+    outputResult({
+      success: true,
+      targetDir: resolved,
+      displayPath: toDisplayPath(resolved),
+    });
     return;
   }
 
