@@ -34,6 +34,36 @@ function resolveTargetDir(
   return path.join(paths.worktreesDir, `task-${id}`);
 }
 
+/**
+ * 计算 cwd 相对于其所在 worktree 根的子路径。
+ * cwd 在 mainDir 下 → root=mainDir；在 worktrees/task-K 下 → root=该 task-K；
+ * 其他位置（项目根、worktrees 本身、无关目录）→ 返回 ''。
+ */
+export function computeRelativeSubpath(
+  cwd: string,
+  paths: { mainDir: string; worktreesDir: string }
+): string {
+  const resolved = path.resolve(cwd);
+
+  // 在主目录下
+  if (resolved === paths.mainDir || resolved.startsWith(paths.mainDir + path.sep)) {
+    return path.relative(paths.mainDir, resolved);
+  }
+
+  // 在某个 worktrees/task-K 下
+  if (resolved.startsWith(paths.worktreesDir + path.sep)) {
+    const rel = path.relative(paths.worktreesDir, resolved); // e.g. task-1/a/b
+    const segments = rel.split(path.sep);
+    const first = segments[0];
+    if (/^task-\d+$/.test(first)) {
+      const worktreeRoot = path.join(paths.worktreesDir, first);
+      return path.relative(worktreeRoot, resolved);
+    }
+  }
+
+  return '';
+}
+
 async function dirExists(p: string): Promise<boolean> {
   try {
     const s = await fsp.stat(p);

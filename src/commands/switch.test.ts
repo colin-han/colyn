@@ -31,7 +31,7 @@ vi.mock('../utils/logger.js', () => ({
   }),
 }));
 
-import { handleSwitch } from './switch.js';
+import { handleSwitch, computeRelativeSubpath } from './switch.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import * as fsp from 'fs/promises';
@@ -227,5 +227,31 @@ describe('handleSwitch — tmux 智能切换', () => {
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
     expect(parsed.attachSession).toBe('colyn');
     expect(parsed.attachWindow).toBe(1);
+  });
+});
+
+describe('computeRelativeSubpath', () => {
+  const P = { mainDir: '/proj/colyn', worktreesDir: '/proj/worktrees' };
+
+  it('cwd 在 mainDir 子目录 → 返回相对子路径', () => {
+    expect(computeRelativeSubpath('/proj/colyn/a/b', P)).toBe(path.join('a', 'b'));
+  });
+
+  it('cwd 就是 mainDir → 返回空串', () => {
+    expect(computeRelativeSubpath('/proj/colyn', P)).toBe('');
+  });
+
+  it('cwd 在 task-K 子目录 → 返回相对子路径', () => {
+    expect(computeRelativeSubpath('/proj/worktrees/task-1/a/b', P)).toBe(path.join('a', 'b'));
+  });
+
+  it('cwd 就是 task-K 根 → 返回空串', () => {
+    expect(computeRelativeSubpath('/proj/worktrees/task-2', P)).toBe('');
+  });
+
+  it('cwd 在项目根/worktrees 本身/无关位置 → 返回空串', () => {
+    expect(computeRelativeSubpath('/proj', P)).toBe('');
+    expect(computeRelativeSubpath('/proj/worktrees', P)).toBe('');
+    expect(computeRelativeSubpath('/elsewhere/x', P)).toBe('');
   });
 });
