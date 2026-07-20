@@ -292,4 +292,10 @@ describe('resolveDeepestExisting', () => {
     const r = await resolveDeepestExisting('/proj/worktrees/task-2', '');
     expect(r).toBe('/proj/worktrees/task-2');
   });
+
+  it('rel 含 .. 越出 targetRoot → 安全返回 targetRoot（不死循环）', async () => {
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('..', '..', '..', 'x'));
+    expect(r).toBe('/proj/worktrees/task-2');
+  });
 });

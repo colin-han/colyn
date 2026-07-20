@@ -76,6 +76,7 @@ async function dirExists(p: string): Promise<boolean> {
 /**
  * 从 join(targetRoot, rel) 起逐级 dirname 上溯，返回最深存在的目录。
  * 下界为 targetRoot（调用方已确保 targetRoot 存在）。
+ * 注：rel 应为 targetRoot 下的正向相对路径；若含 .. 越界，安全回退到 targetRoot。
  */
 export async function resolveDeepestExisting(
   targetRoot: string,
@@ -84,7 +85,7 @@ export async function resolveDeepestExisting(
   if (!rel) return targetRoot;
 
   let candidate = path.join(targetRoot, rel);
-  while (candidate !== targetRoot) {
+  while (candidate !== targetRoot && candidate.startsWith(targetRoot + path.sep)) {
     if (await dirExists(candidate)) return candidate;
     candidate = path.dirname(candidate);
   }
