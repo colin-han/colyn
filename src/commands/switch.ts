@@ -74,6 +74,24 @@ async function dirExists(p: string): Promise<boolean> {
 }
 
 /**
+ * 从 join(targetRoot, rel) 起逐级 dirname 上溯，返回最深存在的目录。
+ * 下界为 targetRoot（调用方已确保 targetRoot 存在）。
+ */
+export async function resolveDeepestExisting(
+  targetRoot: string,
+  rel: string
+): Promise<string> {
+  if (!rel) return targetRoot;
+
+  let candidate = path.join(targetRoot, rel);
+  while (candidate !== targetRoot) {
+    if (await dirExists(candidate)) return candidate;
+    candidate = path.dirname(candidate);
+  }
+  return targetRoot;
+}
+
+/**
  * 计算用于显示的相对路径（家目录替换为 ~）。
  */
 function toDisplayPath(absPath: string): string {

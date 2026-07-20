@@ -31,7 +31,7 @@ vi.mock('../utils/logger.js', () => ({
   }),
 }));
 
-import { handleSwitch, computeRelativeSubpath } from './switch.js';
+import { handleSwitch, computeRelativeSubpath, resolveDeepestExisting } from './switch.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import * as fsp from 'fs/promises';
@@ -253,5 +253,41 @@ describe('computeRelativeSubpath', () => {
     expect(computeRelativeSubpath('/proj', P)).toBe('');
     expect(computeRelativeSubpath('/proj/worktrees', P)).toBe('');
     expect(computeRelativeSubpath('/elsewhere/x', P)).toBe('');
+  });
+});
+
+describe('resolveDeepestExisting', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('完整子路径存在 → 返回 join(root, rel)', async () => {
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('a', 'b'));
+    expect(r).toBe(path.join('/proj/worktrees/task-2', 'a', 'b'));
+  });
+
+  it('最深层缺失 → 上溯到存在的祖先', async () => {
+    // task-2/a/b 不存在，task-2/a 存在
+    const existing = path.join('/proj/worktrees/task-2', 'a');
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === existing) return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('a', 'b'));
+    expect(r).toBe(existing);
+  });
+
+  it('全部子层缺失 → 回退到 targetRoot', async () => {
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === '/proj/worktrees/task-2') return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('a', 'b'));
+    expect(r).toBe('/proj/worktrees/task-2');
+  });
+
+  it('rel 为空 → 返回 targetRoot', async () => {
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', '');
+    expect(r).toBe('/proj/worktrees/task-2');
   });
 });
