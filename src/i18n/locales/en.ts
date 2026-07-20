@@ -1004,6 +1004,8 @@ Solution:
       worktreeNotExists: 'Worktree task-{{n}} does not exist',
       availableWorktrees: 'Available worktrees:',
       mainDirLabel: 'main directory',
+      subdirNotFound: 'Subdirectory {{sub}} does not exist in the target worktree',
+      subdirFallback: 'Subdirectory {{expected}} not found, switched to {{actual}} instead',
     },
 
     // list-project command
