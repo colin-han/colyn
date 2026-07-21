@@ -31,7 +31,7 @@ vi.mock('../utils/logger.js', () => ({
   }),
 }));
 
-import { handleSwitch } from './switch.js';
+import { handleSwitch, computeRelativeSubpath, resolveDeepestExisting } from './switch.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import * as fsp from 'fs/promises';
@@ -227,5 +227,157 @@ describe('handleSwitch — tmux 智能切换', () => {
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!);
     expect(parsed.attachSession).toBe('colyn');
     expect(parsed.attachWindow).toBe(1);
+  });
+});
+
+describe('computeRelativeSubpath', () => {
+  const P = { mainDir: '/proj/colyn', worktreesDir: '/proj/worktrees' };
+
+  it('cwd 在 mainDir 子目录 → 返回相对子路径', () => {
+    expect(computeRelativeSubpath('/proj/colyn/a/b', P)).toBe(path.join('a', 'b'));
+  });
+
+  it('cwd 就是 mainDir → 返回空串', () => {
+    expect(computeRelativeSubpath('/proj/colyn', P)).toBe('');
+  });
+
+  it('cwd 在 task-K 子目录 → 返回相对子路径', () => {
+    expect(computeRelativeSubpath('/proj/worktrees/task-1/a/b', P)).toBe(path.join('a', 'b'));
+  });
+
+  it('cwd 就是 task-K 根 → 返回空串', () => {
+    expect(computeRelativeSubpath('/proj/worktrees/task-2', P)).toBe('');
+  });
+
+  it('cwd 在项目根/worktrees 本身/无关位置 → 返回空串', () => {
+    expect(computeRelativeSubpath('/proj', P)).toBe('');
+    expect(computeRelativeSubpath('/proj/worktrees', P)).toBe('');
+    expect(computeRelativeSubpath('/elsewhere/x', P)).toBe('');
+  });
+});
+
+describe('resolveDeepestExisting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('完整子路径存在 → 返回 join(root, rel)', async () => {
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('a', 'b'));
+    expect(r).toBe(path.join('/proj/worktrees/task-2', 'a', 'b'));
+  });
+
+  it('最深层缺失 → 上溯到存在的祖先', async () => {
+    // task-2/a/b 不存在，task-2/a 存在
+    const existing = path.join('/proj/worktrees/task-2', 'a');
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === existing) return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('a', 'b'));
+    expect(r).toBe(existing);
+  });
+
+  it('全部子层缺失 → 回退到 targetRoot', async () => {
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === '/proj/worktrees/task-2') return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('a', 'b'));
+    expect(r).toBe('/proj/worktrees/task-2');
+  });
+
+  it('rel 为空 → 返回 targetRoot', async () => {
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', '');
+    expect(r).toBe('/proj/worktrees/task-2');
+  });
+
+  it('rel 含 .. 越出 targetRoot → 安全返回 targetRoot（不死循环）', async () => {
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    const r = await resolveDeepestExisting('/proj/worktrees/task-2', path.join('..', '..', '..', 'x'));
+    expect(r).toBe('/proj/worktrees/task-2');
+  });
+});
+
+describe('handleSwitch — 相对子路径', () => {
+  let stderrCalls: string[];
+  let stdoutCalls: string[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stderrCalls = [];
+    stdoutCalls = [];
+    vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit:${code ?? 0}`);
+    }) as never);
+    vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      stderrCalls.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      stdoutCalls.push(String(chunk));
+      return true;
+    });
+    process.env.COLYN_OUTPUT_JSON = '1';
+    vi.mocked(getProjectPaths).mockResolvedValue(PATHS);
+  });
+
+  it('cd 模式：cwd 在 task-1/a/b，colyn 2 且 task-2/a/b 存在 → targetDir 带子路径', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1/a/b');
+    // 所有 stat 都成功：target 存在 + 子路径存在
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('2', undefined);
+
+    const parsed = JSON.parse(stdoutCalls.join('').trim().split('\n').pop()!);
+    expect(parsed.targetDir).toBe(path.join('/proj/worktrees/task-2', 'a', 'b'));
+  });
+
+  it('cd 模式：子路径缺失 → 上溯到 task-2 根并打印回退提示', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1/a/b');
+    const targetRoot = '/proj/worktrees/task-2';
+    // target 根存在，子路径均不存在
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === targetRoot) return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('2', undefined);
+
+    const parsed = JSON.parse(stdoutCalls.join('').trim().split('\n').pop()!);
+    expect(parsed.targetDir).toBe(targetRoot);
+    // 打印了回退提示到 stderr
+    expect(stderrCalls.join('')).not.toBe('');
+  });
+
+  it('exec 模式：子目录不存在 → exit 1 且不 spawn', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1/a/b');
+    const targetRoot = '/proj/worktrees/task-2';
+    // target 根存在，子路径 a/b 不存在
+    vi.mocked(fsp.stat).mockImplementation(async (p) => {
+      if (String(p) === targetRoot) return { isDirectory: () => true } as never;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    await expect(handleSwitch('2', ['pwd'])).rejects.toThrow('process.exit:1');
+    // 未产生 stdout 控制消息
+    expect(stdoutCalls.join('').trim()).toBe('');
+  });
+
+  it('cwd 在 worktree 根（rel 为空）：targetDir 等于目标根（回归）', async () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/proj/worktrees/task-1');
+    vi.mocked(fsp.stat).mockResolvedValue({ isDirectory: () => true } as never);
+    vi.mocked(isInTmux).mockReturnValue(false);
+    vi.mocked(sessionExists).mockReturnValue(false);
+
+    await handleSwitch('2', undefined);
+
+    const parsed = JSON.parse(stdoutCalls.join('').trim().split('\n').pop()!);
+    expect(parsed.targetDir).toBe('/proj/worktrees/task-2');
   });
 });

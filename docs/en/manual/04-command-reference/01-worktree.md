@@ -275,6 +275,14 @@ colyn <N>
 | Outside tmux | Session or Window not found | `cd` to target directory |
 | Target Worktree not present | — | Error + list available Worktrees, exit 1 |
 
+#### Preserving the relative subpath
+
+When switching via `cd` outside tmux, the command preserves the current directory's subpath relative to its Worktree root:
+
+- For example, running `colyn 2` from `worktrees/task-1/a/b` switches to `worktrees/task-2/a/b` (not the `worktrees/task-2` root).
+- If the corresponding subdirectory does not exist in the target Worktree, it walks up to the deepest existing ancestor and notes the fallback in the message.
+- Switching to an existing Window inside tmux does not change that Window's subdirectory (the Window keeps its original working directory).
+
 ### Examples
 
 ```bash

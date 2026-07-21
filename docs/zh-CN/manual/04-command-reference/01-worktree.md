@@ -275,6 +275,14 @@ colyn <N>
 | tmux 外 | Session 或 Window 不存在 | `cd` 到目标目录 |
 | 目标 Worktree 不存在 | — | 报错并列出可用 Worktree，exit 1 |
 
+#### 保持相对子路径
+
+在 tmux 外通过 `cd` 切换时，命令会保持当前目录相对于所在 Worktree 根的子路径：
+
+- 例如在 `worktrees/task-1/a/b` 执行 `colyn 2`，会切换到 `worktrees/task-2/a/b`（而非 `worktrees/task-2` 根）。
+- 若目标 Worktree 中不存在对应子目录，则逐级向上回退到最深存在的祖先目录，并在提示中说明回退结果。
+- tmux 内切换到已存在 Window 时不改变该 Window 的子目录（Window 保持其原有工作目录）。
+
 ### 示例
 
 ```bash

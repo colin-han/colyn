@@ -34,6 +34,36 @@ function resolveTargetDir(
   return path.join(paths.worktreesDir, `task-${id}`);
 }
 
+/**
+ * 计算 cwd 相对于其所在 worktree 根的子路径。
+ * cwd 在 mainDir 下 → root=mainDir；在 worktrees/task-K 下 → root=该 task-K；
+ * 其他位置（项目根、worktrees 本身、无关目录）→ 返回 ''。
+ */
+export function computeRelativeSubpath(
+  cwd: string,
+  paths: { mainDir: string; worktreesDir: string }
+): string {
+  const resolved = path.resolve(cwd);
+
+  // 在主目录下
+  if (resolved === paths.mainDir || resolved.startsWith(paths.mainDir + path.sep)) {
+    return path.relative(paths.mainDir, resolved);
+  }
+
+  // 在某个 worktrees/task-K 下
+  if (resolved.startsWith(paths.worktreesDir + path.sep)) {
+    const rel = path.relative(paths.worktreesDir, resolved); // e.g. task-1/a/b
+    const segments = rel.split(path.sep);
+    const first = segments[0];
+    if (/^task-\d+$/.test(first)) {
+      const worktreeRoot = path.join(paths.worktreesDir, first);
+      return path.relative(worktreeRoot, resolved);
+    }
+  }
+
+  return '';
+}
+
 async function dirExists(p: string): Promise<boolean> {
   try {
     const s = await fsp.stat(p);
@@ -41,6 +71,25 @@ async function dirExists(p: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * 从 join(targetRoot, rel) 起逐级 dirname 上溯，返回最深存在的目录。
+ * 下界为 targetRoot（调用方已确保 targetRoot 存在）。
+ * 注：rel 应为 targetRoot 下的正向相对路径；若含 .. 越界，安全回退到 targetRoot。
+ */
+export async function resolveDeepestExisting(
+  targetRoot: string,
+  rel: string
+): Promise<string> {
+  if (!rel) return targetRoot;
+
+  let candidate = path.join(targetRoot, rel);
+  while (candidate !== targetRoot && candidate.startsWith(targetRoot + path.sep)) {
+    if (await dirExists(candidate)) return candidate;
+    candidate = path.dirname(candidate);
+  }
+  return targetRoot;
 }
 
 /**
@@ -99,12 +148,19 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
     process.exit(1);
   }
 
-  const displayPath = toDisplayPath(target);
+  const rel = computeRelativeSubpath(process.cwd(), paths);
 
   // 执行模式：Node.js 直接执行命令，输出转发到 stderr
   if (commandArgs && commandArgs.length > 0) {
+    // exec 模式严格要求子目录存在，否则报错退出，不执行命令
+    const execTarget = path.join(target, rel);
+    if (!(await dirExists(execTarget))) {
+      outputError(t('commands.switch.subdirNotFound', { sub: rel || '.' }));
+      process.exit(1);
+    }
+
     const child = spawn(commandArgs.join(' '), {
-      cwd: target,
+      cwd: execTarget,
       stdio: ['inherit', 'pipe', 'pipe'],
       shell: true,
     });
@@ -130,8 +186,22 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
   const hasWindow = hasSession && windowExists(sessionName, id);
 
   if (!hasWindow) {
-    // session 或 window 不存在，降级为 cd
-    outputResult({ success: true, targetDir: target, displayPath });
+    // session 或 window 不存在，降级为 cd（保持相对子路径，缺失则上溯）
+    const resolved = await resolveDeepestExisting(target, rel);
+    const idealTarget = path.join(target, rel);
+    if (rel && resolved !== idealTarget) {
+      process.stderr.write(
+        t('commands.switch.subdirFallback', {
+          expected: toDisplayPath(idealTarget),
+          actual: toDisplayPath(resolved),
+        }) + '\n'
+      );
+    }
+    outputResult({
+      success: true,
+      targetDir: resolved,
+      displayPath: toDisplayPath(resolved),
+    });
     return;
   }
 

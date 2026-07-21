@@ -1004,6 +1004,8 @@ export const zhCN = {
       worktreeNotExists: 'Worktree task-{{n}} 不存在',
       availableWorktrees: '可用 worktree：',
       mainDirLabel: '主目录',
+      subdirNotFound: '子目录 {{sub}} 在目标 worktree 中不存在',
+      subdirFallback: '未找到子目录 {{expected}}，已切换到 {{actual}}',
     },
 
     // list-project command
