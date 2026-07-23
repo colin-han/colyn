@@ -30,10 +30,12 @@ const {
 vi.mock('../core/config.js', () => ({ getTodoConfig }));
 vi.mock('../todo-backends/registry.js', () => ({ getActiveTodoBackend }));
 vi.mock('../todo-backends/local.js', () => ({
-  LocalFileBackend: vi.fn().mockImplementation(() => ({
-    list: mockLocalList,
-    remove: mockLocalRemove,
-  })),
+  LocalFileBackend: vi.fn().mockImplementation(function () {
+    return {
+      list: mockLocalList,
+      remove: mockLocalRemove,
+    };
+  }),
 }));
 // todo.ts 顶层执行 `const { prompt } = Enquirer`，所以需要让 default export 的 prompt 属性
 // 指向 mockPrompt，且是同一个引用（不能直接解构，否则后续 mockReturnValueOnce 不生效）。

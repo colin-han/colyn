@@ -216,7 +216,7 @@ export async function moveFilesToMainDir(
     }
 
     spinner.succeed(t('commands.init.filesMoved'));
-  } catch (error) {
+  } catch {
     spinner.fail(t('commands.init.moveFilesFailed'));
     throw new ColynError(
       t('commands.init.moveFilesError'),

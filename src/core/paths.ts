@@ -81,7 +81,7 @@ export async function findProjectRoot(startDir: string = process.cwd()): Promise
           return currentDir;
         }
       }
-    } catch (err) {
+    } catch {
       // .colyn 不存在，继续向上查找
     }
 
