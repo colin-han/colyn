@@ -9,7 +9,7 @@ export async function readEnvFile(filePath: string): Promise<Record<string, stri
     const content = await fs.readFile(filePath, 'utf-8');
     const parsed = dotenv.parse(content);
     return parsed;
-  } catch (error) {
+  } catch {
     // 文件不存在，返回空对象
     return {};
   }

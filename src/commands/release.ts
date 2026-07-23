@@ -148,7 +148,7 @@ async function releaseCommand(versionType: string | undefined, options: ReleaseO
       output(t('commands.release.updatingWorktrees'));
       try {
         await executeUpdate(undefined, { all: true });
-      } catch (error) {
+      } catch {
         // update 失败不影响 release 的成功状态
         output(t('commands.release.updateFailed'));
         // 错误已经在 executeUpdate 中输出，这里不再重复输出

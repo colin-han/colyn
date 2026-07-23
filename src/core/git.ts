@@ -60,7 +60,7 @@ export async function getCurrentBranch(dir?: string): Promise<string> {
   try {
     const branchSummary = await git.branch();
     return branchSummary.current;
-  } catch (error) {
+  } catch {
     // 如果获取失败，默认返回 'main'
     return 'main';
   }
