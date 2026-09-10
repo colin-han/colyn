@@ -441,6 +441,8 @@ Main branch directory: {{path}}`,
       rebaseOption: 'Rebase on update (default)',
       fetchOption: 'Fetch remote before operation (default)',
       noAllOption: 'Update only current worktree (overrides commands.update.all=true)',
+      syncConfigOption: 'Sync runtime config from main branch (default)',
+      noSyncConfigOption: 'Skip runtime config sync',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn update <id>

@@ -441,6 +441,8 @@ export const zhCN = {
       rebaseOption: '更新时 rebase（默认行为）',
       fetchOption: '操作前 fetch 远端（默认行为）',
       noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
+      syncConfigOption: '同步主分支运行时配置（默认开启）',
+      noSyncConfigOption: '跳过运行时配置同步',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn update <id>

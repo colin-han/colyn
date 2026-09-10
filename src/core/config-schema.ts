@@ -147,6 +147,7 @@ export const MergeCommandConfigSchema = z
     update: z.boolean().optional(),
     fetch: z.boolean().optional(),
     all: z.boolean().optional(),
+    syncConfig: z.boolean().optional(),
   })
   .strict();
 
@@ -160,6 +161,7 @@ export const UpdateCommandConfigSchema = z
     rebase: z.boolean().optional(),
     fetch: z.boolean().optional(),
     all: z.boolean().optional(),
+    syncConfig: z.boolean().optional(),
   })
   .strict();
 

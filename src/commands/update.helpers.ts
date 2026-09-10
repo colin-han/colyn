@@ -14,6 +14,7 @@ import {
 } from '../utils/logger.js';
 import { discoverWorktrees, getCurrentWorktreeId } from '../core/discovery.js';
 import { t } from '../i18n/index.js';
+import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
 
 /**
  * 识别目标类型
@@ -267,13 +268,20 @@ export async function updateSingleWorktree(
   }
 }
 
+/** 批量更新时的运行时配置同步参数（缺省不同步） */
+export interface UpdateAllSyncOptions {
+  rootDir: string;
+  mainDir: string;
+}
+
 /**
  * 批量更新所有 worktree
  */
 export async function updateAllWorktrees(
   worktrees: WorktreeInfo[],
   mainBranch: string,
-  useRebase: boolean
+  useRebase: boolean,
+  syncOptions?: UpdateAllSyncOptions
 ): Promise<BatchUpdateResult> {
   const results: BatchUpdateResult['results'] = [];
   let succeeded = 0;
@@ -302,6 +310,16 @@ export async function updateAllWorktrees(
     if (result.success) {
       results.push({ worktree, success: true });
       succeeded++;
+      // 更新成功后同步运行时配置（主分支 → worktree）；内部永不抛出
+      if (syncOptions) {
+        await syncWorktreeRuntimeConfigs(
+          syncOptions.rootDir,
+          syncOptions.mainDir,
+          worktree.path,
+          worktree.id,
+          'main-to-worktree'
+        );
+      }
     } else {
       results.push({
         worktree,
