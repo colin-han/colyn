@@ -30,7 +30,7 @@ vi.mock('../utils/logger.js', () => ({
 import { pluginManager } from '../plugins/index.js';
 import { syncRuntimeConfig } from './runtime-config-sync.js';
 import { resolveToolchains } from './toolchain-resolver.js';
-import { outputSuccess, outputWarning } from '../utils/logger.js';
+import { output, outputSuccess, outputWarning } from '../utils/logger.js';
 import { syncWorktreeRuntimeConfigs } from './runtime-config-sync.js';
 
 describe('diffRuntimeConfig', () => {
@@ -292,17 +292,23 @@ describe('syncWorktreeRuntimeConfigs', () => {
     expect(content).toContain('NEW=v9');
   });
 
-  it('主分支配置缺失：输出警告不抛出', async () => {
+  it('主分支配置缺失：仅 verbose 时提示，非 verbose 静默不抛出', async () => {
     vi.mocked(resolveToolchains).mockResolvedValue([
       { absolutePath: '/p/main', subPath: '.', toolchainName: 'npm', toolchainSettings: {} },
     ]);
     vi.mocked(pluginManager.getPortConfig).mockReturnValue(null);
     vi.mocked(pluginManager.readRuntimeConfig).mockResolvedValue(null);
 
+    // 非 verbose：静默（项目不使用运行时配置是正常态，不告警）
     await expect(
       syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree')
     ).resolves.toBeUndefined();
-    expect(outputWarning).toHaveBeenCalled();
+    expect(outputWarning).not.toHaveBeenCalled();
+    expect(output).not.toHaveBeenCalled();
+
+    // verbose：仅输出普通提示（非警告）
+    await syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree', true);
+    expect(output).toHaveBeenCalledWith(expect.stringContaining('Main branch'));
   });
 
   it('同步抛异常：输出警告不抛出', async () => {

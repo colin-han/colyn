@@ -254,7 +254,10 @@ async function runAndReport(
   }
 
   if (result === null) {
-    outputWarning(t('runtimeConfigSync.mainMissing'));
+    // 主分支无运行时配置是正常态（项目可能不使用），仅 verbose 时提示，避免默认警告噪音
+    if (verbose) {
+      output(t('runtimeConfigSync.mainMissing'));
+    }
     return;
   }
 

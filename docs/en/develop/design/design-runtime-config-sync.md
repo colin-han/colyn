@@ -89,7 +89,7 @@ Two keys in each worktree's runtime config are its **identity** — they intenti
 | Case | Behavior |
 |------|------|
 | Worktree-side config file missing (main→worktree) | Degrades to a **rebuild**: copy all keys from main + recompute identity keys (`PORT = basePort + id`, `WORKTREE = id`; `basePort` is read from the main-side config's `portKey` value) — consistent with existing `add` and `repair` behavior |
-| Main-side config file missing (worktree→main) | Skip the reverse sync with a notice (never create the file on main's behalf) |
+| Main-side config file missing (either direction) | Skip sync; only notice with `--verbose` (the project may not use runtime config, so no warning; never create the file on main's behalf) |
 
 ---
 
@@ -228,7 +228,7 @@ Option meaning: whether to sync runtime config during the command (covering merg
 
 ### 7.1 Output Policy
 
-**Print only when something actually happened (additions/conflicts/rebuild); stay silent on no-change** — avoids flooding `colyn update` (all by default); `-v` / `--verbose` shows details.
+**Print only when something actually happened (additions/conflicts/rebuild); stay silent on no-change** — avoids flooding `colyn update` (all by default); `-v` / `--verbose` shows details. A missing main-side config is likewise only reported with `--verbose` (the project may not use runtime config).
 
 **update (main→worktree) example**:
 

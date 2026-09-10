@@ -89,7 +89,7 @@ Colyn 在创建 worktree 时会复制主分支的运行时配置（npm/pip 项�
 | 场景 | 行为 |
 |------|------|
 | worktree 侧配置文件不存在（主→worktree 方向） | 退化为**重建**：复制主分支全部 key + 重算身份键（`PORT = basePort + id`、`WORKTREE = id`；`basePort` 取自主分支配置的 `portKey` 值）——与 `add`、`repair` 的现有行为一致 |
-| 主分支侧配置文件不存在（worktree→主方向） | 跳过反向同步并提示（不替主分支创建文件） |
+| 主分支侧配置文件不存在（任一方向） | 跳过同步，仅 `--verbose` 时提示（项目可能不使用运行时配置，不告警；不替主分支创建文件） |
 
 ---
 
@@ -228,7 +228,7 @@ export async function syncRuntimeConfig(params: {
 
 ### 7.1 输出策略
 
-**有实际操作（新增/冲突/重建）才输出，无变化时静默**——避免 `colyn update`（默认全量）刷屏；`-v` / `--verbose` 可查看详情。
+**有实际操作（新增/冲突/重建）才输出，无变化时静默**——避免 `colyn update`（默认全量）刷屏；`-v` / `--verbose` 可查看详情。主分支配置缺失同样仅 `--verbose` 时提示（项目可能不使用运行时配置）。
 
 **update（主→worktree）示例**：
 
