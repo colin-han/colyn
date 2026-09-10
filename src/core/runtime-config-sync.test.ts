@@ -13,8 +13,25 @@ vi.mock('../plugins/index.js', () => ({
   },
 }));
 
+vi.mock('./toolchain-resolver.js', () => ({
+  resolveToolchains: vi.fn(),
+}));
+
+vi.mock('../utils/logger.js', () => ({
+  output: vi.fn(),
+  outputSuccess: vi.fn(),
+  outputWarning: vi.fn(),
+  outputError: vi.fn(),
+  outputLine: vi.fn(),
+  outputBold: vi.fn(),
+  outputStep: vi.fn(),
+}));
+
 import { pluginManager } from '../plugins/index.js';
 import { syncRuntimeConfig } from './runtime-config-sync.js';
+import { resolveToolchains } from './toolchain-resolver.js';
+import { outputSuccess, outputWarning } from '../utils/logger.js';
+import { syncWorktreeRuntimeConfigs } from './runtime-config-sync.js';
 
 describe('diffRuntimeConfig', () => {
   const identity = ['PORT', 'WORKTREE'];
@@ -236,5 +253,79 @@ describe('syncRuntimeConfig', () => {
     });
 
     expect(result).toBeNull();
+  });
+});
+
+describe('syncWorktreeRuntimeConfigs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('contexts 非空：逐 context 走插件路径并输出新增提示', async () => {
+    vi.mocked(resolveToolchains).mockResolvedValue([
+      { absolutePath: '/p/main', subPath: '.', toolchainName: 'npm', toolchainSettings: {} },
+    ]);
+    vi.mocked(pluginManager.getPortConfig).mockReturnValue({ key: 'PORT', defaultPort: 3000 });
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main', NEW: '1' })
+      .mockResolvedValueOnce({ PORT: '3001', WORKTREE: '1' });
+
+    await syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree');
+
+    expect(pluginManager.readRuntimeConfig).toHaveBeenCalledWith('/p/main', ['npm']);
+    expect(outputSuccess).toHaveBeenCalledWith(expect.stringContaining('NEW'));
+  });
+
+  it('contexts 为空：回退直接操作 .env.local', async () => {
+    vi.mocked(resolveToolchains).mockResolvedValue([]);
+    const dir = await fs.mkdtemp(pathMod.join(os.tmpdir(), 'colyn-sync-'));
+    const wtDir = pathMod.join(dir, 'task-1');
+    await fs.mkdir(wtDir);
+    await fs.writeFile(pathMod.join(dir, 'main.env'), ''); // 占位，避免目录不存在
+    await fs.mkdir(pathMod.join(dir, 'main'));
+    await fs.writeFile(pathMod.join(dir, 'main', '.env.local'), 'PORT=3000\nWORKTREE=main\nNEW=v9\n');
+    await fs.writeFile(pathMod.join(wtDir, '.env.local'), 'PORT=3001\nWORKTREE=1\n');
+
+    await syncWorktreeRuntimeConfigs(dir, pathMod.join(dir, 'main'), wtDir, 1, 'main-to-worktree');
+
+    const content = await fs.readFile(pathMod.join(wtDir, '.env.local'), 'utf-8');
+    expect(content).toContain('NEW=v9');
+  });
+
+  it('主分支配置缺失：输出警告不抛出', async () => {
+    vi.mocked(resolveToolchains).mockResolvedValue([
+      { absolutePath: '/p/main', subPath: '.', toolchainName: 'npm', toolchainSettings: {} },
+    ]);
+    vi.mocked(pluginManager.getPortConfig).mockReturnValue(null);
+    vi.mocked(pluginManager.readRuntimeConfig).mockResolvedValue(null);
+
+    await expect(
+      syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree')
+    ).resolves.toBeUndefined();
+    expect(outputWarning).toHaveBeenCalled();
+  });
+
+  it('同步抛异常：输出警告不抛出', async () => {
+    vi.mocked(resolveToolchains).mockRejectedValue(new Error('boom'));
+
+    await expect(
+      syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree')
+    ).resolves.toBeUndefined();
+    expect(outputWarning).toHaveBeenCalledWith(expect.stringContaining('boom'));
+  });
+
+  it('无变化且非 verbose：不输出', async () => {
+    vi.mocked(resolveToolchains).mockResolvedValue([
+      { absolutePath: '/p/main', subPath: '.', toolchainName: 'npm', toolchainSettings: {} },
+    ]);
+    vi.mocked(pluginManager.getPortConfig).mockReturnValue({ key: 'PORT', defaultPort: 3000 });
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main' })
+      .mockResolvedValueOnce({ PORT: '3001', WORKTREE: '1' });
+
+    await syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree');
+
+    expect(outputSuccess).not.toHaveBeenCalled();
+    expect(outputWarning).not.toHaveBeenCalled();
   });
 });

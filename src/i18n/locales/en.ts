@@ -1052,6 +1052,17 @@ Solution:
     },
   },
 
+  // Runtime config sync
+  runtimeConfigSync: {
+    added: 'Runtime config synced: {{count}} keys added ({{keys}})',
+    broughtBack: 'Brought {{count}} new config keys back to the main branch: {{keys}}',
+    conflict: '{{count}} keys differ between the two sides, skipped: {{keys}}',
+    rebuilt: 'Worktree runtime config missing, rebuilt from the main branch',
+    mainMissing: 'Main branch runtime config file missing, sync skipped',
+    error: 'Runtime config sync failed: {{error}}',
+    noChange: 'Runtime config: no changes',
+  },
+
   // Errors
   errors: {
     notGitRepo: 'Not a git repository',

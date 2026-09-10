@@ -1,8 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { pluginManager } from '../plugins/index.js';
-import type { ToolchainContext } from './toolchain-resolver.js';
+import { resolveToolchains, type ToolchainContext } from './toolchain-resolver.js';
 import { readEnvFile, updateEnvFilePreserveComments, writeEnvFile } from './env.js';
+import { output, outputSuccess, outputWarning } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 /**
  * 运行时配置同步方向
@@ -171,4 +173,114 @@ export async function syncRuntimeConfig(
     await updateEnvFilePreserveComments(targetPath, toAdd);
   }
   return { addedKeys: Object.keys(toAdd), conflicts, rebuilt: false };
+}
+
+/**
+ * 多上下文同步入口：resolveToolchains → 逐 context 同步 → 输出提示
+ *
+ * - contexts 非空：每个 ToolchainContext 独立同步（Mono Repo 子项目）
+ * - contexts 为空：回退直接操作 .env.local
+ * - 永不抛出；单 context 异常输出警告后继续
+ * - 无变化时静默，verbose=true 时输出 noChange
+ */
+export async function syncWorktreeRuntimeConfigs(
+  rootDir: string,
+  mainDir: string,
+  worktreePath: string,
+  worktreeId: number,
+  direction: SyncDirection,
+  verbose = false
+): Promise<void> {
+  let contexts: ToolchainContext[];
+  try {
+    contexts = await resolveToolchains(rootDir, mainDir);
+  } catch (error) {
+    outputWarning(t('runtimeConfigSync.error', { error: errorMessage(error) }));
+    return;
+  }
+
+  if (contexts.length === 0) {
+    await runAndReport(
+      () => syncRuntimeConfig({
+        mainDir, worktreePath, direction, worktreeId,
+        identityKeys: ['PORT', 'WORKTREE'],
+      }),
+      direction, verbose
+    );
+    return;
+  }
+
+  for (const ctx of contexts) {
+    const worktreeSubPath = ctx.subPath === '.'
+      ? worktreePath
+      : path.join(worktreePath, ctx.subPath);
+
+    // 子目录在 worktree 中不存在时跳过（与 add 命令约定一致）；
+    // subPath 为 '.' 时即 worktree 根目录，必然存在，无需检查
+    if (ctx.subPath !== '.') {
+      try {
+        await fs.access(worktreeSubPath);
+      } catch {
+        continue;
+      }
+    }
+
+    const portKey = pluginManager.getPortConfig([ctx.toolchainName])?.key ?? 'PORT';
+    await runAndReport(
+      () => syncRuntimeConfig({
+        mainDir: ctx.absolutePath,
+        worktreePath: worktreeSubPath,
+        direction, worktreeId,
+        identityKeys: [portKey, 'WORKTREE'],
+        portKey,
+        ctx,
+      }),
+      direction, verbose
+    );
+  }
+}
+
+async function runAndReport(
+  run: () => Promise<SyncResult | null>,
+  direction: SyncDirection,
+  verbose: boolean
+): Promise<void> {
+  let result: SyncResult | null;
+  try {
+    result = await run();
+  } catch (error) {
+    outputWarning(t('runtimeConfigSync.error', { error: errorMessage(error) }));
+    return;
+  }
+
+  if (result === null) {
+    outputWarning(t('runtimeConfigSync.mainMissing'));
+    return;
+  }
+
+  let reported = false;
+  if (result.rebuilt) {
+    outputSuccess(t('runtimeConfigSync.rebuilt'));
+    reported = true;
+  }
+  if (result.addedKeys.length > 0) {
+    const keys = result.addedKeys.join(', ');
+    outputSuccess(t(
+      direction === 'main-to-worktree' ? 'runtimeConfigSync.added' : 'runtimeConfigSync.broughtBack',
+      { count: result.addedKeys.length, keys }
+    ));
+    reported = true;
+  }
+  if (result.conflicts.length > 0) {
+    const keys = result.conflicts.map(c => c.key).join(', ');
+    outputWarning(t('runtimeConfigSync.conflict', { count: result.conflicts.length, keys }));
+    reported = true;
+  }
+  if (!reported && verbose) {
+    output(t('runtimeConfigSync.noChange'));
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
