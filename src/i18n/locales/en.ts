@@ -335,6 +335,8 @@ Hints:
       fetchOption: 'Fetch remote before operation (default)',
       allOption: 'Update all worktrees (default, requires update=true)',
       noAllOption: 'Update only current worktree (overrides commands.merge.all=true)',
+      syncConfigOption: 'Sync runtime config during merge (default)',
+      noSyncConfigOption: 'Skip runtime config sync',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>

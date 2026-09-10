@@ -29,18 +29,20 @@ import {
 } from './update.helpers.js';
 import { t } from '../i18n/index.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
+import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
 import { applyCommandDefaults, resolveVerbose } from '../core/command-defaults.js';
 
 /**
  * Merge 命令选项
  */
 interface MergeOptions extends Record<string, unknown> {
-  build?: boolean;    // 执行构建检查（默认 true）
-  rebase?: boolean;   // 合并前 rebase（默认 true）
-  update?: boolean;   // 合并后自动更新（默认 true）
-  fetch?: boolean;    // 是否 fetch（默认 true）
-  all?: boolean;      // 更新所有 worktrees（默认 true，需 update=true）
-  verbose?: boolean;  // 显示详细的步骤信息
+  build?: boolean;      // 执行构建检查（默认 true）
+  rebase?: boolean;     // 合并前 rebase（默认 true）
+  update?: boolean;     // 合并后自动更新（默认 true）
+  fetch?: boolean;      // 是否 fetch（默认 true）
+  all?: boolean;        // 更新所有 worktrees（默认 true，需 update=true）
+  verbose?: boolean;    // 显示详细的步骤信息
+  syncConfig?: boolean; // 同步运行时配置（默认 true）
 }
 
 /**
@@ -205,6 +207,19 @@ async function mergeCommand(
     step2Spinner.succeed(t('commands.merge.worktreeMerged'));
     outputSuccess(t('commands.merge.mergeComplete'));
 
+    // 步骤7.5: 反向同步运行时配置（worktree → 主分支，带回新增配置）
+    // 必须先于步骤9 的 --update 环节，让带回的新 key 立即传播到其他 worktree
+    if (options.syncConfig) {
+      await syncWorktreeRuntimeConfigs(
+        paths.rootDir,
+        paths.mainDir,
+        worktree.path,
+        worktree.id,
+        'worktree-to-main',
+        options.verbose
+      );
+    }
+
     // 更新 worktree 状态为 idle
     try {
       await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
@@ -242,7 +257,8 @@ async function mergeCommand(
           const updateResult = await updateAllWorktrees(
             allWorktrees,
             mainBranch,
-            true  // 默认使用 rebase
+            true,  // 默认使用 rebase
+            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir } : undefined
           );
 
           displayBatchUpdateResult(updateResult);
@@ -262,7 +278,12 @@ async function mergeCommand(
         }).start();
 
         const updateResult = await executeInDirectory(worktree.path, async () => {
-          return await updateAllWorktrees([worktree], mainBranch, true);
+          return await updateAllWorktrees(
+            [worktree],
+            mainBranch,
+            true,
+            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir } : undefined
+          );
         });
 
         if (updateResult.succeeded > 0) {
@@ -308,6 +329,8 @@ export function register(program: Command): void {
     .option('--no-fetch', t('commands.merge.noFetchOption'))
     .option('--all', t('commands.merge.allOption'))
     .option('--no-all, --current-only', t('commands.merge.noAllOption'))
+    .option('--sync-config', t('commands.merge.syncConfigOption'))
+    .option('--no-sync-config', t('commands.merge.noSyncConfigOption'))
     .option('-v, --verbose', t('common.verboseOption'))
     .option('--no-verbose', t('common.noVerboseOption'))
     .action(async (target: string | undefined, options: MergeOptions, command: Command) => {
@@ -315,7 +338,7 @@ export function register(program: Command): void {
         command,
         options,
         ['commands', 'merge'] as const,
-        { build: true, rebase: true, update: true, fetch: true, all: true }
+        { build: true, rebase: true, update: true, fetch: true, all: true, syncConfig: true }
       );
       const verbose = await resolveVerbose(command, options.verbose);
 
