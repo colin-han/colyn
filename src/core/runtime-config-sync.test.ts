@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { diffRuntimeConfig } from './runtime-config-sync.js';
+import { vi, beforeEach } from 'vitest';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as pathMod from 'path';
+
+vi.mock('../plugins/index.js', () => ({
+  pluginManager: {
+    readRuntimeConfig: vi.fn(),
+    writeRuntimeConfig: vi.fn(),
+    getPortConfig: vi.fn(),
+  },
+}));
+
+import { pluginManager } from '../plugins/index.js';
+import { syncRuntimeConfig } from './runtime-config-sync.js';
 
 describe('diffRuntimeConfig', () => {
   const identity = ['PORT', 'WORKTREE'];
@@ -78,5 +93,148 @@ describe('diffRuntimeConfig', () => {
     const diff = diffRuntimeConfig({}, { A: '1' }, 'main-to-worktree', []);
     expect(diff.toAdd).toEqual({});
     expect(diff.conflicts).toEqual([]);
+  });
+});
+
+describe('syncRuntimeConfig', () => {
+  const ctx = {
+    absolutePath: '/p/main',
+    subPath: '.',
+    toolchainName: 'npm',
+    toolchainSettings: {},
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('ctx 路径：主分支新增 key 合并写入 worktree，身份键保留 worktree 值', async () => {
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main', API_KEY: 'v1', NEW: '1' })
+      .mockResolvedValueOnce({ PORT: '3001', WORKTREE: '1', API_KEY: 'v1' });
+
+    const result = await syncRuntimeConfig({
+      mainDir: '/p/main', worktreePath: '/p/wt/task-1',
+      direction: 'main-to-worktree', worktreeId: 1,
+      identityKeys: ['PORT', 'WORKTREE'], portKey: 'PORT', ctx,
+    });
+
+    expect(result?.addedKeys).toEqual(['NEW']);
+    expect(result?.conflicts).toEqual([]);
+    expect(result?.rebuilt).toBe(false);
+    expect(pluginManager.writeRuntimeConfig).toHaveBeenCalledWith(
+      '/p/wt/task-1',
+      { PORT: '3001', WORKTREE: '1', API_KEY: 'v1', NEW: '1' },
+      ['npm']
+    );
+  });
+
+  it('ctx 路径：主分支配置缺失返回 null', async () => {
+    vi.mocked(pluginManager.readRuntimeConfig).mockResolvedValue(null);
+
+    const result = await syncRuntimeConfig({
+      mainDir: '/p/main', worktreePath: '/p/wt/task-1',
+      direction: 'main-to-worktree', worktreeId: 1,
+      identityKeys: ['PORT', 'WORKTREE'], ctx,
+    });
+
+    expect(result).toBeNull();
+    expect(pluginManager.writeRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  it('ctx 路径：worktree 文件缺失时重建并重算身份键', async () => {
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main', API_KEY: 'v1' })
+      .mockResolvedValueOnce(null);
+
+    const result = await syncRuntimeConfig({
+      mainDir: '/p/main', worktreePath: '/p/wt/task-2',
+      direction: 'main-to-worktree', worktreeId: 2,
+      identityKeys: ['PORT', 'WORKTREE'], portKey: 'PORT', ctx,
+    });
+
+    expect(result?.rebuilt).toBe(true);
+    expect(pluginManager.writeRuntimeConfig).toHaveBeenCalledWith(
+      '/p/wt/task-2',
+      { PORT: '3002', WORKTREE: '2', API_KEY: 'v1' },
+      ['npm']
+    );
+  });
+
+  it('ctx 路径：worktree→主方向把新增 key 写到主分支侧', async () => {
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main' })
+      .mockResolvedValueOnce({ PORT: '3001', WORKTREE: '1', OPENAI_KEY: 'sk-x' });
+
+    const result = await syncRuntimeConfig({
+      mainDir: '/p/main', worktreePath: '/p/wt/task-1',
+      direction: 'worktree-to-main', worktreeId: 1,
+      identityKeys: ['PORT', 'WORKTREE'], portKey: 'PORT', ctx,
+    });
+
+    expect(result?.addedKeys).toEqual(['OPENAI_KEY']);
+    expect(pluginManager.writeRuntimeConfig).toHaveBeenCalledWith(
+      '/p/main',
+      { PORT: '3000', WORKTREE: 'main', OPENAI_KEY: 'sk-x' },
+      ['npm']
+    );
+  });
+
+  it('ctx 路径：worktree→主方向且 worktree 文件缺失 → 无操作', async () => {
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main' })
+      .mockResolvedValueOnce(null);
+
+    const result = await syncRuntimeConfig({
+      mainDir: '/p/main', worktreePath: '/p/wt/task-1',
+      direction: 'worktree-to-main', worktreeId: 1,
+      identityKeys: ['PORT', 'WORKTREE'], portKey: 'PORT', ctx,
+    });
+
+    expect(result).toEqual({ addedKeys: [], conflicts: [], rebuilt: false });
+    expect(pluginManager.writeRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  it('回退路径：无 ctx 时直接操作 .env.local，追加新 key 且保留注释', async () => {
+    const dir = await fs.mkdtemp(pathMod.join(os.tmpdir(), 'colyn-sync-'));
+    const mainDir = pathMod.join(dir, 'main');
+    const wtDir = pathMod.join(dir, 'task-1');
+    await fs.mkdir(mainDir); await fs.mkdir(wtDir);
+    await fs.writeFile(
+      pathMod.join(mainDir, '.env.local'),
+      '# main comment\nPORT=3000\nWORKTREE=main\nAPI_KEY=v1\nNEW_KEY=v9\n'
+    );
+    await fs.writeFile(
+      pathMod.join(wtDir, '.env.local'),
+      '# wt comment\nPORT=3001\nWORKTREE=1\nAPI_KEY=v1\n'
+    );
+
+    const result = await syncRuntimeConfig({
+      mainDir, worktreePath: wtDir,
+      direction: 'main-to-worktree', worktreeId: 1,
+      identityKeys: ['PORT', 'WORKTREE'],
+    });
+
+    expect(result?.addedKeys).toEqual(['NEW_KEY']);
+    const wtContent = await fs.readFile(pathMod.join(wtDir, '.env.local'), 'utf-8');
+    expect(wtContent).toContain('# wt comment');
+    expect(wtContent).toContain('NEW_KEY=v9');
+    expect(wtContent).toContain('PORT=3001');
+    expect(pluginManager.writeRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  it('回退路径：主分支 .env.local 缺失返回 null', async () => {
+    const dir = await fs.mkdtemp(pathMod.join(os.tmpdir(), 'colyn-sync-'));
+    const wtDir = pathMod.join(dir, 'task-1');
+    await fs.mkdir(wtDir);
+    await fs.writeFile(pathMod.join(wtDir, '.env.local'), 'PORT=3001\nWORKTREE=1\n');
+
+    const result = await syncRuntimeConfig({
+      mainDir: pathMod.join(dir, 'main'), worktreePath: wtDir,
+      direction: 'main-to-worktree', worktreeId: 1,
+      identityKeys: ['PORT', 'WORKTREE'],
+    });
+
+    expect(result).toBeNull();
   });
 });
