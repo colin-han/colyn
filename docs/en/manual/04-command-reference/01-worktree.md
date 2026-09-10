@@ -609,6 +609,7 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 |--------|---------|-------------|
 | `--build` / `--no-build` | `--build` | Whether to run the toolchain plugins' lint and build checks; `--no-build` skips them |
 | `--rebase` / `--no-rebase` | `--rebase` | Use rebase to update the worktree; `--no-rebase` uses merge instead |
+| `--sync-config` / `--no-sync-config` | `--sync-config` | Sync runtime config in both directions during merge |
 | `--update` / `--no-update` | `--update` | Whether to automatically update worktrees with the latest main branch code after merge |
 | `--fetch` / `--no-fetch` | `--fetch` | Whether to fetch the latest main branch from remote before updating |
 | `--all` / `--no-all` (alias `--current-only`) | `--all` | Update scope: all worktrees or only the current one (only meaningful when `--update` is active) |
@@ -625,6 +626,10 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 **Step 2: Merge Worktree branch in main branch**
 - Run `git merge --no-ff <branch>` in the main branch
 - Forces a merge commit for clear branch history
+
+**Step 2.5: Reverse-sync runtime config (worktree → main branch, default behavior)**
+- After the merge succeeds and before Step 3, new runtime config keys from the worktree are brought back to the main branch (skip with `--no-sync-config`)
+- Only keys missing on the main branch are added; existing values are never overwritten; keys whose values differ between sides are skipped with a notice; identity keys (`PORT` / `WORKTREE`) never participate in sync
 
 **Step 3: Automatically update worktrees after merge (default behavior)**
 - By default, first `fetch` the latest main branch from remote (`--no-fetch` skips this)

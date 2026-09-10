@@ -1642,6 +1642,7 @@ colyn config set todo.github.archivedLabel archived
 | `update` | `true` | `--update` | `--no-update` | 合并前更新所有 worktree |
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
+| `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | 合并时双向同步运行时配置 |
 
 > ⚠️ `merge.all` 仅在 `merge.update === true` 时生效。若 `update=false`（或命令行 `--no-update`），即使 `all=true` 也不会更新任何 worktree。
 
@@ -1652,6 +1653,7 @@ colyn config set todo.github.archivedLabel archived
 | `rebase` | `true` | `--rebase` | `--no-rebase` | 使用 rebase 更新 |
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
+| `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | 更新时同步主分支运行时配置 |
 
 #### commands.release
 

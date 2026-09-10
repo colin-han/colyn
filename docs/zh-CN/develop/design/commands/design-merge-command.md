@@ -1,7 +1,7 @@
 # Merge 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-15
-**最后更新**：2026-02-23（更新：移除 merge 命令中的远程推送环节）
+**最后更新**：2026-09-10（更新：新增 `--sync-config` 运行时配置双向同步）
 **命令名称**：`colyn merge`
 **状态**：✅ 已实现
 
@@ -330,6 +330,7 @@ sequenceDiagram
         C->>M: cd <main-dir>
         C->>M: git merge --no-ff <worktree-branch>
         M->>C: 合并成功（不会有冲突）
+        Note over C,M: 步骤 2.5: 反向同步运行时配置<br/>（worktree → 主分支，先于 --update 环节）
         C->>C: 显示成功信息
     else 合并冲突
         WT->>C: 返回冲突错误
@@ -350,6 +351,10 @@ git rebase <main-branch>   # 默认；--no-rebase 时为 git merge <main-branch>
 cd <main-dir>
 git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 ```
+
+**步骤 2.5：反向同步运行时配置（worktree → 主分支）**
+
+合并成功后、`--update` 环节之前，把 worktree 新增的运行时配置带回主分支（可用 `--no-sync-config` 跳过），详见 [design-runtime-config-sync.md](../design-runtime-config-sync.md)。随后执行的 `--update` 环节会让其他 worktree 顺带拿到刚带回主分支的新 key。
 
 **为什么采用两步合并**：
 - 如果有冲突，冲突发生在 worktree 目录中，用户可以在开发环境中解决
@@ -437,6 +442,7 @@ graph TD
 | ID 或分支名 | 否 | 指定要合并的 worktree<br/>无参数时自动识别 | - 数字视为 ID<br/>- 包含 `/` 视为分支名 |
 | `--build` / `--no-build` | 否 | 是否运行工具链插件的 lint 和 build 检查 | 默认运行；`--no-build` 跳过（紧急合并或已确认代码时） |
 | `--rebase` / `--no-rebase` | 否 | 更新 worktree 时使用 rebase 还是 merge | 默认 rebase；`--no-rebase` 改用 merge |
+| `--sync-config` / `--no-sync-config` | 否 | 合并时双向同步运行时配置 | 默认 `--sync-config` |
 | `--update` / `--no-update` | 否 | 合并后是否用主分支最新代码更新 worktree | 默认更新 |
 | `--fetch` / `--no-fetch` | 否 | 更新前是否从远程 fetch 主分支 | 默认 fetch；离线或无上游时用 `--no-fetch` |
 | `--all` / `--no-all`（别名 `--current-only`） | 否 | 更新范围：所有 worktree 还是仅当前 | 默认所有；仅在 `--update` 生效时有意义 |
@@ -454,7 +460,14 @@ graph TD
 ✔ 编译成功
 切换到主分支目录: ...
 执行合并: git merge --no-ff ...
+✓ 已带回 1 项新配置到主分支：OPENAI_API_KEY
 ✓ 合并成功！
+```
+
+**运行时配置同步输出**（配置有变化时；无变化静默）：
+```
+✓ 已带回 1 项新配置到主分支：OPENAI_API_KEY
+⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
 ```
 
 **成功信息**：
@@ -513,6 +526,7 @@ graph TD
 - [ ] 支持通过分支名指定 worktree 进行合并
 - [ ] 支持在 worktree 目录无参数调用（自动识别）
 - [ ] 使用 `git merge --no-ff` 执行合并
+- [x] 合并成功后 worktree 新增配置带回主分支；--update 环节其他 worktree 同步新 key
 - [ ] 合并后保留 worktree（不删除）
 
 ### 7.2 前置检查

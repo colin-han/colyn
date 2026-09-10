@@ -1,6 +1,6 @@
 # 运行时配置同步设计文档
 
-**状态**：📋 设计中（待实现）
+**状态**：✅ 已实现（v3.5）
 **创建时间**：2026-09-09
 **相关命令**：`colyn add`、`colyn update`、`colyn merge`（`colyn release` 经复用间接受益）
 
@@ -248,17 +248,25 @@ export async function syncRuntimeConfig(params: {
 
 ### 7.2 i18n key
 
-`src/i18n/locales/zh-CN.ts` 与 `en.ts` 同步添加（key 结构 `commands.<cmd>.<name>`）：
+`src/i18n/locales/zh-CN.ts` 与 `en.ts` 同步添加。**实际实现的 key 结构与原设计有偏差**：同步提示文案位于顶层 `runtimeConfigSync` 节（而非原设计的 `commands.<cmd>.syncConfig*` 命令节），因为同一组文案被 `update`、`merge` 命令层与 core 层（多上下文入口 `syncWorktreeRuntimeConfigs`）共用，放顶层避免重复维护；选项描述文案仍在各命令节：
 
 ```typescript
-// commands.update / commands.merge 共用结构，按命令分组
-syncConfigOption: '更新时同步运行时配置（默认开启）',
-syncConfigAdded: '运行时配置已同步：新增 {{count}} 项 ({{keys}})',
-syncConfigBroughtBack: '已带回 {{count}} 项新配置到主分支：{{keys}}',
-syncConfigConflict: '{{count}} 项配置两侧值不同，已跳过：{{keys}}',
-syncConfigRebuilt: 'worktree 运行时配置缺失，已从主分支重建',
-syncConfigMainMissing: '主分支运行时配置文件不存在，跳过同步',
-syncConfigError: '运行时配置同步失败：{{error}}',
+// 顶层 runtimeConfigSync 节：同步提示文案（update / merge / core 层共用）
+runtimeConfigSync: {
+  added: '运行时配置已同步：新增 {{count}} 项 ({{keys}})',
+  broughtBack: '已带回 {{count}} 项新配置到主分支：{{keys}}',
+  conflict: '{{count}} 项配置两侧值不同，已跳过：{{keys}}',
+  rebuilt: 'worktree 运行时配置缺失，已从主分支重建',
+  mainMissing: '主分支运行时配置文件不存在，跳过同步',
+  error: '运行时配置同步失败：{{error}}',
+  noChange: '运行时配置无变化',
+},
+
+// 选项描述文案位于各命令节
+commands.update.syncConfigOption: '同步主分支运行时配置（默认开启）',
+commands.update.noSyncConfigOption: '跳过运行时配置同步',
+commands.merge.syncConfigOption: '合并时同步运行时配置（默认开启）',
+commands.merge.noSyncConfigOption: '跳过运行时配置同步',
 ```
 
 ---
@@ -291,26 +299,28 @@ syncConfigError: '运行时配置同步失败：{{error}}',
 
 ### 10.1 功能
 
-- [ ] `colyn update` 后：主分支新增 key 出现在 worktree；身份键（`PORT`/`WORKTREE` 或 `server.port`/`WORKTREE`）保持 worktree 侧原值
-- [ ] 值不同的 key 被跳过，输出差异提示
-- [ ] `colyn merge` 后：worktree 新增 key 出现在主分支运行时配置
-- [ ] `merge --update` 环节：其他 worktree 拿到刚带回主分支的新 key
-- [ ] worktree 侧配置文件缺失时按主分支重建并重算身份键
-- [ ] maven/gradle 项目（`application-local.properties`）与 npm/pip 项目（`.env.local`）行为一致
-- [ ] Mono Repo 各子项目独立同步
+- [x] `colyn update` 后：主分支新增 key 出现在 worktree；身份键（`PORT`/`WORKTREE` 或 `server.port`/`WORKTREE`）保持 worktree 侧原值
+- [x] 值不同的 key 被跳过，输出差异提示
+- [x] `colyn merge` 后：worktree 新增 key 出现在主分支运行时配置
+- [x] `merge --update` 环节：其他 worktree 拿到刚带回主分支的新 key
+- [x] worktree 侧配置文件缺失时按主分支重建并重算身份键
+- [x] maven/gradle 项目（`application-local.properties`）与 npm/pip 项目（`.env.local`）行为一致
+- [x] Mono Repo 各子项目独立同步
 
 ### 10.2 开关与安全
 
-- [ ] `--no-sync-config` 完全关闭同步；settings 默认值经三态解析生效
-- [ ] 同步永不覆盖既有值、永不删除 key
-- [ ] 同步失败不改变命令退出状态，批量继续
-- [ ] `.env.local` 仍被 git 脏检查排除（现有 `IGNORED_STATUS_BASENAMES` 机制不被破坏）
+- [x] `--no-sync-config` 完全关闭同步；settings 默认值经三态解析生效
+- [x] 同步永不覆盖既有值、永不删除 key
+- [x] 同步失败不改变命令退出状态，批量继续
+- [x] `.env.local` 仍被 git 脏检查排除（现有 `IGNORED_STATUS_BASENAMES` 机制不被破坏）
 
 ### 10.3 质量
 
-- [ ] 双语文案（zh-CN / en）齐全，无硬编码文本
-- [ ] `volta run yarn lint` 0 errors
-- [ ] 不使用 `any` 类型
+- [x] 双语文案（zh-CN / en）齐全，无硬编码文本
+- [x] `volta run yarn lint` 0 errors
+- [x] 不使用 `any` 类型
+
+> 验收依据：单元测试（`runtime-config-sync.test.ts` 19 例、`update.helpers.test.ts` 3 例，全量 13 文件 183 用例通过）+ 手动端到端验证 6/6 PASS（add 初始复制、update 正向同步、merge 反向带回与冲突跳过、`--no-sync-config` 开关、双语切换）。
 
 ---
 

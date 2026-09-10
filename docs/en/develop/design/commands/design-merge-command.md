@@ -1,7 +1,7 @@
 # Merge Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-15
-**Last Updated**: 2026-02-23 (updated: removed remote push stage from merge command)
+**Last Updated**: 2026-09-10 (updated: added `--sync-config` bidirectional runtime config sync)
 **Command**: `colyn merge`
 **Status**: ✅ Implemented
 
@@ -330,6 +330,7 @@ sequenceDiagram
         C->>M: cd <main-dir>
         C->>M: git merge --no-ff <worktree-branch>
         M->>C: Merge successful (no conflicts possible)
+        Note over C,M: Step 2.5: Reverse-sync runtime config<br/>(worktree → main, before the --update phase)
         C->>C: Display success message
     else Merge conflict
         WT->>C: Return conflict error
@@ -350,6 +351,10 @@ git rebase <main-branch>   # default; git merge <main-branch> when --no-rebase
 cd <main-dir>
 git merge --no-ff <worktree-branch> -m "Merge branch '<worktree-branch>'"
 ```
+
+**Step 2.5: Reverse-sync runtime config (worktree → main)**
+
+After the merge succeeds and before the `--update` phase, new runtime config keys from the worktree are brought back to the main branch (skip with `--no-sync-config`). See [design-runtime-config-sync.md](../design-runtime-config-sync.md). The `--update` phase that follows lets other worktrees pick up the keys just brought back to main.
 
 **Why two-step merge**:
 - If there are conflicts, they occur in the worktree directory where users can resolve them in the development environment
@@ -437,6 +442,7 @@ Worktree is **not deleted** after successful merge:
 | ID or branch name | No | Specify worktree to merge<br/>Auto-detect if no parameter | - Numbers treated as ID<br/>- Contains `/` treated as branch name |
 | `--build` / `--no-build` | No | Whether to run the toolchain plugins' lint and build checks | Runs by default; `--no-build` skips (urgent merges or already-verified code) |
 | `--rebase` / `--no-rebase` | No | Use rebase or merge to update the worktree | Rebase by default; `--no-rebase` uses merge |
+| `--sync-config` / `--no-sync-config` | No | Sync runtime config in both directions during merge | Default `--sync-config` |
 | `--update` / `--no-update` | No | Whether to update the worktree with latest main branch code after merge | Updates by default |
 | `--fetch` / `--no-fetch` | No | Whether to fetch the latest main branch from remote before updating | Fetches by default; use `--no-fetch` when offline or no upstream |
 | `--all` / `--no-all` (alias `--current-only`) | No | Update scope: all worktrees or only the current one | All by default; only meaningful when `--update` is active |
@@ -454,7 +460,14 @@ Detected worktree: ...
 ✔ Build succeeded
 Switching to main branch directory: ...
 Executing merge: git merge --no-ff ...
+✓ Brought 1 new config key back to the main branch: OPENAI_API_KEY
 ✓ Merge successful!
+```
+
+**Runtime Config Sync Output** (printed when the config changed; silent on no change):
+```
+✓ Brought 1 new config key back to the main branch: OPENAI_API_KEY
+⚠ 1 key differs between sides, skipped: DATABASE_URL
 ```
 
 **Success info**:
@@ -513,6 +526,7 @@ Next steps:
 - [ ] Support specifying worktree by branch name for merge
 - [ ] Support no-parameter invocation in worktree directory (auto-detect)
 - [ ] Use `git merge --no-ff` for merge
+- [x] After a successful merge, new worktree config keys are brought back to main; other worktrees sync the new keys in the `--update` phase
 - [ ] Retain worktree after merge (don't delete)
 
 ### 7.2 Pre-checks

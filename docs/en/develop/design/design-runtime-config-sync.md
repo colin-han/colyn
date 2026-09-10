@@ -1,6 +1,6 @@
 # Runtime Config Sync Design
 
-**Status**: 📋 Designed (pending implementation)
+**Status**: ✅ Implemented (v3.5)
 **Created**: 2026-09-09
 **Related commands**: `colyn add`, `colyn update`, `colyn merge` (`colyn release` benefits indirectly via reuse)
 
@@ -248,17 +248,25 @@ Option meaning: whether to sync runtime config during the command (covering merg
 
 ### 7.2 i18n Keys
 
-Added to both `src/i18n/locales/zh-CN.ts` and `en.ts` (key structure `commands.<cmd>.<name>`):
+Added to both `src/i18n/locales/zh-CN.ts` and `en.ts`. **The implemented key structure deviates from the original design**: the sync notices live in a top-level `runtimeConfigSync` node (not the originally designed `commands.<cmd>.syncConfig*` per-command nodes), because the same messages are shared by the `update` and `merge` command layers and the core layer (the multi-context entry `syncWorktreeRuntimeConfigs`); placing them at the top level avoids duplicated maintenance. Option descriptions remain in their per-command nodes:
 
 ```typescript
-// commands.update / commands.merge share the structure, grouped per command
-syncConfigOption: 'Sync runtime config on update (default: enabled)',
-syncConfigAdded: 'Runtime config synced: {{count}} keys added ({{keys}})',
-syncConfigBroughtBack: 'Brought {{count}} new config keys back to the main branch: {{keys}}',
-syncConfigConflict: '{{count}} keys differ between sides, skipped: {{keys}}',
-syncConfigRebuilt: 'Worktree runtime config missing; rebuilt from the main branch',
-syncConfigMainMissing: 'Main branch runtime config file missing; sync skipped',
-syncConfigError: 'Runtime config sync failed: {{error}}',
+// Top-level runtimeConfigSync node: sync notices (shared by update / merge / core layers)
+runtimeConfigSync: {
+  added: 'Runtime config synced: {{count}} keys added ({{keys}})',
+  broughtBack: 'Brought {{count}} new config keys back to the main branch: {{keys}}',
+  conflict: '{{count}} keys differ between the two sides, skipped: {{keys}}',
+  rebuilt: 'Worktree runtime config missing, rebuilt from the main branch',
+  mainMissing: 'Main branch runtime config file missing, sync skipped',
+  error: 'Runtime config sync failed: {{error}}',
+  noChange: 'Runtime config: no changes',
+},
+
+// Option descriptions live in their per-command nodes
+commands.update.syncConfigOption: 'Sync runtime config from main branch (default)',
+commands.update.noSyncConfigOption: 'Skip runtime config sync',
+commands.merge.syncConfigOption: 'Sync runtime config during merge (default)',
+commands.merge.noSyncConfigOption: 'Skip runtime config sync',
 ```
 
 ---
@@ -289,26 +297,28 @@ syncConfigError: 'Runtime config sync failed: {{error}}',
 
 ### 10.1 Functionality
 
-- [ ] After `colyn update`: keys newly added on main appear in the worktree; identity keys (`PORT`/`WORKTREE` or `server.port`/`WORKTREE`) keep the worktree side's values
-- [ ] Keys with different values are skipped with a diff warning
-- [ ] After `colyn merge`: keys newly added in the worktree appear in the main branch's runtime config
-- [ ] In the `merge --update` phase: other worktrees receive keys just brought back to main
-- [ ] A missing worktree-side config file is rebuilt from main with recomputed identity keys
-- [ ] maven/gradle projects (`application-local.properties`) behave identically to npm/pip projects (`.env.local`)
-- [ ] Mono Repo sub-projects sync independently
+- [x] After `colyn update`: keys newly added on main appear in the worktree; identity keys (`PORT`/`WORKTREE` or `server.port`/`WORKTREE`) keep the worktree side's values
+- [x] Keys with different values are skipped with a diff warning
+- [x] After `colyn merge`: keys newly added in the worktree appear in the main branch's runtime config
+- [x] In the `merge --update` phase: other worktrees receive keys just brought back to main
+- [x] A missing worktree-side config file is rebuilt from main with recomputed identity keys
+- [x] maven/gradle projects (`application-local.properties`) behave identically to npm/pip projects (`.env.local`)
+- [x] Mono Repo sub-projects sync independently
 
 ### 10.2 Switches & Safety
 
-- [ ] `--no-sync-config` fully disables sync; the settings default resolves via three-source resolution
-- [ ] Sync never overwrites existing values, never deletes keys
-- [ ] A sync failure does not change the command's exit status; batch mode continues
-- [ ] `.env.local` remains excluded from git dirty checks (the existing `IGNORED_STATUS_BASENAMES` mechanism is not broken)
+- [x] `--no-sync-config` fully disables sync; the settings default resolves via three-source resolution
+- [x] Sync never overwrites existing values, never deletes keys
+- [x] A sync failure does not change the command's exit status; batch mode continues
+- [x] `.env.local` remains excluded from git dirty checks (the existing `IGNORED_STATUS_BASENAMES` mechanism is not broken)
 
 ### 10.3 Quality
 
-- [ ] Bilingual messages (zh-CN / en) complete, no hardcoded text
-- [ ] `volta run yarn lint` passes with 0 errors
-- [ ] No `any` types
+- [x] Bilingual messages (zh-CN / en) complete, no hardcoded text
+- [x] `volta run yarn lint` passes with 0 errors
+- [x] No `any` types
+
+> Acceptance basis: unit tests (`runtime-config-sync.test.ts` with 19 cases, `update.helpers.test.ts` with 3 cases; all 183 cases across 13 files pass) plus manual end-to-end verification 6/6 PASS (add initial copy, update forward sync, merge reverse bring-back and conflict skipping, the `--no-sync-config` switch, bilingual output).
 
 ---
 

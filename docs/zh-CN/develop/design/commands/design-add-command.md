@@ -495,6 +495,8 @@ server.port=10001
 - 若未配置插件，回退到复制主分支 `.env.local` 并更新 `PORT` / `WORKTREE`
 - 保留所有注释和其他配置项
 
+创建时的复制即运行时配置同步（Runtime Config Sync）的初始同步，后续更新见 [design-runtime-config-sync.md](../design-runtime-config-sync.md)。
+
 ---
 
 ## 8. ID 和端口分配规则

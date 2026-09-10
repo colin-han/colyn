@@ -1,7 +1,7 @@
 # Update Command Design Document (User Interaction Perspective)
 
 **Created**: 2026-01-28
-**Last Updated**: 2026-06-01
+**Last Updated**: 2026-09-10 (added the `--sync-config` runtime config sync option)
 **Command Name**: `colyn update`
 **Status**: Implemented
 
@@ -328,6 +328,7 @@ sequenceDiagram
 
         alt Success
             WT->>C: Update successful
+            C->>C: Sync runtime config (main branch → worktree)
             C->>U: ✓ Update complete
         else Conflict
             WT->>C: Conflicts exist
@@ -335,6 +336,8 @@ sequenceDiagram
         end
     end
 ```
+
+> After a successful update, the runtime config is synced (main branch → worktree; skip with `--no-sync-config`). See [design-runtime-config-sync.md](../design-runtime-config-sync.md).
 
 ---
 
@@ -362,6 +365,7 @@ sequenceDiagram
             C->>WT: git rebase main
             alt Success
                 WT->>C: Record success
+                C->>C: Sync this worktree's runtime config (main → worktree)
             else Conflict
                 WT->>C: Record failure
             end
@@ -376,6 +380,7 @@ sequenceDiagram
 **Batch Update Features**:
 - Execute `git pull` only once, avoid repeated pulling
 - On failure, don't interrupt, continue updating other worktrees
+- Sync runtime config after each worktree updates successfully (skip with `--no-sync-config`)
 - Display summary results at the end
 
 ---
@@ -401,8 +406,9 @@ sequenceDiagram
 | `--rebase` / `--no-rebase` | No | Choose update strategy: rebase or merge | Default `--rebase` |
 | `--fetch` / `--no-fetch` | No | Whether to pull the main branch's latest code from remote; use `--no-fetch` when offline or with no upstream | Default `--fetch` |
 | `--all` / `--no-all` (`--current-only`) | No | `--all` (default) updates all worktrees; `--no-all`/`--current-only` updates only the current worktree | Default `--all` (i.e. `all=true`) |
+| `--sync-config` / `--no-sync-config` | No | Sync the main branch's runtime config when updating | Default `--sync-config` |
 
-> Relationship: with no `target` and without `--current-only`, all worktrees are updated; with a `target`, only that single worktree is updated; with `--current-only` (`--no-all`), only the current worktree is updated. All defaults can be overridden via `commands.update.*` in `.colyn/settings.json`.
+> Relationship among options: with no `target` and without `--current-only`, all worktrees are updated; with a `target`, only that single worktree is updated; with `--current-only` (`--no-all`), only the current worktree is updated. All defaults can be overridden via `commands.update.*` in `.colyn/settings.json`.
 
 ### 4.2 System Output
 
@@ -411,6 +417,12 @@ sequenceDiagram
 ✓ Update complete!
   Main branch (main) → feature/login
   Strategy: rebase
+```
+
+**Runtime Config Sync Output** (printed after a successful update when the config changed; silent on no change):
+```
+✓ Runtime config synced: 2 keys added (API_KEY, BASE_URL)
+⚠ 1 key differs between sides, skipped: DATABASE_URL
 ```
 
 **Conflict Output**:
@@ -629,6 +641,16 @@ commands.update.mergeConflictTitle
 commands.update.conflictFiles
 commands.update.resolveSteps
 commands.update.batchResult
+commands.update.syncConfigOption
+commands.update.noSyncConfigOption
+// Sync notices live in the top-level runtimeConfigSync node (shared by update / merge / core layers)
+runtimeConfigSync.added
+runtimeConfigSync.broughtBack
+runtimeConfigSync.conflict
+runtimeConfigSync.rebuilt
+runtimeConfigSync.mainMissing
+runtimeConfigSync.error
+runtimeConfigSync.noChange
 // ... and more
 ```
 
