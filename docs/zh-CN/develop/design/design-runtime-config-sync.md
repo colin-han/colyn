@@ -233,15 +233,15 @@ export async function syncRuntimeConfig(params: {
 **update（主→worktree）示例**：
 
 ```
-✔ 运行时配置已同步：新增 2 项 (API_KEY, BASE_URL)
-⚠ 1 项配置与主分支不同，已跳过：DATABASE_URL
+✓ 运行时配置已同步：新增 2 项 (API_KEY, BASE_URL)
+⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
 ```
 
 **merge（worktree→主）示例**：
 
 ```
-✔ 已带回 1 项新配置到主分支：OPENAI_API_KEY
-⚠ 1 项配置与主分支不同，已跳过：DATABASE_URL
+✓ 已带回 1 项新配置到主分支：OPENAI_API_KEY
+⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
 ```
 
 **批量模式**：每个 worktree 一行结果，冲突 key 列入各自的警告行；不逐条展开。
@@ -320,7 +320,7 @@ commands.merge.noSyncConfigOption: '跳过运行时配置同步',
 - [x] `volta run yarn lint` 0 errors
 - [x] 不使用 `any` 类型
 
-> 验收依据：单元测试（`runtime-config-sync.test.ts` 19 例、`update.helpers.test.ts` 3 例，全量 13 文件 183 用例通过）+ 手动端到端验证 6/6 PASS（add 初始复制、update 正向同步、merge 反向带回与冲突跳过、`--no-sync-config` 开关、双语切换）。
+> 验收依据：单元测试（`runtime-config-sync.test.ts` 19 例、`update.helpers.test.ts` 3 例，全量 14 文件 183 用例通过）+ 手动端到端验证 6/6 PASS（add 初始复制、update 正向同步、merge 反向带回与冲突跳过、`--no-sync-config` 开关、双语切换）。
 
 ---
 

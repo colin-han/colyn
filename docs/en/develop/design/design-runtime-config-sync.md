@@ -233,15 +233,15 @@ Option meaning: whether to sync runtime config during the command (covering merg
 **update (main→worktree) example**:
 
 ```
-✔ Runtime config synced: 2 keys added (API_KEY, BASE_URL)
-⚠ 1 key differs between sides, skipped: DATABASE_URL
+✓ Runtime config synced: 2 keys added (API_KEY, BASE_URL)
+⚠ 1 key differs between the two sides, skipped: DATABASE_URL
 ```
 
 **merge (worktree→main) example**:
 
 ```
-✔ Brought 1 new config key back to the main branch: OPENAI_API_KEY
-⚠ 1 key differs between sides, skipped: DATABASE_URL
+✓ Brought 1 new config key back to the main branch: OPENAI_API_KEY
+⚠ 1 key differs between the two sides, skipped: DATABASE_URL
 ```
 
 **Batch mode**: one line per worktree; conflicting keys go into that worktree's warning line; no per-key expansion.
@@ -318,7 +318,7 @@ commands.merge.noSyncConfigOption: 'Skip runtime config sync',
 - [x] `volta run yarn lint` passes with 0 errors
 - [x] No `any` types
 
-> Acceptance basis: unit tests (`runtime-config-sync.test.ts` with 19 cases, `update.helpers.test.ts` with 3 cases; all 183 cases across 13 files pass) plus manual end-to-end verification 6/6 PASS (add initial copy, update forward sync, merge reverse bring-back and conflict skipping, the `--no-sync-config` switch, bilingual output).
+> Acceptance basis: unit tests (`runtime-config-sync.test.ts` with 19 cases, `update.helpers.test.ts` with 3 cases; all 183 cases across 14 files pass) plus manual end-to-end verification 6/6 PASS (add initial copy, update forward sync, merge reverse bring-back and conflict skipping, the `--no-sync-config` switch, bilingual output).
 
 ---
 
