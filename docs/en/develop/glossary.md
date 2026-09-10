@@ -282,6 +282,39 @@ applyCommandDefaults(cmd, opts, configDefaults, builtinDefaults)
 
 ---
 
+### Runtime Config Sync
+
+**Definition**: The mechanism that syncs runtime config files (defined by toolchain plugins, e.g. `.env.local` for npm/pip projects, `application-local.properties` for maven/gradle projects) between the main branch directory and worktree directories.
+
+**Origin**: Colyn core command mechanism
+
+**Core rules**:
+- Sync only "adds missing keys" — **never overwrite existing values, never delete keys**
+- When a key exists on both sides with different values, skip it and print a diff notice (humans decide)
+- `PORT` (or `server.port`) and `WORKTREE` are identity keys — they always keep the owning side's value and never participate in sync
+
+**Trigger points**:
+| Command | Direction |
+|------|------|
+| `colyn add` | copies main config on creation (the initial sync) |
+| `colyn update` (incl. merge's post `--update` phase) | main → worktree |
+| `colyn merge` (after a successful merge) | worktree → main |
+
+**Example**:
+```bash
+$ colyn update
+✔ Runtime config synced: 2 keys added (API_KEY, BASE_URL)
+⚠ 1 key differs between sides, skipped: DATABASE_URL
+```
+
+**Configuration**: Enabled by default; disable with `--no-sync-config`, or set defaults via `commands.update.syncConfig` / `commands.merge.syncConfig` in `settings.json`.
+
+**Reference**: `docs/en/develop/design/design-runtime-config-sync.md`
+
+**Related terms**: [.env.local](#envlocal), [Base Port](#base-port), [Worktree ID](#worktree-id), [Command Defaults Config](#command-defaults-config)
+
+---
+
 ### Branch Category
 
 **Definition**: A classification label describing the purpose of a branch. It is the foundational concept in Colyn's Todo and branch naming system.
@@ -761,6 +794,7 @@ if (process.env.WORKTREE === 'main') {
 - Minimal Configuration Principle
 - Command Defaults Config
 - Three-Source Resolution
+- Runtime Config Sync
 
 **tmux Concepts**:
 - Session

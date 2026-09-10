@@ -282,6 +282,39 @@ applyCommandDefaults(cmd, opts, configDefaults, builtinDefaults)
 
 ---
 
+### 运行时配置同步（Runtime Config Sync）
+
+**定义**：在主分支目录与 worktree 目录之间同步运行时配置文件（由工具链插件定义，如 npm/pip 项目的 `.env.local`、maven/gradle 项目的 `application-local.properties`）的机制。
+
+**来源**：Colyn 核心命令机制
+
+**核心规则**：
+- 同步只"补充缺失的 key"，**永不覆盖既有值、永不删除 key**
+- 同名 key 两侧值不同时跳过该 key，并在输出中提示差异（由人工决定取舍）
+- `PORT`（或 `server.port`）与 `WORKTREE` 是身份键，永远保留所属侧的值，不参与同步
+
+**触发时机**：
+| 命令 | 方向 |
+|------|------|
+| `colyn add` | 创建时复制主分支配置（即初始同步） |
+| `colyn update`（含 `merge` 后置 `--update` 环节） | 主分支 → worktree |
+| `colyn merge`（合并成功后） | worktree → 主分支 |
+
+**示例**：
+```bash
+$ colyn update
+✔ 运行时配置已同步：新增 2 项 (API_KEY, BASE_URL)
+⚠ 1 项配置与主分支不同，已跳过：DATABASE_URL
+```
+
+**配置**：默认开启，可通过 `--no-sync-config` 关闭，或在 `settings.json` 的 `commands.update.syncConfig` / `commands.merge.syncConfig` 设置默认值。
+
+**参考文档**：`docs/zh-CN/develop/design/design-runtime-config-sync.md`
+
+**相关术语**：[.env.local](#envlocal)、[Base Port](#base-port基础端口)、[Worktree ID](#worktree-id)、[命令默认值配置](#命令默认值配置command-defaults-config)
+
+---
+
 ### Branch Category（分支类别）
 
 **定义**：描述分支用途的分类标签，是 Colyn Todo 和分支命名系统中的基础概念。
@@ -761,6 +794,7 @@ if (process.env.WORKTREE === 'main') {
 - 最小配置原则
 - 命令默认值配置
 - 三态解析
+- 运行时配置同步
 
 **tmux 概念**：
 - Session
