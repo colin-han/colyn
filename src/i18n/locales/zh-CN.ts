@@ -1060,8 +1060,10 @@ export const zhCN = {
   runtimeConfigSync: {
     added: '运行时配置已同步：新增 {{count}} 项 ({{keys}})',
     broughtBack: '已带回 {{count}} 项新配置到主分支：{{keys}}',
-    conflict: '{{count}} 项配置两侧值不同，已跳过：{{keys}}',
-    rebuilt: 'worktree 运行时配置缺失，已从主分支重建',
+    conflict: '{{count}} 项配置两侧值不同，已跳过：',
+    conflictDetail: '{{key}}：主分支={{mainValue}} / worktree={{worktreeValue}}',
+    rebuilt: 'worktree 运行时配置缺失，已从主分支重建（{{count}} 项：{{keys}}）',
+    initialCopied: '已复制主分支运行时配置（{{count}} 项：{{keys}}）',
     mainMissing: '主分支运行时配置文件不存在，跳过同步',
     error: '运行时配置同步失败：{{error}}',
     noChange: '运行时配置无变化',

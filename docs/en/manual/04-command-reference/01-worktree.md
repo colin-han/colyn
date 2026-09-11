@@ -157,7 +157,7 @@ If you select a branch from a `pending` todo in the interactive list, `add` runs
 The created Worktree will:
 - Automatically assign an ID (incrementing)
 - Automatically assign a port number (main port + ID)
-- Copy main branch environment variables and update PORT and WORKTREE
+- Copy main branch environment variables and update PORT and WORKTREE (printing the list of copied keys)
 - Automatically switch to the Worktree directory after execution (requires shell integration)
 
 **tmux integration** (when inside tmux):
@@ -629,7 +629,7 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 
 **Step 2.5: Reverse-sync runtime config (worktree → main branch, default behavior)**
 - After the merge succeeds and before Step 3, new runtime config keys from the worktree are brought back to the main branch (skip with `--no-sync-config`)
-- Only keys missing on the main branch are added; existing values are never overwritten; keys whose values differ between sides are skipped with a notice; identity keys (`PORT` / `WORKTREE`) never participate in sync
+- Only keys missing on the main branch are added; existing values are never overwritten; keys whose values differ between sides are skipped with a per-key notice showing both sides' values; identity keys (`PORT` / `WORKTREE`) never participate in sync
 
 **Step 3: Automatically update worktrees after merge (default behavior)**
 - By default, first `fetch` the latest main branch from remote (`--no-fetch` skips this)

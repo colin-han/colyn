@@ -135,7 +135,7 @@ colyn update [target] [选项]
 - 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）
 - 默认使用 `rebase` 将主分支代码应用到 worktree 分支（`--no-rebase` 改用 merge）
 - **不传 `target` 时默认更新所有 worktree**；指定 `target`（ID 或分支名）或使用 `--current-only` 时，仅更新对应的单个 worktree
-- 每个 worktree 更新成功后自动**同步运行时配置**（主分支 → worktree，`--no-sync-config` 跳过）：仅补充主分支新增的 key，永不覆盖既有值、永不删除 key；两侧值不同的 key 跳过并提示；身份键（`PORT` / `WORKTREE`）保持 worktree 侧原值
+- 每个 worktree 更新成功后自动**同步运行时配置**（主分支 → worktree，`--no-sync-config` 跳过）：仅补充主分支新增的 key，永不覆盖既有值、永不删除 key；两侧值不同的 key 跳过并逐项提示（含两侧值）；身份键（`PORT` / `WORKTREE`）保持 worktree 侧原值
 
 > 与 `colyn merge` 的关系：merge 完成后会自动触发同样的更新流程（见 `colyn merge` 的"步骤 3"）。
 

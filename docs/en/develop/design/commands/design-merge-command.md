@@ -467,7 +467,9 @@ Executing merge: git merge --no-ff ...
 **Runtime Config Sync Output** (printed when the config changed; silent on no change):
 ```
 ✓ Brought 1 new config key back to the main branch: OPENAI_API_KEY
-⚠ 1 key differs between sides, skipped: DATABASE_URL
+⚠ 2 keys differ between the two sides, skipped:
+  DATABASE_URL: main=main-db / worktree=wt-db
+  REDIS_URL: main=redis://a / worktree=wt-db
 ```
 
 **Success info**:

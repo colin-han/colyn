@@ -1060,8 +1060,10 @@ Solution:
   runtimeConfigSync: {
     added: 'Runtime config synced: {{count}} keys added ({{keys}})',
     broughtBack: 'Brought {{count}} new config keys back to the main branch: {{keys}}',
-    conflict: '{{count}} keys differ between the two sides, skipped: {{keys}}',
-    rebuilt: 'Worktree runtime config missing, rebuilt from the main branch',
+    conflict: '{{count}} keys differ between the two sides, skipped:',
+    conflictDetail: '{{key}}: main={{mainValue}} / worktree={{worktreeValue}}',
+    rebuilt: 'Worktree runtime config missing, rebuilt from the main branch ({{count}} keys: {{keys}})',
+    initialCopied: 'Copied runtime config from the main branch ({{count}} keys: {{keys}})',
     mainMissing: 'Main branch runtime config file missing, sync skipped',
     error: 'Runtime config sync failed: {{error}}',
     noChange: 'Runtime config: no changes',

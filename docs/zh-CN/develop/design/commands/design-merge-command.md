@@ -467,7 +467,8 @@ graph TD
 **运行时配置同步输出**（配置有变化时；无变化静默）：
 ```
 ✓ 已带回 1 项新配置到主分支：OPENAI_API_KEY
-⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
+⚠ 1 项配置两侧值不同，已跳过：
+  DATABASE_URL：主分支=main-db / worktree=wt-db
 ```
 
 **成功信息**：

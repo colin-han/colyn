@@ -69,6 +69,8 @@ export interface SyncResult {
   conflicts: ConfigConflict[];
   /** worktree 侧文件原本不存在，本次为重建 */
   rebuilt: boolean;
+  /** 重建场景写入 worktree 的全部 key（复制主分支全部 key + 重算身份键） */
+  rebuiltKeys: string[];
 }
 
 /** syncRuntimeConfig 参数 */
@@ -109,7 +111,7 @@ export async function syncRuntimeConfig(
     if (worktreeConfig === null) {
       // worktree 侧文件缺失
       if (direction === 'worktree-to-main') {
-        return { addedKeys: [], conflicts: [], rebuilt: false };
+        return { addedKeys: [], conflicts: [], rebuilt: false, rebuiltKeys: [] };
       }
       // 重建：复制主分支全部 key + 重算身份键（与 add / repair 行为一致）
       const portKey = params.portKey ?? 'PORT';
@@ -120,7 +122,7 @@ export async function syncRuntimeConfig(
         WORKTREE: worktreeId.toString(),
       };
       await pluginManager.writeRuntimeConfig(worktreePath, rebuiltConfig, [ctx.toolchainName]);
-      return { addedKeys: [], conflicts: [], rebuilt: true };
+      return { addedKeys: [], conflicts: [], rebuilt: true, rebuiltKeys: Object.keys(rebuiltConfig) };
     }
 
     const { toAdd, conflicts } = diffRuntimeConfig(mainConfig, worktreeConfig, direction, identityKeys);
@@ -131,7 +133,7 @@ export async function syncRuntimeConfig(
         await pluginManager.writeRuntimeConfig(mainDir, { ...mainConfig, ...toAdd }, [ctx.toolchainName]);
       }
     }
-    return { addedKeys: Object.keys(toAdd), conflicts, rebuilt: false };
+    return { addedKeys: Object.keys(toAdd), conflicts, rebuilt: false, rebuiltKeys: [] };
   }
 
   // ── 回退路径：无工具链，直接操作 .env.local ──
@@ -155,15 +157,16 @@ export async function syncRuntimeConfig(
 
   if (!worktreeExists) {
     if (direction === 'worktree-to-main') {
-      return { addedKeys: [], conflicts: [], rebuilt: false };
+      return { addedKeys: [], conflicts: [], rebuilt: false, rebuiltKeys: [] };
     }
     const basePort = parseInt(mainConfig.PORT || '0') || 0;
-    await writeEnvFile(worktreeEnvPath, {
+    const rebuiltEnv = {
       ...mainConfig,
       PORT: (basePort + worktreeId).toString(),
       WORKTREE: worktreeId.toString(),
-    });
-    return { addedKeys: [], conflicts: [], rebuilt: true };
+    };
+    await writeEnvFile(worktreeEnvPath, rebuiltEnv);
+    return { addedKeys: [], conflicts: [], rebuilt: true, rebuiltKeys: Object.keys(rebuiltEnv) };
   }
 
   const worktreeConfig = await readEnvFile(worktreeEnvPath);
@@ -172,7 +175,7 @@ export async function syncRuntimeConfig(
     const targetPath = direction === 'main-to-worktree' ? worktreeEnvPath : mainEnvPath;
     await updateEnvFilePreserveComments(targetPath, toAdd);
   }
-  return { addedKeys: Object.keys(toAdd), conflicts, rebuilt: false };
+  return { addedKeys: Object.keys(toAdd), conflicts, rebuilt: false, rebuiltKeys: [] };
 }
 
 /**
@@ -263,7 +266,8 @@ async function runAndReport(
 
   let reported = false;
   if (result.rebuilt) {
-    outputSuccess(t('runtimeConfigSync.rebuilt'));
+    const keys = result.rebuiltKeys.join(', ');
+    outputSuccess(t('runtimeConfigSync.rebuilt', { count: result.rebuiltKeys.length, keys }));
     reported = true;
   }
   if (result.addedKeys.length > 0) {
@@ -275,8 +279,14 @@ async function runAndReport(
     reported = true;
   }
   if (result.conflicts.length > 0) {
-    const keys = result.conflicts.map(c => c.key).join(', ');
-    outputWarning(t('runtimeConfigSync.conflict', { count: result.conflicts.length, keys }));
+    outputWarning(t('runtimeConfigSync.conflict', { count: result.conflicts.length }));
+    for (const conflict of result.conflicts) {
+      output('  ' + t('runtimeConfigSync.conflictDetail', {
+        key: conflict.key,
+        mainValue: conflict.mainValue,
+        worktreeValue: conflict.worktreeValue,
+      }));
+    }
     reported = true;
   }
   if (!reported && verbose) {

@@ -135,7 +135,7 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 - By default, first `fetch` the latest main branch from remote (`--no-fetch` skips this)
 - By default, use `rebase` to apply main branch code onto the worktree branch (`--no-rebase` uses merge)
 - **When no `target` is given, updates all worktrees by default**; specifying a `target` (ID or branch name) or using `--current-only` updates only that single worktree
-- After each worktree updates successfully, the **runtime config is synced automatically** (main branch → worktree; skip with `--no-sync-config`): only keys newly added on main are added; existing values are never overwritten and keys are never deleted; keys whose values differ between sides are skipped with a notice; identity keys (`PORT` / `WORKTREE`) keep the worktree side's values
+- After each worktree updates successfully, the **runtime config is synced automatically** (main branch → worktree; skip with `--no-sync-config`): only keys newly added on main are added; existing values are never overwritten and keys are never deleted; keys whose values differ between sides are skipped with a per-key notice showing both sides' values; identity keys (`PORT` / `WORKTREE`) keep the worktree side's values
 
 > Relationship with `colyn merge`: after a merge completes, the same update flow runs automatically (see "Step 3" of `colyn merge`).
 

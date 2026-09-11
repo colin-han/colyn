@@ -422,7 +422,9 @@ sequenceDiagram
 **Runtime Config Sync Output** (printed after a successful update when the config changed; silent on no change):
 ```
 ✓ Runtime config synced: 2 keys added (API_KEY, BASE_URL)
-⚠ 1 key differs between sides, skipped: DATABASE_URL
+⚠ 2 keys differ between the two sides, skipped:
+  DATABASE_URL: main=main-db / worktree=wt-db
+  REDIS_URL: main=redis://a / worktree=wt-db
 ```
 
 **Conflict Output**:

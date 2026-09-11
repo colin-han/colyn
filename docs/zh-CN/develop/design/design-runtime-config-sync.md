@@ -19,7 +19,7 @@ Colyn 在创建 worktree 时会复制主分支的运行时配置（npm/pip 项�
 
 在 worktree 生命周期的关键节点自动双向同步运行时配置：
 
-- ✅ `add`：创建时复制（现有行为，即初始同步，保持不变）
+- ✅ `add`：创建时复制（现有行为，即初始同步；复制后输出 key 清单）
 - ✅ `update`（含 `merge` 后置 `--update` 环节、`release` 复用的 `executeUpdate`）：主分支 → worktree
 - ✅ `merge`：合并成功后 worktree → 主分支，带回新增配置
 - ✅ 覆盖所有工具链：走插件体系，`.env.local` 与 `application-local.properties` 一视同仁
@@ -99,7 +99,7 @@ Colyn 在创建 worktree 时会复制主分支的运行时配置（npm/pip 项�
 
 | 命令 | 挂点 | 方向 |
 |------|------|------|
-| `colyn add` | **现状即初始同步**（创建时复制主分支配置），行为不变，无需改动 | 主→worktree |
+| `colyn add` | **现状即初始同步**（创建时复制主分支配置），复制后输出 key 清单 | 主→worktree |
 | `colyn update`（单个/批量） | rebase/merge 成功后（`updateSingleWorktree` / `updateAllWorktrees` 内） | 主→worktree |
 | `colyn merge` | `mergeWorktreeIntoMain` 成功后**先**做 worktree→主；`--update` 环节（默认开）**随后**执行，其他 worktree 顺带拿到刚带回主分支的新 key | worktree→主，再主→其他 |
 | `colyn release` | 复用 `executeUpdate`，自动获得同步能力，无需单独处理 | 主→worktree |
@@ -156,6 +156,8 @@ export interface SyncResult {
   conflicts: ConfigConflict[];
   /** worktree 侧文件原本不存在，本次为重建 */
   rebuilt: boolean;
+  /** 重建场景写入 worktree 的全部 key（复制主分支全部 key + 重算身份键） */
+  rebuiltKeys: string[];
 }
 
 /**
@@ -234,29 +236,45 @@ export async function syncRuntimeConfig(params: {
 
 ```
 ✓ 运行时配置已同步：新增 2 项 (API_KEY, BASE_URL)
-⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
+⚠ 1 项配置两侧值不同，已跳过：
+  DATABASE_URL：主分支=main-db / worktree=wt-db
 ```
 
 **merge（worktree→主）示例**：
 
 ```
 ✓ 已带回 1 项新配置到主分支：OPENAI_API_KEY
-⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
+⚠ 1 项配置两侧值不同，已跳过：
+  DATABASE_URL：主分支=main-db / worktree=wt-db
 ```
 
-**批量模式**：每个 worktree 一行结果，冲突 key 列入各自的警告行；不逐条展开。
+**重建示例**（worktree 侧文件缺失时）：
+
+```
+✓ worktree 运行时配置缺失，已从主分支重建（12 项：PORT, WORKTREE, API_KEY, ...）
+```
+
+**`colyn add` 初始复制示例**：
+
+```
+✓ 已复制主分支运行时配置（12 项：PORT, WORKTREE, API_KEY, ...）
+```
+
+**批量模式**：每个 worktree 输出各自的结果组（新增/带回一行；冲突为概览行 + 逐 key 明细行，明细带两侧值便于人工决定取舍）。
 
 ### 7.2 i18n key
 
 `src/i18n/locales/zh-CN.ts` 与 `en.ts` 同步添加。**实际实现的 key 结构与原设计有偏差**：同步提示文案位于顶层 `runtimeConfigSync` 节（而非原设计的 `commands.<cmd>.syncConfig*` 命令节），因为同一组文案被 `update`、`merge` 命令层与 core 层（多上下文入口 `syncWorktreeRuntimeConfigs`）共用，放顶层避免重复维护；选项描述文案仍在各命令节：
 
 ```typescript
-// 顶层 runtimeConfigSync 节：同步提示文案（update / merge / core 层共用）
+// 顶层 runtimeConfigSync 节：同步提示文案（update / merge / add / core 层共用）
 runtimeConfigSync: {
   added: '运行时配置已同步：新增 {{count}} 项 ({{keys}})',
   broughtBack: '已带回 {{count}} 项新配置到主分支：{{keys}}',
-  conflict: '{{count}} 项配置两侧值不同，已跳过：{{keys}}',
-  rebuilt: 'worktree 运行时配置缺失，已从主分支重建',
+  conflict: '{{count}} 项配置两侧值不同，已跳过：',
+  conflictDetail: '{{key}}：主分支={{mainValue}} / worktree={{worktreeValue}}',
+  rebuilt: 'worktree 运行时配置缺失，已从主分支重建（{{count}} 项：{{keys}}）',
+  initialCopied: '已复制主分支运行时配置（{{count}} 项：{{keys}}）',
   mainMissing: '主分支运行时配置文件不存在，跳过同步',
   error: '运行时配置同步失败：{{error}}',
   noChange: '运行时配置无变化',

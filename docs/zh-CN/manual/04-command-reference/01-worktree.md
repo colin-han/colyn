@@ -157,7 +157,7 @@ colyn add [branch]
 创建的 Worktree 会：
 - 自动分配 ID（递增）
 - 自动分配端口号（主端口 + ID）
-- 复制主分支环境变量并更新 PORT 和 WORKTREE
+- 复制主分支环境变量并更新 PORT 和 WORKTREE（复制后输出 key 清单）
 - 执行后自动切换到 Worktree 目录（需启用 shell 集成）
 
 **tmux 集成**（如果在 tmux 中）：
@@ -629,7 +629,7 @@ colyn merge [target] [选项]
 
 **步骤 2.5：反向同步运行时配置（worktree → 主分支，默认行为）**
 - 合并成功后、步骤 3 之前，把 worktree 新增的运行时配置带回主分支（`--no-sync-config` 跳过）
-- 仅补充主分支缺失的 key，永不覆盖既有值；两侧值不同的 key 跳过并提示；身份键（`PORT` / `WORKTREE`）不参与同步
+- 仅补充主分支缺失的 key，永不覆盖既有值；两侧值不同的 key 跳过并逐项提示（含两侧值，便于人工取舍）；身份键（`PORT` / `WORKTREE`）不参与同步
 
 **步骤 3：合并后自动更新 worktree（默认行为）**
 - 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）

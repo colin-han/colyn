@@ -171,6 +171,7 @@ describe('syncRuntimeConfig', () => {
     });
 
     expect(result?.rebuilt).toBe(true);
+    expect(result?.rebuiltKeys).toEqual(['PORT', 'WORKTREE', 'API_KEY']);
     expect(pluginManager.writeRuntimeConfig).toHaveBeenCalledWith(
       '/p/wt/task-2',
       { PORT: '3002', WORKTREE: '2', API_KEY: 'v1' },
@@ -208,7 +209,7 @@ describe('syncRuntimeConfig', () => {
       identityKeys: ['PORT', 'WORKTREE'], portKey: 'PORT', ctx,
     });
 
-    expect(result).toEqual({ addedKeys: [], conflicts: [], rebuilt: false });
+    expect(result).toEqual({ addedKeys: [], conflicts: [], rebuilt: false, rebuiltKeys: [] });
     expect(pluginManager.writeRuntimeConfig).not.toHaveBeenCalled();
   });
 
@@ -274,6 +275,37 @@ describe('syncWorktreeRuntimeConfigs', () => {
 
     expect(pluginManager.readRuntimeConfig).toHaveBeenCalledWith('/p/main', ['npm']);
     expect(outputSuccess).toHaveBeenCalledWith(expect.stringContaining('NEW'));
+  });
+
+  it('值冲突：概览行 + 逐 key 明细行（带两侧值）', async () => {
+    vi.mocked(resolveToolchains).mockResolvedValue([
+      { absolutePath: '/p/main', subPath: '.', toolchainName: 'npm', toolchainSettings: {} },
+    ]);
+    vi.mocked(pluginManager.getPortConfig).mockReturnValue({ key: 'PORT', defaultPort: 3000 });
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main', DATABASE_URL: 'main-db', API_KEY: 'v1' })
+      .mockResolvedValueOnce({ PORT: '3001', WORKTREE: '1', DATABASE_URL: 'wt-db', API_KEY: 'v1' });
+
+    await syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 1, 'main-to-worktree');
+
+    expect(outputWarning).toHaveBeenCalledWith(expect.stringContaining('differ between the two sides'));
+    expect(output).toHaveBeenCalledWith(expect.stringContaining('DATABASE_URL: main=main-db / worktree=wt-db'));
+    expect(pluginManager.writeRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  it('重建：输出含复制的 key 清单', async () => {
+    vi.mocked(resolveToolchains).mockResolvedValue([
+      { absolutePath: '/p/main', subPath: '.', toolchainName: 'npm', toolchainSettings: {} },
+    ]);
+    vi.mocked(pluginManager.getPortConfig).mockReturnValue({ key: 'PORT', defaultPort: 3000 });
+    vi.mocked(pluginManager.readRuntimeConfig)
+      .mockResolvedValueOnce({ PORT: '3000', WORKTREE: 'main', API_KEY: 'v1' })
+      .mockResolvedValueOnce(null);
+
+    await syncWorktreeRuntimeConfigs('/p', '/p/main', '/p/wt/task-1', 2, 'main-to-worktree');
+
+    expect(outputSuccess).toHaveBeenCalledWith(expect.stringContaining('3 keys'));
+    expect(outputSuccess).toHaveBeenCalledWith(expect.stringContaining('API_KEY'));
   });
 
   it('contexts 为空：回退直接操作 .env.local', async () => {

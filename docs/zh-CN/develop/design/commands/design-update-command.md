@@ -422,7 +422,8 @@ sequenceDiagram
 **运行时配置同步输出**（更新成功且配置有变化时；无变化静默）：
 ```
 ✓ 运行时配置已同步：新增 2 项 (API_KEY, BASE_URL)
-⚠ 1 项配置两侧值不同，已跳过：DATABASE_URL
+⚠ 1 项配置两侧值不同，已跳过：
+  DATABASE_URL：主分支=main-db / worktree=wt-db
 ```
 
 **冲突输出**：

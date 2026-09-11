@@ -19,7 +19,7 @@ When Colyn creates a worktree it copies the main branch's runtime config (`.env.
 
 Automatically sync runtime config in both directions at key points of the worktree lifecycle:
 
-- ✅ `add`: copy on creation (existing behavior, i.e. the initial sync — unchanged)
+- ✅ `add`: copy on creation (existing behavior, i.e. the initial sync; now also prints the copied key list)
 - ✅ `update` (including the post-merge `--update` phase and `executeUpdate` reused by `release`): main → worktree
 - ✅ `merge`: after a successful merge, worktree → main, bringing new config back
 - ✅ Cover all toolchains: goes through the plugin system, treating `.env.local` and `application-local.properties` alike
@@ -99,7 +99,7 @@ Two keys in each worktree's runtime config are its **identity** — they intenti
 
 | Command | Hook point | Direction |
 |------|------|------|
-| `colyn add` | **current behavior is the initial sync** (copy on creation), unchanged, no code change | main→worktree |
+| `colyn add` | **current behavior is the initial sync** (copy on creation); now prints the copied key list | main→worktree |
 | `colyn update` (single/batch) | after a successful rebase/merge (inside `updateSingleWorktree` / `updateAllWorktrees`) | main→worktree |
 | `colyn merge` | after `mergeWorktreeIntoMain` succeeds, **first** do worktree→main; the `--update` phase (on by default) runs **afterwards**, so other worktrees pick up keys just brought back to main | worktree→main, then main→others |
 | `colyn release` | reuses `executeUpdate`, gains sync automatically, no separate handling | main→worktree |
@@ -156,6 +156,8 @@ export interface SyncResult {
   conflicts: ConfigConflict[];
   /** the worktree-side file did not exist; this run was a rebuild */
   rebuilt: boolean;
+  /** all keys written to the worktree in a rebuild (full copy from main + recomputed identity keys) */
+  rebuiltKeys: string[];
 }
 
 /**
@@ -234,29 +236,47 @@ Option meaning: whether to sync runtime config during the command (covering merg
 
 ```
 ✓ Runtime config synced: 2 keys added (API_KEY, BASE_URL)
-⚠ 1 key differs between the two sides, skipped: DATABASE_URL
+⚠ 2 keys differ between the two sides, skipped:
+  DATABASE_URL: main=main-db / worktree=wt-db
+  REDIS_URL: main=redis://a / worktree=redis://b
 ```
 
 **merge (worktree→main) example**:
 
 ```
 ✓ Brought 1 new config key back to the main branch: OPENAI_API_KEY
-⚠ 1 key differs between the two sides, skipped: DATABASE_URL
+⚠ 2 keys differ between the two sides, skipped:
+  DATABASE_URL: main=main-db / worktree=wt-db
+  REDIS_URL: main=redis://a / worktree=redis://b
 ```
 
-**Batch mode**: one line per worktree; conflicting keys go into that worktree's warning line; no per-key expansion.
+**Rebuild example** (worktree-side file missing):
+
+```
+✓ Worktree runtime config missing, rebuilt from the main branch (12 keys: PORT, WORKTREE, API_KEY, ...)
+```
+
+**`colyn add` initial copy example**:
+
+```
+✓ Copied runtime config from the main branch (12 keys: PORT, WORKTREE, API_KEY, ...)
+```
+
+**Batch mode**: each worktree prints its own result group (one line for additions/bring-backs; conflicts print a summary line plus one detail line per key showing both sides' values, so a human can decide).
 
 ### 7.2 i18n Keys
 
 Added to both `src/i18n/locales/zh-CN.ts` and `en.ts`. **The implemented key structure deviates from the original design**: the sync notices live in a top-level `runtimeConfigSync` node (not the originally designed `commands.<cmd>.syncConfig*` per-command nodes), because the same messages are shared by the `update` and `merge` command layers and the core layer (the multi-context entry `syncWorktreeRuntimeConfigs`); placing them at the top level avoids duplicated maintenance. Option descriptions remain in their per-command nodes:
 
 ```typescript
-// Top-level runtimeConfigSync node: sync notices (shared by update / merge / core layers)
+// Top-level runtimeConfigSync node: sync notices (shared by update / merge / add / core layers)
 runtimeConfigSync: {
   added: 'Runtime config synced: {{count}} keys added ({{keys}})',
   broughtBack: 'Brought {{count}} new config keys back to the main branch: {{keys}}',
-  conflict: '{{count}} keys differ between the two sides, skipped: {{keys}}',
-  rebuilt: 'Worktree runtime config missing, rebuilt from the main branch',
+  conflict: '{{count}} keys differ between the two sides, skipped:',
+  conflictDetail: '{{key}}: main={{mainValue}} / worktree={{worktreeValue}}',
+  rebuilt: 'Worktree runtime config missing, rebuilt from the main branch ({{count}} keys: {{keys}})',
+  initialCopied: 'Copied runtime config from the main branch ({{count}} keys: {{keys}})',
   mainMissing: 'Main branch runtime config file missing, sync skipped',
   error: 'Runtime config sync failed: {{error}}',
   noChange: 'Runtime config: no changes',
@@ -334,4 +354,4 @@ commands.merge.noSyncConfigOption: 'Skip runtime config sync',
 | Merge ordering | reverse sync before the `--update` phase | keys just brought back to main propagate to other worktrees immediately |
 | No-change output | silent | `update` is all-by-default; avoid flooding |
 | Config migration | not needed (optional fields only) | per project conventions, optional fields are backward compatible |
-| `add` command | unchanged | copy-on-create is the initial sync; the worktree doesn't exist yet, so no conflicts are possible |
+| `add` command | prints the copied key list | copy-on-create is the initial sync; the worktree doesn't exist yet, so no conflicts are possible |
