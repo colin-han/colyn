@@ -485,6 +485,12 @@ async function addCommand(branchName?: string): Promise<void> {
             WORKTREE: id.toString(),
           };
           await pluginManager.writeRuntimeConfig(worktreeSubPath, worktreeConfig, [ctx.toolchainName]);
+          // 初始同步：输出复制的 key 清单
+          const copiedKeys = Object.keys(worktreeConfig);
+          outputSuccess(t('runtimeConfigSync.initialCopied', {
+            count: copiedKeys.length,
+            keys: copiedKeys.join(', '),
+          }));
         }
       }
     } else {

@@ -1,7 +1,7 @@
 # Update 命令设计文档（用户交互视角）
 
 **创建时间**：2026-01-28
-**最后更新**：2026-06-01
+**最后更新**：2026-09-10（新增 `--sync-config` 运行时配置同步选项）
 **命令名称**：`colyn update`
 **状态**：✅ 已实现
 
@@ -328,6 +328,7 @@ sequenceDiagram
 
         alt 成功
             WT->>C: 更新成功
+            C->>C: 同步运行时配置（主分支 → worktree）
             C->>U: ✓ 更新完成
         else 冲突
             WT->>C: 存在冲突
@@ -335,6 +336,8 @@ sequenceDiagram
         end
     end
 ```
+
+> 更新成功后同步运行时配置（主分支 → worktree，可用 `--no-sync-config` 跳过），详见 [design-runtime-config-sync.md](../design-runtime-config-sync.md)。
 
 ---
 
@@ -362,6 +365,7 @@ sequenceDiagram
             C->>WT: git rebase main
             alt 成功
                 WT->>C: 记录成功
+                C->>C: 同步该 worktree 运行时配置（主 → worktree）
             else 冲突
                 WT->>C: 记录失败
             end
@@ -376,6 +380,7 @@ sequenceDiagram
 **批量更新特性**：
 - 只执行一次 `git pull`，避免重复拉取
 - 遇到失败不中断，继续更新其他 worktree
+- 每个 worktree 更新成功后同步运行时配置（可用 `--no-sync-config` 跳过）
 - 最后显示汇总结果
 
 ---
@@ -401,8 +406,9 @@ sequenceDiagram
 | `--rebase` / `--no-rebase` | 否 | 选择更新策略：rebase 或 merge | 默认 `--rebase` |
 | `--fetch` / `--no-fetch` | 否 | 是否从远程拉取主分支最新代码；`--no-fetch` 用于离线工作或无上游时 | 默认 `--fetch` |
 | `--all` / `--no-all`（`--current-only`） | 否 | `--all`（默认）更新所有 worktree；`--no-all`/`--current-only` 只更新当前 worktree | 默认 `--all`（即 `all=true`） |
+| `--sync-config` / `--no-sync-config` | 否 | 更新时同步主分支运行时配置 | 默认 `--sync-config` |
 
-> 三者关系：无 `target` 且未指定 `--current-only` 时更新所有；指定 `target` 时只更新该单个 worktree；`--current-only`（`--no-all`）时只更新当前 worktree。所有默认值均可被 `.colyn/settings.json` 中的 `commands.update.*` 覆盖。
+> 各参数关系：无 `target` 且未指定 `--current-only` 时更新所有；指定 `target` 时只更新该单个 worktree；`--current-only`（`--no-all`）时只更新当前 worktree。所有默认值均可被 `.colyn/settings.json` 中的 `commands.update.*` 覆盖。
 
 ### 4.2 系统输出
 
@@ -411,6 +417,13 @@ sequenceDiagram
 ✓ 更新完成！
   主分支 (main) → feature/login
   策略: rebase
+```
+
+**运行时配置同步输出**（更新成功且配置有变化时；无变化静默）：
+```
+✓ 运行时配置已同步：新增 2 项 (API_KEY, BASE_URL)
+⚠ 1 项配置两侧值不同，已跳过：
+  DATABASE_URL：主分支=main-db / worktree=wt-db
 ```
 
 **冲突输出**：
@@ -629,6 +642,16 @@ commands.update.rebaseConflictSteps
 commands.update.mergeConflictSteps
 commands.update.batchResult
 commands.update.notInWorktree
+commands.update.syncConfigOption
+commands.update.noSyncConfigOption
+// 同步提示文案位于顶层 runtimeConfigSync 节（update / merge / core 层共用）
+runtimeConfigSync.added
+runtimeConfigSync.broughtBack
+runtimeConfigSync.conflict
+runtimeConfigSync.rebuilt
+runtimeConfigSync.mainMissing
+runtimeConfigSync.error
+runtimeConfigSync.noChange
 // ... 更多
 ```
 

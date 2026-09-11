@@ -500,6 +500,8 @@ server.port=10001
 - Falls back to copying main branch `.env.local` and updating `PORT`/`WORKTREE` if no plugin is configured
 - Preserves all comments and other config values
 
+The copy at creation time is the initial sync of Runtime Config Sync, and the list of copied keys is printed afterwards; for subsequent updates see [design-runtime-config-sync.md](../design-runtime-config-sync.md).
+
 ---
 
 ## 8. ID and Port Assignment Rules

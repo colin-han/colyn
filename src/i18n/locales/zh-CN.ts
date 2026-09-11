@@ -335,6 +335,8 @@ export const zhCN = {
       fetchOption: '操作前 fetch 远端（默认行为）',
       allOption: '更新所有 worktrees（默认行为，需 update=true 才生效）',
       noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
+      syncConfigOption: '合并时同步运行时配置（默认开启）',
+      noSyncConfigOption: '跳过运行时配置同步',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -441,6 +443,8 @@ export const zhCN = {
       rebaseOption: '更新时 rebase（默认行为）',
       fetchOption: '操作前 fetch 远端（默认行为）',
       noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
+      syncConfigOption: '同步主分支运行时配置（默认开启）',
+      noSyncConfigOption: '跳过运行时配置同步',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn update <id>
@@ -1050,6 +1054,19 @@ export const zhCN = {
       inferredDestination: '推断目标平台：{{destination}}',
       selectDestination: '请选择目标平台',
     },
+  },
+
+  // 运行时配置同步
+  runtimeConfigSync: {
+    added: '运行时配置已同步：新增 {{count}} 项 ({{keys}})',
+    broughtBack: '已带回 {{count}} 项新配置到主分支：{{keys}}',
+    conflict: '{{count}} 项配置两侧值不同，已跳过：',
+    conflictDetail: '{{key}}：主分支={{mainValue}} / worktree={{worktreeValue}}',
+    rebuilt: 'worktree 运行时配置缺失，已从主分支重建（{{count}} 项：{{keys}}）',
+    initialCopied: '已复制主分支运行时配置（{{count}} 项：{{keys}}）',
+    mainMissing: '主分支运行时配置文件不存在，跳过同步',
+    error: '运行时配置同步失败：{{error}}',
+    noChange: '运行时配置无变化',
   },
 
   // Errors

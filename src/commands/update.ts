@@ -25,14 +25,16 @@ import {
 } from './update.helpers.js';
 import { t } from '../i18n/index.js';
 import { applyCommandDefaults } from '../core/command-defaults.js';
+import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
 
 /**
  * Update 命令选项
  */
 export interface UpdateOptions extends Record<string, unknown> {
-  rebase?: boolean;  // 使用 rebase（默认 true）
-  fetch?: boolean;   // 是否 fetch（默认 true）
-  all?: boolean;     // 更新所有 worktrees（默认 true）
+  rebase?: boolean;     // 使用 rebase（默认 true）
+  fetch?: boolean;      // 是否 fetch（默认 true）
+  all?: boolean;        // 更新所有 worktrees（默认 true）
+  syncConfig?: boolean; // 同步运行时配置（默认 true）
 }
 
 /**
@@ -66,13 +68,16 @@ async function updateCommand(
     // 确定是否跳过 fetch/pull（默认 false，即执行 fetch/pull）
     const skipFetch = !options.fetch;
 
+    // 确定是否同步运行时配置（默认 true）
+    const syncConfig = options.syncConfig ?? true;
+
     // 步骤3: 处理批量更新或单个更新
     if (options.all) {
       // 批量更新所有 worktree
-      await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch);
+      await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch, paths.rootDir, syncConfig);
     } else {
       // 单个更新
-      await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch);
+      await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch, paths.rootDir, syncConfig);
     }
 
     // 输出 JSON 结果
@@ -95,7 +100,9 @@ async function handleSingleUpdate(
   worktreesDir: string,
   mainBranch: string,
   useRebase: boolean,
-  skipPull: boolean
+  skipPull: boolean,
+  rootDir: string,
+  syncConfig: boolean
 ): Promise<void> {
   // 查找目标 worktree
   const worktree = await findWorktreeTarget(target, mainDir, worktreesDir);
@@ -163,6 +170,11 @@ async function handleSingleUpdate(
 
   updateSpinner.succeed(t('commands.update.updateSuccess'));
 
+  // 步骤4: 同步运行时配置（主分支 → worktree）；内部永不抛出
+  if (syncConfig) {
+    await syncWorktreeRuntimeConfigs(rootDir, mainDir, worktree.path, worktree.id, 'main-to-worktree');
+  }
+
   // 显示成功信息
   displayUpdateSuccess(mainBranch, worktree.branch, useRebase);
 }
@@ -175,7 +187,9 @@ async function handleBatchUpdate(
   worktreesDir: string,
   mainBranch: string,
   useRebase: boolean,
-  skipPull: boolean
+  skipPull: boolean,
+  rootDir: string,
+  syncConfig: boolean
 ): Promise<void> {
   // 发现所有 worktree
   const worktrees = await discoverWorktrees(mainDir, worktreesDir);
@@ -208,7 +222,12 @@ async function handleBatchUpdate(
   const strategy = useRebase ? 'rebase' : 'merge';
   output(t('commands.update.batchUpdating', { strategy }));
 
-  const result = await updateAllWorktrees(worktrees, mainBranch, useRebase);
+  const result = await updateAllWorktrees(
+    worktrees,
+    mainBranch,
+    useRebase,
+    syncConfig ? { rootDir, mainDir } : undefined
+  );
 
   // 显示结果
   displayBatchUpdateResult(result);
@@ -242,13 +261,16 @@ export async function executeUpdate(
   // 确定是否使用 rebase（默认 true）
   const useRebase = options.rebase ?? true;
 
+  // 确定是否同步运行时配置（默认 true）
+  const syncConfig = options.syncConfig ?? true;
+
   // 步骤3: 处理批量更新或单个更新
   if (options.all) {
     // 批量更新所有 worktree
-    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false);
+    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false, paths.rootDir, syncConfig);
   } else {
     // 单个更新
-    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false);
+    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false, paths.rootDir, syncConfig);
   }
 }
 
@@ -265,12 +287,14 @@ export function register(program: Command): void {
     .option('--no-fetch', t('commands.update.noFetchOption'))
     .option('--all', t('commands.update.allOption'))
     .option('--no-all, --current-only', t('commands.update.noAllOption'))
+    .option('--sync-config', t('commands.update.syncConfigOption'))
+    .option('--no-sync-config', t('commands.update.noSyncConfigOption'))
     .action(async (target: string | undefined, options: UpdateOptions, command: Command) => {
       const resolved = await applyCommandDefaults(
         command,
         options,
         ['commands', 'update'] as const,
-        { rebase: true, fetch: true, all: true }
+        { rebase: true, fetch: true, all: true, syncConfig: true }
       );
       await updateCommand(target, resolved);
     });

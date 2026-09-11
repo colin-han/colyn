@@ -154,8 +154,8 @@ $ colyn config get branchCategories
 | `verbose` | 布尔 | 是否默认显示详细输出 |
 | `systemCommands.npm` | 字符串 | 包管理器命令（默认 `npm`），如 `yarn` / `pnpm` |
 | `systemCommands.claude` | 字符串 | Claude CLI 命令 |
-| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` | 布尔 | `colyn merge` 各开关的默认值 |
-| `commands.update.rebase` / `.fetch` / `.all` | 布尔 | `colyn update` 各开关的默认值 |
+| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` | 布尔 | `colyn merge` 各开关的默认值 |
+| `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` | 布尔 | `colyn update` 各开关的默认值 |
 | `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | 布尔 | `colyn release` 各开关的默认值 |
 | `commands.checkout.fetch` | 布尔 | `colyn checkout` 的 fetch 开关默认值 |
 

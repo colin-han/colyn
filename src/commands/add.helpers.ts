@@ -301,6 +301,12 @@ export async function configureWorktreeEnv(
     await writeEnvFile(worktreeEnvPath, worktreeEnv);
 
     spinner.succeed(t('commands.add.envConfigured'));
+    // 初始同步：输出复制的 key 清单
+    const copiedKeys = Object.keys(worktreeEnv);
+    outputSuccess(t('runtimeConfigSync.initialCopied', {
+      count: copiedKeys.length,
+      keys: copiedKeys.join(', '),
+    }));
   } catch (error) {
     spinner.fail(t('commands.add.envConfigFailed'));
     throw error;

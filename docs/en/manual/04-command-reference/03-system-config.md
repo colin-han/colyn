@@ -154,8 +154,8 @@ Set the value of a configuration item.
 | `verbose` | boolean | Whether to show verbose output by default |
 | `systemCommands.npm` | string | Package manager command (default `npm`), e.g. `yarn` / `pnpm` |
 | `systemCommands.claude` | string | Claude CLI command |
-| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` | boolean | Default values for `colyn merge` switches |
-| `commands.update.rebase` / `.fetch` / `.all` | boolean | Default values for `colyn update` switches |
+| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` | boolean | Default values for `colyn merge` switches |
+| `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` | boolean | Default values for `colyn update` switches |
 | `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | boolean | Default values for `colyn release` switches |
 | `commands.checkout.fetch` | boolean | Default value for `colyn checkout`'s fetch switch |
 

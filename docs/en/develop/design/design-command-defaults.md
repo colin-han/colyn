@@ -62,6 +62,7 @@ Each command's defaults are placed under `commands.<commandName>`. Currently sup
 | `update` | `true` | `--update` | `--no-update` | Update all worktrees before merge |
 | `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees (only effective when update=true) |
+| `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | Sync runtime config in both directions during merge (covering the reverse bring-back and the sync inside the subsequent --update phase) |
 
 ### commands.update
 
@@ -70,6 +71,7 @@ Each command's defaults are placed under `commands.<commandName>`. Currently sup
 | `rebase` | `true` | `--rebase` | `--no-rebase` | Use rebase to update |
 | `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees |
+| `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | Sync the main branch's runtime config on update |
 
 ### commands.release
 

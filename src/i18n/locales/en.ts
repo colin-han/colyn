@@ -335,6 +335,8 @@ Hints:
       fetchOption: 'Fetch remote before operation (default)',
       allOption: 'Update all worktrees (default, requires update=true)',
       noAllOption: 'Update only current worktree (overrides commands.merge.all=true)',
+      syncConfigOption: 'Sync runtime config during merge (default)',
+      noSyncConfigOption: 'Skip runtime config sync',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>
@@ -441,6 +443,8 @@ Main branch directory: {{path}}`,
       rebaseOption: 'Rebase on update (default)',
       fetchOption: 'Fetch remote before operation (default)',
       noAllOption: 'Update only current worktree (overrides commands.update.all=true)',
+      syncConfigOption: 'Sync runtime config from main branch (default)',
+      noSyncConfigOption: 'Skip runtime config sync',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn update <id>
@@ -1050,6 +1054,19 @@ Solution:
       inferredDestination: 'Inferred target platform: {{destination}}',
       selectDestination: 'Select target platform',
     },
+  },
+
+  // Runtime config sync
+  runtimeConfigSync: {
+    added: 'Runtime config synced: {{count}} keys added ({{keys}})',
+    broughtBack: 'Brought {{count}} new config keys back to the main branch: {{keys}}',
+    conflict: '{{count}} keys differ between the two sides, skipped:',
+    conflictDetail: '{{key}}: main={{mainValue}} / worktree={{worktreeValue}}',
+    rebuilt: 'Worktree runtime config missing, rebuilt from the main branch ({{count}} keys: {{keys}})',
+    initialCopied: 'Copied runtime config from the main branch ({{count}} keys: {{keys}})',
+    mainMissing: 'Main branch runtime config file missing, sync skipped',
+    error: 'Runtime config sync failed: {{error}}',
+    noChange: 'Runtime config: no changes',
   },
 
   // Errors

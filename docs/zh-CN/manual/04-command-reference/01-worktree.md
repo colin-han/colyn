@@ -157,7 +157,7 @@ colyn add [branch]
 创建的 Worktree 会：
 - 自动分配 ID（递增）
 - 自动分配端口号（主端口 + ID）
-- 复制主分支环境变量并更新 PORT 和 WORKTREE
+- 复制主分支环境变量并更新 PORT 和 WORKTREE（复制后输出 key 清单）
 - 执行后自动切换到 Worktree 目录（需启用 shell 集成）
 
 **tmux 集成**（如果在 tmux 中）：
@@ -609,6 +609,7 @@ colyn merge [target] [选项]
 |------|------|------|
 | `--build` / `--no-build` | `--build` | 是否运行工具链插件的 lint 和 build 检查；`--no-build` 跳过 |
 | `--rebase` / `--no-rebase` | `--rebase` | 更新 worktree 时使用 rebase；`--no-rebase` 改用 merge |
+| `--sync-config` / `--no-sync-config` | `--sync-config` | 合并时双向同步运行时配置 |
 | `--update` / `--no-update` | `--update` | 合并后是否用主分支最新代码自动更新 worktree |
 | `--fetch` / `--no-fetch` | `--fetch` | 更新前是否从远程 fetch 主分支最新代码 |
 | `--all` / `--no-all`（别名 `--current-only`） | `--all` | 更新范围：所有 worktree 还是仅当前 worktree（仅在 `--update` 生效时有意义） |
@@ -625,6 +626,10 @@ colyn merge [target] [选项]
 **步骤 2：在主分支中合并 Worktree 分支**
 - 在主分支中执行 `git merge --no-ff <branch>`
 - 强制创建合并提交，保持清晰的分支历史
+
+**步骤 2.5：反向同步运行时配置（worktree → 主分支，默认行为）**
+- 合并成功后、步骤 3 之前，把 worktree 新增的运行时配置带回主分支（`--no-sync-config` 跳过）
+- 仅补充主分支缺失的 key，永不覆盖既有值；两侧值不同的 key 跳过并逐项提示（含两侧值，便于人工取舍）；身份键（`PORT` / `WORKTREE`）不参与同步
 
 **步骤 3：合并后自动更新 worktree（默认行为）**
 - 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）

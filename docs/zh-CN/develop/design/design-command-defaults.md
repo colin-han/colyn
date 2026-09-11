@@ -62,6 +62,7 @@ colyn 的子命令提供了大量开关型参数（如 `merge --no-build`、`upd
 | `update` | `true` | `--update` | `--no-update` | 合并前更新所有 worktree |
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree（仅在 update=true 时生效） |
+| `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | 合并时双向同步运行时配置（含反向带回与其后 --update 环节中的同步） |
 
 ### commands.update
 
@@ -70,6 +71,7 @@ colyn 的子命令提供了大量开关型参数（如 `merge --no-build`、`upd
 | `rebase` | `true` | `--rebase` | `--no-rebase` | 使用 rebase 更新 |
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
+| `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | 更新时同步主分支运行时配置 |
 
 ### commands.release
 
