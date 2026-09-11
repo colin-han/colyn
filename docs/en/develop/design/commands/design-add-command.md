@@ -201,7 +201,7 @@ graph TD
     CheckInit -->|Yes| CheckGit{Is git repository?}
 
     CheckGit -->|No| ErrorNotGit[✗ Not a git repository]
-    CheckGit -->|Yes| CheckEnv{Main branch has .env.local?}
+    CheckGit -->|Yes| CheckEnv{Main branch has a runtime config?}
 
     CheckEnv -->|No| ErrorNoEnv[✗ Missing environment variable file]
     CheckEnv -->|Yes| CheckConflict{Branch already has worktree?}
@@ -360,7 +360,7 @@ Next steps:
 |----------------|-----------|----------------|
 | **Not initialized** | ✗ Current directory not initialized<br/>Hint: Please run colyn init command first | Run `colyn init` |
 | **Not a git repository** | ✗ Current directory is not a git repository<br/>Hint: Please run this command in a git repository | Run `git init` in main branch directory<br/>or ensure running in git repository |
-| **Missing environment variable file** | ✗ Main branch directory missing .env.local file<br/>Hint: Please configure environment variables in main branch directory first | Create `.env.local` file in main branch directory |
+| **Missing runtime config** | ✗ Main branch directory is missing its runtime config file<br/>Hint: Configure the runtime environment variables in the main branch directory first, or run colyn repair to create them | Create the runtime config file (decided by the toolchain: `.env.local` or `application-local.properties`), or run `colyn repair` |
 | **Invalid branch name** | ✗ Invalid branch name<br/>Hint: Branch name can only contain letters, numbers, underscores, hyphens, and slashes | Use valid branch name |
 
 ### 6.2 Branch Conflict Errors (Detailed)
@@ -463,7 +463,7 @@ Project info is preferentially inferred from the filesystem; only necessary conf
 | Data | How Obtained |
 |------|--------------|
 | Main branch name | `git branch --show-current` in main branch directory |
-| Main port | `PORT` in main branch directory's `.env.local` |
+| Main port | The port key in the main branch runtime config (`PORT` in `.env.local` for npm/pip, `server.port` in `application-local.properties` for maven/gradle) |
 | Next Worktree ID | Scan `worktrees/task-*` directories, take max ID + 1 |
 | Worktree list | `git worktree list` + `.env.local` in each directory |
 | Toolchain plugins | `plugins` field in `.colyn/settings.json` |

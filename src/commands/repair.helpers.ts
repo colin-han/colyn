@@ -2,9 +2,12 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import ora from 'ora';
 import simpleGit from 'simple-git';
-import { getProjectPaths, validateProjectInitialized } from '../core/paths.js';
-import { getMainPort, discoverWorktrees } from '../core/discovery.js';
-import { updateEnvFilePreserveComments, readEnvFile } from '../core/env.js';
+import {
+  buildProjectPaths,
+  findProjectRootLoose,
+  type ProjectPaths
+} from '../core/paths.js';
+import { discoverWorktrees } from '../core/discovery.js';
 import { checkIsRepo } from '../core/git.js';
 import {
   output,
@@ -17,7 +20,20 @@ import {
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import { pluginManager } from '../plugins/index.js';
-import { resolveToolchains, saveRepairSettingsResult } from '../core/toolchain-resolver.js';
+import {
+  resolveToolchains,
+  saveRepairSettingsResult,
+  type ToolchainContext
+} from '../core/toolchain-resolver.js';
+import {
+  buildRuntimeTargets,
+  computeIdentityUpdates,
+  readBasePort,
+  readRuntimeTarget,
+  writeRuntimeTarget,
+  type RuntimeTarget
+} from '../core/runtime-config-repair.js';
+import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
 import { getTodoConfig } from '../core/config.js';
 import { getProvider } from '../todo-backends/registry.js';
 
@@ -35,50 +51,117 @@ interface RepairResult {
   details?: string[];
   /** 错误信息 */
   error?: string;
+  /** 跳过检查的说明（如 worktree 目录已丢失） */
+  skippedNote?: string;
 }
 
 /**
- * 检查并修复主分支 .env.local
+ * repair 选项
+ *
+ * init 命令的补全模式会复用 repairProject，并跳过自己已经完成的步骤。
  */
-async function checkMainEnv(
-  mainDir: string,
-  mainPort: number
-): Promise<RepairResult> {
-  const envPath = path.join(mainDir, '.env.local');
+export interface RepairOptions {
+  /** 跳过工具链 .gitignore 与 repairSettings 处理（调用方已完成） */
+  skipToolchainSetup?: boolean;
+  /** 跳过 todo backend setup（调用方已完成） */
+  skipTodoSetup?: boolean;
+  /** 非交互模式 */
+  nonInteractive?: boolean;
+  /** 复用调用方已解析的工具链上下文，避免重复解析 */
+  contexts?: ToolchainContext[];
+}
+
+/**
+ * 将身份键变更转换为展示文案
+ */
+function describeChanges(
+  changes: Array<{ key: string; from?: string; to: string }>
+): string[] {
+  return changes.map((change) =>
+    change.from === undefined
+      ? t('commands.repair.addKey', { key: change.key, value: change.to })
+      : t('commands.repair.updateKey', { key: change.key, old: change.from, new: change.to })
+  );
+}
+
+/**
+ * 生成运行时配置检查项的展示名称（Mono Repo 时带上子项目路径）
+ */
+function runtimeItemLabel(target: RuntimeTarget, prefix: string): string {
+  return target.subPath === '.' ? prefix : `${prefix} [${target.subPath}]`;
+}
+
+/**
+ * 补全项目目录结构
+ *
+ * 主分支目录丢失无法自动修复（内含 git 仓库），直接报错；
+ * worktrees 目录缺失则创建。
+ */
+async function repairProjectStructure(paths: ProjectPaths): Promise<RepairResult> {
   const result: RepairResult = {
-    item: t('commands.repair.checkingMainEnv').replace('...', ''),
+    item: t('commands.repair.itemStructure'),
+    success: true,
+    fixed: false,
+    details: []
+  };
+
+  // 主分支目录必须存在
+  try {
+    const stats = await fs.stat(paths.mainDir);
+    if (!stats.isDirectory()) {
+      throw new Error('not a directory');
+    }
+  } catch {
+    throw new ColynError(
+      t('commands.repair.mainDirMissing', { name: paths.mainDirName }),
+      t('commands.repair.mainDirMissingHint', { path: paths.mainDir })
+    );
+  }
+
+  // worktrees 目录缺失时创建
+  try {
+    await fs.access(paths.worktreesDir);
+  } catch {
+    await fs.mkdir(paths.worktreesDir, { recursive: true });
+    result.fixed = true;
+    result.details!.push(t('commands.repair.createdWorktreesDir'));
+  }
+
+  return result;
+}
+
+/**
+ * 检查并修复主分支运行时配置
+ *
+ * 端口保持用户已有配置（仅在缺失时补默认值），WORKTREE 固定为 main。
+ */
+async function checkMainRuntimeConfig(target: RuntimeTarget): Promise<RepairResult> {
+  const result: RepairResult = {
+    item: runtimeItemLabel(target, t('commands.repair.itemMainRuntime')),
     success: true,
     fixed: false,
     details: []
   };
 
   try {
-    const env = await readEnvFile(envPath);
-    const updates: Record<string, string> = {};
-    let needsFix = false;
+    const existing = await readRuntimeTarget(target);
+    const config = existing ?? {};
 
-    // 检查 PORT（保持现有值，不修改）
-    if (!env.PORT) {
-      updates.PORT = mainPort.toString();
-      needsFix = true;
-      result.details!.push(t('commands.repair.addPort', { port: mainPort }));
-    }
+    // 端口已配置时保持原值，避免覆盖用户设置
+    const hasPort = config[target.portKey] !== undefined;
+    const { updates, changes } = computeIdentityUpdates(config, {
+      portKey: target.portKey,
+      expectedPort: hasPort ? null : target.defaultPort,
+      expectedWorktree: 'main'
+    });
 
-    // 检查 WORKTREE
-    if (!env.WORKTREE || env.WORKTREE !== 'main') {
-      updates.WORKTREE = 'main';
-      needsFix = true;
-      if (env.WORKTREE) {
-        result.details!.push(t('commands.repair.updateWorktree', { old: env.WORKTREE, new: 'main' }));
-      } else {
-        result.details!.push(t('commands.repair.addWorktree', { value: 'main' }));
-      }
-    }
-
-    // 如果需要修复，更新文件
-    if (needsFix) {
-      await updateEnvFilePreserveComments(envPath, updates);
+    if (Object.keys(updates).length > 0) {
+      await writeRuntimeTarget(target, config, updates);
       result.fixed = true;
+      if (existing === null) {
+        result.details!.push(t('commands.repair.createdRuntimeConfig'));
+      }
+      result.details!.push(...describeChanges(changes));
     }
   } catch (error) {
     result.success = false;
@@ -89,72 +172,43 @@ async function checkMainEnv(
 }
 
 /**
- * 检查并修复 worktree .env.local
+ * 检查并修复单个 worktree 的运行时配置
+ *
+ * 端口基准取自主分支对应子项目的实际配置：worktree 端口 = 主分支端口 + worktree ID。
  */
-async function checkWorktreeEnv(
-  wtPath: string,
-  wtId: number,
-  mainPort: number,
-  mainDir: string
+async function checkWorktreeRuntimeConfig(
+  target: RuntimeTarget,
+  mainTarget: RuntimeTarget | undefined,
+  worktreeId: number
 ): Promise<RepairResult> {
-  const wtName = path.basename(wtPath);
-  const envPath = path.join(wtPath, '.env.local');
   const result: RepairResult = {
-    item: `Worktree ${wtName} .env.local`,
+    item: runtimeItemLabel(
+      target,
+      t('commands.repair.itemWorktreeRuntime', { id: worktreeId })
+    ),
     success: true,
     fixed: false,
     details: []
   };
 
   try {
-    const env = await readEnvFile(envPath);
-    const updates: Record<string, string> = {};
-    let needsFix = false;
+    const basePort = mainTarget ? await readBasePort(mainTarget) : null;
+    const existing = await readRuntimeTarget(target);
+    const config = existing ?? {};
 
-    const expectedPort = mainPort + wtId;
-    const expectedWorktree = wtId.toString();
+    const { updates, changes } = computeIdentityUpdates(config, {
+      portKey: target.portKey,
+      expectedPort: (basePort ?? target.defaultPort) + worktreeId,
+      expectedWorktree: worktreeId.toString()
+    });
 
-    // 检查 PORT
-    const currentPort = env.PORT ? parseInt(env.PORT) : 0;
-    if (currentPort !== expectedPort) {
-      updates.PORT = expectedPort.toString();
-      needsFix = true;
-      if (env.PORT) {
-        result.details!.push(t('commands.repair.updatePort', { old: env.PORT, new: expectedPort }));
-      } else {
-        result.details!.push(t('commands.repair.addPort', { port: expectedPort }));
-      }
-    }
-
-    // 检查 WORKTREE
-    if (env.WORKTREE !== expectedWorktree) {
-      updates.WORKTREE = expectedWorktree;
-      needsFix = true;
-      if (env.WORKTREE) {
-        result.details!.push(t('commands.repair.updateWorktree', { old: env.WORKTREE, new: expectedWorktree }));
-      } else {
-        result.details!.push(t('commands.repair.addWorktree', { value: expectedWorktree }));
-      }
-    }
-
-    // 如果需要修复
-    if (needsFix) {
-      // 如果文件不存在，从主分支复制
-      try {
-        await fs.access(envPath);
-      } catch {
-        // 文件不存在，从主分支复制
-        const mainEnvPath = path.join(mainDir, '.env.local');
-        try {
-          const mainEnvContent = await fs.readFile(mainEnvPath, 'utf-8');
-          await fs.writeFile(envPath, mainEnvContent, 'utf-8');
-        } catch {
-          // 主分支文件也不存在，创建新文件
-        }
-      }
-
-      await updateEnvFilePreserveComments(envPath, updates);
+    if (Object.keys(updates).length > 0) {
+      await writeRuntimeTarget(target, config, updates);
       result.fixed = true;
+      if (existing === null) {
+        result.details!.push(t('commands.repair.createdRuntimeConfig'));
+      }
+      result.details!.push(...describeChanges(changes));
     }
   } catch (error) {
     result.success = false;
@@ -177,9 +231,12 @@ async function repairGitWorktree(mainDir: string): Promise<RepairResult> {
 
   try {
     const git = simpleGit(mainDir);
-    await git.raw(['worktree', 'repair']);
-    result.fixed = true;
-    result.details!.push(t('commands.repair.gitRepairDetail'));
+    // git worktree repair 仅在实际修正了路径时才有输出
+    const gitOutput = await git.raw(['worktree', 'repair']);
+    if (gitOutput.trim()) {
+      result.fixed = true;
+      result.details!.push(t('commands.repair.gitRepairDetail'));
+    }
   } catch (error) {
     result.success = false;
     result.error = error instanceof Error ? error.message : String(error);
@@ -422,7 +479,10 @@ function displayRepairSummary(
   outputBold(t('commands.repair.detailsTitle'));
 
   for (const result of results) {
-    if (result.success && !result.fixed) {
+    if (result.skippedNote) {
+      output(`  ${result.item}:`);
+      outputWarning(`    ${result.skippedNote}`);
+    } else if (result.success && !result.fixed) {
       output(`  ${result.item}:`);
       output(`    ${t('commands.repair.configCorrect')}`);
     } else if (result.success && result.fixed) {
@@ -470,14 +530,44 @@ function displayRepairSummary(
 }
 
 /**
+ * 汇总一组检查结果的 spinner 状态
+ */
+function reportResults(
+  spinner: ReturnType<typeof ora>,
+  results: RepairResult[],
+  messages: { correct: string; fixed: string; failed: string }
+): void {
+  if (results.some(r => !r.success)) {
+    spinner.fail(messages.failed);
+  } else if (results.some(r => r.fixed)) {
+    spinner.warn(messages.fixed);
+  } else {
+    spinner.succeed(messages.correct);
+  }
+}
+
+/**
  * 修复项目配置
  */
-export async function repairProject(): Promise<void> {
+export async function repairProject(options: RepairOptions = {}): Promise<void> {
   const results: RepairResult[] = [];
 
-  // 1. 获取项目路径
-  const paths = await getProjectPaths();
-  await validateProjectInitialized(paths);
+  // 1. 定位项目根目录（宽松查找，允许目录结构残缺）并补全结构
+  const rootDir = await findProjectRootLoose();
+  const paths = buildProjectPaths(rootDir);
+
+  const structureSpinner = ora({
+    text: t('commands.repair.checkingStructure'),
+    stream: process.stderr
+  }).start();
+
+  const structureResult = await repairProjectStructure(paths);
+  results.push(structureResult);
+  reportResults(structureSpinner, [structureResult], {
+    correct: t('commands.repair.structureCorrect'),
+    fixed: t('commands.repair.structureFixed'),
+    failed: t('commands.repair.structureFailed')
+  });
 
   // 2. 检查是否是 git 仓库
   if (!(await checkIsRepo(paths.mainDir))) {
@@ -487,56 +577,77 @@ export async function repairProject(): Promise<void> {
     );
   }
 
-  // 3. 获取主端口
-  let mainPort: number;
-  try {
-    mainPort = await getMainPort(paths.mainDir);
-  } catch {
-    // 如果无法获取主端口，使用默认值
-    mainPort = 10000;
-  }
+  // 3. 解析工具链上下文（决定运行时配置文件与端口 key）
+  const contexts = options.contexts
+    ?? await resolveToolchains(paths.rootDir, paths.mainDir, options.nonInteractive);
 
-  // 4. 检查主分支 .env.local
-  const spinner = ora({
-    text: t('commands.repair.checkingMainEnv'),
+  // 4. 检查主分支运行时配置
+  const mainSpinner = ora({
+    text: t('commands.repair.checkingMainRuntime'),
     stream: process.stderr
   }).start();
 
-  const mainEnvResult = await checkMainEnv(paths.mainDir, mainPort);
-  results.push(mainEnvResult);
-
-  if (mainEnvResult.success && !mainEnvResult.fixed) {
-    spinner.succeed(t('commands.repair.mainEnvCorrect'));
-  } else if (mainEnvResult.success && mainEnvResult.fixed) {
-    spinner.warn(t('commands.repair.mainEnvFixed'));
-  } else {
-    spinner.fail(t('commands.repair.mainEnvFailed'));
+  const mainTargets = await buildRuntimeTargets(contexts, paths.mainDir);
+  const mainResults: RepairResult[] = [];
+  for (const target of mainTargets) {
+    const result = await checkMainRuntimeConfig(target);
+    mainResults.push(result);
+    results.push(result);
   }
 
-  // 5. 获取所有 worktree 并检查
+  reportResults(mainSpinner, mainResults, {
+    correct: t('commands.repair.mainRuntimeCorrect'),
+    fixed: t('commands.repair.mainRuntimeFixed'),
+    failed: t('commands.repair.mainRuntimeFailed')
+  });
+
+  // 5. 检查所有 worktree 的运行时配置
   const worktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir);
 
   for (const wt of worktrees) {
+    // git 仍记录但目录已丢失：跳过配置修复，提示用户清理
+    try {
+      await fs.access(wt.path);
+    } catch {
+      results.push({
+        item: t('commands.repair.itemWorktreeRuntime', { id: wt.id }),
+        success: true,
+        fixed: false,
+        skippedNote: t('commands.repair.worktreeDirMissing', { path: wt.path })
+      });
+      outputWarning(t('commands.repair.worktreeDirMissing', { path: wt.path }));
+      continue;
+    }
+
+    // 5.1 先同步：重建缺失的配置文件、补齐主分支新增的 key
+    await syncWorktreeRuntimeConfigs(
+      paths.rootDir,
+      paths.mainDir,
+      wt.path,
+      wt.id,
+      'main-to-worktree'
+    );
+
+    // 5.2 再校正身份键（端口、WORKTREE）
     const wtSpinner = ora({
-      text: t('commands.repair.checkingWorktreeEnv', { id: wt.id }),
+      text: t('commands.repair.checkingWorktreeRuntime', { id: wt.id }),
       stream: process.stderr
     }).start();
 
-    const wtResult = await checkWorktreeEnv(
-      wt.path,
-      wt.id,
-      mainPort,
-      paths.mainDir
-    );
-    results.push(wtResult);
-
-    if (wtResult.success && !wtResult.fixed) {
-      wtSpinner.succeed(t('commands.repair.worktreeEnvCorrect', { id: wt.id }));
-    } else if (wtResult.success && wtResult.fixed) {
-      wtSpinner.warn(t('commands.repair.worktreeEnvFixed', { id: wt.id }));
-    } else {
-      wtSpinner.fail(t('commands.repair.worktreeEnvFailed', { id: wt.id }));
+    const wtTargets = await buildRuntimeTargets(contexts, wt.path);
+    const wtResults: RepairResult[] = [];
+    for (const target of wtTargets) {
+      const mainTarget = mainTargets.find(m => m.subPath === target.subPath);
+      const result = await checkWorktreeRuntimeConfig(target, mainTarget, wt.id);
+      wtResults.push(result);
+      results.push(result);
     }
+
+    reportResults(wtSpinner, wtResults, {
+      correct: t('commands.repair.worktreeRuntimeCorrect', { id: wt.id }),
+      fixed: t('commands.repair.worktreeRuntimeFixed', { id: wt.id }),
+      failed: t('commands.repair.worktreeRuntimeFailed', { id: wt.id })
+    });
   }
 
   // 6. 修复 git worktree 连接
@@ -554,9 +665,8 @@ export async function repairProject(): Promise<void> {
     gitSpinner.fail(t('commands.repair.gitRepairFailed'));
   }
 
-  // 7. 解析工具链并运行初始化（重新应用 .gitignore 条目）
-  const contexts = await resolveToolchains(paths.rootDir, paths.mainDir);
-  if (contexts.length > 0) {
+  // 7. 工具链初始化（.gitignore 忽略规则 + 工具链配置修复）
+  if (!options.skipToolchainSetup && contexts.length > 0) {
     const pluginSpinner = ora({
       text: t('commands.repair.initializingPlugins'),
       stream: process.stderr
@@ -578,7 +688,8 @@ export async function repairProject(): Promise<void> {
         const newSettings = await pluginManager.runRepairSettings(
           ctx.absolutePath,
           ctx.toolchainName,
-          ctx.toolchainSettings
+          ctx.toolchainSettings,
+          options.nonInteractive
         );
         if (newSettings !== null) {
           await saveRepairSettingsResult(paths.rootDir, ctx.subPath, newSettings);
@@ -590,21 +701,23 @@ export async function repairProject(): Promise<void> {
   }
 
   // 8. 对当前激活的 todo backend 运行 setup（例如帮助安装 gh）
-  const todoCfg = await getTodoConfig(paths.configDir);
-  try {
-    const provider = getProvider(todoCfg.backend);
-    if (provider) {
-      await provider.setup({
-        projectRoot: paths.rootDir,
-        mainDirPath: paths.mainDir,
-        nonInteractive: false,
-      });
+  if (!options.skipTodoSetup) {
+    const todoCfg = await getTodoConfig(paths.configDir);
+    try {
+      const provider = getProvider(todoCfg.backend);
+      if (provider) {
+        await provider.setup({
+          projectRoot: paths.rootDir,
+          mainDirPath: paths.mainDir,
+          nonInteractive: options.nonInteractive ?? false,
+        });
+      }
+    } catch (err) {
+      outputWarning(t('commands.todo.backend.setupFailed', {
+        backend: todoCfg.backend,
+        error: err instanceof Error ? err.message : String(err),
+      }));
     }
-  } catch (err) {
-    outputWarning(t('commands.todo.backend.setupFailed', {
-      backend: todoCfg.backend,
-      error: err instanceof Error ? err.message : String(err),
-    }));
   }
 
   // 9. 检测并修复孤儿 worktree 目录

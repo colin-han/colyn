@@ -171,9 +171,15 @@ When `colyn init` detects that the project origin is a GitHub repository (the `o
 **User situation**: Running `colyn init` again in an already initialized directory
 
 **System behavior**:
-1. Detect missing parts
-2. Complete missing directories or configurations
-3. If everything is complete, indicate no action needed
+1. Detect and create missing directories
+2. Re-detect the toolchain and guide Todo Backend configuration
+3. **Reuse the configured port** (never asked again, never overwritten); ask only when no port is configured yet
+4. **Call `repairProject()` for the rest**: git worktree connections, runtime configs of existing worktrees, orphan directory detection
+5. If everything is complete, indicate no action needed
+
+> Completion mode shares one repair implementation with `colyn repair` (see the
+> [Repair command design doc](./design-repair-command.md)), so the two commands cannot drift
+> apart. The toolchain and Todo Backend steps init already did are skipped via `RepairOptions`.
 
 **User sees (has missing parts)**:
 
@@ -181,11 +187,16 @@ When `colyn init` detects that the project origin is a GitHub repository (the `o
 ⚠ Detected already initialized, entering completion mode...
 
 ✔ Create worktrees directory
-✔ Check and update config file
-✔ Check and configure .env.local
-✔ Check and configure .gitignore
 
 ✓ Completion done!
+
+Detected single project (npm)
+Reusing configured port: 3000
+✔ Project directory structure is complete
+✔ Main branch runtime config is correct
+✔ Worktree task-1 runtime config is correct
+✔ Git worktree connections repaired
+✔ No orphan worktree directories found
 ```
 
 **User sees (nothing missing)**:
@@ -262,6 +273,9 @@ graph TD
 
 ### 3.2 Port Configuration Interaction
 
+Port precedence: **explicit `--port` > the value already in the runtime config > interactive prompt**.
+Re-running init on an already configured project neither asks again nor overwrites the port.
+
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -276,7 +290,10 @@ sequenceDiagram
         else Port valid
             C->>C: Use provided port
         end
-    else No --port provided
+    else Runtime config already has a port
+        C->>U: Reusing configured port: 3000
+        C->>C: Keep the value, never overwrite
+    else No --port and no port configured yet
         C->>U: ? Enter main branch dev server port: (10000)
         U->>C: Enter port number
         C->>C: Validate input
@@ -554,6 +571,7 @@ After success, clearly tell users:
 ```mermaid
 graph LR
     Init[colyn init] --> Add[colyn add]
+    Init -.->|Completion mode reuses| Repair[colyn repair]
     Add --> List[colyn list]
     Add --> Merge[colyn merge]
     Add --> Status[colyn status]
@@ -568,6 +586,8 @@ graph LR
 - `init` is a prerequisite for all other commands
 - Can only create worktree (`add`) after initialization
 - Can use other management commands after creating worktree
+- Re-running `init` on an initialized directory (completion mode) reuses the `repair` logic —
+  see the [Repair command design doc](./design-repair-command.md)
 
 ---
 

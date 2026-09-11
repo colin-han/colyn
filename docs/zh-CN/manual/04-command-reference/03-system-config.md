@@ -20,24 +20,33 @@ colyn repair
 
 **检查和修复内容：**
 
-1. **主分支 .env.local**
-   - 检查 PORT 和 WORKTREE 环境变量
+1. **项目目录结构**
+   - 补全缺失的 `worktrees/` 目录
+
+2. **主分支运行时配置**
+   - 检查端口与 WORKTREE 配置项
+   - 端口保持已有值（仅在缺失时补默认端口）
    - WORKTREE 必须为 "main"
 
-2. **Worktree .env.local**
-   - 检查 PORT 和 WORKTREE 环境变量
-   - PORT 必须为 `主端口 + ID`
+3. **Worktree 运行时配置**
+   - 先同步主分支新增的配置项（不覆盖 worktree 已有值）
+   - 端口必须为 `主分支端口 + ID`
    - WORKTREE 必须为 ID
+   - 目录已丢失的 worktree 会被跳过并提示清理
 
-3. **Git worktree 连接**
+> **配置文件由工具链决定**：npm / pip 项目为 `.env.local`（端口 `PORT`），
+> maven / gradle 项目为 `src/main/resources/application-local.properties`（端口 `server.port`）。
+> Mono Repo 下每个子项目独立检查。
+
+4. **Git worktree 连接**
    - 运行 `git worktree repair` 修复连接
    - 修复主分支与 worktree 的双向连接
 
-4. **插件初始化**（非致命）
+5. **插件初始化**（非致命）
    - 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件 init
    - 失败时仅显示警告，不中断修复流程
 
-5. **孤儿 worktree 目录**
+6. **孤儿 worktree 目录**
    - 检测路径失效的 worktree（可修复）
    - 检测真孤儿型 worktree（仅报告）
 
@@ -59,13 +68,14 @@ $ colyn repair
 ### 执行结果
 
 ```
-✔ 检查主分支 .env.local
-✔ 检查 worktree task-1 .env.local
-✗ 修复 worktree task-2 .env.local
+✔ 项目目录结构完整
+✔ 主分支运行时配置正确
+✔ Worktree task-1 运行时配置正确
+⚠ 已修复 worktree task-2 运行时配置
   - PORT: 10005 → 10002
   - WORKTREE: 3 → 2
-✔ 修复 git worktree 连接
-✔ 检查孤儿 worktree 目录
+✔ Git worktree 连接已修复
+✔ 未发现孤儿 worktree 目录
 
 ✓ 修复完成！
 ```
@@ -74,10 +84,11 @@ $ colyn repair
 
 | 错误场景 | 系统行为 |
 |---------|---------|
-| 项目未初始化 | 报错退出，提示先运行 `colyn init` |
+| 找不到 .colyn 目录 | 报错退出，提示先运行 `colyn init` |
+| 主分支目录丢失 | 报错退出（内含 git 仓库，无法自动重建） |
 | 不是 git 仓库 | 报错退出，提示确保在 git 项目中运行 |
 | git worktree repair 失败 | 记录错误，继续其他检查 |
-| 无法写入 .env.local | 记录错误，继续其他检查 |
+| 无法写入运行时配置 | 记录错误，继续其他检查 |
 
 ### 提示
 

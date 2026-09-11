@@ -20,24 +20,34 @@ colyn repair
 
 **Checks and repairs:**
 
-1. **Main branch .env.local**
-   - Check PORT and WORKTREE environment variables
+1. **Project directory structure**
+   - Create the missing `worktrees/` directory
+
+2. **Main branch runtime config**
+   - Check the port key and WORKTREE
+   - The port keeps its existing value (the default is written only when missing)
    - WORKTREE must be "main"
 
-2. **Worktree .env.local**
-   - Check PORT and WORKTREE environment variables
-   - PORT must be `main port + ID`
+3. **Worktree runtime config**
+   - First sync keys newly added on the main branch (never overwriting worktree values)
+   - The port must be `main branch port + ID`
    - WORKTREE must be ID
+   - Worktrees whose directory is gone are skipped with a cleanup hint
 
-3. **Git worktree connections**
+> **The config file is decided by the toolchain**: npm / pip projects use `.env.local`
+> (port `PORT`), maven / gradle projects use
+> `src/main/resources/application-local.properties` (port `server.port`).
+> In a Mono Repo each sub-project is checked independently.
+
+4. **Git worktree connections**
    - Run `git worktree repair` to fix connections
    - Repair bidirectional connection between main branch and worktrees
 
-4. **Plugin initialization** (non-fatal)
+5. **Plugin initialization** (non-fatal)
    - Re-run plugin init for toolchain plugins configured in `.colyn/settings.json`
    - Only shows warning on failure, does not interrupt repair flow
 
-5. **Orphaned worktree directories**
+6. **Orphaned worktree directories**
    - Detect worktrees with invalid paths (repairable)
    - Detect true orphan worktrees (report only)
 
@@ -59,13 +69,14 @@ $ colyn repair
 ### Result
 
 ```
-✔ Check main branch .env.local
-✔ Check worktree task-1 .env.local
-✗ Repair worktree task-2 .env.local
+✔ Project directory structure is complete
+✔ Main branch runtime config is correct
+✔ Worktree task-1 runtime config is correct
+⚠ Fixed worktree task-2 runtime config
   - PORT: 10005 → 10002
   - WORKTREE: 3 → 2
-✔ Repair git worktree connections
-✔ Check orphaned worktree directories
+✔ Git worktree connections repaired
+✔ No orphan worktree directories found
 
 ✓ Repair completed!
 ```
@@ -74,10 +85,11 @@ $ colyn repair
 
 | Error Scenario | System Behavior |
 |---------------|-----------------|
-| Project not initialized | Error exit, prompts to run `colyn init` first |
+| No .colyn directory found | Error exit, prompts to run `colyn init` first |
+| Main branch directory is gone | Error exit (it holds the git repository and cannot be rebuilt) |
 | Not a git repository | Error exit, prompts to ensure running in a git project |
 | git worktree repair failed | Logs error, continues other checks |
-| Cannot write .env.local | Logs error, continues other checks |
+| Cannot write the runtime config | Logs error, continues other checks |
 
 ### Tips
 

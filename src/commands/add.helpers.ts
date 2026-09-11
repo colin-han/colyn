@@ -13,6 +13,8 @@ import {
   outputStep
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
+import type { ToolchainContext } from '../core/toolchain-resolver.js';
+import { buildRuntimeTargets, readRuntimeTarget } from '../core/runtime-config-repair.js';
 
 /**
  * 验证分支名称是否有效
@@ -71,20 +73,27 @@ export async function checkIsGitRepo(): Promise<void> {
 }
 
 /**
- * 检查主分支 .env.local 是否存在
+ * 检查主分支是否存在运行时配置
+ *
+ * 配置文件由工具链插件决定（npm/pip 为 .env.local，maven/gradle 为
+ * application-local.properties）；Mono Repo 下任一子项目有配置即视为可用。
  */
-export async function checkMainEnvFile(rootDir: string, mainDirName: string): Promise<void> {
-  const mainDirPath = path.join(rootDir, mainDirName);
-  const envFilePath = path.join(mainDirPath, '.env.local');
+export async function checkMainRuntimeConfigExists(
+  mainDir: string,
+  contexts: ToolchainContext[]
+): Promise<void> {
+  const targets = await buildRuntimeTargets(contexts, mainDir);
 
-  try {
-    await fs.access(envFilePath);
-  } catch {
-    throw new ColynError(
-      t('commands.add.missingEnvFile'),
-      t('commands.add.missingEnvFileHint')
-    );
+  for (const target of targets) {
+    if ((await readRuntimeTarget(target)) !== null) {
+      return;
+    }
   }
+
+  throw new ColynError(
+    t('commands.add.missingRuntimeConfig'),
+    t('commands.add.missingRuntimeConfigHint')
+  );
 }
 
 /**

@@ -172,9 +172,15 @@ project-root/
 **用户情况**：在已经初始化过的目录中再次运行 `colyn init`
 
 **系统行为**：
-1. 检测缺失的部分
-2. 补全缺失的目录或配置
-3. 如果所有都完整，提示无需操作
+1. 检测缺失的部分，补全缺失的目录
+2. 重新检测工具链、引导配置 Todo Backend
+3. **端口沿用已有配置**（不再询问，也不覆盖），仅在尚未配置时询问
+4. **调用 `repairProject()` 完成余下修复**：git worktree 连接、已有 worktree 的运行时配置、孤儿目录检测
+5. 如果所有都完整，提示无需操作
+
+> 补全模式与 `colyn repair` 共用同一套修复逻辑（见
+> [Repair 命令设计文档](./design-repair-command.md)），避免两条命令行为漂移。
+> init 已完成的工具链与 Todo Backend 步骤会通过 `RepairOptions` 跳过。
 
 **用户看到（有缺失）**：
 
@@ -182,11 +188,16 @@ project-root/
 ⚠ 检测到已初始化，进入补全模式...
 
 ✔ 创建 worktrees 目录
-✔ 检查并更新配置文件
-✔ 检查并配置 .env.local
-✔ 检查并配置 .gitignore
 
 ✓ 补全完成！
+
+检测到单项目（npm）
+沿用已配置的端口：3000
+✔ 项目目录结构完整
+✔ 主分支运行时配置正确
+✔ Worktree task-1 运行时配置正确
+✔ Git worktree 连接已修复
+✔ 未发现孤儿 worktree 目录
 ```
 
 **用户看到（无缺失）**：
@@ -263,6 +274,9 @@ graph TD
 
 ### 3.2 端口配置交互
 
+端口来源优先级：**`--port` 显式指定 > 运行时配置中的现有值 > 交互式询问**。
+已配置过的项目重跑 init 不会被重复询问，也不会被覆盖。
+
 ```mermaid
 sequenceDiagram
     participant U as 用户
@@ -277,7 +291,10 @@ sequenceDiagram
         else 端口有效
             C->>C: 使用提供的端口
         end
-    else 未提供 --port
+    else 运行时配置中已有端口
+        C->>U: 沿用已配置的端口：3000
+        C->>C: 保持原值，不覆盖
+    else 未提供 --port 且尚未配置
         C->>U: ? 请输入主分支开发服务器端口: (10000)
         U->>C: 输入端口号
         C->>C: 验证输入
@@ -555,6 +572,7 @@ WORKTREE=main
 ```mermaid
 graph LR
     Init[colyn init] --> Add[colyn add]
+    Init -.->|补全模式复用| Repair[colyn repair]
     Add --> List[colyn list]
     Add --> Merge[colyn merge]
     Add --> Status[colyn status]
@@ -569,6 +587,8 @@ graph LR
 - `init` 是所有其他命令的前置要求
 - 只有初始化后才能创建 worktree（`add`）
 - 创建 worktree 后才能使用其他管理命令
+- 在已初始化目录上重跑 `init`（补全模式）会复用 `repair` 的修复逻辑，
+  详见 [Repair 命令设计文档](./design-repair-command.md)
 
 ---
 

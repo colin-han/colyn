@@ -197,7 +197,7 @@ graph TD
     CheckInit -->|是| CheckGit{是 git 仓库?}
 
     CheckGit -->|否| ErrorNotGit[✗ 不是 git 仓库]
-    CheckGit -->|是| CheckEnv{主分支有 .env.local?}
+    CheckGit -->|是| CheckEnv{主分支有运行时配置?}
 
     CheckEnv -->|否| ErrorNoEnv[✗ 缺少环境变量文件]
     CheckEnv -->|是| CheckConflict{分支已有 worktree?}
@@ -355,7 +355,7 @@ Worktree 信息：
 |---------|---------|---------|
 | **未初始化** | ✗ 当前目录未初始化<br/>提示：请先运行 colyn init 命令初始化项目 | 运行 `colyn init` |
 | **不是 git 仓库** | ✗ 当前目录不是 git 仓库<br/>提示：请在 git 仓库中运行此命令 | 在主分支目录中运行 `git init`<br/>或者确保在 git 仓库中运行命令 |
-| **缺少环境变量文件** | ✗ 主分支目录缺少 .env.local 文件<br/>提示：请先在主分支目录配置环境变量 | 在主分支目录创建 `.env.local` 文件 |
+| **缺少运行时配置** | ✗ 主分支目录缺少运行时配置文件<br/>提示：请先在主分支目录配置运行时环境变量，或运行 colyn repair 自动补全 | 在主分支目录创建运行时配置文件（由工具链决定：`.env.local` 或 `application-local.properties`），或运行 `colyn repair` |
 | **分支名称无效** | ✗ 无效的分支名称<br/>提示：分支名称只能包含字母、数字、下划线、连字符和斜杠 | 使用有效的分支名称 |
 
 ### 6.2 分支冲突错误（详细）
@@ -458,7 +458,7 @@ project-root/
 | 数据 | 获取方式 |
 |------|---------|
 | 主分支名称 | 主分支目录的 `git branch --show-current` |
-| 主端口 | 主分支目录的 `.env.local` 中的 `PORT` |
+| 主端口 | 主分支运行时配置中的端口 key（npm/pip 为 `.env.local` 的 `PORT`，maven/gradle 为 `application-local.properties` 的 `server.port`） |
 | 下一个 Worktree ID | 扫描 `worktrees/task-*` 目录，取最大 ID + 1 |
 | Worktree 列表 | `git worktree list` + 各目录的 `.env.local` |
 | 工具链插件 | `.colyn/settings.json` 的 `plugins` 字段 |

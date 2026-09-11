@@ -4,6 +4,8 @@ import simpleGit from 'simple-git';
 import type { WorktreeInfo } from '../types/index.js';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
+import { resolveToolchains } from './toolchain-resolver.js';
+import { buildRuntimeTargets, readBasePort } from './runtime-config-repair.js';
 
 /**
  * 项目发现信息
@@ -67,12 +69,32 @@ export async function getMainBranch(mainDir: string): Promise<string> {
 }
 
 /**
- * 从主分支的 .env.local 获取端口
+ * 获取主分支端口
+ *
+ * 运行时配置文件与端口 key 由工具链插件决定（npm/pip 为 .env.local 的 PORT，
+ * maven/gradle 为 application-local.properties 的 server.port）；
+ * Mono Repo 下取第一个能读到端口的子项目。无工具链时回退 .env.local。
  */
 export async function getMainPort(mainDir: string): Promise<number> {
   const envPath = path.join(mainDir, '.env.local');
-  const env = await parseEnvFile(envPath);
 
+  try {
+    const rootDir = path.dirname(mainDir);
+    // 非交互：该函数会被 list --watch 等场景频繁调用，不能弹出提问
+    const contexts = await resolveToolchains(rootDir, mainDir, true);
+    const targets = await buildRuntimeTargets(contexts, mainDir);
+
+    for (const target of targets) {
+      const port = await readBasePort(target);
+      if (port !== null) {
+        return port;
+      }
+    }
+  } catch {
+    // 工具链解析失败时回退到 .env.local
+  }
+
+  const env = await parseEnvFile(envPath);
   const port = parseInt(env.PORT || '');
   if (isNaN(port)) {
     throw new ColynError(
