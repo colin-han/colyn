@@ -311,7 +311,40 @@ $ colyn update
 
 **参考文档**：`docs/zh-CN/develop/design/design-runtime-config-sync.md`
 
-**相关术语**：[.env.local](#envlocal)、[Base Port](#base-port基础端口)、[Worktree ID](#worktree-id)、[命令默认值配置](#命令默认值配置command-defaults-config)
+**相关术语**：[.env.local](#envlocal)、[Base Port](#base-port基础端口)、[Worktree ID](#worktree-id)、[命令默认值配置](#命令默认值配置command-defaults-config)、[未跟踪文件同步](#未跟踪文件同步untracked-file-sync)
+
+---
+
+### 未跟踪文件同步（Untracked File Sync）
+
+**定义**：在主分支目录与 worktree 目录之间，按用户配置的 `syncFiles` 清单同步被 git 忽略/未跟踪的本地文件（如种子数据、本地证书）的机制。
+
+**来源**：Colyn 核心命令机制
+
+**核心规则**：
+- 同步只"复制缺失的文件"，**永不覆盖既有内容、永不删除文件**
+- 两侧内容不同（冲突）时不覆盖、不合并，**报错提示**两侧路径与修改时间，由人工处理
+- 已跟踪文件与运行时配置文件（`.env.local` 等）被排除，不参与本机制
+
+**触发时机**：与运行时配置同步完全一致（`add` 创建时、`update` 主→worktree、`merge` worktree→主、`repair` 重建时）。
+
+**配置**：
+```jsonc
+{
+  "syncFiles": [".env.*", "data/*.json", "certs/**"]  // 支持通配符，默认 [] 即关闭
+}
+```
+
+**示例**：
+```bash
+$ colyn update
+✔ 未跟踪文件已同步：复制 2 个文件 (data/seed.json, .env.staging)
+✗ 1 个文件两侧内容不同，已跳过，请人工处理：certs/local.pem
+```
+
+**参考文档**：`docs/zh-CN/develop/design/design-untracked-file-sync.md`
+
+**相关术语**：[运行时配置同步](#运行时配置同步runtime-config-sync)
 
 ---
 
@@ -795,6 +828,7 @@ if (process.env.WORKTREE === 'main') {
 - 命令默认值配置
 - 三态解析
 - 运行时配置同步
+- 未跟踪文件同步
 
 **tmux 概念**：
 - Session
@@ -841,5 +875,5 @@ if (process.env.WORKTREE === 'main') {
 
 ---
 
-**文档版本**：1.1
-**最后更新**：2026-02-26
+**文档版本**：1.2
+**最后更新**：2026-09-18

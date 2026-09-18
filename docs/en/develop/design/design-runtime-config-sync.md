@@ -307,7 +307,7 @@ commands.merge.noSyncConfigOption: 'Skip runtime config sync',
 
 - ❌ Interactive conflict resolution (a prompt to pick a side)
 - ❌ Snapshot-based three-way merge (recording last-sync state to tell "who changed it")
-- ❌ Syncing arbitrary custom file lists (e.g. a `settings.syncFiles` config)
+- ❌ Syncing arbitrary custom file lists (e.g. a `settings.syncFiles` config) — this scope has been taken over by the [Untracked File Sync design](design-untracked-file-sync.md) (file-granularity independent sync, not reusing this document's key-value algorithm)
 - ❌ Sync in `remove` / `checkout` / `switch` commands (no sync semantics, or behavior already exists)
 - ❌ Key-deletion propagation (a key removed on main does not propagate to worktrees)
 
