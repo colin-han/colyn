@@ -139,6 +139,20 @@ export class PluginManager {
   }
 
   /**
+   * 所有已注册插件声明的运行时配置文件名（去重）
+   * 用于未跟踪文件同步的排除规则（这些文件由运行时配置同步处理）
+   */
+  getAllRuntimeConfigFileNames(): string[] {
+    const names = new Set<string>();
+    for (const plugin of this.plugins.values()) {
+      if (!plugin.getRuntimeConfigFileName) continue;
+      const name = plugin.getRuntimeConfigFileName();
+      if (name) names.add(name);
+    }
+    return [...names];
+  }
+
+  /**
    * 运行指定工具链插件的 repairSettings，返回更新后的配置
    *
    * 插件通过 repairSettings 检查项目配置，自动发现或交互询问必要的配置项。

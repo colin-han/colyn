@@ -13,6 +13,11 @@
  * 由 runtime-config-sync 以 key-value 语义处理。
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import simpleGit from 'simple-git';
+import { pluginManager } from '../plugins/index.js';
+
 /** 同步方向：main-to-worktree（update/add/repair）、worktree-to-main（merge） */
 export type UntrackedFileSyncDirection = 'main-to-worktree' | 'worktree-to-main';
 
@@ -88,4 +93,70 @@ export function planUntrackedFileSync(
     }
   }
   return { toCopy, conflicts, sourceMissing };
+}
+
+/** 枚举目录下全部文件（跳过 .git / node_modules），返回 POSIX 风格相对路径 */
+async function collectFiles(dir: string): Promise<string[]> {
+  const SKIP_DIRS = new Set(['.git', 'node_modules']);
+  const results: string[] = [];
+
+  async function walk(current: string, rel: string): Promise<void> {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const childRel = rel === '' ? entry.name : `${rel}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        await walk(path.join(current, entry.name), childRel);
+      } else if (entry.isFile()) {
+        results.push(childRel);
+      }
+    }
+  }
+
+  await walk(dir, '');
+  return results;
+}
+
+/**
+ * 解析同步清单：通配符展开 + 排除规则
+ *
+ * - 枚举 sourceDir（按 direction 的源侧目录，见设计澄清 1）
+ * - 已跟踪文件（git ls-files，在 gitDir 执行，两目录属同一仓库）→ 跳过 + 警告
+ * - 运行时配置文件（basename 命中任一插件声明）→ 跳过 + 警告
+ * - 返回按路径排序的候选清单与被排除项
+ */
+export async function resolveSyncFileCandidates(
+  sourceDir: string,
+  patterns: string[],
+  gitDir: string
+): Promise<{ candidates: string[]; skipped: SkippedUntrackedFile[] }> {
+  if (patterns.length === 0) return { candidates: [], skipped: [] };
+
+  const regexes = patterns.map((p) => filePatternToRegex(p));
+  const matched = new Set<string>();
+  for (const rel of await collectFiles(sourceDir)) {
+    if (regexes.some((re) => re.test(rel))) matched.add(rel);
+  }
+  if (matched.size === 0) return { candidates: [], skipped: [] };
+
+  // tracked 检查：git ls-files 输出即已跟踪文件
+  const lsOutput = await simpleGit(gitDir).raw(['ls-files', '--', ...matched]);
+  const tracked = new Set(
+    lsOutput.split('\n').map((line) => line.trim()).filter(Boolean)
+  );
+
+  const runtimeConfigNames = new Set(pluginManager.getAllRuntimeConfigFileNames());
+
+  const candidates: string[] = [];
+  const skipped: SkippedUntrackedFile[] = [];
+  for (const rel of [...matched].sort()) {
+    if (tracked.has(rel)) {
+      skipped.push({ path: rel, reason: 'tracked' });
+    } else if (runtimeConfigNames.has(path.posix.basename(rel))) {
+      skipped.push({ path: rel, reason: 'runtime-config' });
+    } else {
+      candidates.push(rel);
+    }
+  }
+  return { candidates, skipped };
 }
