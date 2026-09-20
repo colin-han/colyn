@@ -35,6 +35,7 @@ import {
 } from './add.helpers.js';
 import { pluginManager } from '../plugins/index.js';
 import { resolveToolchains } from '../core/toolchain-resolver.js';
+import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 import * as fsPromises from 'fs/promises';
 import {
   isTmuxAvailable,
@@ -496,6 +497,15 @@ async function addCommand(branchName?: string): Promise<void> {
     } else {
       await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
     }
+
+    // 步骤10.2: 复制未跟踪文件清单内文件（主分支 → worktree）
+    // worktree 刚创建，清单内文件必然为复制，无冲突可能；清单为空时零行为
+    await syncUntrackedFiles({
+      rootDir: paths.rootDir,
+      mainDir: paths.mainDir,
+      worktreePath,
+      direction: 'main-to-worktree',
+    });
 
     // 步骤10.5: 安装依赖
     if (contexts.length > 0) {

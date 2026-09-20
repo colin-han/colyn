@@ -34,6 +34,7 @@ import {
   type RuntimeTarget
 } from '../core/runtime-config-repair.js';
 import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
+import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 import { getTodoConfig } from '../core/config.js';
 import { getProvider } from '../todo-backends/registry.js';
 
@@ -627,6 +628,14 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
       wt.id,
       'main-to-worktree'
     );
+
+    // 5.1.1 重建缺失的未跟踪文件清单内文件（主分支 → worktree）
+    await syncUntrackedFiles({
+      rootDir: paths.rootDir,
+      mainDir: paths.mainDir,
+      worktreePath: wt.path,
+      direction: 'main-to-worktree',
+    });
 
     // 5.2 再校正身份键（端口、WORKTREE）
     const wtSpinner = ora({
