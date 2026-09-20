@@ -15,6 +15,7 @@ import {
 import { discoverWorktrees, getCurrentWorktreeId } from '../core/discovery.js';
 import { t } from '../i18n/index.js';
 import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
+import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 
 /**
  * 识别目标类型
@@ -268,10 +269,14 @@ export async function updateSingleWorktree(
   }
 }
 
-/** 批量更新时的运行时配置同步参数（缺省不同步） */
+/** 批量更新时的运行时配置/未跟踪文件同步参数（布尔缺省为不同步） */
 export interface UpdateAllSyncOptions {
   rootDir: string;
   mainDir: string;
+  /** 同步运行时配置（key-value） */
+  syncConfig?: boolean;
+  /** 同步未跟踪文件清单内文件 */
+  syncFiles?: boolean;
 }
 
 /**
@@ -311,7 +316,7 @@ export async function updateAllWorktrees(
       results.push({ worktree, success: true });
       succeeded++;
       // 更新成功后同步运行时配置（主分支 → worktree）；内部永不抛出
-      if (syncOptions) {
+      if (syncOptions?.syncConfig) {
         await syncWorktreeRuntimeConfigs(
           syncOptions.rootDir,
           syncOptions.mainDir,
@@ -319,6 +324,15 @@ export async function updateAllWorktrees(
           worktree.id,
           'main-to-worktree'
         );
+      }
+      // 更新成功后同步未跟踪文件（主分支 → worktree）；内部永不抛出
+      if (syncOptions?.syncFiles) {
+        await syncUntrackedFiles({
+          rootDir: syncOptions.rootDir,
+          mainDir: syncOptions.mainDir,
+          worktreePath: worktree.path,
+          direction: 'main-to-worktree',
+        });
       }
     } else {
       results.push({

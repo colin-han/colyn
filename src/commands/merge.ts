@@ -30,6 +30,7 @@ import {
 import { t } from '../i18n/index.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
 import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
+import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 import { applyCommandDefaults, resolveVerbose } from '../core/command-defaults.js';
 
 /**
@@ -43,6 +44,7 @@ interface MergeOptions extends Record<string, unknown> {
   all?: boolean;        // 更新所有 worktrees（默认 true，需 update=true）
   verbose?: boolean;    // 显示详细的步骤信息
   syncConfig?: boolean; // 同步运行时配置（默认 true）
+  syncFiles?: boolean;  // 同步未跟踪文件（默认 true）
 }
 
 /**
@@ -220,6 +222,18 @@ async function mergeCommand(
       );
     }
 
+    // 步骤7.6: 反向同步未跟踪文件（worktree → 主分支，带回新文件）
+    // 与运行时配置同步同时序：先反向带回，再由下方 --update 环节传播到其他 worktree
+    if (options.syncFiles) {
+      await syncUntrackedFiles({
+        rootDir: paths.rootDir,
+        mainDir: paths.mainDir,
+        worktreePath: worktree.path,
+        direction: 'worktree-to-main',
+        verbose: options.verbose,
+      });
+    }
+
     // 更新 worktree 状态为 idle
     try {
       await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
@@ -258,7 +272,7 @@ async function mergeCommand(
             allWorktrees,
             mainBranch,
             true,  // 默认使用 rebase
-            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir } : undefined
+            { rootDir: paths.rootDir, mainDir: paths.mainDir, syncConfig: options.syncConfig, syncFiles: options.syncFiles }
           );
 
           displayBatchUpdateResult(updateResult);
@@ -282,7 +296,7 @@ async function mergeCommand(
             [worktree],
             mainBranch,
             true,
-            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir } : undefined
+            { rootDir: paths.rootDir, mainDir: paths.mainDir, syncConfig: options.syncConfig, syncFiles: options.syncFiles }
           );
         });
 
@@ -331,6 +345,8 @@ export function register(program: Command): void {
     .option('--no-all, --current-only', t('commands.merge.noAllOption'))
     .option('--sync-config', t('commands.merge.syncConfigOption'))
     .option('--no-sync-config', t('commands.merge.noSyncConfigOption'))
+    .option('--sync-files', t('commands.merge.syncFilesOption'))
+    .option('--no-sync-files', t('commands.merge.noSyncFilesOption'))
     .option('-v, --verbose', t('common.verboseOption'))
     .option('--no-verbose', t('common.noVerboseOption'))
     .action(async (target: string | undefined, options: MergeOptions, command: Command) => {
@@ -338,7 +354,7 @@ export function register(program: Command): void {
         command,
         options,
         ['commands', 'merge'] as const,
-        { build: true, rebase: true, update: true, fetch: true, all: true, syncConfig: true }
+        { build: true, rebase: true, update: true, fetch: true, all: true, syncConfig: true, syncFiles: true }
       );
       const verbose = await resolveVerbose(command, options.verbose);
 

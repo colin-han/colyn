@@ -158,6 +158,7 @@ The created Worktree will:
 - Automatically assign an ID (incrementing)
 - Automatically assign a port number (main port + ID)
 - Copy main branch environment variables and update PORT and WORKTREE (printing the list of copied keys)
+- Copy files in the untracked file list (`syncFiles`) to the new Worktree (printing the list of copied files)
 - Automatically switch to the Worktree directory after execution (requires shell integration)
 
 **tmux integration** (when inside tmux):
@@ -192,6 +193,7 @@ $ pwd
 ✔ Using local branch: feature/login
 ✔ Worktree created: task-1
 ✔ Environment variables configured
+✓ Untracked files synced: copied 1 files (data/seed.json)
 
 ✓ Worktree created successfully!
 
@@ -610,6 +612,7 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 | `--build` / `--no-build` | `--build` | Whether to run the toolchain plugins' lint and build checks; `--no-build` skips them |
 | `--rebase` / `--no-rebase` | `--rebase` | Use rebase to update the worktree; `--no-rebase` uses merge instead |
 | `--sync-config` / `--no-sync-config` | `--sync-config` | Sync runtime config in both directions during merge |
+| `--sync-files` / `--no-sync-files` | `--sync-files` | Sync untracked files on merge (bring back to main and propagate to other worktrees) |
 | `--update` / `--no-update` | `--update` | Whether to automatically update worktrees with the latest main branch code after merge |
 | `--fetch` / `--no-fetch` | `--fetch` | Whether to fetch the latest main branch from remote before updating |
 | `--all` / `--no-all` (alias `--current-only`) | `--all` | Update scope: all worktrees or only the current one (only meaningful when `--update` is active) |
@@ -630,6 +633,10 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 **Step 2.5: Reverse-sync runtime config (worktree → main branch, default behavior)**
 - After the merge succeeds and before Step 3, new runtime config keys from the worktree are brought back to the main branch (skip with `--no-sync-config`)
 - Only keys missing on the main branch are added; existing values are never overwritten; keys whose values differ between sides are skipped with a per-key notice showing both sides' values; identity keys (`PORT` / `WORKTREE`) never participate in sync
+
+**Step 2.6: Reverse-sync untracked files (worktree → main branch, default behavior)**
+- After the merge succeeds, files in the worktree's new untracked file list (`syncFiles`) are brought back to the main branch (skip with `--no-sync-files`); files missing on main are copied, files identical on both sides are left untouched, and differing content raises a conflict message without overwriting
+- The subsequent `--update` phase propagates the newly brought-back files to other worktrees
 
 **Step 3: Automatically update worktrees after merge (default behavior)**
 - By default, first `fetch` the latest main branch from remote (`--no-fetch` skips this)

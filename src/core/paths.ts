@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
@@ -103,10 +104,54 @@ export async function findProjectRoot(startDir: string = process.cwd()): Promise
 }
 
 /**
+ * 宽松查找项目根目录（仅依据 .colyn 目录存在）
+ *
+ * 与 findProjectRoot 的区别：不要求主分支目录和 worktrees 目录存在，
+ * 因此可在目录结构残缺时定位项目（供 repair 命令补全结构使用）。
+ * 排除用户主目录，避免把 ~/.colyn（用户级配置）误判为项目根。
+ */
+export async function findProjectRootLoose(startDir: string = process.cwd()): Promise<string> {
+  let currentDir = path.resolve(startDir);
+  const homeDir = os.homedir();
+
+  // 最多向上查找 20 层，避免无限循环
+  for (let i = 0; i < 20; i++) {
+    if (currentDir !== homeDir) {
+      try {
+        const stats = await fs.stat(path.join(currentDir, '.colyn'));
+        if (stats.isDirectory()) {
+          return currentDir;
+        }
+      } catch {
+        // .colyn 不存在，继续向上查找
+      }
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
+    currentDir = parentDir;
+  }
+
+  throw new ColynError(
+    t('errors.projectRootNotFound'),
+    t('errors.projectRootNotFoundHint')
+  );
+}
+
+/**
  * 获取项目所有相关路径
  */
 export async function getProjectPaths(startDir: string = process.cwd()): Promise<ProjectPaths> {
   const rootDir = await findProjectRoot(startDir);
+  return buildProjectPaths(rootDir);
+}
+
+/**
+ * 由项目根目录构造所有相关路径
+ */
+export function buildProjectPaths(rootDir: string): ProjectPaths {
   const mainDirName = path.basename(rootDir);
 
   return {

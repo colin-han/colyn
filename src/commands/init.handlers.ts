@@ -37,6 +37,7 @@ import {
   type ToolchainContext
 } from '../core/toolchain-resolver.js';
 import { detectProviders, getProvider } from '../todo-backends/registry.js';
+import { repairProject } from './repair.helpers.js';
 import { setSettingsValueAtPath } from '../core/settings-mutator.js';
 
 /**
@@ -122,7 +123,10 @@ async function detectAndConfigureTodoBackend(
 
 /**
  * 根据工具链上下文列表配置端口和运行时环境
- * 对每个子项目询问端口（如有 portConfig），并写入运行时配置
+ *
+ * 对每个子项目确定端口（如有 portConfig），并写入运行时配置。
+ * 端口来源优先级：--port 显式指定 > 运行时配置中的现有值 > 交互式询问。
+ * 已配置过的项目不会被重复询问，也不会被覆盖。
  */
 async function configurePortAndEnv(
   contexts: ToolchainContext[],
@@ -135,10 +139,24 @@ async function configurePortAndEnv(
     const portConfig = pluginManager.getPortConfig([ctx.toolchainName]);
     if (!portConfig) continue;
 
-    const port = await getPortConfig(options, portConfig.defaultPort);
+    const existing = await pluginManager.readRuntimeConfig(
+      ctx.absolutePath,
+      [ctx.toolchainName]
+    );
+    const existingPort = existing ? parseInt(existing[portConfig.key] ?? '') : NaN;
+
+    let port: number;
+    if (!options.port && !isNaN(existingPort)) {
+      // 已有端口配置：沿用，不询问也不覆盖
+      port = existingPort;
+      output(t('commands.init.portReused', { port: String(port) }));
+    } else {
+      port = await getPortConfig(options, portConfig.defaultPort);
+    }
+
     await pluginManager.writeRuntimeConfig(
       ctx.absolutePath,
-      { [portConfig.key]: port.toString(), WORKTREE: worktreeLabel },
+      { ...(existing ?? {}), [portConfig.key]: port.toString(), WORKTREE: worktreeLabel },
       [ctx.toolchainName]
     );
 
@@ -390,6 +408,22 @@ export async function handleInitializedDirectory(
 
   // 如果有 portConfig，询问端口并写入运行时配置
   await configurePortAndEnv(contexts, options, 'main');
+
+  // 复用 repair 完成余下的修复：git worktree 连接、已有 worktree 的
+  // 运行时配置、孤儿目录检测（工具链与 todo backend 上面已处理）
+  try {
+    await repairProject({
+      contexts,
+      skipToolchainSetup: true,
+      skipTodoSetup: true,
+      nonInteractive
+    });
+  } catch (error) {
+    // 修复失败不阻断 init 流程
+    outputWarning(t('commands.init.repairFailed', {
+      error: error instanceof Error ? error.message : String(error)
+    }));
+  }
 
   // 设置 tmux 环境（获取主分支名称）
   let mainBranch = 'main';

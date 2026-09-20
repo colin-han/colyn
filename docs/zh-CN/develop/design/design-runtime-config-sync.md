@@ -307,7 +307,7 @@ commands.merge.noSyncConfigOption: '跳过运行时配置同步',
 
 - ❌ 值冲突的交互式解决（弹选择界面决定取哪侧）
 - ❌ 快照式三方合并（记录上次同步状态以区分"谁改的"）
-- ❌ 同步任意自定义文件列表（如 `settings.syncFiles` 配置）
+- ❌ 同步任意自定义文件列表（如 `settings.syncFiles` 配置）——该范围已由 [未跟踪文件同步设计](design-untracked-file-sync.md) 承接（按文件粒度独立同步，不复用本文档的 key-value 算法）
 - ❌ `remove` / `checkout` / `switch` 命令的同步（无同步语义或已有相应行为）
 - ❌ key 删除的传播（主分支删除 key 不会传播到 worktree）
 

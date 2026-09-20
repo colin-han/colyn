@@ -127,6 +127,7 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 | `--fetch` / `--no-fetch` | `--fetch` | Whether to fetch the latest main branch from remote before updating |
 | `--all` / `--no-all` (alias `--current-only`) | `--all` | Update scope: all worktrees or only the current one |
 | `--sync-config` / `--no-sync-config` | `--sync-config` | Sync runtime config when updating (main branch → worktree) |
+| `--sync-files` / `--no-sync-files` | `--sync-files` | Sync files in the untracked file list (`syncFiles`) when updating (main branch → worktree) |
 
 ### Description
 
@@ -136,6 +137,7 @@ All toggle options come in positive / negative forms. Defaults can be overridden
 - By default, use `rebase` to apply main branch code onto the worktree branch (`--no-rebase` uses merge)
 - **When no `target` is given, updates all worktrees by default**; specifying a `target` (ID or branch name) or using `--current-only` updates only that single worktree
 - After each worktree updates successfully, the **runtime config is synced automatically** (main branch → worktree; skip with `--no-sync-config`): only keys newly added on main are added; existing values are never overwritten and keys are never deleted; keys whose values differ between sides are skipped with a per-key notice showing both sides' values; identity keys (`PORT` / `WORKTREE`) keep the worktree side's values
+- After each worktree updates successfully, **untracked files are synced automatically** (main branch → worktree; skip with `--no-sync-files`): files in the untracked file list (`syncFiles`) newly added on main are copied to the worktree; files are copied only when missing on the target side, identical files are left untouched, **differing content raises a conflict message without overwriting**, and deletions are never propagated; tracked files and runtime config files are excluded automatically
 
 > Relationship with `colyn merge`: after a merge completes, the same update flow runs automatically (see "Step 3" of `colyn merge`).
 
@@ -159,6 +161,9 @@ $ colyn update --no-fetch
 
 # Skip runtime config sync
 $ colyn update --no-sync-config
+
+# Skip untracked file sync
+$ colyn update --no-sync-files
 ```
 
 ---

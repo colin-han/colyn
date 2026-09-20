@@ -16,8 +16,13 @@ vi.mock('../core/runtime-config-sync.js', () => ({
   syncWorktreeRuntimeConfigs: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../core/untracked-file-sync.js', () => ({
+  syncUntrackedFiles: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { updateAllWorktrees } from './update.helpers.js';
 import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
+import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 
 const worktree = {
   id: 1,
@@ -35,7 +40,7 @@ describe('updateAllWorktrees 运行时配置同步接线', () => {
   it('更新成功的 worktree 触发主→worktree 同步', async () => {
     const result = await updateAllWorktrees(
       [worktree], 'main', true,
-      { rootDir: '/p', mainDir: '/p/main' }
+      { rootDir: '/p', mainDir: '/p/main', syncConfig: true }
     );
 
     expect(result.succeeded).toBe(1);
@@ -72,10 +77,34 @@ describe('updateAllWorktrees 运行时配置同步接线', () => {
 
     const result = await updateAllWorktrees(
       [worktree], 'main', true,
-      { rootDir: '/p', mainDir: '/p/main' }
+      { rootDir: '/p', mainDir: '/p/main', syncConfig: true }
     );
 
     expect(result.failed).toBe(1);
     expect(syncWorktreeRuntimeConfigs).not.toHaveBeenCalled();
+  });
+
+  it('syncOptions.syncFiles 开启时触发未跟踪文件同步', async () => {
+    await updateAllWorktrees(
+      [worktree], 'main', true,
+      { rootDir: '/p', mainDir: '/p/main', syncFiles: true }
+    );
+
+    expect(syncUntrackedFiles).toHaveBeenCalledTimes(1);
+    expect(syncUntrackedFiles).toHaveBeenCalledWith({
+      rootDir: '/p',
+      mainDir: '/p/main',
+      worktreePath: '/p/worktrees/task-1',
+      direction: 'main-to-worktree',
+    });
+  });
+
+  it('syncFiles 未开启时不触发未跟踪文件同步', async () => {
+    await updateAllWorktrees(
+      [worktree], 'main', true,
+      { rootDir: '/p', mainDir: '/p/main', syncConfig: true }
+    );
+
+    expect(syncUntrackedFiles).not.toHaveBeenCalled();
   });
 });

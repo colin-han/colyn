@@ -23,14 +23,19 @@ colyn repair
 ### 1.3 执行结果
 
 执行后，系统会：
-1. 检查并修复主分支目录的 `.env.local` 文件
-2. 检查并修复所有 worktree 的 `.env.local` 文件
-3. 运行 `git worktree repair` 修复 git 连接
-4. 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件初始化（非致命）
-5. **运行当前 active Todo Backend 的 setup**（非致命）：
+1. 补全缺失的项目目录结构（`worktrees/`）
+2. 检查并修复主分支目录的**运行时配置**
+3. 同步主分支新增的配置项到各 worktree，并检查修复每个 worktree 的**运行时配置**
+4. 运行 `git worktree repair` 修复 git 连接
+5. 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件初始化（非致命）
+6. **运行当前 active Todo Backend 的 setup**（非致命）：
    - Local backend：无额外操作
    - GitHub backend：检查 `gh` 是否已安装并已登录；如未安装则提示安装方式，如未登录则提示运行 `gh auth login`
-6. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
+7. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
+
+> **运行时配置文件由工具链插件决定**：npm / pip 项目为 `.env.local`（端口 key `PORT`），
+> maven / gradle 项目为 `src/main/resources/application-local.properties`（端口 key `server.port`）。
+> Mono Repo 下每个子项目独立检查与修复。无工具链时回退到 `.env.local`。
 
 ---
 
@@ -146,22 +151,27 @@ $ colyn repair
 
 ```mermaid
 graph TD
-    Start([用户运行 colyn repair]) --> FindRoot[查找项目根目录]
-    FindRoot --> CheckInit{项目已初始化?}
+    Start([用户运行 colyn repair]) --> FindRoot[宽松查找项目根目录<br/>仅依据 .colyn 目录]
+    FindRoot --> CheckMainDir{主分支目录存在?}
 
-    CheckInit -->|否| ErrorNotInit[✗ 项目未初始化]
-    CheckInit -->|是| Discovery[发现项目信息]
+    CheckMainDir -->|否| ErrorNotInit[✗ 无法修复<br/>主分支目录丢失]
+    CheckMainDir -->|是| FixStructure[补全缺失的 worktrees 目录]
 
-    Discovery --> CheckMain[检查主分支 .env.local]
+    FixStructure --> ResolveTC[解析工具链上下文<br/>决定配置文件与端口 key]
+    ResolveTC --> CheckMain[检查主分支运行时配置]
     CheckMain --> MainOK{配置正确?}
     MainOK -->|是| MainPass[✔ 主分支配置正常]
     MainOK -->|否| FixMain[✗ 修复主分支配置]
 
-    MainPass --> CheckWorktrees[检查所有 worktree .env.local]
+    MainPass --> CheckWorktrees[检查所有 worktree 运行时配置]
     FixMain --> CheckWorktrees
 
     CheckWorktrees --> ForEachWT[遍历每个 worktree]
-    ForEachWT --> WTOK{配置正确?}
+    ForEachWT --> WTExists{目录存在?}
+    WTExists -->|否| SkipWT[⚠ 跳过并提示清理]
+    WTExists -->|是| SyncWT[同步主分支新增配置项]
+    SkipWT --> NextWT
+    SyncWT --> WTOK{身份键正确?}
     WTOK -->|是| WTPass[✔ Worktree 配置正常]
     WTOK -->|否| FixWT[✗ 修复 worktree 配置]
 
@@ -204,25 +214,26 @@ graph TD
     style GitFail fill:#FFA500
     style PluginFail fill:#FFA500
     style WarnOrphan fill:#FFA500
+    style SkipWT fill:#FFA500
     style ErrorNotInit fill:#FF6B6B
 ```
 
 ### 3.2 检查和修复逻辑
 
-#### 主分支 .env.local 检查
+#### 主分支运行时配置检查
 
 ```mermaid
 graph TD
-    Start[检查主分支 .env.local] --> ReadFile{读取成功?}
+    Start[检查主分支运行时配置] --> ReadFile{配置文件存在?}
 
-    ReadFile -->|否| ReadFail[✗ 标记失败并报错<br/>不创建默认文件]
-    ReadFile -->|是| CheckVars[检查环境变量]
+    ReadFile -->|否| Create[创建配置文件<br/>写入默认端口]
+    ReadFile -->|是| CheckVars[检查配置项]
 
-    ReadFail --> End
+    Create --> End
 
-    CheckVars --> HasPort{有 PORT?}
-    HasPort -->|否| AddPort[添加 PORT]
-    HasPort -->|是| PortOK[PORT 正确]
+    CheckVars --> HasPort{有端口 key?}
+    HasPort -->|否| AddPort[补插件默认端口]
+    HasPort -->|是| PortOK[保持用户已配置的端口<br/>不覆盖]
 
     PortOK --> HasWT{有 WORKTREE?}
     AddPort --> HasWT
@@ -237,7 +248,7 @@ graph TD
     FixWT --> End
     AllOK --> End2[✔ 无需修复]
 
-    style ReadFail fill:#FF6B6B
+    style Create fill:#FFD700
     style AddPort fill:#FFD700
     style AddWT fill:#FFD700
     style FixWT fill:#FFD700
@@ -245,17 +256,18 @@ graph TD
     style End2 fill:#90EE90
 ```
 
-#### Worktree .env.local 检查
+#### Worktree 运行时配置检查
 
 ```mermaid
 graph TD
-    Start[检查 worktree .env.local] --> GetID[从目录名提取 ID<br/>task-N → ID=N]
+    Start[检查 worktree 运行时配置] --> GetID[从目录名提取 ID<br/>task-N → ID=N]
 
-    GetID --> CheckVars[读取并检查环境变量]
+    GetID --> Sync[同步：重建缺失文件<br/>补齐主分支新增的 key]
+    Sync --> CheckVars[读取并检查身份键]
 
-    CheckVars --> HasPort{有 PORT?}
-    HasPort -->|否| AddPort[添加 PORT]
-    HasPort -->|是| PortCorrect{PORT = 主端口 + ID?}
+    CheckVars --> HasPort{有端口 key?}
+    HasPort -->|否| AddPort[添加端口]
+    HasPort -->|是| PortCorrect{端口 = 主分支端口 + ID?}
 
     PortCorrect -->|否| FixPort[修正 PORT]
     PortCorrect -->|是| HasWT{有 WORKTREE?}
@@ -272,10 +284,7 @@ graph TD
     AddWT --> NeedFix
     FixWT --> NeedFix
 
-    NeedFix[需要修复] --> FileMissing{文件缺失?}
-    FileMissing -->|是| CopyFromMain[从主分支复制 .env.local]
-    FileMissing -->|否| WriteFix[写入修正值]
-    CopyFromMain --> WriteFix
+    NeedFix[需要修复] --> WriteFix[写入修正值<br/>保留其他配置项]
     WriteFix --> End[✗ 已修复]
     AllOK --> End2[✔ 无需修复]
 
@@ -283,7 +292,7 @@ graph TD
     style FixPort fill:#FFD700
     style AddWT fill:#FFD700
     style FixWT fill:#FFD700
-    style CopyFromMain fill:#FFD700
+    style Sync fill:#FFD700
     style AllOK fill:#90EE90
     style End2 fill:#90EE90
 ```
@@ -358,41 +367,56 @@ graph TD
 
 ## 6. 检查规则详解
 
-### 6.1 主分支 .env.local 检查规则
+### 6.0 运行时配置文件的定位
 
-**必需环境变量**：
-- `PORT`：保持现有值（不修改）
+配置文件路径与端口 key 均由**工具链插件**决定，repair 不做任何硬编码假设：
+
+| 工具链 | 配置文件 | 端口 key | 默认端口 |
+|-------|---------|---------|---------|
+| npm / pip | `.env.local` | `PORT` | 3000 / 8000 |
+| maven / gradle | `src/main/resources/application-local.properties` | `server.port` | 8080 |
+| 无工具链（回退） | `.env.local` | `PORT` | 10000 |
+
+Mono Repo 下，每个已配置工具链的子项目都是一个独立的检查项，摘要中以
+`主分支运行时配置 [backend]` 的形式分列展示；worktree 中不存在的子目录会被跳过。
+
+### 6.1 主分支运行时配置检查规则
+
+**身份键**：
+- 端口 key：保持现有值（不修改），仅在缺失时补插件声明的默认端口
 - `WORKTREE`：必须为 `"main"`
 
 **修复策略**：
-- 如果文件读取失败（缺失或无法读取）：标记该检查项失败并报错，**不创建默认文件**
-- 如果缺少变量：添加缺失的变量
+- 如果配置文件缺失：创建文件并写入默认端口与 `WORKTREE=main`
+- 如果缺少端口：补插件默认端口
 - 如果 WORKTREE 不是 "main"：修正为 "main"
+- 其他配置项一律保留，不做任何改动
 
-### 6.2 Worktree .env.local 检查规则
+### 6.2 Worktree 运行时配置检查规则
 
 **目录名解析**：
 - 从目录名提取 ID：`task-1` → ID = 1
 
-**必需环境变量**：
-- `PORT`：必须为 `主端口 + ID`
+**身份键**：
+- 端口 key：必须为 `主分支同一子项目的端口 + ID`
 - `WORKTREE`：必须为 `ID`（数字字符串）
 
 **修复策略**：
-- 仅当需要修复（PORT 或 WORKTREE 不正确）且文件缺失时：从主分支复制 `.env.local`，再写入正确的 PORT 和 WORKTREE
-- 如果 PORT 错误：修正为 `主端口 + ID`
-- 如果 WORKTREE 错误：修正为 `ID`
+1. 先执行**运行时配置同步**（`main-to-worktree`）：
+   - 配置文件缺失时按主分支内容重建，并重算身份键
+   - 补齐主分支新增、worktree 尚无的配置项（同名不同值记为冲突，不覆盖）
+2. 再校正身份键：端口错误则修正为 `主分支端口 + ID`，WORKTREE 错误则修正为 `ID`
+3. Worktree 目录已丢失（git 仍有记录）时跳过并提示运行 `colyn remove` 或 `git worktree prune`
 
-**示例**：
+**示例**（maven 子项目，主分支 `server.port=8080`）：
 ```
-主端口 = 10000
-worktrees/task-1/.env.local:
-  PORT=10001  ✓ 正确（10000 + 1）
-  WORKTREE=1  ✓ 正确
+worktrees/task-1/src/main/resources/application-local.properties:
+  server.port=8081  ✓ 正确（8080 + 1）
+  WORKTREE=1        ✓ 正确
 
-worktrees/task-2/.env.local:
-  PORT=10005  ✗ 错误 → 修正为 10002（10000 + 2）
-  WORKTREE=3  ✗ 错误 → 修正为 2
+worktrees/task-2/src/main/resources/application-local.properties:
+  server.port=9999  ✗ 错误 → 修正为 8082（8080 + 2）
+  WORKTREE=3        ✗ 错误 → 修正为 2
 ```
 
 ### 6.3 Git worktree 连接修复
@@ -436,7 +460,7 @@ git worktree repair /new/path/to/worktrees/task-1
 ```
 
 **匹配逻辑**：
-- 从实际目录的 `.git` 文件或 `.env.local` 读取分支名
+- 从实际目录的 `.git` 文件或 git 仓库读取分支名
 - 与 git worktree list 中的分支名匹配
 - 匹配成功则认为是路径失效型，可以修复
 
@@ -476,7 +500,8 @@ WORKTREE=1      # 正确
 
 ```mermaid
 graph LR
-    Init[colyn init] -.->|创建配置| Add[colyn add]
+    Init[colyn init<br/>补全模式] -->|复用修复能力| Repair
+    Init -.->|创建配置| Add[colyn add]
     Add -.->|创建 worktree| List[colyn list]
 
     Move[移动项目目录] -->|导致配置错误| Repair[colyn repair]
@@ -495,6 +520,9 @@ graph LR
 - `repair` 是维护性命令，用于修复配置错误
 - 通常在移动目录或手动修改配置后运行
 - 修复后其他命令可以正常使用
+- `colyn init` 在已初始化目录上运行时（补全模式）会调用 `repairProject()`，
+  跳过自己已完成的工具链与 todo backend 步骤，从而与 `repair` 保持同一套修复逻辑，
+  避免两条命令的行为漂移
 
 ---
 
@@ -562,7 +590,8 @@ A: 不会。repair 只修复管理文件和环境变量配置，不涉及 git �
 
 ### 11.1 技术要求
 
-- 从项目任意位置运行（使用 `findProjectRoot`）
+- 从项目任意位置运行（使用 `findProjectRootLoose`，允许目录结构残缺）
+- 运行时配置一律经由工具链插件读写，不硬编码文件名与端口 key
 - 使用 ora spinner 显示每个检查项的进度
 - 错误不中断流程，记录后继续
 - 最后汇总显示所有修复和错误
@@ -571,9 +600,10 @@ A: 不会。repair 只修复管理文件和环境变量配置，不涉及 git �
 
 | 函数名 | 功能 | 输入 | 输出 |
 |-------|------|------|------|
-| `repairProject` | 主函数 | 无 | void |
-| `checkMainEnv` | 检查主分支 .env.local | mainDir, mainPort | RepairResult |
-| `checkWorktreeEnv` | 检查 worktree .env.local | wtPath, wtId, mainPort | RepairResult |
+| `repairProject` | 主函数 | RepairOptions | void |
+| `repairProjectStructure` | 补全目录结构 | paths | RepairResult |
+| `checkMainRuntimeConfig` | 检查主分支运行时配置 | target | RepairResult |
+| `checkWorktreeRuntimeConfig` | 检查 worktree 运行时配置 | target, mainTarget, wtId | RepairResult |
 | `repairGitWorktree` | 修复 git worktree 连接 | mainDir | RepairResult |
 | `detectAndRepairOrphans` | 检测并修复孤儿 worktree 目录 | mainDir, worktreesDir | OrphanDetectionResult |
 | `displayRepairSummary` | 显示修复摘要 | results[] | void |
@@ -592,6 +622,16 @@ interface RepairResult {
   details?: string[];
   /** 错误信息 */
   error?: string;
+  /** 跳过检查的说明（如 worktree 目录已丢失） */
+  skippedNote?: string;
+}
+
+/** repair 选项：init 补全模式复用 repairProject 时跳过已完成的步骤 */
+interface RepairOptions {
+  skipToolchainSetup?: boolean;
+  skipTodoSetup?: boolean;
+  nonInteractive?: boolean;
+  contexts?: ToolchainContext[];
 }
 
 interface OrphanDetectionResult {

@@ -23,14 +23,21 @@ colyn repair
 ### 1.3 Execution Result
 
 After execution, the system will:
-1. Check and fix the main branch directory's `.env.local` file
-2. Check and fix all worktree `.env.local` files
-3. Run `git worktree repair` to fix git connections
-4. Run plugin initialization (non-fatal — only shows a warning on failure)
-5. **Run setup for the current active Todo Backend** (non-fatal):
+1. Create the missing project directory structure (`worktrees/`)
+2. Check and fix the main branch **runtime config**
+3. Sync config keys newly added on the main branch to each worktree, then check and fix each worktree's **runtime config**
+4. Run `git worktree repair` to fix git connections
+5. Run plugin initialization (non-fatal — only shows a warning on failure)
+6. **Run setup for the current active Todo Backend** (non-fatal):
    - Local backend: no additional action
    - GitHub backend: verify that `gh` is installed and authenticated; if not installed, suggest installation steps; if not authenticated, suggest `gh auth login`
-6. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
+7. Detect and report orphan worktree directories (directories that exist but git doesn't recognize)
+
+> **The runtime config file is decided by the toolchain plugin**: npm / pip projects use
+> `.env.local` (port key `PORT`), maven / gradle projects use
+> `src/main/resources/application-local.properties` (port key `server.port`).
+> In a Mono Repo each sub-project is checked and fixed independently.
+> With no toolchain, it falls back to `.env.local`.
 
 ---
 
@@ -146,22 +153,27 @@ Suggested action:
 
 ```mermaid
 graph TD
-    Start([User runs colyn repair]) --> FindRoot[Find project root]
-    FindRoot --> CheckInit{Project initialized?}
+    Start([User runs colyn repair]) --> FindRoot[Loosely find project root<br/>only requires the .colyn directory]
+    FindRoot --> CheckMainDir{Main branch directory exists?}
 
-    CheckInit -->|No| ErrorNotInit[✗ Project not initialized]
-    CheckInit -->|Yes| Discovery[Discover project info]
+    CheckMainDir -->|No| ErrorNotInit[✗ Cannot repair<br/>main branch directory is gone]
+    CheckMainDir -->|Yes| FixStructure[Create the missing worktrees directory]
 
-    Discovery --> CheckMain[Check main branch .env.local]
+    FixStructure --> ResolveTC[Resolve toolchain contexts<br/>config file and port key]
+    ResolveTC --> CheckMain[Check main branch runtime config]
     CheckMain --> MainOK{Config correct?}
     MainOK -->|Yes| MainPass[✔ Main branch config normal]
     MainOK -->|No| FixMain[✗ Fix main branch config]
 
-    MainPass --> CheckWorktrees[Check all worktree .env.local]
+    MainPass --> CheckWorktrees[Check all worktree runtime configs]
     FixMain --> CheckWorktrees
 
     CheckWorktrees --> ForEachWT[Iterate each worktree]
-    ForEachWT --> WTOK{Config correct?}
+    ForEachWT --> WTExists{Directory exists?}
+    WTExists -->|No| SkipWT[⚠ Skip and suggest cleanup]
+    WTExists -->|Yes| SyncWT[Sync keys added on main]
+    SkipWT --> NextWT
+    SyncWT --> WTOK{Identity keys correct?}
     WTOK -->|Yes| WTPass[✔ Worktree config normal]
     WTOK -->|No| FixWT[✗ Fix worktree config]
 
@@ -200,25 +212,26 @@ graph TD
     style FixWT fill:#FFD700
     style GitFail fill:#FFA500
     style WarnOrphan fill:#FFA500
+    style SkipWT fill:#FFA500
     style ErrorNotInit fill:#FF6B6B
 ```
 
 ### 3.2 Check and Fix Logic
 
-#### Main Branch .env.local Check
+#### Main Branch Runtime Config Check
 
 ```mermaid
 graph TD
-    Start[Check main branch .env.local] --> ReadFile{Read succeeded?}
+    Start[Check main branch runtime config] --> ReadFile{Config file exists?}
 
-    ReadFile -->|No| ReadFail[✗ Mark failed and report error<br/>Do not create default file]
-    ReadFile -->|Yes| CheckVars[Check environment variables]
+    ReadFile -->|No| Create[Create config file<br/>write the default port]
+    ReadFile -->|Yes| CheckVars[Check config keys]
 
-    ReadFail --> End
+    Create --> End
 
-    CheckVars --> HasPort{Has PORT?}
-    HasPort -->|No| AddPort[Add PORT]
-    HasPort -->|Yes| PortOK[PORT correct]
+    CheckVars --> HasPort{Has the port key?}
+    HasPort -->|No| AddPort[Add the plugin default port]
+    HasPort -->|Yes| PortOK[Keep the configured port<br/>never overwritten]
 
     PortOK --> HasWT{Has WORKTREE?}
     AddPort --> HasWT
@@ -233,7 +246,7 @@ graph TD
     FixWT --> End
     AllOK --> End2[✔ No fix needed]
 
-    style ReadFail fill:#FF6B6B
+    style Create fill:#FFD700
     style AddPort fill:#FFD700
     style AddWT fill:#FFD700
     style FixWT fill:#FFD700
@@ -241,17 +254,18 @@ graph TD
     style End2 fill:#90EE90
 ```
 
-#### Worktree .env.local Check
+#### Worktree Runtime Config Check
 
 ```mermaid
 graph TD
-    Start[Check worktree .env.local] --> GetID[Extract ID from directory name<br/>task-N → ID=N]
+    Start[Check worktree runtime config] --> GetID[Extract ID from directory name<br/>task-N → ID=N]
 
-    GetID --> CheckVars[Read and check environment variables]
+    GetID --> Sync[Sync: rebuild a missing file<br/>add keys newly added on main]
+    Sync --> CheckVars[Read and check identity keys]
 
-    CheckVars --> HasPort{Has PORT?}
-    HasPort -->|No| AddPort[Add PORT]
-    HasPort -->|Yes| PortCorrect{PORT = base port + ID?}
+    CheckVars --> HasPort{Has the port key?}
+    HasPort -->|No| AddPort[Add the port]
+    HasPort -->|Yes| PortCorrect{port = main branch port + ID?}
 
     PortCorrect -->|No| FixPort[Correct PORT]
     PortCorrect -->|Yes| HasWT{Has WORKTREE?}
@@ -268,10 +282,7 @@ graph TD
     AddWT --> NeedFix
     FixWT --> NeedFix
 
-    NeedFix[Needs fix] --> FileMissing{File missing?}
-    FileMissing -->|Yes| CopyFromMain[Copy .env.local from main branch]
-    FileMissing -->|No| WriteFix[Write corrected values]
-    CopyFromMain --> WriteFix
+    NeedFix[Needs fix] --> WriteFix[Write corrected values<br/>other keys preserved]
     WriteFix --> End[✗ Fixed]
     AllOK --> End2[✔ No fix needed]
 
@@ -279,7 +290,7 @@ graph TD
     style FixPort fill:#FFD700
     style AddWT fill:#FFD700
     style FixWT fill:#FFD700
-    style CopyFromMain fill:#FFD700
+    style Sync fill:#FFD700
     style AllOK fill:#90EE90
     style End2 fill:#90EE90
 ```
@@ -354,41 +365,58 @@ Details:
 
 ## 6. Check Rules Explained
 
-### 6.1 Main Branch .env.local Check Rules
+### 6.0 Locating the Runtime Config File
 
-**Required environment variables**:
-- `PORT`: Keep existing value (don't modify)
+Both the config file path and the port key come from the **toolchain plugin** —
+repair hardcodes no assumptions:
+
+| Toolchain | Config file | Port key | Default port |
+|-----------|-------------|----------|--------------|
+| npm / pip | `.env.local` | `PORT` | 3000 / 8000 |
+| maven / gradle | `src/main/resources/application-local.properties` | `server.port` | 8080 |
+| No toolchain (fallback) | `.env.local` | `PORT` | 10000 |
+
+In a Mono Repo, every sub-project with a configured toolchain is its own check item and is
+listed separately in the summary as `Main branch runtime config [backend]`.
+Sub-directories that don't exist in a worktree are skipped.
+
+### 6.1 Main Branch Runtime Config Check Rules
+
+**Identity keys**:
+- Port key: keep the existing value (never modified); the plugin's default port is written only when it is missing
 - `WORKTREE`: Must be `"main"`
 
 **Fix strategy**:
-- If file read fails (missing or unreadable): Mark this check item as failed and report an error; **do not create a default file**
-- If missing variables: Add missing variables
-- If WORKTREE is not "main": Correct to "main"
+- If the config file is missing: create it with the default port and `WORKTREE=main`
+- If the port is missing: add the plugin's default port
+- If WORKTREE is not "main": correct to "main"
+- All other config keys are preserved untouched
 
-### 6.2 Worktree .env.local Check Rules
+### 6.2 Worktree Runtime Config Check Rules
 
 **Directory name parsing**:
 - Extract ID from directory name: `task-1` → ID = 1
 
-**Required environment variables**:
-- `PORT`: Must be `base port + ID`
+**Identity keys**:
+- Port key: Must be `main branch port of the same sub-project + ID`
 - `WORKTREE`: Must be `ID` (numeric string)
 
 **Fix strategy**:
-- Only when a fix is needed (PORT or WORKTREE incorrect) and the file is missing: Copy `.env.local` from main branch, then write the correct PORT and WORKTREE
-- If PORT is wrong: Correct to `base port + ID`
-- If WORKTREE is wrong: Correct to `ID`
+1. First run the **runtime config sync** (`main-to-worktree`):
+   - Rebuild the config file from the main branch when it is missing, recomputing the identity keys
+   - Add keys that exist on the main branch but not yet in the worktree (same key with a different value is recorded as a conflict and never overwritten)
+2. Then correct the identity keys: a wrong port becomes `main branch port + ID`, a wrong WORKTREE becomes `ID`
+3. When the worktree directory is gone (git still records it), skip it and suggest `colyn remove` or `git worktree prune`
 
-**Example**:
+**Example** (maven sub-project, main branch `server.port=8080`):
 ```
-Base port = 10000
-worktrees/task-1/.env.local:
-  PORT=10001  ✓ Correct (10000 + 1)
-  WORKTREE=1  ✓ Correct
+worktrees/task-1/src/main/resources/application-local.properties:
+  server.port=8081  ✓ Correct (8080 + 1)
+  WORKTREE=1        ✓ Correct
 
-worktrees/task-2/.env.local:
-  PORT=10005  ✗ Wrong → Correct to 10002 (10000 + 2)
-  WORKTREE=3  ✗ Wrong → Correct to 2
+worktrees/task-2/src/main/resources/application-local.properties:
+  server.port=9999  ✗ Wrong → Correct to 8082 (8080 + 2)
+  WORKTREE=3        ✗ Wrong → Correct to 2
 ```
 
 ### 6.3 Git Worktree Connection Repair
@@ -432,7 +460,7 @@ git worktree repair /new/path/to/worktrees/task-1
 ```
 
 **Matching logic**:
-- Read branch name from actual directory's `.git` file or `.env.local`
+- Read branch name from the actual directory's `.git` file or git repository
 - Match with branch name in git worktree list
 - Successful match means invalid path type, can be repaired
 
@@ -472,7 +500,8 @@ WORKTREE=1      # Correct
 
 ```mermaid
 graph LR
-    Init[colyn init] -.->|Create config| Add[colyn add]
+    Init[colyn init<br/>completion mode] -->|Reuses the repair logic| Repair
+    Init -.->|Create config| Add[colyn add]
     Add -.->|Create worktree| List[colyn list]
 
     Move[Move project directory] -->|Causes config errors| Repair[colyn repair]
@@ -491,6 +520,9 @@ graph LR
 - `repair` is a maintenance command for fixing configuration errors
 - Usually run after moving directory or manually modifying configuration
 - After repair, other commands can work normally
+- When `colyn init` runs in an already initialized directory (completion mode) it calls
+  `repairProject()`, skipping the toolchain and todo backend steps it has already done, so
+  both commands share one repair implementation and cannot drift apart
 
 ---
 
@@ -558,7 +590,8 @@ A: No. repair only fixes management files and environment variable configuration
 
 ### 11.1 Technical Requirements
 
-- Run from anywhere in project (use `findProjectRoot`)
+- Run from anywhere in project (use `findProjectRootLoose`, which tolerates a broken directory structure)
+- All runtime config reads and writes go through the toolchain plugin — no hardcoded file name or port key
 - Use ora spinner to show progress for each check item
 - Errors don't interrupt flow, log and continue
 - Display all repairs and errors in summary at end
@@ -567,9 +600,10 @@ A: No. repair only fixes management files and environment variable configuration
 
 | Function Name | Purpose | Input | Output |
 |---------------|---------|-------|--------|
-| `repairProject` | Main function | None | void |
-| `checkMainEnv` | Check main branch .env.local | mainDir, mainPort | RepairResult |
-| `checkWorktreeEnv` | Check worktree .env.local | wtPath, wtId, mainPort | RepairResult |
+| `repairProject` | Main function | RepairOptions | void |
+| `repairProjectStructure` | Create the missing directory structure | paths | RepairResult |
+| `checkMainRuntimeConfig` | Check main branch runtime config | target | RepairResult |
+| `checkWorktreeRuntimeConfig` | Check worktree runtime config | target, mainTarget, wtId | RepairResult |
 | `repairGitWorktree` | Repair git worktree connections | mainDir | RepairResult |
 | `detectAndRepairOrphans` | Detect and repair orphan worktree directories | mainDir, worktreesDir | OrphanDetectionResult |
 | `displayRepairSummary` | Display repair summary | results[] | void |
@@ -588,6 +622,16 @@ interface RepairResult {
   details?: string[];
   /** Error message */
   error?: string;
+  /** Why the check was skipped (e.g. the worktree directory is gone) */
+  skippedNote?: string;
+}
+
+/** repair options: init's completion mode reuses repairProject and skips what it already did */
+interface RepairOptions {
+  skipToolchainSetup?: boolean;
+  skipTodoSetup?: boolean;
+  nonInteractive?: boolean;
+  contexts?: ToolchainContext[];
 }
 
 interface OrphanDetectionResult {

@@ -27,7 +27,7 @@ import { getBranchCategories, resolveAbbr } from '../core/config.js';
 import {
   isValidBranchName,
   checkIsGitRepo,
-  checkMainEnvFile,
+  checkMainRuntimeConfigExists,
   handleBranch,
   createWorktree,
   configureWorktreeEnv,
@@ -35,6 +35,7 @@ import {
 } from './add.helpers.js';
 import { pluginManager } from '../plugins/index.js';
 import { resolveToolchains } from '../core/toolchain-resolver.js';
+import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 import * as fsPromises from 'fs/promises';
 import {
   isTmuxAvailable,
@@ -402,7 +403,9 @@ async function addCommand(branchName?: string): Promise<void> {
       await checkIsGitRepo();
     });
 
-    await checkMainEnvFile(paths.rootDir, paths.mainDirName);
+    // 解析工具链（决定运行时配置文件位置），后续步骤复用
+    const contexts = await resolveToolchains(paths.rootDir, paths.mainDir);
+    await checkMainRuntimeConfigExists(paths.mainDir, contexts);
 
     // 步骤3: 解析主分支名；无参时进入交互式分支选择
     const mainBranch = await getMainBranch(paths.mainDir);
@@ -456,9 +459,7 @@ async function addCommand(branchName?: string): Promise<void> {
       return await createWorktree(paths.rootDir, cleanBranchName, id, projectInfo.worktrees);
     });
 
-    // 步骤10: 配置环境变量（通过工具链解析器）
-    const contexts = await resolveToolchains(paths.rootDir, paths.mainDir);
-
+    // 步骤10: 配置环境变量（工具链在步骤2已解析）
     if (contexts.length > 0) {
       for (const ctx of contexts) {
         const worktreeSubPath = ctx.subPath === '.'
@@ -496,6 +497,15 @@ async function addCommand(branchName?: string): Promise<void> {
     } else {
       await configureWorktreeEnv(paths.mainDir, worktreePath, id, port);
     }
+
+    // 步骤10.2: 复制未跟踪文件清单内文件（主分支 → worktree）
+    // worktree 刚创建，清单内文件必然为复制，无冲突可能；清单为空时零行为
+    await syncUntrackedFiles({
+      rootDir: paths.rootDir,
+      mainDir: paths.mainDir,
+      worktreePath,
+      direction: 'main-to-worktree',
+    });
 
     // 步骤10.5: 安装依赖
     if (contexts.length > 0) {

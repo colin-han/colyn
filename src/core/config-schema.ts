@@ -148,6 +148,7 @@ export const MergeCommandConfigSchema = z
     fetch: z.boolean().optional(),
     all: z.boolean().optional(),
     syncConfig: z.boolean().optional(),
+    syncFiles: z.boolean().optional(),
   })
   .strict();
 
@@ -162,6 +163,7 @@ export const UpdateCommandConfigSchema = z
     fetch: z.boolean().optional(),
     all: z.boolean().optional(),
     syncConfig: z.boolean().optional(),
+    syncFiles: z.boolean().optional(),
   })
   .strict();
 
@@ -262,6 +264,11 @@ const SettingsSchemaBase = z.object({
    * 用于 add/checkout/todo add 的 type 选择
    */
   branchCategories: z.array(BranchCategorySchema).optional(),
+  /**
+   * 未跟踪文件同步清单（支持通配符：* 单段、** 跨目录段）
+   * 默认缺省（[]）即功能关闭；见 docs/zh-CN/develop/design/design-untracked-file-sync.md
+   */
+  syncFiles: z.array(z.string()).optional(),
   /** 子命令的默认值配置 */
   commands: CommandsConfigSchema.optional(),
   /** Todo backend 配置 */

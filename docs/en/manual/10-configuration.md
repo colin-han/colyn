@@ -1632,6 +1632,7 @@ Since v3.3, you can set project-level or user-level defaults for boolean options
 | Field | Default | Description |
 |-------|---------|-------------|
 | `verbose` | `false` | Enable verbose output for all commands, equivalent to adding `-v` every time |
+| `syncFiles` | `[]` | Untracked File Sync list (supports wildcards), see below |
 
 #### commands.merge
 
@@ -1643,6 +1644,7 @@ Since v3.3, you can set project-level or user-level defaults for boolean options
 | `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees |
 | `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | Sync runtime config in both directions during merge |
+| `syncFiles` | `true` | `--sync-files` | `--no-sync-files` | Sync untracked files on merge (bring back to main and propagate to other worktrees) |
 
 > ⚠️ `merge.all` only takes effect when `merge.update === true`. If `update=false` (or CLI `--no-update`), no worktrees will be updated even when `all=true`.
 
@@ -1654,6 +1656,26 @@ Since v3.3, you can set project-level or user-level defaults for boolean options
 | `fetch` | `true` | `--fetch` | `--no-fetch` | Run git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | Update all worktrees |
 | `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | Sync the main branch's runtime config on update |
+| `syncFiles` | `true` | `--sync-files` | `--no-sync-files` | Sync the main branch's untracked files on update |
+
+### Untracked File Sync list (syncFiles)
+
+The top-level `syncFiles` is a **file list** (`string[]`) that controls which files the **Untracked File Sync** mechanism handles: it syncs local files not tracked by git (such as seed data, local certificates) between the main branch directory and worktree directories according to the list. Defaults to `[]`, i.e. the feature is off.
+
+```jsonc
+{
+  "version": 4,
+  "syncFiles": ["data/*.json", "certs/**"]
+}
+```
+
+Key points:
+
+- **Wildcards**: `*` matches one path segment (does not cross `/`), `**` spans directory segments, same style as `branchOverrides`
+- **Sync directions**: `add` / `update` / `repair` copy main → worktree; `merge` first brings worktree-new files back to main, then the `--update` phase propagates them to other worktrees
+- **Conservative semantics**: copy only when missing on the target side; if both sides exist with identical content, leave untouched; **differing content raises a conflict message — no overwrite, no merge**; deletions are never propagated
+- **Automatic exclusions**: files already tracked by git are synced by git; runtime config files (`.env.local` etc.) are handled by Runtime Config Sync — both are skipped with a notice when matched
+- **Add them to `.gitignore` as well**: list files not ignored by git appear in the untracked section of `git status`, which may cause `update` / `merge` to skip the worktree as having a dirty working directory
 
 #### commands.release
 

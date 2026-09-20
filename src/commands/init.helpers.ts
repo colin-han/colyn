@@ -9,7 +9,6 @@ import {
   ColynError
 } from '../types/index.js';
 import { checkIsRepo } from '../core/git.js';
-import { updateEnvFilePreserveComments } from '../core/env.js';
 import { findProjectRoot } from '../core/paths.js';
 import {
   output,
@@ -222,73 +221,6 @@ export async function moveFilesToMainDir(
       t('commands.init.moveFilesError'),
       t('commands.init.moveFilesErrorHint')
     );
-  }
-}
-
-/**
- * 配置 .env.local 文件
- */
-export async function configureEnvFile(
-  mainDirPath: string,
-  port: number,
-  worktree: string
-): Promise<void> {
-  const spinner = ora({ text: t('commands.init.configuringEnv'), stream: process.stderr }).start();
-
-  try {
-    const envFilePath = path.join(mainDirPath, '.env.local');
-
-    // 需要添加的环境变量
-    const requiredEnv = {
-      PORT: port.toString(),
-      WORKTREE: worktree
-    };
-
-    // 智能合并
-    await updateEnvFilePreserveComments(envFilePath, requiredEnv);
-
-    spinner.succeed(t('commands.init.envConfigured'));
-  } catch (error) {
-    spinner.fail(t('commands.init.envConfigFailed'));
-    throw error;
-  }
-}
-
-/**
- * 配置 .gitignore 文件
- */
-export async function configureGitignore(mainDirPath: string): Promise<void> {
-  const spinner = ora({ text: t('commands.init.configuringGitignore'), stream: process.stderr }).start();
-
-  try {
-    const gitignorePath = path.join(mainDirPath, '.gitignore');
-
-    // 读取现有 .gitignore
-    let content = '';
-    try {
-      content = await fs.readFile(gitignorePath, 'utf-8');
-    } catch {
-      // 文件不存在，创建新的
-    }
-
-    // 检查是否已有忽略规则
-    const hasEnvLocalRule = content.includes('.env.local');
-    const hasLocalRule = content.includes('*.local');
-
-    // 如果都没有，添加 .env.local 规则
-    if (!hasEnvLocalRule && !hasLocalRule) {
-      const newContent = content.trim()
-        ? `${content}\n\n# Environment files\n.env.local\n`
-        : '# Environment files\n.env.local\n';
-
-      await fs.writeFile(gitignorePath, newContent, 'utf-8');
-      spinner.succeed(t('commands.init.gitignoreConfigured'));
-    } else {
-      spinner.succeed(t('commands.init.gitignoreSkipped'));
-    }
-  } catch (error) {
-    spinner.fail(t('commands.init.gitignoreFailed'));
-    throw error;
   }
 }
 

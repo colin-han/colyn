@@ -158,6 +158,7 @@ colyn add [branch]
 - 自动分配 ID（递增）
 - 自动分配端口号（主端口 + ID）
 - 复制主分支环境变量并更新 PORT 和 WORKTREE（复制后输出 key 清单）
+- 复制未跟踪文件清单（`syncFiles`）内的文件到新 Worktree（复制后输出文件清单）
 - 执行后自动切换到 Worktree 目录（需启用 shell 集成）
 
 **tmux 集成**（如果在 tmux 中）：
@@ -192,6 +193,7 @@ $ pwd
 ✔ 使用本地分支: feature/login
 ✔ Worktree 创建完成: task-1
 ✔ 环境变量配置完成
+✓ 未跟踪文件已同步：复制 1 个文件 (data/seed.json)
 
 ✓ Worktree 创建成功！
 
@@ -610,6 +612,7 @@ colyn merge [target] [选项]
 | `--build` / `--no-build` | `--build` | 是否运行工具链插件的 lint 和 build 检查；`--no-build` 跳过 |
 | `--rebase` / `--no-rebase` | `--rebase` | 更新 worktree 时使用 rebase；`--no-rebase` 改用 merge |
 | `--sync-config` / `--no-sync-config` | `--sync-config` | 合并时双向同步运行时配置 |
+| `--sync-files` / `--no-sync-files` | `--sync-files` | 合并时同步未跟踪文件（带回主分支并传播到其他 worktree） |
 | `--update` / `--no-update` | `--update` | 合并后是否用主分支最新代码自动更新 worktree |
 | `--fetch` / `--no-fetch` | `--fetch` | 更新前是否从远程 fetch 主分支最新代码 |
 | `--all` / `--no-all`（别名 `--current-only`） | `--all` | 更新范围：所有 worktree 还是仅当前 worktree（仅在 `--update` 生效时有意义） |
@@ -630,6 +633,10 @@ colyn merge [target] [选项]
 **步骤 2.5：反向同步运行时配置（worktree → 主分支，默认行为）**
 - 合并成功后、步骤 3 之前，把 worktree 新增的运行时配置带回主分支（`--no-sync-config` 跳过）
 - 仅补充主分支缺失的 key，永不覆盖既有值；两侧值不同的 key 跳过并逐项提示（含两侧值，便于人工取舍）；身份键（`PORT` / `WORKTREE`）不参与同步
+
+**步骤 2.6：反向同步未跟踪文件（worktree → 主分支，默认行为）**
+- 合并成功后，把 worktree 新增的未跟踪文件清单（`syncFiles`）内文件带回主分支（`--no-sync-files` 跳过）；主分支缺失的文件复制，两侧都有且内容相同不动，内容不同报冲突提示、不覆盖
+- 随后的 `--update` 环节会把带回主分支的新文件传播到其他 worktree
 
 **步骤 3：合并后自动更新 worktree（默认行为）**
 - 默认先从远程 `fetch` 主分支最新代码（`--no-fetch` 跳过）
