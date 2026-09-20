@@ -17,6 +17,10 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import simpleGit from 'simple-git';
 import { pluginManager } from '../plugins/index.js';
+import { loadUserConfig, loadProjectConfig } from './config-loader.js';
+import { mergeConfigs } from './config-merger.js';
+import { output, outputError, outputSuccess, outputWarning } from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 
 /** 同步方向：main-to-worktree（update/add/repair）、worktree-to-main（merge） */
 export type UntrackedFileSyncDirection = 'main-to-worktree' | 'worktree-to-main';
@@ -159,4 +163,167 @@ export async function resolveSyncFileCandidates(
     }
   }
   return { candidates, skipped };
+}
+
+/** 从合并后的 settings 读取 syncFiles 清单 */
+async function loadSyncFilesPatterns(rootDir: string): Promise<string[]> {
+  const [userCfg, projectCfg] = await Promise.all([
+    loadUserConfig(),
+    loadProjectConfig(rootDir),
+  ]);
+  if (!userCfg && !projectCfg) return [];
+  return mergeConfigs(userCfg, projectCfg).syncFiles ?? [];
+}
+
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fileContentsEqual(a: string, b: string): Promise<boolean> {
+  const [bufA, bufB] = await Promise.all([fs.readFile(a), fs.readFile(b)]);
+  return bufA.equals(bufB);
+}
+
+function formatTime(d: Date): string {
+  return d.toISOString().replace('T', ' ').slice(0, 16);
+}
+
+/**
+ * 同步编排：加载清单 → 解析候选 → 读两侧状态 → 决策 → 复制 → 输出
+ *
+ * - 永不抛出：异常输出警告后返回（git 操作已完成，不可阻断）
+ * - 清单为空或解析后无候选 → 零行为（不输出）
+ * - 无实际操作时静默，verbose=true 才输出 noChange
+ */
+export async function syncUntrackedFiles(params: {
+  rootDir: string;
+  mainDir: string;
+  worktreePath: string;
+  direction: UntrackedFileSyncDirection;
+  verbose?: boolean;
+}): Promise<void> {
+  const { rootDir, mainDir, worktreePath, direction, verbose = false } = params;
+
+  let patterns: string[];
+  try {
+    patterns = await loadSyncFilesPatterns(rootDir);
+  } catch (error) {
+    outputWarning(t('untrackedFileSync.error', { error: errorMessage(error) }));
+    return;
+  }
+  if (patterns.length === 0) return;
+
+  try {
+    // 源侧按方向确定（设计澄清 1）；tracked 检查在 mainDir（同一 git 仓库）
+    const sourceDir = direction === 'main-to-worktree' ? mainDir : worktreePath;
+    const targetDir = direction === 'main-to-worktree' ? worktreePath : mainDir;
+
+    const { candidates, skipped } = await resolveSyncFileCandidates(sourceDir, patterns, mainDir);
+
+    const statuses: UntrackedFileStatus[] = [];
+    for (const rel of candidates) {
+      const sourcePath = path.join(sourceDir, rel);
+      const targetPath = path.join(targetDir, rel);
+      const sourceExists = await fileExists(sourcePath);
+      const targetExists = await fileExists(targetPath);
+      const contentEqual =
+        sourceExists && targetExists
+          ? await fileContentsEqual(sourcePath, targetPath)
+          : false;
+      statuses.push({ path: rel, sourceExists, targetExists, contentEqual });
+    }
+
+    const plan = planUntrackedFileSync(statuses);
+
+    // 复制（fs.copyFile 保留权限位）；目标父目录不存在时递归创建
+    for (const rel of plan.toCopy) {
+      const targetPath = path.join(targetDir, rel);
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.copyFile(path.join(sourceDir, rel), targetPath);
+    }
+
+    // 冲突：收集两侧修改时间（不写入任何内容）
+    const conflicts: UntrackedFileConflict[] = [];
+    for (const rel of plan.conflicts) {
+      const [sourceStat, targetStat] = await Promise.all([
+        fs.stat(path.join(sourceDir, rel)),
+        fs.stat(path.join(targetDir, rel)),
+      ]);
+      conflicts.push({ path: rel, sourceMtime: sourceStat.mtime, targetMtime: targetStat.mtime });
+    }
+
+    // 源缺失也归入 skipped（verbose 场景提示）
+    const allSkipped: SkippedUntrackedFile[] = [
+      ...skipped,
+      ...plan.sourceMissing.map((p) => ({ path: p, reason: 'source-missing' as const })),
+    ];
+
+    reportUntrackedFileSync(
+      { copied: plan.toCopy, conflicts, skipped: allSkipped },
+      direction,
+      worktreePath,
+      verbose
+    );
+  } catch (error) {
+    outputWarning(t('untrackedFileSync.error', { error: errorMessage(error) }));
+  }
+}
+
+function reportUntrackedFileSync(
+  result: UntrackedFileSyncResult,
+  direction: UntrackedFileSyncDirection,
+  worktreePath: string,
+  verbose: boolean
+): void {
+  const mainLabel = t('untrackedFileSync.mainLabel');
+  const wtLabel = path.basename(worktreePath);
+  const sourceLabel = direction === 'main-to-worktree' ? mainLabel : wtLabel;
+  const targetLabel = direction === 'main-to-worktree' ? wtLabel : mainLabel;
+
+  let reported = false;
+  if (result.copied.length > 0) {
+    outputSuccess(t(
+      direction === 'main-to-worktree'
+        ? 'untrackedFileSync.copied'
+        : 'untrackedFileSync.broughtBack',
+      { count: result.copied.length, files: result.copied.join(', ') }
+    ));
+    reported = true;
+  }
+  if (result.conflicts.length > 0) {
+    outputError(t('untrackedFileSync.conflict', { count: result.conflicts.length }));
+    for (const conflict of result.conflicts) {
+      output('  ' + t('untrackedFileSync.conflictDetail', {
+        file: conflict.path,
+        sourceLabel,
+        sourceMtime: formatTime(conflict.sourceMtime),
+        targetLabel,
+        targetMtime: formatTime(conflict.targetMtime),
+      }));
+    }
+    reported = true;
+  }
+  if (result.skipped.length > 0) {
+    for (const item of result.skipped) {
+      const reasonKey = item.reason === 'tracked'
+        ? 'untrackedFileSync.skippedReasonTracked'
+        : item.reason === 'runtime-config'
+          ? 'untrackedFileSync.skippedReasonRuntimeConfig'
+          : 'untrackedFileSync.skippedReasonSourceMissing';
+      outputWarning(t('untrackedFileSync.skipped', { file: item.path, reason: t(reasonKey) }));
+    }
+    reported = true;
+  }
+  if (!reported && verbose) {
+    output(t('untrackedFileSync.noChange'));
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

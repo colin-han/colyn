@@ -332,6 +332,8 @@ Hints:
       noAllOption: 'Update only current worktree (overrides commands.merge.all=true)',
       syncConfigOption: 'Sync runtime config during merge (default)',
       noSyncConfigOption: 'Skip runtime config sync',
+      syncFilesOption: 'Sync untracked files on merge (default)',
+      noSyncFilesOption: 'Skip untracked file sync',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn merge <id>
@@ -440,6 +442,8 @@ Main branch directory: {{path}}`,
       noAllOption: 'Update only current worktree (overrides commands.update.all=true)',
       syncConfigOption: 'Sync runtime config from main branch (default)',
       noSyncConfigOption: 'Skip runtime config sync',
+      syncFilesOption: 'Sync untracked files from main branch (default)',
+      noSyncFilesOption: 'Skip untracked file sync',
       cannotAutoDetect: 'Cannot auto-detect worktree',
       cannotAutoDetectHint: `Please run this command in a worktree directory, or specify ID/branch name:
   colyn update <id>
@@ -1072,6 +1076,21 @@ Solution:
     mainMissing: 'Main branch runtime config file missing, sync skipped',
     error: 'Runtime config sync failed: {{error}}',
     noChange: 'Runtime config: no changes',
+  },
+
+  // Untracked file sync
+  untrackedFileSync: {
+    copied: 'Untracked files synced: copied {{count}} files ({{files}})',
+    broughtBack: 'Brought back {{count}} untracked files to main: {{files}}',
+    conflict: '{{count}} files differ between both sides, skipped — manual resolution needed:',
+    conflictDetail: '{{file}}: {{sourceLabel}}({{sourceMtime}}) / {{targetLabel}}({{targetMtime}})',
+    skipped: 'Skipped file: {{file}} ({{reason}})',
+    skippedReasonTracked: 'tracked by git, synced by git',
+    skippedReasonRuntimeConfig: 'runtime config file, handled by Runtime Config Sync',
+    skippedReasonSourceMissing: 'missing on the source side',
+    error: 'Untracked file sync failed: {{error}}',
+    noChange: 'No changes in untracked files',
+    mainLabel: 'main',
   },
 
   // Errors

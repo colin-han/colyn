@@ -332,6 +332,8 @@ export const zhCN = {
       noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
       syncConfigOption: '合并时同步运行时配置（默认开启）',
       noSyncConfigOption: '跳过运行时配置同步',
+      syncFilesOption: '合并时同步未跟踪文件（默认开启）',
+      noSyncFilesOption: '跳过未跟踪文件同步',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn merge <id>
@@ -440,6 +442,8 @@ export const zhCN = {
       noAllOption: '仅更新当前 worktree（覆盖配置中的 all=true）',
       syncConfigOption: '同步主分支运行时配置（默认开启）',
       noSyncConfigOption: '跳过运行时配置同步',
+      syncFilesOption: '同步主分支未跟踪文件（默认开启）',
+      noSyncFilesOption: '跳过未跟踪文件同步',
       cannotAutoDetect: '无法自动识别 worktree',
       cannotAutoDetectHint: `请在 worktree 目录中运行此命令，或指定 ID/分支名：
   colyn update <id>
@@ -1072,6 +1076,21 @@ export const zhCN = {
     mainMissing: '主分支运行时配置文件不存在，跳过同步',
     error: '运行时配置同步失败：{{error}}',
     noChange: '运行时配置无变化',
+  },
+
+  // 未跟踪文件同步
+  untrackedFileSync: {
+    copied: '未跟踪文件已同步：复制 {{count}} 个文件 ({{files}})',
+    broughtBack: '已带回 {{count}} 个未跟踪文件到主分支：{{files}}',
+    conflict: '{{count}} 个文件两侧内容不同，已跳过，请人工处理：',
+    conflictDetail: '{{file}}：{{sourceLabel}}({{sourceMtime}}) / {{targetLabel}}({{targetMtime}})',
+    skipped: '跳过文件：{{file}}（{{reason}}）',
+    skippedReasonTracked: '已被 git 跟踪，由 git 同步',
+    skippedReasonRuntimeConfig: '运行时配置文件，由运行时配置同步处理',
+    skippedReasonSourceMissing: '源侧不存在',
+    error: '未跟踪文件同步失败：{{error}}',
+    noChange: '未跟踪文件无变化',
+    mainLabel: '主分支',
   },
 
   // Errors
