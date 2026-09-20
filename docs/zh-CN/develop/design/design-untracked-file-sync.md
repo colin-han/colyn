@@ -284,7 +284,7 @@ commands.merge.noSyncFilesOption: '跳过未跟踪文件同步',
 | `planUntrackedFileSync` 单测 | 决策表全分支：目标缺失复制、内容相同不动、内容不同冲突、源缺失不动 |
 | `syncUntrackedFiles` 编排测试 | 临时目录：复制保留权限位、冲突不写入、结果结构正确 |
 | 命令层 | 同步在 git 成功后触发、git 失败不同步、`--no-sync-files` 生效、清单为空零行为 |
-| 手动验证 | `LANG=zh_CN.UTF-8` / `LANG=en_US.UTF-8` 双语言输出 |
+| 手动验证 | `COLYN_LANG=zh-CN` / `COLYN_LANG=en` 双语言输出 |
 
 ---
 

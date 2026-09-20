@@ -284,7 +284,7 @@ commands.merge.noSyncFilesOption: 'Skip untracked file sync',
 | `planUntrackedFileSync` unit tests | full decision table: copy when target missing, no-op when identical, conflict when differing, no-op when source missing |
 | `syncUntrackedFiles` orchestration tests | temp directories: copy preserves permission bits, conflicts are not written, result structure correct |
 | Command layer | sync triggers after git success, no sync on git failure, `--no-sync-files` honored, empty list is a no-op |
-| Manual verification | `LANG=zh_CN.UTF-8` / `LANG=en_US.UTF-8` bilingual output |
+| Manual verification | `COLYN_LANG=zh-CN` / `COLYN_LANG=en` bilingual output |
 
 ---
 

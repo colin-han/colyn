@@ -61,6 +61,12 @@ describe('filePatternToRegex', () => {
     expect(re.test('a.b+c.txt')).toBe(true);
     expect(re.test('aXbYc.txt')).toBe(false);
   });
+
+  it('? 被转义为字面量', () => {
+    const re = filePatternToRegex('data/seed?.json');
+    expect(re.test('data/seed?.json')).toBe(true);
+    expect(re.test('data/see.json')).toBe(false);
+  });
 });
 
 describe('planUntrackedFileSync', () => {

@@ -58,7 +58,7 @@ export function filePatternToRegex(pattern: string): RegExp {
   const segments = pattern.split('/').map((segment) => {
     if (segment === '**') return '(?:[^/]+/)*[^/]*';
     return segment
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/[.+^${}()|[\]?\\]/g, '\\$&')
       .replace(/\*/g, '[^/]*');
   });
   return new RegExp(`^${segments.join('/')}$`);

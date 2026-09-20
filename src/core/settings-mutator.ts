@@ -18,11 +18,13 @@ import { SettingsSchema } from './config-schema.js';
  * - 'boolean': 接受 true/false/yes/no/1/0/on/off
  * - 'string':  任意字符串
  * - 'lang':    枚举类型，仅接受 'en' | 'zh-CN'
+ * - 'string-array': 逗号分隔字符串 → string[]
  */
 export const SETTINGS_KEYS = {
   // 全局
   lang: 'lang',
   verbose: 'boolean',
+  syncFiles: 'string-array',
 
   // 系统命令
   'systemCommands.npm': 'string',
@@ -34,9 +36,13 @@ export const SETTINGS_KEYS = {
   'commands.merge.update': 'boolean',
   'commands.merge.fetch': 'boolean',
   'commands.merge.all': 'boolean',
+  'commands.merge.syncConfig': 'boolean',
+  'commands.merge.syncFiles': 'boolean',
   'commands.update.rebase': 'boolean',
   'commands.update.fetch': 'boolean',
   'commands.update.all': 'boolean',
+  'commands.update.syncConfig': 'boolean',
+  'commands.update.syncFiles': 'boolean',
   'commands.release.update': 'boolean',
   'commands.release.build': 'boolean',
   'commands.release.tag': 'boolean',
@@ -66,6 +72,16 @@ export function parseBoolean(raw: string): boolean {
   if (TRUE_TOKENS.has(v)) return true;
   if (FALSE_TOKENS.has(v)) return false;
   throw new Error(`无法解析布尔值: "${raw}"（接受 true/false/yes/no/1/0/on/off）`);
+}
+
+/**
+ * 字符串数组解析（CLI 值按逗号分隔，去除每项首尾空白与空项）
+ */
+export function parseStringArray(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +182,8 @@ export async function setSettingsValueAtPath(
     value = parseBoolean(rawValue);
   } else if (expectedType === 'string') {
     value = rawValue;
+  } else if (expectedType === 'string-array') {
+    value = parseStringArray(rawValue);
   } else if (expectedType === 'lang') {
     if (!(VALID_LANGS as readonly string[]).includes(rawValue)) {
       throw new Error(`无效的语言: "${rawValue}"（接受 ${VALID_LANGS.join(', ')}）`);
