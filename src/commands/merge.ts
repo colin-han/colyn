@@ -258,7 +258,7 @@ async function mergeCommand(
             allWorktrees,
             mainBranch,
             true,  // 默认使用 rebase
-            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir } : undefined
+            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir, syncConfig: true } : undefined
           );
 
           displayBatchUpdateResult(updateResult);
@@ -282,7 +282,7 @@ async function mergeCommand(
             [worktree],
             mainBranch,
             true,
-            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir } : undefined
+            options.syncConfig ? { rootDir: paths.rootDir, mainDir: paths.mainDir, syncConfig: true } : undefined
           );
         });
 
