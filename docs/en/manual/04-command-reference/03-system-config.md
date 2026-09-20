@@ -34,6 +34,9 @@ colyn repair
    - WORKTREE must be ID
    - Worktrees whose directory is gone are skipped with a cleanup hint
 
+3.1 **Worktree untracked files**
+   - Rebuild files from the untracked file list (`syncFiles`) missing in the worktree (main branch → worktree, run alongside runtime config sync)
+
 > **The config file is decided by the toolchain**: npm / pip projects use `.env.local`
 > (port `PORT`), maven / gradle projects use
 > `src/main/resources/application-local.properties` (port `server.port`).
@@ -164,10 +167,11 @@ Set the value of a configuration item.
 |-----------|------|-------------|
 | `lang` | enum | Interface language: `en` / `zh-CN` |
 | `verbose` | boolean | Whether to show verbose output by default |
+| `syncFiles` | string array | Untracked File Sync list (supports wildcards, `[]` by default = off) |
 | `systemCommands.npm` | string | Package manager command (default `npm`), e.g. `yarn` / `pnpm` |
 | `systemCommands.claude` | string | Claude CLI command |
-| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` | boolean | Default values for `colyn merge` switches |
-| `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` | boolean | Default values for `colyn update` switches |
+| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | boolean | Default values for `colyn merge` switches |
+| `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | boolean | Default values for `colyn update` switches |
 | `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | boolean | Default values for `colyn release` switches |
 | `commands.checkout.fetch` | boolean | Default value for `colyn checkout`'s fetch switch |
 

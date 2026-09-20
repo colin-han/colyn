@@ -34,6 +34,9 @@ colyn repair
    - WORKTREE 必须为 ID
    - 目录已丢失的 worktree 会被跳过并提示清理
 
+3.1 **Worktree 未跟踪文件**
+   - 重建 worktree 缺失的未跟踪文件清单（`syncFiles`）内文件（主分支 → worktree，与运行时配置同步并列执行）
+
 > **配置文件由工具链决定**：npm / pip 项目为 `.env.local`（端口 `PORT`），
 > maven / gradle 项目为 `src/main/resources/application-local.properties`（端口 `server.port`）。
 > Mono Repo 下每个子项目独立检查。
@@ -163,10 +166,11 @@ $ colyn config get branchCategories
 |-------|------|------|
 | `lang` | 枚举 | 界面语言：`en` / `zh-CN` |
 | `verbose` | 布尔 | 是否默认显示详细输出 |
+| `syncFiles` | 字符串数组 | 未跟踪文件同步清单（支持通配符，默认 `[]` 即关闭） |
 | `systemCommands.npm` | 字符串 | 包管理器命令（默认 `npm`），如 `yarn` / `pnpm` |
 | `systemCommands.claude` | 字符串 | Claude CLI 命令 |
-| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` | 布尔 | `colyn merge` 各开关的默认值 |
-| `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` | 布尔 | `colyn update` 各开关的默认值 |
+| `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | 布尔 | `colyn merge` 各开关的默认值 |
+| `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | 布尔 | `colyn update` 各开关的默认值 |
 | `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | 布尔 | `colyn release` 各开关的默认值 |
 | `commands.checkout.fetch` | 布尔 | `colyn checkout` 的 fetch 开关默认值 |
 

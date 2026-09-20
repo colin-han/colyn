@@ -1,6 +1,6 @@
 # Untracked File Sync Design
 
-**Status**: 📋 Design complete, pending implementation
+**Status**: ✅ Implemented
 **Created**: 2026-09-18
 **Related commands**: `colyn add`, `colyn update`, `colyn merge`, `colyn repair`
 **Prior design**: [Runtime Config Sync](design-runtime-config-sync.md) (this design takes over the "syncing arbitrary custom file lists" scope extension from its §9)
@@ -50,7 +50,7 @@ Structurally identical to Runtime Config Sync's "only add missing keys, never ov
 
 Before syncing, resolve the `syncFiles` config into a **candidate file set**:
 
-1. **Wildcard expansion**: patterns are matched against files under the main branch directory, in the same style as `branchOverrides` (`*` matches one path segment, `**` spans directory segments). Patterns match files only, not directories.
+1. **Wildcard expansion**: patterns are matched against files under the **source-side directory** (determined by direction, see §3.2: the `update` / `repair` direction enumerates the main branch directory, the `merge` reverse direction enumerates the worktree directory; the tracked-file check always runs in the main branch directory, since both directories belong to the same git repository), in the same style as `branchOverrides` (`*` matches one path segment, `**` spans directory segments). Patterns match files only, not directories.
 2. **Exclusion rules** (matching files are skipped with a warning):
 
 | Exclusion condition | Detection | Reason |
@@ -234,7 +234,7 @@ Naming note: the top-level `syncFiles` is the **file list** (`string[]`); `comma
 ✓ Untracked files synced: copied 2 files (data/seed.json, .env.staging)
 ✗ 1 file differs between both sides, skipped — manual resolution needed:
   certs/local.pem: main(2026-09-10 09:00) / task-1(2026-09-16 14:12)
-⚠ Skipped 1 file: .env.local (runtime config file, handled by Runtime Config Sync)
+⚠ Skipped file: .env.local (runtime config file, handled by Runtime Config Sync)
 ```
 
 **merge (worktree→main) example**:
@@ -243,11 +243,7 @@ Naming note: the top-level `syncFiles` is the **file list** (`string[]`); `comma
 ✓ Brought back 2 untracked files to main: data/seed.json, .env.staging
 ```
 
-**`colyn add` initial copy example**:
-
-```
-✓ Copied untracked files from main (3 files: data/seed.json, .env.staging, certs/local.pem)
-```
+`colyn add`'s initial copy reuses the same `copied` message as `update` (the worktree was just created, so list-matching files are always copies, with no possibility of conflict).
 
 **Batch mode**: each worktree prints its own result group.
 
@@ -262,13 +258,13 @@ untrackedFileSync: {
   broughtBack: 'Brought back {{count}} untracked files to main: {{files}}',
   conflict: '{{count}} files differ between both sides, skipped — manual resolution needed:',
   conflictDetail: '{{file}}: {{sourceLabel}}({{sourceMtime}}) / {{targetLabel}}({{targetMtime}})',
-  skipped: 'Skipped {{count}} files: {{file}} ({{reason}})',
+  skipped: 'Skipped file: {{file}} ({{reason}})',
   skippedReasonTracked: 'tracked by git, synced by git',
   skippedReasonRuntimeConfig: 'runtime config file, handled by Runtime Config Sync',
   skippedReasonSourceMissing: 'missing on the source side',
-  initialCopied: 'Copied untracked files from main ({{count}} files: {{files}})',
   error: 'Untracked file sync failed: {{error}}',
   noChange: 'No changes in untracked files',
+  mainLabel: 'main',
 },
 
 // option descriptions live in each command section
@@ -312,25 +308,27 @@ The following are explicitly out of scope for this iteration:
 
 ### 10.1 Functionality
 
-- [ ] With an empty `syncFiles` list the feature is fully off: no output, no overhead
-- [ ] After `colyn update`: list-matching files newly added on main appear in the worktree
-- [ ] After `colyn merge`: list-matching files newly added in the worktree appear on main; the `--update` phase delivers them to other worktrees
-- [ ] Files differing on both sides are not overwritten; a conflict message is printed (with both paths and modification times)
-- [ ] Tracked files and runtime config files are excluded with a warning
-- [ ] Copying preserves file permission bits
-- [ ] `colyn repair` rebuilds list-matching files missing in a worktree
+- [x] With an empty `syncFiles` list the feature is fully off: no output, no overhead
+- [x] After `colyn update`: list-matching files newly added on main appear in the worktree
+- [x] After `colyn merge`: list-matching files newly added in the worktree appear on main; the `--update` phase delivers them to other worktrees
+- [x] Files differing on both sides are not overwritten; a conflict message is printed (with both paths and modification times)
+- [x] Tracked files and runtime config files are excluded with a warning
+- [x] Copying preserves file permission bits
+- [x] `colyn repair` rebuilds list-matching files missing in a worktree
 
 ### 10.2 Toggles and Safety
 
-- [ ] `--no-sync-files` fully disables sync; settings defaults take effect via three-source resolution
-- [ ] Sync never overwrites existing content, never deletes files
-- [ ] Sync failures do not change the command's exit status; batch mode continues
+- [x] `--no-sync-files` fully disables sync; settings defaults take effect via three-source resolution
+- [x] Sync never overwrites existing content, never deletes files
+- [x] Sync failures do not change the command's exit status; batch mode continues
 
 ### 10.3 Quality
 
-- [ ] Complete bilingual copy (zh-CN / en), no hardcoded text
-- [ ] `volta run yarn lint` with 0 errors
-- [ ] No `any` types
+- [x] Complete bilingual copy (zh-CN / en), no hardcoded text
+- [x] `volta run yarn lint` with 0 errors
+- [x] No `any` types
+
+> Acceptance evidence: unit tests (12 cases in `untracked-file-sync.test.ts`, 2 hook cases in `update.helpers.test.ts`, 1 schema case in `config.test.ts`; full suite of 16 files / 217 cases passing) + manual end-to-end verification 8/8 PASS (add initial copy, update forward copy, update conflict without overwrite, merge bring-back with `--update` propagation, runtime config file exclusion, `--no-sync-files` toggle, bilingual output, repair rebuild).
 
 ---
 

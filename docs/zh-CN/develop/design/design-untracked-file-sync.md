@@ -1,6 +1,6 @@
 # 未跟踪文件同步设计文档
 
-**状态**：📋 设计完成，待实现
+**状态**：✅ 已实现
 **创建时间**：2026-09-18
 **相关命令**：`colyn add`、`colyn update`、`colyn merge`、`colyn repair`
 **前置设计**：[运行时配置同步](design-runtime-config-sync.md)（本文档承接其 §9 中"同步任意自定义文件列表"的范围扩展）
@@ -50,7 +50,7 @@
 
 同步开始前，先解析 `syncFiles` 配置得到**候选文件集合**：
 
-1. **通配符展开**：清单中的模式与主分支目录下的文件做匹配，风格与 `branchOverrides` 一致（`*` 匹配单段、`**` 跨目录段）。模式仅匹配文件，不匹配目录本身。
+1. **通配符展开**：清单中的模式与**源侧目录**下的文件做匹配（按方向确定，见 §3.2：`update` / `repair` 方向枚举主分支目录，`merge` 反向枚举 worktree 目录；已跟踪检查固定在主分支目录执行，两目录属同一 git 仓库），风格与 `branchOverrides` 一致（`*` 匹配单段、`**` 跨目录段）。模式仅匹配文件，不匹配目录本身。
 2. **排除规则**（命中的文件被跳过并警告）：
 
 | 排除条件 | 判断方式 | 理由 |
@@ -234,7 +234,7 @@ export async function syncUntrackedFiles(params: {
 ✓ 未跟踪文件已同步：复制 2 个文件 (data/seed.json, .env.staging)
 ✗ 1 个文件两侧内容不同，已跳过，请人工处理：
   certs/local.pem：主分支(2026-09-10 09:00) / task-1(2026-09-16 14:12)
-⚠ 跳过 1 个文件：.env.local（运行时配置文件，由运行时配置同步处理）
+⚠ 跳过文件：.env.local（运行时配置文件，由运行时配置同步处理）
 ```
 
 **merge（worktree→主）示例**：
@@ -243,11 +243,7 @@ export async function syncUntrackedFiles(params: {
 ✓ 已带回 2 个未跟踪文件到主分支：data/seed.json, .env.staging
 ```
 
-**`colyn add` 初始复制示例**：
-
-```
-✓ 已复制主分支未跟踪文件（3 个：data/seed.json, .env.staging, certs/local.pem）
-```
+`colyn add` 的初始复制与 `update` 复用同一 `copied` 文案（worktree 刚创建，清单内文件必然为复制，无冲突可能）。
 
 **批量模式**：每个 worktree 输出各自的结果组。
 
@@ -262,13 +258,13 @@ untrackedFileSync: {
   broughtBack: '已带回 {{count}} 个未跟踪文件到主分支：{{files}}',
   conflict: '{{count}} 个文件两侧内容不同，已跳过，请人工处理：',
   conflictDetail: '{{file}}：{{sourceLabel}}({{sourceMtime}}) / {{targetLabel}}({{targetMtime}})',
-  skipped: '跳过 {{count}} 个文件：{{file}}（{{reason}}）',
+  skipped: '跳过文件：{{file}}（{{reason}}）',
   skippedReasonTracked: '已被 git 跟踪，由 git 同步',
   skippedReasonRuntimeConfig: '运行时配置文件，由运行时配置同步处理',
   skippedReasonSourceMissing: '源侧不存在',
-  initialCopied: '已复制主分支未跟踪文件（{{count}} 个：{{files}}）',
   error: '未跟踪文件同步失败：{{error}}',
   noChange: '未跟踪文件无变化',
+  mainLabel: '主分支',
 },
 
 // 选项描述文案位于各命令节
@@ -312,25 +308,27 @@ commands.merge.noSyncFilesOption: '跳过未跟踪文件同步',
 
 ### 10.1 功能
 
-- [ ] `syncFiles` 清单为空时功能完全关闭，无任何输出与开销
-- [ ] `colyn update` 后：主分支新增的清单内文件出现在 worktree
-- [ ] `colyn merge` 后：worktree 新增的清单内文件出现在主分支；`--update` 环节其他 worktree 拿到新文件
-- [ ] 两侧内容不同的文件不被覆盖，输出冲突提示（含两侧路径与修改时间）
-- [ ] 已跟踪文件与运行时配置文件被排除，输出警告
-- [ ] 复制保留文件权限位
-- [ ] `colyn repair` 重建 worktree 缺失的清单内文件
+- [x] `syncFiles` 清单为空时功能完全关闭，无任何输出与开销
+- [x] `colyn update` 后：主分支新增的清单内文件出现在 worktree
+- [x] `colyn merge` 后：worktree 新增的清单内文件出现在主分支；`--update` 环节其他 worktree 拿到新文件
+- [x] 两侧内容不同的文件不被覆盖，输出冲突提示（含两侧路径与修改时间）
+- [x] 已跟踪文件与运行时配置文件被排除，输出警告
+- [x] 复制保留文件权限位
+- [x] `colyn repair` 重建 worktree 缺失的清单内文件
 
 ### 10.2 开关与安全
 
-- [ ] `--no-sync-files` 完全关闭同步；settings 默认值经三态解析生效
-- [ ] 同步永不覆盖既有内容、永不删除文件
-- [ ] 同步失败不改变命令退出状态，批量继续
+- [x] `--no-sync-files` 完全关闭同步；settings 默认值经三态解析生效
+- [x] 同步永不覆盖既有内容、永不删除文件
+- [x] 同步失败不改变命令退出状态，批量继续
 
 ### 10.3 质量
 
-- [ ] 双语文案（zh-CN / en）齐全，无硬编码文本
-- [ ] `volta run yarn lint` 0 errors
-- [ ] 不使用 `any` 类型
+- [x] 双语文案（zh-CN / en）齐全，无硬编码文本
+- [x] `volta run yarn lint` 0 errors
+- [x] 不使用 `any` 类型
+
+> 验收依据：单元测试（`untracked-file-sync.test.ts` 12 例、`update.helpers.test.ts` 挂点 2 例、`config.test.ts` schema 1 例，全量 16 文件 217 用例通过）+ 手动端到端验证 8/8 PASS（add 初始复制、update 正向复制、update 冲突不覆盖、merge 反向带回与 `--update` 联动、运行时配置文件排除、`--no-sync-files` 开关、双语切换、repair 重建）。
 
 ---
 

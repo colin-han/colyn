@@ -1632,6 +1632,7 @@ colyn config set todo.github.archivedLabel archived
 | 字段 | 默认 | 说明 |
 |------|------|------|
 | `verbose` | `false` | 为所有命令开启详细输出，等价于每次加 `-v` |
+| `syncFiles` | `[]` | 未跟踪文件同步清单（支持通配符），见下方说明 |
 
 #### commands.merge
 
@@ -1643,6 +1644,7 @@ colyn config set todo.github.archivedLabel archived
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
 | `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | 合并时双向同步运行时配置 |
+| `syncFiles` | `true` | `--sync-files` | `--no-sync-files` | 合并时同步未跟踪文件（带回主分支并传播到其他 worktree） |
 
 > ⚠️ `merge.all` 仅在 `merge.update === true` 时生效。若 `update=false`（或命令行 `--no-update`），即使 `all=true` 也不会更新任何 worktree。
 
@@ -1654,6 +1656,26 @@ colyn config set todo.github.archivedLabel archived
 | `fetch` | `true` | `--fetch` | `--no-fetch` | 执行 git fetch |
 | `all` | `true` | `--all` | `--no-all` / `--current-only` | 更新所有 worktree |
 | `syncConfig` | `true` | `--sync-config` | `--no-sync-config` | 更新时同步主分支运行时配置 |
+| `syncFiles` | `true` | `--sync-files` | `--no-sync-files` | 更新时同步主分支未跟踪文件 |
+
+### 未跟踪文件同步清单（syncFiles）
+
+顶层 `syncFiles` 是**文件清单**（`string[]`），控制「未跟踪文件同步」机制处理哪些文件：在主分支目录与 worktree 目录之间，按清单同步不入 git 的本地文件（如种子数据、本地证书）。默认 `[]`，即功能关闭。
+
+```jsonc
+{
+  "version": 4,
+  "syncFiles": ["data/*.json", "certs/**"]
+}
+```
+
+要点：
+
+- **通配符**：`*` 匹配单段（不跨 `/`），`**` 跨目录段，风格与 `branchOverrides` 一致
+- **同步方向**：`add` / `update` / `repair` 主分支 → worktree；`merge` 先把 worktree 新增文件带回主分支，再随 `--update` 环节传播到其他 worktree
+- **保守语义**：目标缺失才复制；两侧都有且内容相同则不动；**内容不同报冲突提示，不覆盖、不合并**；永不传播删除
+- **自动排除**：已被 git 跟踪的文件由 git 同步；运行时配置文件（`.env.local` 等）由运行时配置同步处理，二者命中时输出跳过提示
+- **建议同步加入 `.gitignore`**：清单内的文件若未被 git 忽略，会出现在 `git status` 未跟踪列表中，可能导致 `update` / `merge` 判定工作目录不干净而跳过
 
 #### commands.release
 
