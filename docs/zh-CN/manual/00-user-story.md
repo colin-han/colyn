@@ -215,77 +215,34 @@ colyn todo add feature/tags "实现任务标签系统
 
 ### 一个问题
 
-此时小明的屏幕上有三个终端窗口、三个浏览器标签页。`Cmd+Tab` 来回切换，经常搞混——"这是哪个 worktree 来着？"
+此时小明的屏幕上有三个终端标签页、三个浏览器标签页。`Cmd+Tab` 来回切换，经常搞混——"这是哪个 worktree 来着？"
 
 **有没有更优雅的方式？**
 
 ---
 
-## tmux 登场：一个窗口统治一切
+## 一目了然：标签页与一键切换
 
-小明发现 Colyn 内置了 tmux 集成。运行 `colyn repair`，Colyn 自动为当前项目创建了完整的 tmux 环境：
+小明注意到，`colyn add` 创建 worktree 之后，iTerm2 的标签页标题已经自动变成了这样：
+
+```
+🐶 my-task-app #1 - auth  │  🐶 my-task-app #2 - tasks  │  🐶 my-task-app #3 - dashboard
+```
+
+项目名、Worktree ID、分支短名，一眼就能认出每个标签页在干什么。
+
+想在终端里切换到某个 worktree，也不需要记路径，一个数字就够了：
 
 ```bash
-colyn repair
-
-✔ 检查主分支 .env.local...
-✔ 修复 git worktree 连接...
-✔ 创建了 session "my-task-app" 和 3 个 window
-
-💡 运行 'tmux attach -t my-task-app' 进入工作环境
+colyn 0  # → 主分支（干净、稳定，用于合并）
+colyn 1  # → 认证功能
+colyn 2  # → 任务管理
+colyn 3  # → 数据仪表盘
 ```
 
-进入 tmux：
+`colyn <N>` 还会保持当前所在的相对子目录——在 `task-1/src/auth` 里执行 `colyn 2`，会直接落到 `task-2/src/auth`。
 
-```bash
-tmux attach -t my-task-app
-```
-
-眼前的画面让小明眼前一亮。所有 worktree 统一在一个 tmux session 里，每个 worktree 对应一个 window：
-
-```
-tmux 状态栏：
-[my-task-app] 0:main  1:auth*  2:tasks  3:dashboard
-```
-
-按 `Ctrl-b 1`，切到认证功能的 window。每个 window 都是固定的三栏布局：
-
-```
-┌──────────────────────┬───────────────┐
-│                      │  Dev Server   │
-│                      │  PORT=3001    │  ← 右上：开发服务器日志
-│   Claude Code        ├───────────────┤
-│                      │               │
-│                      │  Bash         │  ← 右下：手动操作
-│       60%            │     40%       │
-│                      │               │
-└──────────────────────┴───────────────┘
-```
-
-- **左侧 60%**：Claude Code，AI 主力
-- **右上**：Dev Server，实时查看日志
-- **右下**：Bash，跑测试、Git 操作
-
-**最关键的是**：Claude Code 和 Dev Server 都自动启动了。每个 window 进去就是完整的开发环境，不需要手动配置任何东西。
-
-快捷键秒切：
-
-```
-Ctrl-b 0  → 主分支（干净、稳定，用于合并）
-Ctrl-b 1  → 认证功能
-Ctrl-b 2  → 任务管理
-Ctrl-b 3  → 数据仪表盘
-```
-
-不再迷路，不再 `Cmd+Tab`。状态栏上清清楚楚地显示着每个 window 的名字，带 `*` 号的是当前 window。
-
-小明还发现了一些实用的操作：
-
-- `Ctrl-b z`：把当前 pane 全屏（放大 Claude Code 的输出仔细看），再按一次还原
-- `Ctrl-b o`：在三个 pane 之间切换
-- `Ctrl-b d`：分离 session（一切后台运行，tmux session 不会丢失）
-
-三个 AI 同时在各自的 window 里写代码。小明用 `Ctrl-b 1/2/3` 来回切换，查看进度，审查代码，给出反馈。**从管理三个终端窗口变成了在一个窗口里指挥三个 AI。**
+三个 AI 同时在各自的标签页里写代码。小明用 `colyn 1/2/3` 和标签页标题来回切换，查看进度，审查代码，给出反馈。**从"这是哪个 worktree"的困惑变成了在三个 AI 之间从容指挥。**
 
 ---
 
@@ -353,7 +310,6 @@ colyn todo start
 
 ```
 ✓ 切换到分支: feature/reset-password
-✓ 更新 window 名称: reset-password
 ✓ 归档日志: .claude/logs/archived/feature-auth/
 ✓ Todo "feature/reset-password" 已标记为完成
 
@@ -368,7 +324,7 @@ colyn todo start
 注意发生了什么：
 
 1. Worktree 切换到了新分支 `feature/reset-password`
-2. tmux window 名称自动从 `auth` 更新为 `reset-password`
+2. iTerm2 标签页标题自动从 `auth` 更新为 `reset-password`
 3. 之前的 Claude 日志自动归档
 4. 任务描述复制到剪贴板，准备粘贴给 Claude
 
@@ -377,7 +333,7 @@ colyn todo start
 这就是复用 worktree 的核心优势：
 
 - **端口不变**（3001），浏览器书签还能用
-- **Window 位置不变**（`Ctrl-b 1`），肌肉记忆不受影响
+- **Worktree ID 不变**（`colyn 1`），肌肉记忆不受影响
 - **Claude 上下文复用**——做相关功能时效率显著提升
 - **环境不变**，不需要重新装依赖
 
@@ -417,13 +373,7 @@ colyn release minor
 
 从那个冲刺周末之后，小明形成了稳定的开发节奏：
 
-**早上**：打开终端，一条命令恢复所有上下文：
-
-```bash
-tmux attach -t my-task-app
-```
-
-所有 window、pane、甚至 Claude 的会话历史都还在。
+**早上**：打开终端，`colyn 1` 回到昨天的 worktree，Claude 的会话历史都还在。
 
 **开发循环**：
 
@@ -435,7 +385,7 @@ tmux attach -t my-task-app
 定期整理 → colyn todo archive -y（归档已完成任务）
 ```
 
-**晚上**：`Ctrl-b d` 分离 tmux session，一切后台运行。明天 attach 回来继续。
+**晚上**：合上电脑。明天打开终端继续。
 
 ### 搬家也不怕
 
@@ -449,11 +399,10 @@ colyn repair
 ✔ 检查主分支 .env.local...
 ✔ 修复 git worktree 连接...
 ✔ 检测并修复孤儿 worktree 目录...
-✔ 创建了 session "my-task-app" 和 3 个 window
 ✓ 修复完成！
 ```
 
-一条命令，自动修复所有路径引用、环境变量文件和 tmux session。
+一条命令，自动修复所有路径引用和环境变量文件。
 
 ### 不只是 Node.js
 
@@ -463,6 +412,6 @@ colyn repair
 
 ---
 
-小明回想起那个周末，一个人对着屏幕，同时指挥三个 AI 开发不同的功能，在 tmux 的 window 之间来回切换审查代码。他不再是那个写每一行代码的人了——他是那个拆解任务、分配给 AI、审查成果的指挥者。
+小明回想起那个周末，一个人对着屏幕，同时指挥三个 AI 开发不同的功能，在三个标签页之间来回切换审查代码。他不再是那个写每一行代码的人了——他是那个拆解任务、分配给 AI、审查成果的指挥者。
 
 **从"一个人写代码"到"指挥一支 AI 团队"，中间只差一个 `colyn init`。**

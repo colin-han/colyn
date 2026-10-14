@@ -109,7 +109,7 @@ $ colyn repair
 ### 语法
 
 ```bash
-# 显示 tmux 配置信息（默认行为）
+# 显示配置信息（默认行为）
 colyn config [选项]
 
 # 获取配置值
@@ -168,7 +168,6 @@ $ colyn config get branchCategories
 | `verbose` | 布尔 | 是否默认显示详细输出 |
 | `syncFiles` | 字符串数组 | 未跟踪文件同步清单（支持通配符，默认 `[]` 即关闭） |
 | `systemCommands.npm` | 字符串 | 包管理器命令（默认 `npm`），如 `yarn` / `pnpm` |
-| `systemCommands.claude` | 字符串 | Claude CLI 命令 |
 | `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | 布尔 | `colyn merge` 各开关的默认值 |
 | `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | 布尔 | `colyn update` 各开关的默认值 |
 | `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | 布尔 | `colyn release` 各开关的默认值 |

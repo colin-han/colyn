@@ -161,10 +161,7 @@ The created Worktree will:
 - Copy files in the untracked file list (`syncFiles`) to the new Worktree (printing the list of copied files)
 - Automatically switch to the Worktree directory after execution (requires shell integration)
 
-**tmux integration** (when inside tmux):
-- Automatically creates a new tmux window
-- Sets up 3-pane layout (Claude Code + Dev Server + Bash)
-- Automatically switches to the new window
+**iTerm2 integration**:
 - If using iTerm2, automatically sets the tab title
 
 ### Examples
@@ -251,7 +248,7 @@ my-project/
 
 ## colyn \<N\> — Quickly Switch Worktree
 
-Jump to a Worktree by ID. Inside a tmux Session matching the project name, this selects the corresponding Window; otherwise it `cd`s into the directory or attaches the Session.
+Jump to a Worktree by ID. The command `cd`s into the target Worktree directory (requires shell integration).
 
 ### Syntax
 
@@ -267,23 +264,19 @@ colyn <N>
 
 ### Description
 
-`colyn <N>` automatically selects the most appropriate switch method based on the current tmux context:
+`colyn <N>` resolves the target Worktree directory and `cd`s into it:
 
-| Current Environment | Target Session+Window | Behavior |
-|--------------------|-----------------------|----------|
-| Inside project tmux Session | Target Window exists | Switch to that Window (includes iTerm2 title update) |
-| Inside project tmux Session | Target Window not found | `cd` to target directory (fallback) |
-| Outside tmux | Session+Window both exist | `exec tmux attach-session` and select target Window |
-| Outside tmux | Session or Window not found | `cd` to target directory |
-| Target Worktree not present | — | Error + list available Worktrees, exit 1 |
+| Target Worktree | Behavior |
+|-----------------|----------|
+| Present | `cd` to target directory |
+| Not present | Error + list available Worktrees, exit 1 |
 
 #### Preserving the relative subpath
 
-When switching via `cd` outside tmux, the command preserves the current directory's subpath relative to its Worktree root:
+The command preserves the current directory's subpath relative to its Worktree root:
 
 - For example, running `colyn 2` from `worktrees/task-1/a/b` switches to `worktrees/task-2/a/b` (not the `worktrees/task-2` root).
 - If the corresponding subdirectory does not exist in the target Worktree, it walks up to the deepest existing ancestor and notes the fallback in the message.
-- Switching to an existing Window inside tmux does not change that Window's subdirectory (the Window keeps its original working directory).
 
 ### Examples
 
@@ -295,7 +288,7 @@ colyn N   # jump to worktrees/task-N
 
 ### Output Examples
 
-**Successful switch (cd mode):**
+**Successful switch:**
 
 ```
 📂 Switched to: ~/my-project/worktrees/task-1
@@ -322,8 +315,6 @@ Available worktrees:
 
 - `colyn 0` always jumps to the main directory (Main branch directory)
 - Run `colyn list` to see all Worktree IDs and their status
-- Switching is fastest when inside the project's tmux Session
-- If the tmux Window index does not match the Worktree ID (e.g., after manually reordering windows), the command automatically falls back to `cd`
 
 ---
 

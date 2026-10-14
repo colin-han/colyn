@@ -393,61 +393,6 @@ colyn checkout new-branch
 
 ---
 
-## tmux 集成问题
-
-### Q: tmux session 未自动创建
-
-**检查**：
-
-```bash
-# 1. 查看 session 列表
-tmux ls
-
-# 2. 如果不存在，手动创建
-tmux new -s my-project
-
-# 3. 或运行 repair
-colyn repair
-```
-
-### Q: tmux window 布局不正确
-
-**解决方案**：
-
-```bash
-# 1. 运行 repair 重建布局
-colyn repair
-
-# 2. 或手动调整布局
-tmux select-layout main-vertical
-```
-
-### Q: Dev server 未自动启动
-
-**可能原因**：
-- package.json 中没有 dev 脚本
-- 依赖未安装
-
-**解决方案**：
-
-```bash
-# 1. 检查 package.json
-cat package.json | grep "dev"
-
-# 应该有类似：
-# "scripts": {
-#   "dev": "next dev"
-# }
-
-# 2. 安装依赖
-npm install
-
-# 3. 手动启动
-npm run dev
-```
-
----
-
 ## 项目移动问题
 
 ### Q: 移动项目后 worktree 无法使用
@@ -465,7 +410,6 @@ colyn repair
 # 2. 这会自动：
 #    - 修复 git worktree 路径
 #    - 更新 .env.local 文件
-#    - 重建 tmux session/windows
 ```
 
 ### Q: repair 命令执行失败
@@ -556,7 +500,7 @@ colyn remove 1
 colyn remove 2
 
 # 3. 停止不用的开发服务器
-# 在对应的 pane 中按 Ctrl-C
+# 在运行开发服务器的终端中按 Ctrl-C
 
 # 4. 清理 node_modules
 find worktrees -name "node_modules" -type d -prune -exec rm -rf {} \;

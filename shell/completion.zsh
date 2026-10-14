@@ -20,7 +20,6 @@ _colyn() {
         'repair:修复 worktree 状态'
         'config:查看或更新配置'
         'system-integration:配置 shell 集成'
-        'tmux:tmux 集成管理'
         'release:在主分支目录执行发布流程'
         'completion:生成 shell 自动补全脚本'
     )
@@ -90,11 +89,6 @@ _colyn() {
                     ;;
                 system-integration)
                     # system-integration 命令无参数
-                    ;;
-                tmux)
-                    _arguments \
-                        '1: :(start stop)' \
-                        '(-f --force)'{-f,--force}'[强制停止 session]'
                     ;;
                 release)
                     _arguments \

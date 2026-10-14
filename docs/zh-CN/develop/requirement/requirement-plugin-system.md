@@ -391,7 +391,7 @@ startDevServer(worktreePath: string): ServerConfig | null
 
 **执行策略**：
 - 所有已启用插件的此扩展点都会被调用
-- colyn 收集所有配置，由 tmux 集成或其他机制执行
+- colyn 收集所有配置，交由其他机制执行
 
 **示例实现**：
 ```typescript

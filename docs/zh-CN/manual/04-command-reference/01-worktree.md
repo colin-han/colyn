@@ -161,11 +161,8 @@ colyn add [branch]
 - 复制未跟踪文件清单（`syncFiles`）内的文件到新 Worktree（复制后输出文件清单）
 - 执行后自动切换到 Worktree 目录（需启用 shell 集成）
 
-**tmux 集成**（如果在 tmux 中）：
-- 自动创建新的 tmux window
-- 设置 3-pane 布局（Claude Code + Dev Server + Bash）
-- 自动切换到新 window
-- 如果使用 iTerm2，自动设置 tab title
+**iTerm2 集成**：
+- 如果使用 iTerm2，自动设置 tab title 为 `🐶 {项目名} #{ID} - {分支短名}`
 
 ### 示例
 
@@ -251,7 +248,7 @@ my-project/
 
 ## colyn \<N\> — 快速切换 Worktree
 
-快速切换到指定 Worktree 目录。在 tmux Session（与项目同名）内时智能切换到对应 Window，在 tmux 外时执行 `cd` 或 attach。
+快速切换到指定 Worktree 目录（需启用 shell 集成）。
 
 ### 语法
 
@@ -267,23 +264,19 @@ colyn <N>
 
 ### 功能说明
 
-`colyn <N>` 根据当前 tmux 上下文自动选择最合适的切换方式：
+`colyn <N>` 执行 `cd` 切换到目标 Worktree 目录：
 
-| 当前环境 | 目标 Session+Window | 行为 |
-|---------|---------------------|------|
-| 在项目 tmux Session 内 | 对应 Window 存在 | 切换到对应 Window（含 iTerm2 title 更新） |
-| 在项目 tmux Session 内 | 对应 Window 不存在 | `cd` 到目标目录（降级） |
-| tmux 外 | Session+Window 都存在 | `exec tmux attach-session` 附加到目标 Session 并选中 Window |
-| tmux 外 | Session 或 Window 不存在 | `cd` 到目标目录 |
-| 目标 Worktree 不存在 | — | 报错并列出可用 Worktree，exit 1 |
+| 场景 | 行为 |
+|------|------|
+| 目标 Worktree 存在 | `cd` 到目标目录 |
+| 目标 Worktree 不存在 | 报错并列出可用 Worktree，exit 1 |
 
 #### 保持相对子路径
 
-在 tmux 外通过 `cd` 切换时，命令会保持当前目录相对于所在 Worktree 根的子路径：
+切换时，命令会保持当前目录相对于所在 Worktree 根的子路径：
 
 - 例如在 `worktrees/task-1/a/b` 执行 `colyn 2`，会切换到 `worktrees/task-2/a/b`（而非 `worktrees/task-2` 根）。
 - 若目标 Worktree 中不存在对应子目录，则逐级向上回退到最深存在的祖先目录，并在提示中说明回退结果。
-- tmux 内切换到已存在 Window 时不改变该 Window 的子目录（Window 保持其原有工作目录）。
 
 ### 示例
 
@@ -322,8 +315,6 @@ colyn N   # 切换到 worktrees/task-N
 
 - `colyn 0` 始终切换到主目录（Main branch 所在目录）
 - 运行 `colyn list` 可以查看所有 Worktree 的 ID 和状态
-- 在 tmux Session 内时，切换到对应 Window 的速度最快
-- 若 tmux Window index 与 Worktree ID 不一致（手动重排后），命令自动降级为 `cd`
 
 ---
 

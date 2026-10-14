@@ -11,7 +11,7 @@ _colyn_completion() {
     _init_completion || return
 
     # 所有可用命令
-    local commands="init add list list-project lsp merge update remove checkout info status repair config setup tmux release completion todo"
+    local commands="init add list list-project lsp merge update remove checkout info status repair config setup release completion todo"
 
     # 当前命令（第一个参数）
     local command="${words[1]}"
@@ -119,7 +119,7 @@ _colyn_completion() {
         config)
             # config [get|set|unset] [key] [value] [--json|--user]
             local config_subcmds="get set unset"
-            local config_keys="lang verbose systemCommands.npm systemCommands.claude commands.merge.build commands.merge.rebase commands.merge.update commands.merge.fetch commands.merge.all commands.update.rebase commands.update.fetch commands.update.all commands.release.update commands.release.build commands.release.tag commands.release.versionUpdate commands.checkout.fetch todo.backend todo.autoArchive todo.github.archivedLabel"
+            local config_keys="lang verbose systemCommands.npm commands.merge.build commands.merge.rebase commands.merge.update commands.merge.fetch commands.merge.all commands.update.rebase commands.update.fetch commands.update.all commands.release.update commands.release.build commands.release.tag commands.release.versionUpdate commands.checkout.fetch todo.backend todo.autoArchive todo.github.archivedLabel"
             local config_keys_get="$config_keys branchCategories"
 
             if [[ $cur == -* ]]; then
@@ -155,17 +155,6 @@ _colyn_completion() {
 
         setup)
             # setup 命令无参数
-            return 0
-            ;;
-
-        tmux)
-            # tmux [start|stop] [-f|--force]
-            if [[ $cur == -* ]]; then
-                local tmux_opts="-f --force"
-                COMPREPLY=($(compgen -W "$tmux_opts" -- "$cur"))
-            elif [[ $cword -eq 2 ]]; then
-                COMPREPLY=($(compgen -W "start stop" -- "$cur"))
-            fi
             return 0
             ;;
 

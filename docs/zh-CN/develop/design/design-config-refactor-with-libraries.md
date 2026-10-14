@@ -113,8 +113,8 @@ import yaml from 'js-yaml';
 const config = yaml.load(`
 version: 2
 lang: zh-CN
-tmux:
-  layout: three-pane
+systemCommands:
+  npm: yarn
 `);
 ```
 
@@ -151,24 +151,25 @@ tmux:
 import deepmerge from 'deepmerge';
 
 const defaultConfig = {
-  tmux: {
-    layout: 'three-pane',
-    leftPane: { size: '60%' },
+  systemCommands: {
+    npm: 'npm',
+  },
+  commands: {
+    merge: { build: true, rebase: true },
   },
 };
 
 const userConfig = {
-  tmux: {
-    autoRun: false,
+  commands: {
+    merge: { build: false },
   },
 };
 
 const merged = deepmerge(defaultConfig, userConfig);
 // 结果：{
-//   tmux: {
-//     layout: 'three-pane',
-//     leftPane: { size: '60%' },
-//     autoRun: false
+//   systemCommands: { npm: 'npm' },
+//   commands: {
+//     merge: { build: false, rebase: true }
 //   }
 // }
 ```
@@ -207,7 +208,6 @@ const SettingsSchema = z.object({
   lang: z.enum(['en', 'zh-CN']).optional(),
   systemCommands: z.object({
     npm: z.string().optional(),
-    claude: z.string().optional(),
   }).optional(),
 });
 
@@ -326,8 +326,8 @@ const V1Schema = z.object({
    ```
    配置验证失败 (.colyn/settings.json):
      - lang: 期望 'en' 或 'zh-CN'，实际得到 'fr'
-     - tmux.layout: 无效的布局类型 'invalid-layout'
-     - tmux.leftPane.size: 期望字符串，实际得到数字
+     - systemCommands.npm: 期望字符串，实际得到数字
+     - commands.merge.build: 期望布尔值，实际得到字符串
    ```
 
 ---
@@ -342,46 +342,32 @@ const V1Schema = z.object({
 // src/core/config-schema.ts
 import { z } from 'zod';
 
-// Pane 配置 Schema
-const PaneConfigSchema = z.object({
-  command: z.string().nullable().optional(),
-  size: z.string().optional(),
-});
-
-// Tmux 配置 Schema
-const TmuxConfigSchema = z.object({
-  autoRun: z.boolean().optional(),
-  layout: z.enum([
-    'single-pane',
-    'two-pane-horizontal',
-    'two-pane-vertical',
-    'three-pane',
-    'four-pane',
-  ]).optional(),
-  leftPane: PaneConfigSchema.optional(),
-  rightPane: PaneConfigSchema.optional(),
-  topPane: PaneConfigSchema.optional(),
-  bottomPane: PaneConfigSchema.optional(),
-  topRightPane: PaneConfigSchema.optional(),
-  bottomRightPane: PaneConfigSchema.optional(),
-  topLeftPane: PaneConfigSchema.optional(),
-  bottomLeftPane: PaneConfigSchema.optional(),
-  horizontalSplit: z.string().optional(),
-  verticalSplit: z.string().optional(),
-});
-
 // 系统命令 Schema
 const SystemCommandsSchema = z.object({
   npm: z.string().optional(),
-  claude: z.string().optional(),
 });
+
+// 命令默认值 Schema
+const MergeCommandConfigSchema = z.object({
+  build: z.boolean().optional(),
+  rebase: z.boolean().optional(),
+  update: z.boolean().optional(),
+}).strict();
+
+const CommandsConfigSchema = z.object({
+  merge: MergeCommandConfigSchema.optional(),
+  // update / release / checkout ...
+}).strict();
 
 // Settings Schema（递归定义）
 const SettingsSchemaBase = z.object({
   version: z.number(),
   lang: z.enum(['en', 'zh-CN']).optional(),
+  verbose: z.boolean().optional(),
   systemCommands: SystemCommandsSchema.optional(),
-  tmux: TmuxConfigSchema.optional(),
+  syncFiles: z.array(z.string()).optional(),
+  commands: CommandsConfigSchema.optional(),
+});
 });
 
 // 支持 branchOverrides 的递归 Schema
@@ -560,8 +546,6 @@ import { z } from 'zod';
 const V1SettingsSchema = z.object({
   version: z.literal(1),
   npm: z.string().optional(),
-  claudeCommand: z.string().optional(),
-  tmux: TmuxConfigSchema.optional(),
   branchOverrides: z.record(z.lazy(() => V1SettingsSchema.partial())).optional(),
 }).transform((v1): Settings => {
   // 迁移逻辑
@@ -569,10 +553,9 @@ const V1SettingsSchema = z.object({
     version: 2,
     systemCommands: {
       npm: v1.npm,
-      claude: v1.claudeCommand,
     },
-    tmux: migrateTmuxCommands(v1.tmux),
     branchOverrides: migrateOverrides(v1.branchOverrides),
+  };
   };
 
   return v2;
@@ -689,8 +672,6 @@ export function validateConfigWithFriendlyError(
 #### 阶段 2：Schema 定义（2-3 小时）
 
 - [ ] 使用 Zod 定义所有 Schema
-  - [ ] PaneConfig
-  - [ ] TmuxConfig
   - [ ] SystemCommands
   - [ ] Settings（递归）
 
@@ -756,7 +737,7 @@ git commit -m "feat(config): add Zod schemas"
 ```
 
 **完全回滚计划**：
-- 保留旧代码在 `src/core/tmux-config.legacy.ts`
+- 保留旧代码在 `.legacy.ts` 文件中
 - 新代码稳定后再删除旧代码
 
 ### 5.3 测试策略
@@ -1032,7 +1013,6 @@ const jsonSchema = zodToJsonSchema(SettingsSchema);
 
 **相关设计文档**：
 - [配置迁移设计](./design-config-migration.md)
-- [Tmux 集成设计](./design-tmux-integration.md)
 
 ---
 
@@ -1086,13 +1066,13 @@ const jsonSchema = zodToJsonSchema(SettingsSchema);
 **版本迁移**：
 - V0 → V3: 支持完整迁移链
 - V1 → V2: 配置结构重构
-- V2 → V3: 重命名内置命令（去掉 "auto" 前缀）
+- V2 → V3: 配置文件格式支持（JSON5 / YAML）
 
 **详细日志**：
 - 实施日志：`.claude/logs/config-refactor-implementation-20260220.md`
 - 提交记录：
   - `aae3e94` - 修复 TypeScript 编译错误
-  - `75b1736` - 集成新配置系统到 tmux-config.ts
+  - `75b1736` - 集成新配置系统到现有命令
   - 更早的提交 - 创建新配置模块
 
 ---

@@ -15,7 +15,6 @@
 ### 推荐
 
 - **Volta**: Node.js 版本管理工具（推荐）
-- **tmux**: 终端复用器（可选，用于 tmux 集成功能）
 
 ---
 
@@ -260,9 +259,6 @@ colyn ad<Tab>
 # 安装 Node.js（使用 Volta）
 curl https://get.volta.sh | bash
 volta install node
-
-# 安装 tmux（可选）
-brew install tmux
 ```
 
 ### Linux
@@ -273,9 +269,6 @@ brew install tmux
 # 安装 Node.js（使用 Volta）
 curl https://get.volta.sh | bash
 volta install node
-
-# 安装 tmux（可选）
-sudo apt-get install tmux
 ```
 
 **CentOS/RHEL**：
@@ -284,9 +277,6 @@ sudo apt-get install tmux
 # 安装 Node.js（使用 Volta）
 curl https://get.volta.sh | bash
 volta install node
-
-# 安装 tmux（可选）
-sudo yum install tmux
 ```
 
 ### Windows
@@ -304,7 +294,6 @@ npm install -g colyn-cli
 **注意**：
 - Windows 上部分 shell 集成功能可能受限
 - 推荐使用 WSL2（Windows Subsystem for Linux）以获得最佳体验
-- tmux 集成需要在 WSL2 或 Git Bash 中使用
 
 ---
 

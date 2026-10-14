@@ -10,90 +10,11 @@
 import { z } from 'zod';
 
 /**
- * 内置命令常量
- */
-export const BUILTIN_COMMANDS = {
-  /** 启动 dev server */
-  AUTO_DEV_SERVER: 'start dev server',
-  /** 继续 Claude 会话 */
-  AUTO_CLAUDE: 'continue claude session',
-} as const;
-
-/**
- * 布局类型
- */
-export const LayoutTypeSchema = z.enum([
-  'single-pane',
-  'two-pane-horizontal',
-  'two-pane-vertical',
-  'three-pane',
-  'four-pane',
-]);
-
-export type LayoutType = z.infer<typeof LayoutTypeSchema>;
-
-/**
- * Pane 命令 Schema
- * - 内置命令：使用预定义的自动检测逻辑
- * - string: 自定义命令
- * - null: 不执行任何命令
- */
-export const PaneCommandSchema = z.union([
-  z.literal(BUILTIN_COMMANDS.AUTO_DEV_SERVER),
-  z.literal(BUILTIN_COMMANDS.AUTO_CLAUDE),
-  z.string(),
-  z.null(),
-]);
-
-export type PaneCommand = z.infer<typeof PaneCommandSchema>;
-
-/**
- * 单个 Pane 的配置 Schema
- */
-export const PaneConfigSchema = z.object({
-  /** 要执行的命令 */
-  command: PaneCommandSchema.optional(),
-  /** Pane 大小（百分比，如 "50%"） */
-  size: z.string().optional(),
-});
-
-export type PaneConfig = z.infer<typeof PaneConfigSchema>;
-
-/**
- * Tmux 配置 Schema
- */
-export const TmuxConfigSchema = z.object({
-  /** 是否自动运行命令 */
-  autoRun: z.boolean().optional(),
-
-  /** 布局类型 */
-  layout: LayoutTypeSchema.optional(),
-
-  /** 窗格配置 */
-  leftPane: PaneConfigSchema.optional(),
-  rightPane: PaneConfigSchema.optional(),
-  topPane: PaneConfigSchema.optional(),
-  bottomPane: PaneConfigSchema.optional(),
-  topRightPane: PaneConfigSchema.optional(),
-  bottomRightPane: PaneConfigSchema.optional(),
-  topLeftPane: PaneConfigSchema.optional(),
-  bottomLeftPane: PaneConfigSchema.optional(),
-
-  /** 四窗格布局的分割配置 */
-  horizontalSplit: z.string().optional(),
-  verticalSplit: z.string().optional(),
-});
-
-export type TmuxConfig = z.infer<typeof TmuxConfigSchema>;
-
-/**
  * 系统命令配置 Schema
  */
 export const SystemCommandsSchema = z.object({
   /** 包管理器命令（默认为 'npm'） */
   npm: z.string().optional(),
-  /** Claude 命令（默认为 'claude'） */
-  claude: z.string().optional(),
 });
 
 export type SystemCommands = z.infer<typeof SystemCommandsSchema>;
@@ -244,8 +165,6 @@ const SettingsSchemaBase = z.object({
   verbose: z.boolean().optional(),
   /** 系统命令配置 */
   systemCommands: SystemCommandsSchema.optional(),
-  /** tmux 相关配置 */
-  tmux: TmuxConfigSchema.optional(),
   /**
    * 单项目模式：根目录工具链配置
    * - undefined: 尚未检测（触发按需发现）
@@ -295,7 +214,7 @@ export const SettingsSchema: z.ZodType<Settings> = SettingsSchemaBase.extend({
 /**
  * 当前配置文件版本号
  */
-export const CURRENT_CONFIG_VERSION = 4;
+export const CURRENT_CONFIG_VERSION = 5;
 
 /**
  * 验证配置对象

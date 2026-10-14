@@ -112,8 +112,8 @@ import yaml from 'js-yaml';
 const config = yaml.load(`
 version: 2
 lang: zh-CN
-tmux:
-  layout: three-pane
+systemCommands:
+  npm: yarn
 `);
 ```
 
@@ -150,25 +150,26 @@ tmux:
 import deepmerge from 'deepmerge';
 
 const defaultConfig = {
-  tmux: {
-    layout: 'three-pane',
-    leftPane: { size: '60%' },
+  lang: 'en',
+  systemCommands: {
+    npm: 'npm',
   },
 };
 
 const userConfig = {
-  tmux: {
-    autoRun: false,
+  systemCommands: {
+    npm: 'yarn',
   },
+  verbose: true,
 };
 
 const merged = deepmerge(defaultConfig, userConfig);
 // Result: {
-//   tmux: {
-//     layout: 'three-pane',
-//     leftPane: { size: '60%' },
-//     autoRun: false
-//   }
+//   lang: 'en',
+//   systemCommands: {
+//     npm: 'yarn'
+//   },
+//   verbose: true
 // }
 ```
 
@@ -206,7 +207,6 @@ const SettingsSchema = z.object({
   lang: z.enum(['en', 'zh-CN']).optional(),
   systemCommands: z.object({
     npm: z.string().optional(),
-    claude: z.string().optional(),
   }).optional(),
 });
 
@@ -325,8 +325,8 @@ const V1Schema = z.object({
    ```
    Configuration validation failed (.colyn/settings.json):
      - lang: Expected 'en' | 'zh-CN', received 'fr'
-     - tmux.layout: Invalid layout type 'invalid-layout'
-     - tmux.leftPane.size: Expected string, received number
+     - verbose: Expected boolean, received string
+     - systemCommands.npm: Expected string, received number
    ```
 
 ---
@@ -341,46 +341,18 @@ Define configuration schema using Zod:
 // src/core/config-schema.ts
 import { z } from 'zod';
 
-// Pane config schema
-const PaneConfigSchema = z.object({
-  command: z.string().nullable().optional(),
-  size: z.string().optional(),
-});
-
-// Tmux config schema
-const TmuxConfigSchema = z.object({
-  autoRun: z.boolean().optional(),
-  layout: z.enum([
-    'single-pane',
-    'two-pane-horizontal',
-    'two-pane-vertical',
-    'three-pane',
-    'four-pane',
-  ]).optional(),
-  leftPane: PaneConfigSchema.optional(),
-  rightPane: PaneConfigSchema.optional(),
-  topPane: PaneConfigSchema.optional(),
-  bottomPane: PaneConfigSchema.optional(),
-  topRightPane: PaneConfigSchema.optional(),
-  bottomRightPane: PaneConfigSchema.optional(),
-  topLeftPane: PaneConfigSchema.optional(),
-  bottomLeftPane: PaneConfigSchema.optional(),
-  horizontalSplit: z.string().optional(),
-  verticalSplit: z.string().optional(),
-});
-
 // System commands schema
 const SystemCommandsSchema = z.object({
   npm: z.string().optional(),
-  claude: z.string().optional(),
 });
 
 // Settings schema (recursive definition)
 const SettingsSchemaBase = z.object({
   version: z.number(),
   lang: z.enum(['en', 'zh-CN']).optional(),
+  verbose: z.boolean().optional(),
   systemCommands: SystemCommandsSchema.optional(),
-  tmux: TmuxConfigSchema.optional(),
+  syncFiles: z.array(z.string()).optional(),
 });
 
 // Support branchOverrides recursive schema
@@ -559,8 +531,6 @@ import { z } from 'zod';
 const V1SettingsSchema = z.object({
   version: z.literal(1),
   npm: z.string().optional(),
-  claudeCommand: z.string().optional(),
-  tmux: TmuxConfigSchema.optional(),
   branchOverrides: z.record(z.lazy(() => V1SettingsSchema.partial())).optional(),
 }).transform((v1): Settings => {
   // Migration logic
@@ -568,9 +538,7 @@ const V1SettingsSchema = z.object({
     version: 2,
     systemCommands: {
       npm: v1.npm,
-      claude: v1.claudeCommand,
     },
-    tmux: migrateTmuxCommands(v1.tmux),
     branchOverrides: migrateOverrides(v1.branchOverrides),
   };
 
@@ -688,8 +656,6 @@ export function validateConfigWithFriendlyError(
 #### Phase 2: Schema Definition (2-3 hours)
 
 - [ ] Define all schemas using Zod
-  - [ ] PaneConfig
-  - [ ] TmuxConfig
   - [ ] SystemCommands
   - [ ] Settings (recursive)
 
@@ -755,7 +721,7 @@ git commit -m "feat(config): add Zod schemas"
 ```
 
 **Complete Rollback Plan**:
-- Keep old code in `src/core/tmux-config.legacy.ts`
+- Keep old code in a `*.legacy.ts` file alongside the new implementation
 - Delete old code only after new code is stable
 
 ### 5.3 Testing Strategy
@@ -1031,7 +997,6 @@ const jsonSchema = zodToJsonSchema(SettingsSchema);
 
 **Related Design Docs**:
 - [Config Migration Design](./design-config-migration.md)
-- [Tmux Integration Design](./design-tmux-integration.md)
 
 ---
 

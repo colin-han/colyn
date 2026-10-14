@@ -139,6 +139,21 @@ export function getProjectConfigDir(projectRoot: string): string {
 }
 
 /**
+ * 获取用户级设置文件路径（settings.json）
+ */
+export function getUserConfigPath(): string {
+  return path.join(getUserConfigDir(), CONFIG_FILENAMES[0]);
+}
+
+/**
+ * 获取项目级设置文件路径（settings.json）
+ * @param projectRoot 项目根目录
+ */
+export function getProjectConfigPath(projectRoot: string): string {
+  return path.join(getProjectConfigDir(projectRoot), CONFIG_FILENAMES[0]);
+}
+
+/**
  * 加载用户级配置
  * @returns 用户配置对象，如果不存在则返回 null
  */

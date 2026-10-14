@@ -10,12 +10,12 @@ This chapter provides a detailed overview of Colyn's configuration system, inclu
 2. [Configuration Loading Order](#configuration-loading-order)
 3. [Configuration File Structure](#configuration-file-structure)
 4. [Global Configuration Options](#global-configuration-options) (including [plugins](#plugins), [lang](#lang), [systemCommands](#systemcommands), [branchCategories](#branchcategories))
-5. [Tmux Configuration Options](#tmux-configuration-options)
-6. [Branch-Specific Configuration](#branch-specific-configuration)
-7. [Configuration Management Commands](#configuration-management-commands)
-8. [Configuration Examples](#configuration-examples)
-9. [Configuration Versioning and Migration](#configuration-versioning-and-migration)
-10. [Todo Configuration Options](#todo-configuration-options)
+5. [Branch-Specific Configuration](#branch-specific-configuration)
+6. [Configuration Management Commands](#configuration-management-commands)
+7. [Configuration Examples](#configuration-examples)
+8. [Configuration Versioning and Migration](#configuration-versioning-and-migration)
+9. [Todo Configuration Options](#todo-configuration-options)
+10. [Command Defaults Configuration](#command-defaults-configuration)
 
 ---
 
@@ -45,7 +45,7 @@ Configuration files support two levels:
 
 **Use cases**:
 - Personal preferences (language, package manager, etc.)
-- Cross-project tmux layout preferences
+- Cross-project command defaults (e.g. `verbose`, `commands.*`)
 - Global rules for specific branch patterns (e.g., all `main` branches)
 
 **Example paths**:
@@ -65,7 +65,7 @@ C:\Users\username\.config\colyn\settings.json  # Windows
 **Scope**: Applies only to the current project
 
 **Use cases**:
-- Project-specific tmux layouts
+- Project-specific command defaults and branch types
 - Project-specific system command configuration
 - Team-shared configuration (can be committed to version control)
 
@@ -86,7 +86,7 @@ mkdir -p ~/.config/colyn
 # Create user-level configuration file (JSON5 format)
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -96,7 +96,7 @@ EOF
 
 # Or use YAML format
 cat > ~/.config/colyn/settings.yaml << 'EOF'
-version: 4
+version: 5
 lang: zh-CN
 systemCommands:
   npm: yarn
@@ -106,11 +106,11 @@ EOF
 mkdir -p .colyn
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 4,
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true
-  }
+  "version": 5,
+  "systemCommands": {
+    "npm": "pnpm"
+  },
+  "verbose": true
 }
 EOF
 ```
@@ -119,13 +119,13 @@ EOF
 
 ## Configuration Loading Order
 
-Colyn uses a multi-layer configuration system. All configuration options (`lang`, `systemCommands`, `tmux`) follow a unified priority rule.
+Colyn uses a multi-layer configuration system. All configuration options (`lang`, `systemCommands`, `commands`, etc.) follow a unified priority rule.
 
 **Warning**: The list below is sorted by **priority from highest to lowest**; a smaller number means higher priority.
 
 ### Unified Configuration Priority
 
-Applies to all configuration options (`lang`, `systemCommands.npm`, `systemCommands.claude`, `tmux.*`):
+Applies to all configuration options (`lang`, `verbose`, `systemCommands.npm`, `commands.*`, etc.):
 
 ```
 1. Project override (project-level branch override) ← highest priority
@@ -141,13 +141,13 @@ Applies to all configuration options (`lang`, `systemCommands.npm`, `systemComma
    └── ~/.config/colyn/settings.json
         ↓
 5. System builtin ← lowest priority
-   └── Built-in defaults (e.g., main branch defaults to single-pane layout)
+   └── Built-in defaults (e.g., `lang: "en"`, `systemCommands.npm: "npm"`)
 ```
 
 **Notes**:
 - **All configuration options** support branch overrides (`branchOverrides`)
-- You can override `lang`, `systemCommands`, `tmux`, and any other configuration in `branchOverrides`
-- System builtin only provides defaults for specific branches (e.g., the `main` branch)
+- You can override `lang`, `systemCommands`, `commands`, and any other configuration in `branchOverrides`
+- System builtin defaults apply when no configuration file sets a value
 
 ### Environment Variables (Special Case)
 
@@ -187,29 +187,31 @@ COLYN_LANG=en colyn list
 ```json
 // User-level configuration
 {
-  "tmux": {
-    "autoRun": true,
-    "leftPane": {
-      "command": "continue claude session",
-      "size": "60%"
+  "verbose": true,
+  "commands": {
+    "merge": {
+      "build": false,
+      "rebase": false
     }
   }
 }
 
-// Project-level configuration (only changes autoRun)
+// Project-level configuration (only changes merge.build)
 {
-  "tmux": {
-    "autoRun": false
+  "commands": {
+    "merge": {
+      "build": true
+    }
   }
 }
 
 // Final effective configuration
 {
-  "tmux": {
-    "autoRun": false,  // ← from project-level configuration
-    "leftPane": {      // ← from user-level configuration (preserved)
-      "command": "continue claude session",
-      "size": "60%"
+  "verbose": true,     // ← from user-level configuration (preserved)
+  "commands": {
+    "merge": {
+      "build": true,   // ← from project-level configuration
+      "rebase": false  // ← from user-level configuration (preserved)
     }
   }
 }
@@ -224,7 +226,7 @@ The complete configuration file structure is as follows:
 ```typescript
 {
   // Configuration file version number (used for automatic migration)
-  "version": 4,
+  "version": 5,
 
   // Interface language
   "lang": "zh-CN" | "en",
@@ -234,35 +236,27 @@ The complete configuration file structure is as follows:
   // See: manual/11-plugin-system.md for details
   "plugins": ["npm"],
 
+  // Verbose output for all commands (equivalent to -v)
+  "verbose": true | false,
+
   // System command configuration
   "systemCommands": {
-    "npm": "npm" | "yarn" | "pnpm",  // Package manager command
-    "claude": "claude"                // Claude CLI command
+    "npm": "npm" | "yarn" | "pnpm"   // Package manager command
   },
 
-  // Tmux configuration
-  "tmux": {
-    "autoRun": true | false,           // Whether to automatically run commands
-    "layout": "single-pane"            // Layout type
-            | "two-pane-horizontal"
-            | "two-pane-vertical"
-            | "three-pane"
-            | "four-pane",
+  // Untracked File Sync list (see "Command Defaults Configuration")
+  "syncFiles": ["data/*.json"],
 
-    // Pane configuration (different panes used depending on layout type)
-    "leftPane": { /* PaneConfig */ },
-    "rightPane": { /* PaneConfig */ },
-    "topPane": { /* PaneConfig */ },
-    "bottomPane": { /* PaneConfig */ },
-    "topRightPane": { /* PaneConfig */ },
-    "bottomRightPane": { /* PaneConfig */ },
-    "topLeftPane": { /* PaneConfig */ },
-    "bottomLeftPane": { /* PaneConfig */ },
-
-    // Split configuration for four-pane layout
-    "horizontalSplit": "50%",  // Position of the horizontal split line
-    "verticalSplit": "50%"     // Position of the vertical split line
+  // Command defaults (see "Command Defaults Configuration")
+  "commands": {
+    "merge": { /* MergeCommandConfig */ },
+    "update": { /* UpdateCommandConfig */ },
+    "release": { /* ReleaseCommandConfig */ },
+    "checkout": { /* CheckoutCommandConfig */ }
   },
+
+  // Todo backend configuration (see "Todo Configuration Options")
+  "todo": { /* TodoConfig */ },
 
   // Custom branch types (used for type selection in add/checkout/todo add)
   "branchCategories": [
@@ -290,7 +284,7 @@ The complete configuration file structure is as follows:
 ### version
 
 **Type**: `number`
-**Default**: `4` (current version)
+**Default**: `5` (current version)
 **Description**: Configuration file version number, used for automatic migration
 
 **Warning**: Do not modify this field manually; the system manages it automatically
@@ -404,27 +398,6 @@ colyn config set systemCommands.npm yarn --user
 colyn config set systemCommands.npm pnpm
 ```
 
-#### systemCommands.claude
-
-**Type**: `string`
-**Default**: `"claude"`
-**Description**: Claude CLI command; supports adding extra arguments
-
-**Example**:
-
-```json
-{
-  "systemCommands": {
-    "claude": "claude --dangerously-skip-permissions"
-  }
-}
-```
-
-**Use cases**:
-- Specify a custom path for the Claude CLI
-- Add global arguments (e.g., `--dangerously-skip-permissions`)
-- Used together with the built-in command `continue claude session`
-
 ---
 
 ### branchCategories
@@ -483,313 +456,14 @@ Output format (JSON array):
 
 ---
 
-## Tmux Configuration Options
-
-### tmux.autoRun
-
-**Type**: `boolean`
-**Default**: `true`
-**Description**: Whether to automatically run commands in panes
-
-**Behavior**:
-- `true` - Automatically executes the configured commands in the corresponding panes when a Worktree is created
-- `false` - Creates panes but does not run commands automatically (opens a shell only)
-
-**Example**:
-
-```json
-{
-  "tmux": {
-    "autoRun": false
-  }
-}
-```
-
-**Use cases**:
-- The Main branch is typically set to `false` (no need to auto-start services)
-- Feature branches are typically set to `true` (auto-start the development environment)
-
-### tmux.layout
-
-**Type**: `"single-pane" | "two-pane-horizontal" | "two-pane-vertical" | "three-pane" | "four-pane"`
-**Default**: `"three-pane"`
-**Description**: Layout type for the tmux window
-
-#### Supported Layouts
-
-**1. single-pane**
-
-```
-┌──────────────────────┐
-│                      │
-│                      │
-│                      │
-│      Single Pane     │
-│                      │
-│                      │
-│                      │
-└──────────────────────┘
-```
-
-**Use case**: Simple scenarios that do not need splitting (e.g., the main branch)
-
----
-
-**2. two-pane-horizontal**
-
-```
-┌────────────┬─────────┐
-│            │         │
-│            │         │
-│  Left      │  Right  │
-│  Pane      │  Pane   │
-│            │         │
-│            │         │
-└────────────┴─────────┘
-```
-
-**Panes**: `leftPane`, `rightPane`
-
----
-
-**3. two-pane-vertical**
-
-```
-┌──────────────────────┐
-│                      │
-│      Top Pane        │
-│                      │
-├──────────────────────┤
-│                      │
-│     Bottom Pane      │
-│                      │
-└──────────────────────┘
-```
-
-**Panes**: `topPane`, `bottomPane`
-
----
-
-**4. three-pane (default)**
-
-```
-┌────────────┬─────────┐
-│            │  Top    │
-│            │  Right  │
-│            │  Pane   │
-│   Left     ├─────────┤
-│   Pane     │ Bottom  │
-│            │  Right  │
-│            │  Pane   │
-└────────────┴─────────┘
-```
-
-**Panes**: `leftPane`, `topRightPane`, `bottomRightPane`
-
-**Typical use**:
-- Left: Claude Code (AI assistant)
-- Top Right: Dev Server (development server logs)
-- Bottom Right: Bash (command-line operations)
-
----
-
-**5. four-pane**
-
-```
-┌──────────┬──────────┐
-│   Top    │   Top    │
-│   Left   │   Right  │
-│   Pane   │   Pane   │
-├──────────┼──────────┤
-│  Bottom  │  Bottom  │
-│   Left   │   Right  │
-│   Pane   │   Pane   │
-└──────────┴──────────┘
-```
-
-**Panes**: `topLeftPane`, `topRightPane`, `bottomLeftPane`, `bottomRightPane`
-
-### Pane Configuration (PaneConfig)
-
-Each pane can be configured with the following properties:
-
-```typescript
-{
-  "command": string | null,  // Command to execute
-  "size": string             // Pane size (percentage)
-}
-```
-
-#### command - Pane Command
-
-**Type**: `string | null`
-**Default**: Depends on pane position
-**Description**: The command to execute in the pane
-
-**Supported values**:
-
-1. **Built-in commands** - Automatically detected and executed
-2. **Custom commands** - Any shell command
-3. **null** - Do not execute any command (open a shell only)
-
-##### Built-in Commands
-
-**`"continue claude session"`**
-
-Automatically detects and continues a Claude session:
-- If a Claude session exists for the Worktree → runs `claude -c` (continue session)
-- If none exists → runs `claude` (start a new session)
-
-**Example**:
-
-```json
-{
-  "leftPane": {
-    "command": "continue claude session"
-  }
-}
-```
-
----
-
-**`"start dev server"`**
-
-Automatically detects and starts the dev server:
-- Detects the `dev` or `start` script in `package.json`
-- Automatically executes using the configured package manager
-
-**Detection logic**:
-1. Prefers the `dev` script
-2. If there is no `dev`, uses the `start` script
-3. If neither exists, no command is executed
-
-**Example**:
-
-```json
-{
-  "topRightPane": {
-    "command": "start dev server"
-  }
-}
-```
-
----
-
-##### Custom Commands
-
-You can specify any shell command:
-
-```json
-{
-  "bottomRightPane": {
-    "command": "git status && echo 'Ready to code!'"
-  }
-}
-```
-
-##### null - No Command
-
-Setting to `null` means no command is executed; only an empty shell is opened:
-
-```json
-{
-  "bottomRightPane": {
-    "command": null
-  }
-}
-```
-
-#### size - Pane Size
-
-**Type**: `string`
-**Format**: `"{number}%"` or `"{number}"`
-**Description**: The percentage of space occupied by the pane
-
-**Meaning of `size` for different layouts**:
-
-| Layout | Pane | Meaning of size |
-|--------|------|-----------------|
-| `two-pane-horizontal` | `leftPane` | Percentage of total width occupied by the left pane |
-| `two-pane-vertical` | `topPane` | Percentage of total height occupied by the top pane |
-| `three-pane` | `leftPane` | Percentage of total width occupied by the left pane |
-| `three-pane` | `topRightPane` | Percentage of the right side height occupied by the top-right pane |
-| `four-pane` | Each pane | See four-pane layout description |
-
-**Example**:
-
-```json
-{
-  "tmux": {
-    "layout": "three-pane",
-    "leftPane": {
-      "size": "60%"  // Left pane occupies 60% of the width
-    },
-    "topRightPane": {
-      "size": "30%"  // Top-right pane occupies 30% of the right side height
-    }
-  }
-}
-```
-
-### Four-Pane Layout Configuration
-
-The four-pane layout supports two configuration methods:
-
-#### Method 1: Configure both horizontalSplit and verticalSplit
-
-**Recommended**, provides a symmetric layout:
-
-```json
-{
-  "tmux": {
-    "layout": "four-pane",
-    "horizontalSplit": "50%",  // Position of the horizontal split (top occupies 50%)
-    "verticalSplit": "50%"     // Position of the vertical split (left occupies 50%)
-  }
-}
-```
-
-**Result**:
-```
-┌──────────┬──────────┐
-│    50%   │   50%    │
-│    ↑     │          │
-├──────────┼──────────┤  ← horizontalSplit: 50%
-│          │          │
-│          │          │
-└──────────┴──────────┘
-     ↑
-verticalSplit: 50%
-```
-
-#### Method 2: Configure size for each pane
-
-**More flexible**, but may be asymmetric:
-
-```json
-{
-  "tmux": {
-    "layout": "four-pane",
-    "topLeftPane": { "size": "60%" },    // Top-left occupies 60% of the left side height
-    "topRightPane": { "size": "40%" },   // Top-right occupies 40% of the right side height
-    "bottomLeftPane": { "size": "40%" }, // Bottom-left occupies 40% of the left side height
-    "bottomRightPane": { "size": "60%" } // Bottom-right occupies 60% of the right side height
-  }
-}
-```
-
-**Note**: If both split and pane size are configured, split takes higher priority and pane size will be ignored.
-
----
-
 ## Branch-Specific Configuration
 
 Using `branchOverrides`, you can customize configuration for specific branches or branch patterns.
 
 **Important**: `branchOverrides` can override **any configuration option**, including:
 - `lang` - Use a different language for a specific branch
-- `systemCommands` - Use a different package manager or Claude command for a specific branch
-- `tmux` - Use a different tmux layout for a specific branch
+- `systemCommands` - Use a different package manager for a specific branch
+- `commands` - Use different command defaults for a specific branch (e.g. always build on `release/*`)
 
 ### Configuration Syntax
 
@@ -800,7 +474,7 @@ Using `branchOverrides`, you can customize configuration for specific branches o
       // Any Settings configuration
       "lang": "...",
       "systemCommands": { ... },
-      "tmux": { ... }
+      "commands": { ... }
     }
   }
 }
@@ -814,9 +488,8 @@ Using `branchOverrides`, you can customize configuration for specific branches o
 {
   "branchOverrides": {
     "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
+      "systemCommands": {
+        "npm": "pnpm"
       }
     }
   }
@@ -831,15 +504,12 @@ Supports the `*` wildcard:
 {
   "branchOverrides": {
     "feature/*": {
-      "tmux": {
-        "layout": "three-pane",
-        "autoRun": true
+      "commands": {
+        "merge": { "build": true }
       }
     },
     "bugfix/*": {
-      "tmux": {
-        "layout": "two-pane-horizontal"
-      }
+      "lang": "zh-CN"
     }
   }
 }
@@ -850,51 +520,23 @@ Supports the `*` wildcard:
 - `"bugfix/*"` matches: `bugfix/login`, `bugfix/user/profile`
 - `"*/test"` matches: `feature/test`, `bugfix/test`
 
-### Built-in Branch Default Configuration
-
-Colyn provides **system built-in default configuration** for certain branches, with the **lowest** priority:
-
-```json
-{
-  "main": {
-    "tmux": {
-      "layout": "single-pane",
-      "autoRun": false
-    }
-  }
-}
-```
-
-**Characteristics**:
-- Lowest priority; overridden by any user or project configuration
-- Provides sensible defaults for common branches
-- Can be completely overridden in user or project configuration
-
 ### Configuration Override Examples
 
-**Example 1**: Main branch uses single-pane, feature branches use three-pane
+**Example 1**: Skip build during daily merges, but always build on release branches
 
 ```json
 {
-  "version": 4,
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true
+  "version": 5,
+  "commands": {
+    "merge": {
+      "build": false
+    }
   },
   "branchOverrides": {
-    "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
-      }
-    },
-    "feature/*": {
-      "tmux": {
-        "leftPane": {
-          "command": "continue claude session"
-        },
-        "topRightPane": {
-          "command": "start dev server"
+    "release/*": {
+      "commands": {
+        "merge": {
+          "build": true
         }
       }
     }
@@ -906,7 +548,7 @@ Colyn provides **system built-in default configuration** for certain branches, w
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "lang": "en",
   "systemCommands": {
     "npm": "npm"
@@ -951,36 +593,48 @@ colyn config --json
 **Output example**:
 
 ```
-Colyn Configuration
+Configuration Info
 
-User-level Config:
+User Config:
   Path: /Users/username/.config/colyn/settings.json
-  Status: Exists
+  Status: exists
   Content:
     {
-      "version": 4,
+      "version": 5,
       "lang": "zh-CN"
     }
 
-Project-level Config:
+Project Config:
   Path: /Users/username/projects/my-app/.colyn/settings.json
-  Status: Exists
+  Status: exists
   Content:
     {
-      "version": 4,
-      "tmux": {
-        "layout": "three-pane"
+      "version": 5,
+      "systemCommands": {
+        "npm": "yarn"
       }
     }
 
-Effective Config:
+Effective Configuration:
+  {
+    "version": 5,
+    "lang": "zh-CN",
+    "systemCommands": {
+      "npm": "yarn"
+    }
+  }
+```
 
-  autoRun: true (default)
+**Effective Configuration** is the user-level and project-level configuration merged by priority, with the current branch's `branchOverrides` applied.
 
-  leftPane:
-    command: "continue claude session" (default)
-    size:    "60%" (default)
-  ...
+**`--json` output structure**:
+
+```json
+{
+  "userConfig":    { "path": "...", "exists": true, "content": { ... } },
+  "projectConfig": { "path": "...", "exists": true, "content": { ... } },
+  "effectiveConfig": { ... }
+}
 ```
 
 ### Get Configuration Value
@@ -996,7 +650,7 @@ colyn config get <key> --user
 **Supported keys**:
 - `lang` - Interface language
 - `verbose` - Whether to show verbose output by default
-- `systemCommands.npm` / `systemCommands.claude` - System commands (package manager / Claude CLI)
+- `systemCommands.npm` - Package manager command
 - `commands.merge.*` / `commands.update.*` / `commands.release.*` / `commands.checkout.fetch` - Default values for each command's switches
 - `branchCategories` - Branch type list (`get` only, returns the merged complete list, in JSON format)
 
@@ -1041,7 +695,7 @@ colyn config set systemCommands.npm pnpm --user
 colyn config unset systemCommands.npm
 ```
 
-**Note**: `config set` / `config unset` support dotted keys such as `lang`, `verbose`, `systemCommands.*`, and `commands.*` (see [Command Reference · config](04-command-reference/03-system-config.md) for the full list). Tmux-related configuration requires manual editing of the configuration file.
+**Note**: `config set` / `config unset` support dotted keys such as `lang`, `verbose`, `systemCommands.*`, and `commands.*` (see [Command Reference · config](04-command-reference/03-system-config.md) for the full list). Object-valued fields such as `branchOverrides`, `branchCategories`, and `todo.github.typeLabels` require manual editing of the configuration file.
 
 ---
 
@@ -1053,14 +707,14 @@ If you are satisfied with the defaults, you do not need to create any configurat
 
 ```json
 {
-  "version": 4
+  "version": 5
 }
 ```
 
 **Result**:
-- Uses the default layout (`three-pane`)
-- Automatically runs commands (`autoRun: true`)
-- Left pane runs Claude, top-right runs Dev Server, bottom-right is an empty shell
+- English interface (`lang: "en"`)
+- `npm` is used as the package manager
+- All command switches use their built-in defaults
 
 ### Example 2: Simple Customization
 
@@ -1068,7 +722,7 @@ Set language and package manager:
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1076,25 +730,19 @@ Set language and package manager:
 }
 ```
 
-### Example 3: Custom Tmux Layout
+### Example 3: Custom Command Defaults
 
 ```json
 {
-  "version": 4,
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true,
-    "leftPane": {
-      "command": "continue claude session",
-      "size": "70%"
+  "version": 5,
+  "verbose": true,
+  "commands": {
+    "merge": {
+      "build": false,
+      "rebase": false
     },
-    "topRightPane": {
-      "command": "start dev server",
-      "size": "40%"
-    },
-    "bottomRightPane": {
-      "command": "git status",
-      "size": "60%"
+    "update": {
+      "all": false
     }
   }
 }
@@ -1104,94 +752,53 @@ Set language and package manager:
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
   },
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true
+  "commands": {
+    "merge": {
+      "build": false
+    }
   },
   "branchOverrides": {
     "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
+      "systemCommands": {
+        "npm": "pnpm"
       }
     },
-    "feature/*": {
-      "tmux": {
-        "leftPane": {
-          "size": "60%"
-        },
-        "topRightPane": {
-          "size": "30%"
+    "release/*": {
+      "commands": {
+        "merge": {
+          "build": true
         }
       }
     },
-    "bugfix/*": {
-      "tmux": {
-        "layout": "two-pane-horizontal",
-        "leftPane": {
-          "command": "continue claude session"
-        },
-        "rightPane": {
-          "command": null
-        }
-      }
+    "feature/china-*": {
+      "lang": "zh-CN"
     }
   }
 }
 ```
 
-### Example 5: Disable Auto-Run
-
-If you do not want any commands to run automatically:
-
-```json
-{
-  "version": 4,
-  "tmux": {
-    "autoRun": false,
-    "layout": "three-pane"
-  }
-}
-```
-
-### Example 6: Team-Shared Configuration
+### Example 5: Team-Shared Configuration
 
 Project-level configuration can be committed to version control so that team members share it:
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "systemCommands": {
-    "npm": "pnpm",
-    "claude": "claude --dangerously-skip-permissions"
+    "npm": "pnpm"
   },
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true,
-    "leftPane": {
-      "command": "continue claude session",
-      "size": "60%"
-    },
-    "topRightPane": {
-      "command": "start dev server",
-      "size": "30%"
-    },
-    "bottomRightPane": {
-      "command": "npm run test -- --watch",
-      "size": "70%"
-    }
-  },
-  "branchOverrides": {
-    "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
-      }
+  "branchCategories": [
+    { "name": "hotfix", "abbr": "🔥fix" }
+  ],
+  "syncFiles": ["data/*.json"],
+  "commands": {
+    "merge": {
+      "build": true
     }
   }
 }
@@ -1201,7 +808,7 @@ Project-level configuration can be committed to version control so that team mem
 
 ```bash
 git add .colyn/settings.json
-git commit -m "Add team tmux configuration"
+git commit -m "Add team colyn configuration"
 ```
 
 ---
@@ -1212,7 +819,7 @@ git commit -m "Add team tmux configuration"
 
 Colyn uses version numbers to manage the evolution of configuration files. When the configuration structure changes, the system will **automatically migrate** your configuration.
 
-**Current version**: `4`
+**Current version**: `5`
 
 ### Configuration File Formats
 
@@ -1260,11 +867,6 @@ Colyn supports multiple configuration file formats:
 
 1. **Configuration structure refactoring**
    - `npm` → `systemCommands.npm`
-   - `claudeCommand` → `systemCommands.claude`
-
-2. **Deprecated built-in command handling**
-   - `"auto continues claude session with dangerously skip permissions"` → `"auto continues claude session"`
-   - Automatically adds `--dangerously-skip-permissions` to `systemCommands.claude`
 
 **Migration example**:
 
@@ -1272,13 +874,7 @@ Colyn supports multiple configuration file formats:
 ```json
 {
   "version": 1,
-  "npm": "yarn",
-  "claudeCommand": "claude --env prod",
-  "tmux": {
-    "leftPane": {
-      "command": "auto continues claude session with dangerously skip permissions"
-    }
-  }
+  "npm": "yarn"
 }
 ```
 
@@ -1287,13 +883,7 @@ Colyn supports multiple configuration file formats:
 {
   "version": 2,
   "systemCommands": {
-    "npm": "yarn",
-    "claude": "claude --env prod --dangerously-skip-permissions"
-  },
-  "tmux": {
-    "leftPane": {
-      "command": "auto continues claude session"
-    }
+    "npm": "yarn"
   }
 }
 ```
@@ -1304,49 +894,49 @@ Colyn supports multiple configuration file formats:
 
 **Changes**:
 
-1. **Renamed built-in commands** (removed the "auto" prefix)
-   - `"auto continues claude session"` → `"continue claude session"`
-   - `"auto start dev server"` → `"start dev server"`
-
-2. **Configuration file format support**
+1. **Configuration file format support**
    - Added YAML format support (`settings.yaml`, `settings.yml`)
    - The original JSON files now use JSON5 parsing (supports comments and trailing commas)
    - Format priority: `settings.json` > `settings.yaml` > `settings.yml`
 
+No field changes; only the `version` number is bumped.
+
+#### Version 3 to Version 4
+
+**Changes**:
+
+1. **Plugin system refactoring**
+   - The `plugins` and `pluginSettings` fields are dropped
+   - Toolchains are re-detected on demand the next time a command runs
+
+#### Version 4 to Version 5
+
+**Changes**:
+
+1. **Removed obsolete fields**
+   - Fields that are no longer used by any command are dropped (including inside `branchOverrides`)
+   - `systemCommands.npm` and all other fields are preserved unchanged
+
 **Migration example**:
 
-**Old configuration** (Version 2):
+**Old configuration** (Version 4):
 ```json
 {
-  "version": 2,
+  "version": 4,
+  "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
-  },
-  "tmux": {
-    "leftPane": {
-      "command": "auto continues claude session"
-    },
-    "topRightPane": {
-      "command": "auto start dev server"
-    }
   }
 }
 ```
 
-**After automatic migration** (Version 3):
+**After automatic migration** (Version 5):
 ```json
 {
-  "version": 3,
+  "version": 5,
+  "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
-  },
-  "tmux": {
-    "leftPane": {
-      "command": "continue claude session"
-    },
-    "topRightPane": {
-      "command": "start dev server"
-    }
   }
 }
 ```
@@ -1383,7 +973,7 @@ mv ~/.config/colyn/settings.json ~/.config/colyn/settings.json.bak
 # Create a new configuration
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN"
 }
 EOF
@@ -1417,7 +1007,7 @@ rm ~/.config/colyn/settings.json  # user-level
 rm .colyn/settings.json           # project-level
 
 # Or set to empty configuration
-echo '{"version": 4}' > ~/.config/colyn/settings.json
+echo '{"version": 5}' > ~/.config/colyn/settings.json
 ```
 
 ### 3. Branch override configuration not taking effect?
@@ -1452,7 +1042,7 @@ echo '{"version": 4}' > ~/.config/colyn/settings.json
 cd project-a
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "systemCommands": { "npm": "yarn" }
 }
 EOF
@@ -1460,19 +1050,23 @@ EOF
 cd project-b
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "systemCommands": { "npm": "pnpm" }
 }
 EOF
 ```
 
-### 5. How to disable tmux auto-run?
+### 5. How to change the default behavior of a command?
+
+Use the `commands` section (see [Command Defaults Configuration](#command-defaults-configuration)):
 
 ```json
 {
-  "version": 4,
-  "tmux": {
-    "autoRun": false
+  "version": 5,
+  "commands": {
+    "merge": {
+      "build": false
+    }
   }
 }
 ```
@@ -1481,11 +1075,13 @@ Or for a specific branch:
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "branchOverrides": {
-    "main": {
-      "tmux": {
-        "autoRun": false
+    "release/*": {
+      "commands": {
+        "merge": {
+          "build": true
+        }
       }
     }
   }
@@ -1664,7 +1260,7 @@ The top-level `syncFiles` is a **file list** (`string[]`) that controls which fi
 
 ```jsonc
 {
-  "version": 4,
+  "version": 5,
   "syncFiles": ["data/*.json", "certs/**"]
 }
 ```
@@ -1708,7 +1304,7 @@ All boolean options follow this priority order:
 
 ```jsonc
 {
-  "version": 4,
+  "version": 5,
 
   // Top-level verbose: shared by all commands
   "verbose": true,
@@ -1768,7 +1364,6 @@ colyn update --current-only
 
 ## Next Steps
 
-- See [Tmux Integration](06-tmux-integration.md) to learn about the tmux workflow
 - See [Command Reference](04-command-reference.md) for all available commands
 - See [Best Practices](07-best-practices.md) for configuration recommendations
 

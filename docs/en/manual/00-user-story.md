@@ -221,71 +221,28 @@ At this point Xiao Ming's screen has three terminal windows and three browser ta
 
 ---
 
-## tmux Takes the Stage: One Window to Rule Them All
+## Quick Switching: Never Lose Track Again
 
-Xiao Ming discovers that Colyn has built-in tmux integration. Running `colyn repair` automatically creates a complete tmux environment for the project:
-
-```bash
-colyn repair
-
-✔ Checking main branch .env.local...
-✔ Repairing git worktree connections...
-✔ Created session "my-task-app" with 3 windows
-
-💡 Run 'tmux attach -t my-task-app' to enter your workspace
-```
-
-Enter tmux:
+Xiao Ming discovers that Colyn gives every worktree a numeric ID, and that one short command jumps straight to it:
 
 ```bash
-tmux attach -t my-task-app
+colyn 1   # → worktrees/task-1 (authentication)
+colyn 2   # → worktrees/task-2 (task management)
+colyn 3   # → worktrees/task-3 (dashboard)
+colyn 0   # → back to the Main branch directory
 ```
 
-Everything is unified in one tmux session — each worktree has its own window:
+He uses iTerm2, so every tab title is updated automatically by `colyn add` and `colyn checkout`:
 
 ```
-tmux status bar:
-[my-task-app] 0:main  1:auth*  2:tasks  3:dashboard
+🐶 my-task-app #1 - auth
+🐶 my-task-app #2 - tasks
+🐶 my-task-app #3 - dashboard
 ```
 
-Press `Ctrl-b 1` to switch to the authentication window. Each window has the same fixed three-pane layout:
+One tab per worktree, each clearly labelled with the project, the Worktree ID, and the branch. No more getting lost. No more guessing which tab is which.
 
-```
-┌──────────────────────┬───────────────┐
-│                      │  Dev Server   │
-│                      │  PORT=3001    │  ← Top right: server logs
-│   Claude Code        ├───────────────┤
-│                      │               │
-│                      │  Bash         │  ← Bottom right: manual ops
-│       60%            │     40%       │
-│                      │               │
-└──────────────────────┴───────────────┘
-```
-
-- **Left 60%**: Claude Code — the AI workhorse
-- **Top right**: Dev Server — watch logs in real time
-- **Bottom right**: Bash — run tests, Git commands
-
-**Most importantly**: Claude Code and the Dev Server both start automatically. Every window is a complete development environment, ready to use without any manual setup.
-
-Instant switching with keyboard shortcuts:
-
-```
-Ctrl-b 0  → Main branch (clean, stable — for merging)
-Ctrl-b 1  → Authentication
-Ctrl-b 2  → Task management
-Ctrl-b 3  → Dashboard
-```
-
-No more getting lost. No more `Cmd+Tab`. The status bar clearly shows each window's name, with `*` marking the current one.
-
-A few more handy moves:
-
-- `Ctrl-b z`: Zoom current pane to full screen (great for reading Claude's output), press again to restore
-- `Ctrl-b o`: Cycle through panes
-- `Ctrl-b d`: Detach session (everything keeps running in background, session state is preserved)
-
-Three AIs writing code simultaneously in their own windows. Xiao Ming uses `Ctrl-b 1/2/3` to switch between them, review progress, and give feedback. **Managing three terminal windows has become commanding three AIs from one window.**
+Three AIs writing code simultaneously, each in its own tab. Xiao Ming uses `colyn 1/2/3` to switch between them, review progress, and give feedback. **Managing three terminal windows has become commanding three AIs from one keyboard.**
 
 ---
 
@@ -368,7 +325,7 @@ Implement password reset
 Notice what happened:
 
 1. The worktree switched to the new branch `feature/reset-password`
-2. The tmux window name automatically updated from `auth` to `reset-password`
+2. The iTerm2 tab title automatically updated from `auth` to `reset-password`
 3. Previous Claude logs were automatically archived
 4. The task description was copied to the clipboard, ready to paste into Claude
 
@@ -377,7 +334,7 @@ Notice what happened:
 This is the core advantage of reusing worktrees:
 
 - **Same port** (3001) — browser bookmarks still work
-- **Same window** (`Ctrl-b 1`) — muscle memory unchanged
+- **Same Worktree ID** (`colyn 1`) — muscle memory unchanged
 - **Claude context reuse** — significantly higher efficiency for related features
 - **Same environment** — no need to reinstall dependencies
 
@@ -417,13 +374,13 @@ One command completes the full release pipeline: lint, build, version bump, tag,
 
 After that sprint weekend, Xiao Ming settles into a steady development cadence:
 
-**Morning** — one command to restore all context:
+**Morning** — one command to get back to work:
 
 ```bash
-tmux attach -t my-task-app
+colyn 1
 ```
 
-All windows, panes, and even Claude session history are still there.
+Every worktree is exactly where he left it: same branch, same port, same environment.
 
 **Development loop**:
 
@@ -435,7 +392,7 @@ Done → colyn merge
 Periodically → colyn todo archive -y (archive completed tasks)
 ```
 
-**Evening** — `Ctrl-b d` to detach the tmux session, everything runs in the background. Come back tomorrow and attach right where you left off.
+**Evening** — just close the terminal. Worktrees, branches, and ports are all persistent; come back tomorrow and pick up right where you left off.
 
 ### Moving Projects Is No Problem
 
@@ -449,11 +406,10 @@ colyn repair
 ✔ Checking main branch .env.local...
 ✔ Repairing git worktree connections...
 ✔ Detecting and repairing orphan worktree directories...
-✔ Created session "my-task-app" with 3 windows
 ✓ Repair complete!
 ```
 
-One command automatically fixes all path references, environment variable files, and the tmux session.
+One command automatically fixes all path references and environment variable files.
 
 ### Not Just Node.js
 
@@ -463,6 +419,6 @@ For monorepo projects with separate frontend and backend, Colyn handles those to
 
 ---
 
-Looking back at that sprint weekend, Xiao Ming sat alone at his screen, commanding three AIs building different features in parallel, switching between tmux windows to review code. He was no longer the person writing every line — he was the one breaking down tasks, assigning them to AI, and reviewing the results.
+Looking back at that sprint weekend, Xiao Ming sat alone at his screen, commanding three AIs building different features in parallel, switching between worktrees to review code. He was no longer the person writing every line — he was the one breaking down tasks, assigning them to AI, and reviewing the results.
 
 **From writing code yourself to commanding an AI team. The only thing between them is `colyn init`.**

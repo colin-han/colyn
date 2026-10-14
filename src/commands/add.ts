@@ -1,5 +1,4 @@
 import * as path from 'path';
-import * as fs from 'fs/promises';
 import type { Command } from 'commander';
 import Enquirer from 'enquirer';
 import {
@@ -37,22 +36,8 @@ import { pluginManager } from '../plugins/index.js';
 import { resolveToolchains } from '../core/toolchain-resolver.js';
 import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 import * as fsPromises from 'fs/promises';
-import {
-  isTmuxAvailable,
-  isInTmux,
-  getCurrentSession,
-  sessionExists,
-  setupWindow,
-  switchWindow,
-  getWindowName
-} from '../core/tmux.js';
-import {
-  loadTmuxConfigForBranch,
-  resolvePaneCommands,
-  resolvePaneLayout,
-  validateTmuxConfig
-} from '../core/tmux-config.js';
 import { getRunCommand } from '../core/config.js';
+import { setIterm2Title } from '../core/iterm2.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -65,153 +50,6 @@ import { getActiveTodoBackend } from '../todo-backends/registry.js';
 import type { ProjectPaths } from '../core/paths.js';
 import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 const { prompt } = Enquirer;
-
-/**
- * tmux 提示文件路径
- */
-const TMUX_HINT_FILE = '.tmux-hint-shown';
-
-/**
- * 检查是否已显示过 tmux 提示
- */
-async function hasTmuxHintShown(configDir: string): Promise<boolean> {
-  try {
-    await fs.access(path.join(configDir, TMUX_HINT_FILE));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * 标记已显示 tmux 提示
- */
-async function markTmuxHintShown(configDir: string): Promise<void> {
-  try {
-    await fs.writeFile(path.join(configDir, TMUX_HINT_FILE), '', 'utf-8');
-  } catch {
-    // 忽略写入失败
-  }
-}
-
-/**
- * 设置 tmux window 并启动 pane 命令
- */
-async function setupTmuxWindow(
-  projectName: string,
-  projectRoot: string,
-  windowIndex: number,
-  branchName: string,
-  worktreePath: string
-): Promise<{ success: boolean; inTmux: boolean; sessionName?: string }> {
-  // 如果 tmux 不可用，直接返回
-  if (!isTmuxAvailable()) {
-    return { success: false, inTmux: false };
-  }
-
-  const windowName = getWindowName(branchName);
-
-  // 加载 tmux 配置并解析 pane 命令和布局（支持分支特定配置）
-  const tmuxConfig = await loadTmuxConfigForBranch(projectRoot, branchName);
-
-  // 验证配置（仅显示警告，不阻止执行）
-  const validation = validateTmuxConfig(tmuxConfig);
-  if (validation.warnings.length > 0) {
-    validation.warnings.forEach((warning: string) => {
-      output(chalk.yellow(`⚠️  ${warning}`));
-    });
-  }
-
-  const paneCommands = await resolvePaneCommands(tmuxConfig, worktreePath, projectRoot, branchName);
-  const paneLayout = resolvePaneLayout(tmuxConfig);
-
-  const inTmux = isInTmux();
-
-  if (inTmux) {
-    // 在 tmux 中：使用当前 session
-    const currentSession = getCurrentSession();
-    if (currentSession) {
-      // 创建新 window 并设置布局
-      const success = setupWindow({
-        sessionName: currentSession,
-        windowIndex,
-        windowName,
-        workingDir: worktreePath,
-        paneCommands,
-        paneLayout,
-        projectName,
-        branchName,
-      });
-
-      if (success) {
-        // 切换到新创建的 window
-        switchWindow(currentSession, windowIndex, projectName, branchName);
-      }
-
-      return { success, inTmux: true, sessionName: currentSession };
-    }
-    return { success: false, inTmux: true };
-  } else {
-    // 不在 tmux 中：检查 session 是否存在，如果存在则创建 window
-    if (sessionExists(projectName)) {
-      // session 存在，创建新 window
-      const success = setupWindow({
-        sessionName: projectName,
-        windowIndex,
-        windowName,
-        workingDir: worktreePath,
-        paneCommands,
-        paneLayout,
-        projectName,
-        branchName,
-      });
-      return { success, inTmux: false, sessionName: projectName };
-    }
-    return { success: false, inTmux: false };
-  }
-}
-
-/**
- * 显示 tmux 设置结果信息
- */
-function displayTmuxInfo(
-  result: { success: boolean; inTmux: boolean; sessionName?: string },
-  windowIndex: number,
-  branchName: string
-): void {
-  if (!result.success) {
-    return;
-  }
-
-  const windowName = getWindowName(branchName);
-
-  output('');
-  if (result.inTmux) {
-    outputSuccess(t('commands.add.tmuxWindowCreated', { windowIndex, windowName }));
-    output(t('commands.add.tmuxPaneClaude'));
-    output(t('commands.add.tmuxPaneDevServer'));
-    output(t('commands.add.tmuxPaneBash'));
-    outputSuccess(t('commands.add.tmuxWindowSwitched', { windowIndex }));
-  } else {
-    outputSuccess(t('commands.add.tmuxWindowCreatedInSession', {
-      sessionName: result.sessionName ?? '',
-      windowIndex,
-      windowName
-    }));
-    output(t('commands.add.tmuxPaneClaude'));
-    output(t('commands.add.tmuxPaneDevServer'));
-    output(t('commands.add.tmuxPaneBash'));
-  }
-}
-
-/**
- * 显示首次 tmux 提示
- */
-function displayFirstTimeTmuxHint(projectName: string): void {
-  output('');
-  output(chalk.cyan(t('commands.add.tmuxHintTitle')));
-  output(chalk.cyan(t('commands.add.tmuxHintAttach', { session: projectName })));
-}
 
 /**
  * add 无参数时：交互式创建分支名（type/name）
@@ -562,21 +400,8 @@ async function addCommand(branchName?: string): Promise<void> {
       }
     }
 
-    // 步骤12: 设置 tmux window（如果可用）
-    const projectName = paths.mainDirName;
-    const tmuxResult = await setupTmuxWindow(projectName, paths.rootDir, id, cleanBranchName, worktreePath);
-
-    // 显示 tmux 信息
-    displayTmuxInfo(tmuxResult, id, cleanBranchName);
-
-    // 如果不在 tmux 中且这是第一次创建 worktree，显示 tmux 提示
-    if (!tmuxResult.inTmux && isTmuxAvailable()) {
-      const hintShown = await hasTmuxHintShown(paths.configDir);
-      if (!hintShown) {
-        displayFirstTimeTmuxHint(projectName);
-        await markTmuxHintShown(paths.configDir);
-      }
-    }
+    // 步骤12: 更新 iTerm2 tab title
+    setIterm2Title(id, paths.mainDirName, cleanBranchName);
 
     // 步骤13: 输出 JSON 结果到 stdout（供 bash 解析）
     const result: CommandResult = {

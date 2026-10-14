@@ -8,7 +8,7 @@
  */
 
 import deepmerge from 'deepmerge';
-import type { Settings, TmuxConfig } from './config-schema.js';
+import type { Settings } from './config-schema.js';
 
 /**
  * 合并配置选项
@@ -43,29 +43,6 @@ export function mergeConfigs(...configs: Array<Settings | null>): Settings {
   }
 
   return deepmerge.all(validConfigs, MERGE_OPTIONS) as Settings;
-}
-
-/**
- * 合并 Tmux 配置
- * @param configs Tmux 配置对象数组（null 会被过滤掉）
- * @returns 合并后的 Tmux 配置对象
- */
-export function mergeTmuxConfigs(
-  ...configs: Array<TmuxConfig | null | undefined>
-): TmuxConfig {
-  const validConfigs = configs.filter(
-    (c): c is TmuxConfig => c !== null && c !== undefined
-  );
-
-  if (validConfigs.length === 0) {
-    return {};
-  }
-
-  if (validConfigs.length === 1) {
-    return validConfigs[0];
-  }
-
-  return deepmerge.all(validConfigs, MERGE_OPTIONS) as TmuxConfig;
 }
 
 /**

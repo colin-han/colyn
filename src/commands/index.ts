@@ -19,7 +19,6 @@ import { register as registerSystemIntegration } from './system-integration.js';
 import { register as registerCompletion } from './completion.js';
 import { register as registerRepair } from './repair.js';
 import { register as registerConfig } from './config.js';
-import { register as registerTmux } from './tmux.js';
 import { register as registerRelease } from './release.js';
 import { register as registerTodo } from './todo.js';
 import { register as registerSwitch } from './switch.js';
@@ -42,7 +41,6 @@ export function registerAllCommands(program: Command): void {
   registerCompletion(program);
   registerRepair(program);
   registerConfig(program);
-  registerTmux(program);
   registerRelease(program);
   registerTodo(program);
   registerSwitch(program);

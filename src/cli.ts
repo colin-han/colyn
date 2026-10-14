@@ -126,7 +126,7 @@ export async function run(): Promise<void> {
             },
             {
               key: t('cli.groupSystem'),
-              names: ['repair', 'config', 'tmux', 'system-integration', 'completion'],
+              names: ['repair', 'config', 'system-integration', 'completion'],
             },
           ];
 

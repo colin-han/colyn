@@ -28,7 +28,6 @@ export const SETTINGS_KEYS = {
 
   // 系统命令
   'systemCommands.npm': 'string',
-  'systemCommands.claude': 'string',
 
   // 命令行为覆盖
   'commands.merge.build': 'boolean',

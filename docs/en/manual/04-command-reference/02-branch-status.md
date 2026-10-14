@@ -71,8 +71,7 @@ If you select a branch from a `pending` todo in the interactive list, `checkout`
 **Old branch cleanup:**
 - If old branch has been merged to main, prompts user whether to delete it
 
-**tmux integration:**
-- In tmux, automatically updates window name to new branch name
+**iTerm2 integration:**
 - If using iTerm2, automatically updates tab title
 
 ### Examples

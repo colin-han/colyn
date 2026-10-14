@@ -1,9 +1,9 @@
 # iTerm2 Tab Title Sync Design
 
 ## Version Info
-- Document Version: 1.1
+- Document Version: 2.0
 - Created: 2026-02-21
-- Updated: 2026-02-21
+- Updated: 2026-10-14
 
 ---
 
@@ -11,13 +11,13 @@
 
 ### 1.1 Background
 
-Colyn uses Git worktrees for parallel Vibe Coding. When switching between multiple worktrees, users need to quickly identify the current project and branch from the iTerm2 tab, without having to read the shell prompt.
+Colyn uses Git worktrees for Parallel Vibe Coding. When working across multiple worktrees, each usually in its own iTerm2 tab, users need to quickly identify the project, Worktree ID and branch from the tab title, without having to read the shell prompt.
 
 ### 1.2 Goals
 
 - **Tab title only**: Do not modify the window title, to avoid interfering with the user's window management
-- **Zero configuration**: Works automatically in both tmux and non-tmux environments, no user setup required
-- **Timely updates**: Update the title at the key moments when the user switches worktrees
+- **Zero configuration**: Works automatically whenever colyn runs inside iTerm2; no user setup required
+- **Timely updates**: Update the title at the key moments when a worktree is created or its branch changes
 
 ---
 
@@ -27,36 +27,31 @@ Colyn uses Git worktrees for parallel Vibe Coding. When switching between multip
 
 | Command | Trigger Scenario | Notes |
 |---------|-----------------|-------|
-| `colyn add` | When creating a new worktree | Triggered after `setupWindow()` creates the window, and again after `switchWindow()` switches to it |
-| `colyn checkout` | When switching to an existing worktree | Triggered after the switch completes, regardless of tmux environment |
-| `colyn tmux start` | When starting/repairing a tmux session and window | Triggered via `setupWindow()` |
+| `colyn add` | After a new worktree has been created | Called right before the JSON result is emitted, with the new Worktree ID and the branch that was checked out |
+| `colyn checkout` | After the current worktree has been switched to another branch | Called after the branch switch and status update complete, with the worktree's ID and the new branch |
 
 ### 2.2 Trigger Conditions
 
-Title update only executes when **all** of the following conditions are met:
+The title update only executes when **running inside iTerm2**, detected via environment variables:
 
-1. **Running inside iTerm2**: Detected via environment variables
-   - `TERM_PROGRAM === 'iTerm.app'`, or
-   - `LC_TERMINAL === 'iTerm2'`
-2. **Both `projectName` and `branchName` are known**: Both are required
+- `TERM_PROGRAM === 'iTerm.app'`, or
+- `LC_TERMINAL === 'iTerm2'`
 
-If conditions are not met, the update is silently skipped with no error.
+If the condition is not met, the update is silently skipped with no error, and `setIterm2Title()` returns `false`.
 
 ---
 
 ## 3. Title Format
 
-### 3.1 Non-tmux Environment
-
 ```
-🐶 {projectName} #{worktreeId} - {windowName}
+🐶 {projectName} #{worktreeId} - {branchShortName}
 ```
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `projectName` | Main directory name (project name) | `my-app` |
 | `worktreeId` | Worktree ID (number) | `2` |
-| `windowName` | Last segment of the branch name (split by `/`) | `login-page` (from `feature/login-page`) |
+| `branchShortName` | Last segment of the branch name (split by `/`) | `login-page` (from `feature/login-page`) |
 
 **Examples**:
 
@@ -66,24 +61,7 @@ If conditions are not met, the update is silently skipped with no error.
 | `my-app` | `3` | `fix/button-style` | `🐶 my-app #3 - button-style` |
 | `my-app` | `1` | `main` | `🐶 my-app #1 - main` |
 
-### 3.2 tmux Environment
-
-```
-🐶 {projectName} #tmux
-```
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `projectName` | Main directory name (project name) | `my-app` |
-
-All worktrees share the same tab title format, because in a tmux environment, worktree identification is handled by tmux window names — there is no need to duplicate that information in the iTerm2 tab title.
-
-**Example**: `🐶 my-app #tmux`
-
-### 3.3 Design Decision: Why Different Formats?
-
-- **Non-tmux**: Each worktree corresponds to a different iTerm2 tab. The tab title needs full information (worktree ID + branch name) to distinguish between tabs.
-- **tmux**: Multiple worktrees share the same iTerm2 tab (switching is done inside tmux). The tab title only needs to identify the project; detailed info is visible in the tmux status bar.
+Each worktree is expected to live in its own iTerm2 tab, so the title carries the full information (Worktree ID + branch short name) needed to tell tabs apart.
 
 ---
 
@@ -102,43 +80,28 @@ The tab title is set using iTerm2's standard OSC (Operating System Command) esca
 
 Note: OSC `2` sets the window title; OSC `1` sets the tab title (icon name). This feature only uses `1`.
 
-**OSC 1 also updates the session name**: In iTerm2, setting the icon name via OSC 1 simultaneously updates the session's `autoNameFormat` variable — the same name visible in "Edit Session > Session Name". So OSC 1 effectively sets both the tab title and the session name in one operation.
+**OSC 1 also updates the session name**: In iTerm2, setting the icon name via OSC 1 simultaneously updates the session's `autoNameFormat` variable — the same name visible in "Edit Session > Session Name". So OSC 1 effectively sets both the tab title and the iTerm2 session name in one operation.
 
 ### 4.2 Tab Title Behavior with Multiple Panes
 
 When an iTerm2 tab contains multiple panes, **the tab title displays the session name of the currently active (focused) pane**. Switching focus to a different pane causes the tab title to update accordingly.
 
-**Impact analysis for this feature**:
-
-| Scenario | iTerm2 perspective | Impact |
-|----------|--------------------|--------|
-| **tmux environment** | The entire tmux process runs in a single iTerm2 pane; iTerm2 is unaware of tmux's internal panes | **No impact.** The OSC sequence passes through tmux to iTerm2, modifying the one session's name. Behavior is stable. |
-| **Non-tmux environment** | The Colyn command runs in a single pane; Colyn does not create iTerm2 split panes | **No impact.** |
-
-Conclusion: in Colyn's usage scenarios, the multi-pane tab title behavior does not affect the current implementation.
+Colyn commands run in a single pane and Colyn does not create iTerm2 split panes, so this behavior has no impact on the current implementation.
 
 ### 4.3 Delivery Method
 
-The escape sequence is sent differently depending on the environment:
-
-**Non-tmux**: Written directly to `stderr`
+The escape sequence is written directly to `stderr` of the colyn process:
 
 ```typescript
 process.stderr.write(`\x1b]1;${tabTitle}\x07`);
 ```
 
-**tmux**: Sent to the target pane via `tmux send-keys`, executed by the shell inside the pane
+stderr is used because, under the project's dual-layer architecture, stdout is reserved for the JSON control protocol consumed by `shell/colyn.sh`; stderr is passed straight through to the terminal, so iTerm2 receives the sequence and updates the tab title.
 
-```bash
-tmux send-keys -t "{sessionName}:{windowIndex}.0" "printf '\033]1;{title}\007'" Enter
-```
-
-Sent to pane 0 (the main pane). The shell inside runs `printf`, which outputs the escape sequence. iTerm2 captures it and updates the tab title.
-
-### 4.4 windowName Calculation
+### 4.4 branchShortName Calculation
 
 ```typescript
-function getWindowName(branch: string): string {
+export function getBranchShortName(branch: string): string {
   return branch.split('/').pop() || branch;
 }
 ```
@@ -148,14 +111,29 @@ Takes the last segment of the branch name after splitting by `/`. Examples:
 - `fix/button-style` → `button-style`
 - `main` → `main`
 
+### 4.5 Public API
+
+```typescript
+/**
+ * Set the iTerm2 tab title.
+ * Format: 🐶 {projectName} #{worktreeId} - {branchShortName}
+ * @returns true if the title was written, false if not running in iTerm2
+ */
+export function setIterm2Title(
+  worktreeId: number,
+  projectName: string,
+  branchName: string
+): boolean;
+```
+
 ---
 
 ## 5. Implementation Locations
 
 | Function | File | Responsibility |
 |----------|------|----------------|
-| `isInIterm2()` | `src/core/tmux.ts` | Detect iTerm2 environment |
-| `setIterm2Title()` | `src/core/tmux.ts` | Core implementation: detect environment and send escape sequence |
-| `setupWindow()` | `src/core/tmux.ts` | Calls `setIterm2Title()` after creating a window |
-| `switchWindow()` | `src/core/tmux.ts` | Calls `setIterm2Title()` after switching to a window |
-| checkout command | `src/commands/checkout.ts` | Calls `setIterm2Title()` directly after switching worktree |
+| `isInIterm2()` | `src/core/iterm2.ts` | Detect iTerm2 environment (module-private) |
+| `getBranchShortName()` | `src/core/iterm2.ts` | Derive the branch short name from a branch name |
+| `setIterm2Title()` | `src/core/iterm2.ts` | Core implementation: detect environment, build the title and send the escape sequence |
+| add command | `src/commands/add.ts` | Calls `setIterm2Title(id, paths.mainDirName, cleanBranchName)` after the worktree is created |
+| checkout command | `src/commands/checkout.ts` | Calls `setIterm2Title(worktree.id, paths.mainDirName, branch)` after the branch switch completes |

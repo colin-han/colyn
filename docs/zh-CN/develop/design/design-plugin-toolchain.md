@@ -532,7 +532,6 @@ const SettingsSchemaBase = z.object({
   version: z.number(),
   lang: z.enum(['en', 'zh-CN']).optional(),
   systemCommands: SystemCommandsSchema.optional(),
-  tmux: TmuxConfigSchema.optional(),
 
   // 单项目模式（toolchain !== undefined 时生效）
   // null 表示明确无工具链（避免重复提示）
@@ -762,7 +761,6 @@ function migrateV3ToV4Recursive(settings: V3Settings): Settings {
     lang: settings.lang,
     systemCommands: settings.systemCommands,
   };
-  if (settings.tmux) result.tmux = settings.tmux;
 
   // 丢弃 plugins/pluginSettings
   // toolchain/projects 故意不设置（undefined），触发后续按需发现

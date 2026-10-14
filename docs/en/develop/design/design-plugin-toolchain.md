@@ -186,13 +186,14 @@ export interface ToolchainPlugin {
   repairSettings?(context: RepairSettingsContext): Promise<Record<string, unknown>>;
 
   // ════════════════════════════════════════════
-  // Toolchain Info (for other plugins to query, e.g., terminal session plugin)
+  // Toolchain Info (for the core and other plugins to query)
   // ════════════════════════════════════════════
 
   /**
    * Return dev server startup command
    *
-   * Called by terminal session plugin to auto-start dev server in terminal.
+   * Exposed through `PluginManager.getDevServerCommand()` for any caller that
+   * needs to know how to start the dev server of a worktree.
    * Toolchain plugin only returns the command, does NOT execute it.
    *
    * @param worktreePath Directory path to detect dev server command from
@@ -513,7 +514,6 @@ const SettingsSchemaBase = z.object({
   version: z.number(),
   lang: z.enum(['en', 'zh-CN']).optional(),
   systemCommands: SystemCommandsSchema.optional(),
-  tmux: TmuxConfigSchema.optional(),
 
   // Single-project mode (takes effect when toolchain !== undefined)
   // null = explicitly no toolchain (prevents repeated detection prompts)
@@ -740,7 +740,6 @@ function migrateV3ToV4Recursive(settings: V3Settings): Settings {
     lang: settings.lang,
     systemCommands: settings.systemCommands,
   };
-  if (settings.tmux) result.tmux = settings.tmux;
 
   // Drop plugins/pluginSettings
   // toolchain/projects intentionally left undefined to trigger on-demand discovery

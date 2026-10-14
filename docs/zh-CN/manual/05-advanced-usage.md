@@ -391,7 +391,6 @@ colyn repair
 1. 修复 Git worktree 的路径引用
 2. 检查并修复所有 `.env.local` 文件
 3. 检测并处理孤儿 worktree 目录
-4. 如果配置了 tmux，修复或重建 session 和 windows
 
 ### Repair 命令的应用场景
 
@@ -690,7 +689,6 @@ colyn merge release/v1.2.0
 
 ## 下一步
 
-- 学习 [tmux 集成](06-tmux-integration.md) 提升工作效率
 - 查看 [最佳实践](07-best-practices.md) 了解推荐工作流程
 - 遇到问题？参考 [故障排除](08-troubleshooting.md)
 
