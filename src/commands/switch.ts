@@ -7,13 +7,6 @@ import { t } from '../i18n/index.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import { outputResult, outputError } from '../utils/logger.js';
-import {
-  isInTmux,
-  getCurrentSession,
-  sessionExists,
-  windowExists,
-  switchWindow,
-} from '../core/tmux.js';
 
 /**
  * 解析数字字符串到 worktree ID。
@@ -175,51 +168,21 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
     return;
   }
 
-  // 项目名 = 主目录名 = tmux session 名
-  const sessionName = paths.mainDirName;
-
-  const inTmux = isInTmux();
-  const currentSession = inTmux ? getCurrentSession() : null;
-  const hasSession = sessionExists(sessionName);
-  // windowExists 内部执行 select-window，会同时充当"是否存在"探测和"切换"动作；
-  // 同 session 内随后调用 switchWindow 是为了触发 iTerm2 title 更新，两次切到同一 window 结果幂等
-  const hasWindow = hasSession && windowExists(sessionName, id);
-
-  if (!hasWindow) {
-    // session 或 window 不存在，降级为 cd（保持相对子路径，缺失则上溯）
-    const resolved = await resolveDeepestExisting(target, rel);
-    const idealTarget = path.join(target, rel);
-    if (rel && resolved !== idealTarget) {
-      process.stderr.write(
-        t('commands.switch.subdirFallback', {
-          expected: toDisplayPath(idealTarget),
-          actual: toDisplayPath(resolved),
-        }) + '\n'
-      );
-    }
-    outputResult({
-      success: true,
-      targetDir: resolved,
-      displayPath: toDisplayPath(resolved),
-    });
-    return;
+  // cd 模式：保持相对子路径，缺失则上溯到最深存在的目录
+  const resolved = await resolveDeepestExisting(target, rel);
+  const idealTarget = path.join(target, rel);
+  if (rel && resolved !== idealTarget) {
+    process.stderr.write(
+      t('commands.switch.subdirFallback', {
+        expected: toDisplayPath(idealTarget),
+        actual: toDisplayPath(resolved),
+      }) + '\n'
+    );
   }
-
-  if (inTmux && currentSession === sessionName) {
-    // 同 session 内：Node 端直接调用 switchWindow（含 iTerm2 title 更新）
-    const branchName =
-      id === 0
-        ? await getMainBranch(paths.mainDir).catch(() => 'main')
-        : `task-${id}`;
-    switchWindow(sessionName, id, sessionName, branchName);
-    return;
-  }
-
-  // tmux 外，或在其他 session 中 → 让 shell 执行 attach
   outputResult({
     success: true,
-    attachSession: sessionName,
-    attachWindow: id,
+    targetDir: resolved,
+    displayPath: toDisplayPath(resolved),
   });
 }
 

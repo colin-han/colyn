@@ -252,7 +252,6 @@ colyn checkout 1 feature/new-feature
 - 📖 阅读 [核心概念](03-core-concepts.md) 深入理解 Colyn 的工作原理
 - 📚 查看 [命令参考](04-command-reference.md) 了解所有命令的详细用法
 - 🚀 学习 [高级用法](05-advanced-usage.md) 掌握更多技巧
-- 🖥️ 如果使用 tmux，查看 [tmux 集成](06-tmux-integration.md)
 
 ---
 

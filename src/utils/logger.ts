@@ -6,7 +6,7 @@ const shouldOutputMachineResult =
   process.env.COLYN_OUTPUT_JSON === '1' &&
   process.env.COLYN_OUTPUT_CONTROL === '1';
 if (shouldOutputMachineResult) {
-  // 避免内部控制变量被后续子进程（如 tmux/new shell）继承，造成环境污染。
+  // 避免内部控制变量被后续子进程（如新 shell）继承，造成环境污染。
   delete process.env.COLYN_OUTPUT_JSON;
   delete process.env.COLYN_OUTPUT_CONTROL;
 }

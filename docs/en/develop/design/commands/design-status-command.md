@@ -15,7 +15,7 @@ The original `colyn status` command displayed git status (modified, staged, bran
 
 ### 1.2 Goals
 
-Introduce workflow state persistence to replace the fragile tmux session collaboration approach:
+Introduce workflow state persistence so that workflow phase can be discovered reliably across tools:
 
 - Support four states: `idle / running / waiting-confirm / finish`
 - Persist state to files so it survives tool restarts

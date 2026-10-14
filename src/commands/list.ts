@@ -27,7 +27,6 @@ import {
   type GitDiff
 } from './list.helpers.js';
 import { getWorktreeStatus, type WorktreeStatus } from '../core/worktree-status.js';
-import { isInTmux, isTmuxAvailable } from '../core/tmux.js';
 
 /**
  * List 命令选项
@@ -393,15 +392,6 @@ function outputTable(items: ListItem[]): void {
   }
 
   console.error(table.toString());
-
-  // 如果在 tmux 中，显示切换提示
-  if (isTmuxAvailable() && isInTmux()) {
-    const hasWorktrees = items.some(item => !item.isMain);
-    if (hasWorktrees) {
-      output('');
-      output(chalk.cyan(`💡 ${t('commands.list.tmuxSwitchHint')}`));
-    }
-  }
 
   // 如果只有主分支，给出提示
   const hasWorktrees = items.some(item => !item.isMain);

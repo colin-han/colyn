@@ -30,8 +30,6 @@
   - ✅ 使用 "Main branch"（不是 "master branch" 或 "primary branch"）
   - ✅ 使用 "Base port"（不是 "initial port" 或 "starting port"）
   - ✅ 使用 "Worktree ID"（不是 "worktree number" 或 "worktree index"）
-  - ✅ 使用 "Window name"（不是 "window title"）
-  - ✅ 使用 "Session name"（不是 "session id"）
   - ✅ 使用 "Dev server"（不是 "development server" 或 "local server"）
   - ✅ 使用 "并行 Vibe Coding"（这是项目特有术语）
 * **新术语引入**：如果需要引入新术语，必须先在 `docs/zh-CN/develop/glossary.md` 中定义后再使用
@@ -77,7 +75,7 @@
 
 1. **优先自动推断**
    - 能从环境、项目结构、命名规则中推断的信息，不应存储
-   - 示例：tmux session name 永远等于 project name，无需保存
+   - 示例：project name 永远等于主目录名，无需保存
 
 2. **只存储必要信息**
    - 用户显式配置的选项
@@ -115,12 +113,10 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
 | Project name | 主目录名称 | `my-task-app/` → `my-task-app` |
 | Main branch | 主分支目录的当前分支 | `git branch --show-current` |
 | Base port | 主分支的 .env.local | 已配置的 PORT 环境变量 |
-| Session name | Project name | 等于项目名 |
-| Window name | Branch name | 分支名的最后一段 |
 
 **例外情况**：
 
-如果将来有特殊需求（例如：session name 必须与 project name 不同），需要：
+如果将来有特殊需求（例如：project name 必须与主目录名不同），需要：
 1. 与用户充分讨论必要性
 2. 评估是否有其他解决方案
 3. 确认后再添加配置选项
@@ -163,28 +159,28 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
 
 1. **递增版本号**
    ```typescript
-   // src/core/tmux-config.ts
-   export const CURRENT_CONFIG_VERSION = 2;  // 从 1 改为 2
+   // src/core/config-schema.ts
+   export const CURRENT_CONFIG_VERSION = 6;  // 从 5 改为 6
    ```
 
-2. **添加迁移函数**
+2. **添加迁移函数**（`src/core/config-migration.ts`）
    ```typescript
-   const MIGRATIONS: MigrationFunction[] = [
-     // 现有的迁移...
+   // 定义上一版本的 Schema（version literal），并编写递归迁移函数
+   function migrateV5ToV6Recursive(settings: V5Settings): Settings {
+     // 迁移逻辑（记得递归处理 branchOverrides）
+     return { ...settings, version: 6 };
+   }
 
-     // 新增的迁移 (version → version+1)
-     (settings: Settings): Settings => {
-       // 迁移逻辑
-       return { ...settings, version: 2 };
-     },
-   ];
+   const V5ToCurrentSchema = V5SettingsSchema.transform(migrateV5ToV6Recursive);
+
+   // 加入 ConfigSchema 的 union，并让更早版本的迁移链也经过新步骤
    ```
 
 3. **处理所有配置层级**
-   - [ ] 用户级全局配置 (`settings.tmux`)
-   - [ ] 项目级全局配置 (`settings.tmux`)
-   - [ ] 用户级分支覆盖 (`settings.branchOverrides[*].tmux`)
-   - [ ] 项目级分支覆盖 (`settings.branchOverrides[*].tmux`)
+   - [ ] 用户级全局配置 (`settings.*`)
+   - [ ] 项目级全局配置 (`settings.*`)
+   - [ ] 用户级分支覆盖 (`settings.branchOverrides[*]`)
+   - [ ] 项目级分支覆盖 (`settings.branchOverrides[*]`)
 
 4. **测试 Migration**
    - [ ] 准备旧版本的配置文件
@@ -210,18 +206,18 @@ getBasePort() => readEnvLocal('.env.local').PORT  // 从 .env.local 读取
 ```typescript
 // ❌ 错误：可能删除用户配置
 (settings: Settings): Settings => {
-  return { version: 2, tmux: { layout: 'three-pane' } };
+  return { version: 6, todo: { backend: 'local' } };
 }
 
 // ✅ 正确：保留所有用户配置
 (settings: Settings): Settings => {
   return {
     ...settings,
-    tmux: {
-      ...settings.tmux,
-      layout: settings.tmux?.layout ?? 'three-pane',
+    todo: {
+      ...settings.todo,
+      backend: settings.todo?.backend ?? 'local',
     },
-    version: 2,
+    version: 6,
   };
 }
 ```
@@ -301,10 +297,10 @@ program
 
 ```typescript
 // 翻译文件
-sessionNotExists: 'Session "{{sessionName}}" 不存在',
+worktreeNotExists: 'Worktree task-{{n}} 不存在',
 
 // 代码中使用
-outputWarning(t('commands.tmux.sessionNotExists', { sessionName }));
+outputWarning(t('commands.switch.worktreeNotExists', { n: id }));
 ```
 
 ### 特殊情况处理
@@ -338,7 +334,7 @@ commands: {
   add: { ... },
   remove: { ... },
   merge: { ... },
-  tmux: { ... },  // 新命令的翻译放在这里
+  myCommand: { ... },  // 新命令的翻译放在这里
 }
 ```
 

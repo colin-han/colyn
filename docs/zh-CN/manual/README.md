@@ -7,7 +7,7 @@
 
 ## 欢迎使用 Colyn
 
-Colyn 是一个强大的 Git Worktree 管理工具，专为需要并行开发多个功能的开发者设计。它简化了 Git worktree 的创建和管理流程，自动处理端口分配，支持 tmux 集成，让你能够轻松实现多分支并行开发。
+Colyn 是一个强大的 Git Worktree 管理工具，专为需要并行开发多个功能的开发者设计。它简化了 Git worktree 的创建和管理流程，自动处理端口分配，让你能够轻松实现多分支并行开发。
 
 ### 核心特性
 
@@ -16,7 +16,6 @@ Colyn 是一个强大的 Git Worktree 管理工具，专为需要并行开发多
 - **📁 自动目录切换**: 命令执行后自动切换到目标目录
 - **🔍 智能分支处理**: 自动识别本地分支、远程分支或创建新分支
 - **⚡ 自动补全**: 支持 Bash/Zsh Tab 键补全命令、选项和参数
-- **🖥️ tmux 集成**: 在 tmux 中实现高效的 worktree 管理和切换
 - **🌐 跨平台支持**: macOS、Linux、Windows 全平台支持
 
 ### 适用场景
@@ -41,7 +40,6 @@ Colyn 特别适合以下使用场景：
 3. **[核心概念](03-core-concepts.md)** - 理解 Colyn 的工作原理
 4. **[命令参考](04-command-reference/README.md)** - 所有命令的详细说明（按分类组织）
 5. **[高级用法](05-advanced-usage.md)** - 高级功能和技巧
-6. **[tmux 集成](06-tmux-integration.md)** - tmux 环境下的高效工作流
 7. **[最佳实践](07-best-practices.md)** - 推荐的工作流程和技巧
 8. **[故障排除](08-troubleshooting.md)** - 常见问题和解决方案
 9. **[术语表](09-glossary.md)** - 术语和概念速查
@@ -70,13 +68,6 @@ Colyn 特别适合以下使用场景：
 - 遇到问题 → [故障排除](08-troubleshooting.md)
 - 查找术语 → [术语表](09-glossary.md)
 - 学习高级技巧 → [高级用法](05-advanced-usage.md)
-
-### tmux 用户
-
-如果你使用 tmux：
-
-- 完整的 tmux 集成指南 → [tmux 集成](06-tmux-integration.md)
-- 快捷键和工作流 → [最佳实践](07-best-practices.md)
 
 ---
 

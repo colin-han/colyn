@@ -110,8 +110,8 @@ Manage Colyn configuration.
 ### Syntax
 
 ```bash
-# Show tmux configuration info (default behavior)
-colyn config [options]
+# Show configuration info (default behavior)
+colyn config [--json]
 
 # Get configuration value
 colyn config get <key> [options]
@@ -121,6 +121,49 @@ colyn config set <key> <value> [options]
 
 # Remove configuration value (revert to built-in default)
 colyn config unset <key> [options]
+```
+
+### Default Behavior
+
+Running `colyn config` with no subcommand shows the configuration files and the effective configuration:
+
+- **User Config**: path of `~/.config/colyn/settings.json`, whether it exists, and its content
+- **Project Config**: path of `.colyn/settings.json`, whether it exists, and its content
+- **Effective Configuration**: user-level and project-level config merged, with the current branch's `branchOverrides` applied
+
+**Options:**
+- `--json` - Output in JSON format: `{ "userConfig": { "path", "exists", "content" }, "projectConfig": { "path", "exists", "content" }, "effectiveConfig": { ... } }`
+
+**Example:**
+```bash
+$ colyn config
+Configuration Info
+
+User Config:
+  Path: /Users/username/.config/colyn/settings.json
+  Status: exists
+  Content:
+    {
+      "version": 5,
+      "lang": "en",
+      "systemCommands": { "npm": "yarn" }
+    }
+
+Project Config:
+  Path: /Users/username/my-app/.colyn/settings.json
+  Status: exists
+  Content:
+    {
+      "version": 5,
+      "lang": "zh-CN"
+    }
+
+Effective Configuration:
+  {
+    "version": 5,
+    "lang": "zh-CN",
+    "systemCommands": { "npm": "yarn" }
+  }
 ```
 
 ### Subcommands
@@ -169,7 +212,6 @@ Set the value of a configuration item.
 | `verbose` | boolean | Whether to show verbose output by default |
 | `syncFiles` | string array | Untracked File Sync list (supports wildcards, `[]` by default = off) |
 | `systemCommands.npm` | string | Package manager command (default `npm`), e.g. `yarn` / `pnpm` |
-| `systemCommands.claude` | string | Claude CLI command |
 | `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | boolean | Default values for `colyn merge` switches |
 | `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | boolean | Default values for `colyn update` switches |
 | `commands.release.update` / `.build` / `.tag` / `.versionUpdate` | boolean | Default values for `colyn release` switches |

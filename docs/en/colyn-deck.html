@@ -228,7 +228,7 @@
   #mobile-hint{display:none;position:fixed;bottom:0;left:0;right:0;height:54px;z-index:10;font-family:var(--mono);font-size:.78rem;color:var(--txt-dim);background:rgba(8,12,24,.92);border-top:1px solid var(--line);align-items:center;justify-content:space-between;padding:0 2.2vw;}
   #mobile-hint span{flex:1;text-align:center;padding:6px 0;}
   @media(max-width:899px){#mobile-hint{display:flex}}
-  #deck.mobile .tmux-step,#deck.mobile .tmux-demo{width:100%;max-width:100%;}
+  #deck.mobile .term-step{width:100%;max-width:100%;}
 </style>
 </head>
 <body>
@@ -527,65 +527,6 @@
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════
-       Page 10 · 2.3 My daily dev interface
-       ═══════════════════════════════════════════════════════════════ -->
-  <section class="slide" data-chapter="2">
-    <div class="kicker"><span class="ch">02 ·</span> My daily dev interface</div>
-    <h2>One Worktree, <span class="accent">three-pane terminal</span></h2>
-    <div class="grow" style="align-items:center;">
-      <div class="tmux-demo">
-        <div class="tmux-left">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-claude">
-            <div class="tmux-line"><span class="tmux-user">╭─</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">✦ Tell me about this project's structure</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">This is a Next.js app...</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Here's the main directory structure:</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/app/     - Page routes</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/components/ - Components</span></div>
-            <div class="tmux-line"><span class="tmux-user">╰─</span></div>
-          </div>
-        </div>
-        <div class="tmux-right">
-          <div class="tmux-right-top">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-line"><span class="tmux-path">~/worktrees/task-1</span></div>
-            <div class="tmux-line"><span class="tmux-prompt">$</span> <span class="tmux-cursor">▌</span></div>
-          </div>
-          <div class="tmux-right-bottom">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">$</span> <span class="tmux-run">npm run dev</span></div>
-            <div class="tmux-line"><span class="tmux-dim">  ▲ Next.js 15.1.0</span></div>
-            <div class="tmux-line"><span class="tmux-dim">  - Local:</span> <span class="tmux-url">http://localhost:3001</span></div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready in 1.2s</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="footnote" style="text-align:center;">Three-pane layout — vibe coding on the left, dev server & logs on the bottom right, terminal console on the top right</div>
-    <style>
-      .tmux-demo{display:flex;width:1050px;max-width:94vw;height:460px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#070b16;font-family:var(--mono);font-size:.78rem;line-height:1.65;}
-      .tmux-left{width:50%;border-right:1px solid var(--line);display:flex;flex-direction:column;}
-      .tmux-right{width:50%;display:flex;flex-direction:column;}
-      .tmux-right-top{flex:7;border-bottom:1px solid var(--line);display:flex;flex-direction:column;}
-      .tmux-right-bottom{flex:3;display:flex;flex-direction:column;}
-      .tmux-pane-title{font-size:.65rem;color:var(--txt-faint);padding:4px 10px;background:rgba(40,52,82,.4);border-bottom:1px solid var(--line);}
-      .tmux-claude{padding:6px 10px;overflow:hidden;}
-      .tmux-right-top,.tmux-right-bottom{padding:0;overflow:hidden;display:flex;flex-direction:column;}
-      .tmux-line{white-space:pre;overflow:hidden;}
-      .tmux-user{color:#4ade80;}
-      .tmux-ai{color:var(--txt-dim);}
-      .tmux-dim{color:var(--txt-faint);}
-      .tmux-path{color:#60a5fa;}
-      .tmux-prompt{color:var(--accent);}
-      .tmux-cursor{color:var(--accent);animation:blink 1s infinite;}
-      .tmux-run{color:var(--accent);}
-      .tmux-url{color:#60a5fa;text-decoration:underline;}
-    </style>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════════════════
        Page 11 · Chapter 3 divider "Taking Off in Parallel"
        ═══════════════════════════════════════════════════════════════ -->
   <section class="slide chapter" data-chapter="3" data-chapter-title="Taking Off in Parallel" data-chapter-color="#a78bfa">
@@ -601,68 +542,68 @@
     <div class="kicker"><span class="ch">03 ·</span> Capture ideas anytime</div>
     <h2><code>colyn todo</code>, <span class="accent">never miss an idea</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s12">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+      <div class="term-step" id="s12">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude"><div class="term-line"><span class="term-dim">...</span></div></div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s12-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s12-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready in 1.2s</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready in 1.2s</span></div>
           </div>
         </div>
       </div>
     </div>
     <style>
-      .tmux-step{display:flex;width:1050px;max-width:94vw;height:460px;border-radius:12px;overflow:visible;border:1px solid var(--line);background:#070b16;font-family:var(--mono);font-size:.78rem;line-height:1.65;position:relative;}
-      .tmux-step>*{border-radius:0;} .tmux-step>.tmux-step-left:first-child{border-radius:12px 0 0 12px;} .tmux-step>.tmux-step-right:last-child{border-radius:0 12px 12px 0;overflow:hidden;}
-      .tmux-float-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 14px;color:var(--txt);font-size:.82rem;display:flex;align-items:center;gap:6px;white-space:nowrap;animation:tmux-bubble-in .3s ease;position:absolute;top:-44px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;}
-      @keyframes tmux-bubble-in{from{opacity:0;}to{opacity:1;}}
-      .tmux-step-left{width:30%;border-right:1px solid var(--line);display:flex;flex-direction:column;}
-      .tmux-step-right{width:70%;display:flex;flex-direction:column;}
-      .tmux-step-rtop{flex:7;border-bottom:1px solid var(--line);display:flex;flex-direction:column;}
-      .tmux-step-rbottom{flex:3;display:flex;flex-direction:column;}
-      .tmux-step-claude{padding:6px 10px;overflow:hidden;}
-      .tmux-step-rtop,.tmux-step-rbottom{padding:0;overflow:hidden;}
-      .tmux-step-content{flex:1;overflow-y:auto;white-space:pre;padding:6px 10px;}
-      .tmux-dim-pane{opacity:.4;}
-      .tmux-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 12px;margin:6px 0;color:var(--txt);font-size:.78rem;display:flex;align-items:center;gap:6px;animation:fadein .3s ease;}
-      .tmux-bubble-icon{font-size:1rem;}
-      .tmux-cmd-line{color:var(--txt-dim);margin:2px 0;}
-      .tmux-cmd-line .prompt{color:var(--accent);}
-      .tmux-output{color:var(--txt-dim);margin:1px 0;}
-      .tmux-output .ok{color:var(--emerald);}
-      .tmux-output .hl{color:var(--amber);}
-      .tmux-output .run{color:var(--accent);}
-      .tmux-output .dim{color:var(--txt-faint);}
+      .term-step{display:flex;width:1050px;max-width:94vw;height:460px;border-radius:12px;overflow:visible;border:1px solid var(--line);background:#070b16;font-family:var(--mono);font-size:.78rem;line-height:1.65;position:relative;}
+      .term-step>*{border-radius:0;} .term-step>.term-step-left:first-child{border-radius:12px 0 0 12px;} .term-step>.term-step-right:last-child{border-radius:0 12px 12px 0;overflow:hidden;}
+      .term-float-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 14px;color:var(--txt);font-size:.82rem;display:flex;align-items:center;gap:6px;white-space:nowrap;animation:term-bubble-in .3s ease;position:absolute;top:-44px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;}
+      @keyframes term-bubble-in{from{opacity:0;}to{opacity:1;}}
+      .term-step-left{width:30%;border-right:1px solid var(--line);display:flex;flex-direction:column;}
+      .term-step-right{width:70%;display:flex;flex-direction:column;}
+      .term-step-rtop{flex:7;border-bottom:1px solid var(--line);display:flex;flex-direction:column;}
+      .term-step-rbottom{flex:3;display:flex;flex-direction:column;}
+      .term-step-claude{padding:6px 10px;overflow:hidden;}
+      .term-step-rtop,.term-step-rbottom{padding:0;overflow:hidden;}
+      .term-step-content{flex:1;overflow-y:auto;white-space:pre;padding:6px 10px;}
+      .term-dim-pane{opacity:.4;}
+      .term-bubble{background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.4);border-radius:10px;padding:8px 12px;margin:6px 0;color:var(--txt);font-size:.78rem;display:flex;align-items:center;gap:6px;animation:fadein .3s ease;}
+      .term-bubble-icon{font-size:1rem;}
+      .term-cmd-line{color:var(--txt-dim);margin:2px 0;}
+      .term-cmd-line .prompt{color:var(--accent);}
+      .term-output{color:var(--txt-dim);margin:1px 0;}
+      .term-output .ok{color:var(--emerald);}
+      .term-output .hl{color:var(--amber);}
+      .term-output .run{color:var(--accent);}
+      .term-output .dim{color:var(--txt-faint);}
     </style>
     <script>
       (function(){
         const sec=document.currentScript.parentElement;
         const content=document.getElementById('s12-content');
         const box=document.getElementById('s12');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','I want to plan my dev tasks');},
           ()=>{hideBubble();content.innerHTML=
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/auth "User auth: email login/signup, JWT"</div>'+
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/tasks "Task list page with pagination"</div>'+
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/dashboard "Data dashboard: stats, trend charts"</div>';},
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn todo add feature/auth "User auth: email login/signup, JWT"</div>'+
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn todo add feature/tasks "Task list page with pagination"</div>'+
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn todo add feature/dashboard "Data dashboard: stats, trend charts"</div>';},
           ()=>{showBubble('💬','Let me see what other tasks are pending');},
-          ()=>{hideBubble();content.innerHTML+='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo</div>';},
+          ()=>{hideBubble();content.innerHTML+='<div class="term-cmd-line"><span class="prompt">$</span> colyn todo</div>';},
           ()=>{content.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">  Type     Name             Message                    Status</div>'+
-'<div class="tmux-output">  ──────────────────────────────────────────────────────</div>'+
-'<div class="tmux-output">  feature  auth             Email login/signup, JWT      <span class="ok">Todo</span></div>'+
-'<div class="tmux-output">  feature  tasks            Task list page, pagination  <span class="ok">Todo</span></div>'+
-'<div class="tmux-output">  feature  dashboard        Data dashboard: stats, trends <span class="ok">Todo</span></div>';},
+'<div class="term-output"></div>'+
+'<div class="term-output">  Type     Name             Message                    Status</div>'+
+'<div class="term-output">  ──────────────────────────────────────────────────────</div>'+
+'<div class="term-output">  feature  auth             Email login/signup, JWT      <span class="ok">Todo</span></div>'+
+'<div class="term-output">  feature  tasks            Task list page, pagination  <span class="ok">Todo</span></div>'+
+'<div class="term-output">  feature  dashboard        Data dashboard: stats, trends <span class="ok">Todo</span></div>';},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -676,24 +617,24 @@
     <div class="kicker"><span class="ch">03 ·</span> Inspiration without interruption</div>
     <h2>One command, <span class="accent">capture the idea</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s13">
-        <div class="tmux-step-left">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude">
-            <div class="tmux-line"><span class="tmux-user">╭─</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Writing auth module...</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  Generating code...</span></div>
-            <div class="tmux-line"><span class="tmux-user">╰─</span></div>
+      <div class="term-step" id="s13">
+        <div class="term-step-left">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude">
+            <div class="term-line"><span class="term-user">╭─</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-ai">Writing auth module...</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-dim">  Generating code...</span></div>
+            <div class="term-line"><span class="term-user">╰─</span></div>
           </div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s13-content" style="overflow:hidden;"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s13-content" style="overflow:hidden;"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready in 1.2s</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready in 1.2s</span></div>
           </div>
         </div>
       </div>
@@ -703,29 +644,29 @@
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s13-content');
         const box=document.getElementById('s13');
-        box.querySelector('.tmux-step-left').style.width='50%';
-        box.querySelector('.tmux-step-left').style.opacity='1';
-        box.querySelector('.tmux-step-right').style.width='50%';
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        box.querySelector('.term-step-left').style.width='50%';
+        box.querySelector('.term-step-left').style.opacity='1';
+        box.querySelector('.term-step-right').style.width='50%';
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💡','While vibing, I suddenly had an idea');},
-          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line" style="white-space:normal;word-break:break-all;"><span class="prompt">$</span> colyn todo add feature/idea I have a brilliant idea to prove this, but there is not enough room to write it all here...</div>';},
+          ()=>{hideBubble();el.innerHTML='<div class="term-cmd-line" style="white-space:normal;word-break:break-all;"><span class="prompt">$</span> colyn todo add feature/idea I have a brilliant idea to prove this, but there is not enough room to write it all here...</div>';},
           ()=>{showBubble('💬','You can skip the message body — I\'ll launch a vi editor for you to capture all your thoughts, so they\'ll never get cut off.');},
-          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn todo add feature/idea</div>';},
+          ()=>{hideBubble();el.innerHTML='<div class="term-cmd-line"><span class="prompt">$</span> colyn todo add feature/idea</div>';},
           ()=>{el.innerHTML=
-'<div class="tmux-output" style="color:var(--txt);"></div>'+
-'<div class="tmux-output" style="color:var(--txt);">  1 <span style="color:var(--emerald);">## Task Description</span></div>'+
-'<div class="tmux-output" style="color:var(--txt);">  2 <span style="color:var(--txt);">- Click "Forgot Password" -> Enter email -> Send reset link</span></div>'+
-'<div class="tmux-output" style="color:var(--txt);">  3 <span style="color:var(--txt);">- Reset link valid for 24 hours</span></div>'+
-'<div class="tmux-output" style="color:var(--txt);">  4 <span style="color:var(--txt);">- New password cannot be the same as old password</span></div>'+
-'<div class="tmux-output" style="color:var(--txt);">  5 </div>'+
-'<div class="tmux-output" style="color:var(--txt-faint);">  6 <span style="color:var(--txt-faint);"># Todo: feature/idea</span></div>'+
-'<div class="tmux-output" style="color:var(--txt-faint);">  7 <span style="color:var(--txt-faint);"># Enter task description above, save and exit when done (:wq)</span></div>'+
-'<div class="tmux-output" style="color:var(--txt-faint);">  8 <span style="color:var(--txt-faint);"># Markdown supported; lines starting with \'# \' are treated as comments</span></div>'+
-'<div class="tmux-output" style="color:#555;">~</div>'+
-'<div class="tmux-output" style="color:#555;">~</div>'+
-'<div class="tmux-output" style="color:var(--txt-dim);background:#223322;padding:0 4px;display:inline-block;">"feature-idea.md" [New File]                         1,1           All</div>';},
+'<div class="term-output" style="color:var(--txt);"></div>'+
+'<div class="term-output" style="color:var(--txt);">  1 <span style="color:var(--emerald);">## Task Description</span></div>'+
+'<div class="term-output" style="color:var(--txt);">  2 <span style="color:var(--txt);">- Click "Forgot Password" -> Enter email -> Send reset link</span></div>'+
+'<div class="term-output" style="color:var(--txt);">  3 <span style="color:var(--txt);">- Reset link valid for 24 hours</span></div>'+
+'<div class="term-output" style="color:var(--txt);">  4 <span style="color:var(--txt);">- New password cannot be the same as old password</span></div>'+
+'<div class="term-output" style="color:var(--txt);">  5 </div>'+
+'<div class="term-output" style="color:var(--txt-faint);">  6 <span style="color:var(--txt-faint);"># Todo: feature/idea</span></div>'+
+'<div class="term-output" style="color:var(--txt-faint);">  7 <span style="color:var(--txt-faint);"># Enter task description above, save and exit when done (:wq)</span></div>'+
+'<div class="term-output" style="color:var(--txt-faint);">  8 <span style="color:var(--txt-faint);"># Markdown supported; lines starting with \'# \' are treated as comments</span></div>'+
+'<div class="term-output" style="color:#555;">~</div>'+
+'<div class="term-output" style="color:#555;">~</div>'+
+'<div class="term-output" style="color:var(--txt-dim);background:#223322;padding:0 4px;display:inline-block;">"feature-idea.md" [New File]                         1,1           All</div>';},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -739,30 +680,30 @@
     <div class="kicker"><span class="ch">03 ·</span> A task is done</div>
     <h2><code>colyn merge</code>, <span class="accent">automated quality gate</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s14" style="height:400px;">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude">
-            <div class="tmux-line"><span class="tmux-user">╭─</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">✦ Auth module development complete</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Files created:</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/auth/login.ts</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/auth/register.ts</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-dim">  src/auth/jwt.ts</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span></div>
-            <div class="tmux-line"><span class="tmux-user">│</span> <span style="color:var(--emerald);">✓ All tests passing</span></div>
-            <div class="tmux-line"><span class="tmux-user">╰─</span></div>
+      <div class="term-step" id="s14" style="height:400px;">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude">
+            <div class="term-line"><span class="term-user">╭─</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-ai">✦ Auth module development complete</span></div>
+            <div class="term-line"><span class="term-user">│</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-ai">Files created:</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-dim">  src/auth/login.ts</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-dim">  src/auth/register.ts</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span class="term-dim">  src/auth/jwt.ts</span></div>
+            <div class="term-line"><span class="term-user">│</span></div>
+            <div class="term-line"><span class="term-user">│</span> <span style="color:var(--emerald);">✓ All tests passing</span></div>
+            <div class="term-line"><span class="term-user">╰─</span></div>
           </div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s14-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s14-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -772,39 +713,39 @@
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s14-content');
         const box=document.getElementById('s14');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','A task is done, time to merge into the main branch');},
-          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn merge</div>';},
+          ()=>{hideBubble();el.innerHTML='<div class="term-cmd-line"><span class="prompt">$</span> colyn merge</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output">Running pre-merge checks...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Pre-merge checks passed</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Main branch working directory clean</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Worktree working directory clean</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Running lint check...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Lint check passed</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Running build check...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Build successful</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 1/2: Update main branch in worktree</div>'+
-'<div class="tmux-output">  Directory: worktrees/task-1</div>'+
-'<div class="tmux-output">  Running: <span class="run">git rebase main</span></div>'+
-'<div class="tmux-output">Rebasing main branch into worktree...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Main branch rebased into worktree</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 2/2: Merge worktree branch into main branch</div>'+
-'<div class="tmux-output">  Directory: my-task-app</div>'+
-'<div class="tmux-output">  Running: <span class="run">git merge --no-ff feature/auth</span></div>'+
-'<div class="tmux-output">Merging worktree into main branch...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Worktree merged into main branch</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Updating all worktrees...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">✓ Merge complete!</span></div>';},
+'<div class="term-output">Running pre-merge checks...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Pre-merge checks passed</div>'+
+'<div class="term-output"><span class="ok">✓</span> Main branch working directory clean</div>'+
+'<div class="term-output"><span class="ok">✓</span> Worktree working directory clean</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Running lint check...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Lint check passed</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Running build check...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Build successful</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 1/2: Update main branch in worktree</div>'+
+'<div class="term-output">  Directory: worktrees/task-1</div>'+
+'<div class="term-output">  Running: <span class="run">git rebase main</span></div>'+
+'<div class="term-output">Rebasing main branch into worktree...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Main branch rebased into worktree</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 2/2: Merge worktree branch into main branch</div>'+
+'<div class="term-output">  Directory: my-task-app</div>'+
+'<div class="term-output">  Running: <span class="run">git merge --no-ff feature/auth</span></div>'+
+'<div class="term-output">Merging worktree into main branch...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Worktree merged into main branch</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Updating all worktrees...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">✓ Merge complete!</span></div>';},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -818,21 +759,21 @@
     <div class="kicker"><span class="ch">03 ·</span> Worktree reuse</div>
     <h2><code>colyn checkout</code>, <span class="accent">switch tasks, keep the environment</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s15" style="position:relative;">
-        <div class="tmux-step-left">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude">
-            <div class="tmux-line"><span class="tmux-user">│</span> <span class="tmux-ai">Auth module complete...</span></div>
+      <div class="term-step" id="s15" style="position:relative;">
+        <div class="term-step-left">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude">
+            <div class="term-line"><span class="term-user">│</span> <span class="term-ai">Auth module complete...</span></div>
           </div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s15-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s15-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -842,46 +783,46 @@
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s15-content');
         const box=document.getElementById('s15');
-        box.querySelector('.tmux-step-left').style.width='50%';
-        box.querySelector('.tmux-step-left').style.opacity='1';
-        box.querySelector('.tmux-step-right').style.width='50%';
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
-        const cmdHtml='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn checkout</div>';
+        box.querySelector('.term-step-left').style.width='50%';
+        box.querySelector('.term-step-left').style.opacity='1';
+        box.querySelector('.term-step-right').style.width='50%';
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
+        const cmdHtml='<div class="term-cmd-line"><span class="prompt">$</span> colyn checkout</div>';
         const keyHint=(key)=>'<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(15,22,41,.92);border:1px solid var(--line);border-radius:8px;padding:4px 16px;font-size:.9rem;color:var(--accent);z-index:2;">'+key+'</div>';
         const steps=[
           ()=>{showBubble('💬','Time to pick a new task');},
           ()=>{hideBubble();el.innerHTML=cmdHtml;},
           ()=>{el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Select target branch (or create a new one)</div>'+
-'<div class="tmux-output"><span class="hl">›</span> <span class="hl">[Create new branch]</span>                                     Type name to create</div>'+
-'<div class="tmux-output">  feature/reset-password                        Todo: Implement password reset</div>'+
-'<div class="tmux-output">  feature/tags                                  Todo: Implement task tags</div>';},
+'<div class="term-output"></div>'+
+'<div class="term-output">Select target branch (or create a new one)</div>'+
+'<div class="term-output"><span class="hl">›</span> <span class="hl">[Create new branch]</span>                                     Type name to create</div>'+
+'<div class="term-output">  feature/reset-password                        Todo: Implement password reset</div>'+
+'<div class="term-output">  feature/tags                                  Todo: Implement task tags</div>';},
           ()=>{el.innerHTML=cmdHtml+
-'<div class="tmux-output">Select target branch (or create a new one)</div>'+
-'<div class="tmux-output">  [Create new branch]                                     Type name to create</div>'+
-'<div class="tmux-output"><span class="hl">›</span> <span class="hl">feature/reset-password</span>                        Todo: Implement password reset</div>'+
-'<div class="tmux-output">  feature/tags                                  Todo: Implement task tags</div>'+
+'<div class="term-output">Select target branch (or create a new one)</div>'+
+'<div class="term-output">  [Create new branch]                                     Type name to create</div>'+
+'<div class="term-output"><span class="hl">›</span> <span class="hl">feature/reset-password</span>                        Todo: Implement password reset</div>'+
+'<div class="term-output">  feature/tags                                  Todo: Implement task tags</div>'+
 keyHint('↓');},
           ()=>{el.lastElementChild?.remove();el.innerHTML+=
 keyHint('⏎')+
-'<div class="tmux-output">Checking working directory status...</div>'+
-'<div class="tmux-output">Working directory clean</div>'+
-'<div class="tmux-output">Switching to branch feature/reset-password...</div>'+
-'<div class="tmux-output"><span class="ok">Created and switched to new branch feature/reset-password</span></div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Branch feature/auth merged into main branch</div>'+
-'<div class="tmux-output">Delete old branch feature/auth? <span class="hl">y</span></div>'+
-'<div class="tmux-output">Deleting branch feature/auth...</div>'+
-'<div class="tmux-output"><span class="ok">Deleted branch feature/auth</span></div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Logs archived to: .claude/logs/archived/feature-auth/ (3 items)</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Current status:</div>'+
-'<div class="tmux-output">  Worktree: task-1</div>'+
-'<div class="tmux-output">  Branch: feature/reset-password</div>'+
-'<div class="tmux-output">  Path: worktrees/task-1</div>';},
+'<div class="term-output">Checking working directory status...</div>'+
+'<div class="term-output">Working directory clean</div>'+
+'<div class="term-output">Switching to branch feature/reset-password...</div>'+
+'<div class="term-output"><span class="ok">Created and switched to new branch feature/reset-password</span></div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">✓</span> Branch feature/auth merged into main branch</div>'+
+'<div class="term-output">Delete old branch feature/auth? <span class="hl">y</span></div>'+
+'<div class="term-output">Deleting branch feature/auth...</div>'+
+'<div class="term-output"><span class="ok">Deleted branch feature/auth</span></div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Logs archived to: .claude/logs/archived/feature-auth/ (3 items)</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Current status:</div>'+
+'<div class="term-output">  Worktree: task-1</div>'+
+'<div class="term-output">  Branch: feature/reset-password</div>'+
+'<div class="term-output">  Path: worktrees/task-1</div>';},
           ()=>{showBubble('💬','Branch created and ready — time to start the new task');},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
@@ -896,19 +837,19 @@ keyHint('⏎')+
     <div class="kicker"><span class="ch">03 ·</span> Building parallel lines step by step</div>
     <h2>Three Worktrees, <span class="accent">three parallel lines</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s16">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+      <div class="term-step" id="s16">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude"><div class="term-line"><span class="term-dim">...</span></div></div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s16-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s16-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -918,32 +859,32 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s16-content');
         const box=document.getElementById('s16');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
-          ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn add feature/tasks</div>';},
+          ()=>{el.innerHTML='<div class="term-cmd-line"><span class="prompt">$</span> colyn add feature/tasks</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">✅</span> Worktree created successfully!</div>'+
-'<div class="tmux-output">  ID: <span class="hl">2</span>  Branch: <span class="run">feature/tasks</span>  Path: worktrees/task-2  Port: <span class="hl">3002</span></div>'+
-'<div class="tmux-output"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>'+
-'<div class="tmux-output"><span class="ok">📂</span> Switched to: worktrees/task-2</div>';},
-          ()=>{el.innerHTML+='<div class="tmux-output"></div><div class="tmux-cmd-line"><span class="prompt">$</span> colyn add feature/dashboard</div>';},
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">✅</span> Worktree created successfully!</div>'+
+'<div class="term-output">  ID: <span class="hl">2</span>  Branch: <span class="run">feature/tasks</span>  Path: worktrees/task-2  Port: <span class="hl">3002</span></div>'+
+'<div class="term-output"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>'+
+'<div class="term-output"><span class="ok">📂</span> Switched to: worktrees/task-2</div>';},
+          ()=>{el.innerHTML+='<div class="term-output"></div><div class="term-cmd-line"><span class="prompt">$</span> colyn add feature/dashboard</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">✅</span> Worktree created successfully!</div>'+
-'<div class="tmux-output">  ID: <span class="hl">3</span>  Branch: <span class="run">feature/dashboard</span>  Path: worktrees/task-3  Port: <span class="hl">3003</span></div>'+
-'<div class="tmux-output"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>'+
-'<div class="tmux-output"><span class="ok">📂</span> Switched to: worktrees/task-3</div>';},
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">✅</span> Worktree created successfully!</div>'+
+'<div class="term-output">  ID: <span class="hl">3</span>  Branch: <span class="run">feature/dashboard</span>  Path: worktrees/task-3  Port: <span class="hl">3003</span></div>'+
+'<div class="term-output"><span class="run">⠿</span> Installing dependencies... <span class="ok">✓</span> Dependencies installed</div>'+
+'<div class="term-output"><span class="ok">📂</span> Switched to: worktrees/task-3</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn list</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"> ID  Branch             Port  Path               St.</div>'+
-'<div class="tmux-output">  0  main               3000  .                     idle</div>'+
-'<div class="tmux-output">  1  feature/auth       3001  worktrees/task-1     idle</div>'+
-'<div class="tmux-output">  2  feature/tasks      3002  worktrees/task-2     idle</div>'+
-'<div class="tmux-output"><span class="run">→</span>3  feature/dashboard  3003  worktrees/task-3     idle</div>';showBubble('🌐','Open all three ports in the browser to verify: localhost:3001 auth · localhost:3002 tasks · localhost:3003 dashboard');},
+'<div class="term-output"></div>'+
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn list</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output"> ID  Branch             Port  Path               St.</div>'+
+'<div class="term-output">  0  main               3000  .                     idle</div>'+
+'<div class="term-output">  1  feature/auth       3001  worktrees/task-1     idle</div>'+
+'<div class="term-output">  2  feature/tasks      3002  worktrees/task-2     idle</div>'+
+'<div class="term-output"><span class="run">→</span>3  feature/dashboard  3003  worktrees/task-3     idle</div>';showBubble('🌐','Open all three ports in the browser to verify: localhost:3001 auth · localhost:3002 tasks · localhost:3003 dashboard');},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -957,19 +898,19 @@ keyHint('⏎')+
     <div class="kicker"><span class="ch">03 ·</span> Main branch updated, what about the rest</div>
     <h2><code>colyn update</code>, <span class="accent">one-click sync</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s17">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+      <div class="term-step" id="s17">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude"><div class="term-line"><span class="term-dim">...</span></div></div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s17-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s17-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -979,31 +920,31 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s17-content');
         const box=document.getElementById('s17');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','feature/auth has been merged into main, other worktrees need to sync latest code');},
-          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn update</div>';},
+          ()=>{hideBubble();el.innerHTML='<div class="term-cmd-line"><span class="prompt">$</span> colyn update</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output">Pulling latest code from main branch...</div>'+
-'<div class="tmux-output"><span class="ok">Main branch updated</span></div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Found 2 worktrees:</div>'+
-'<div class="tmux-output">1. task-2 (feature/tasks)</div>'+
-'<div class="tmux-output">2. task-3 (feature/dashboard)</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Batch updating (strategy: rebase)...</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
-'<div class="tmux-output">  Main branch (main) → feature/tasks</div>'+
-'<div class="tmux-output">  Strategy: rebase</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
-'<div class="tmux-output">  Main branch (main) → feature/dashboard</div>'+
-'<div class="tmux-output">  Strategy: rebase</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Update results:</div>'+
-'<div class="tmux-output"><span class="ok">✓ 2 worktrees updated successfully</span></div>';},
+'<div class="term-output">Pulling latest code from main branch...</div>'+
+'<div class="term-output"><span class="ok">Main branch updated</span></div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Found 2 worktrees:</div>'+
+'<div class="term-output">1. task-2 (feature/tasks)</div>'+
+'<div class="term-output">2. task-3 (feature/dashboard)</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Batch updating (strategy: rebase)...</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="term-output">  Main branch (main) → feature/tasks</div>'+
+'<div class="term-output">  Strategy: rebase</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="term-output">  Main branch (main) → feature/dashboard</div>'+
+'<div class="term-output">  Strategy: rebase</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Update results:</div>'+
+'<div class="term-output"><span class="ok">✓ 2 worktrees updated successfully</span></div>';},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -1017,19 +958,19 @@ keyHint('⏎')+
     <div class="kicker"><span class="ch">03 ·</span> All features done, time to release</div>
     <h2><code>colyn release</code>, <span class="accent">ship with a single command</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s18">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+      <div class="term-step" id="s18">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude"><div class="term-line"><span class="term-dim">...</span></div></div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s18-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s18-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -1039,46 +980,46 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s18-content');
         const box=document.getElementById('s18');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','All three features are done, time to ship a release');},
-          ()=>{hideBubble();el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn release minor</div>';},
+          ()=>{hideBubble();el.innerHTML='<div class="term-cmd-line"><span class="prompt">$</span> colyn release minor</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output">Step 1: Check git status</div>'+
-'<div class="tmux-output">Current branch: main</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Working tree clean</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 2: Determine new version</div>'+
-'<div class="tmux-output">Current version: 1.0.0</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> New version: 1.0.0 -> 1.1.0</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 3: Install dependencies</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Dependencies installed</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 4: Run lint check</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Lint check passed</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 5: Build project</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Build successful</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 6: Update version number</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Version updated: 1.0.0 -> 1.1.0</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 7: Create git commit</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Commit created: chore: release v1.1.0</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 8: Create git tag</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Tag created: v1.1.0</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Step 9: Push to remote</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Pushed to remote</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output">Updating all worktrees...</div>'+
-'<div class="tmux-output"><span class="ok">✓</span> Update successful</div>'+
-'<div class="tmux-output"></div>'+
-'<div class="tmux-output"><span class="ok">Release complete!</span></div>'+
-'<div class="tmux-output">Version: v1.1.0  Branch: main  Tag: v1.1.0</div>';},
+'<div class="term-output">Step 1: Check git status</div>'+
+'<div class="term-output">Current branch: main</div>'+
+'<div class="term-output"><span class="ok">✓</span> Working tree clean</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 2: Determine new version</div>'+
+'<div class="term-output">Current version: 1.0.0</div>'+
+'<div class="term-output"><span class="ok">✓</span> New version: 1.0.0 -> 1.1.0</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 3: Install dependencies</div>'+
+'<div class="term-output"><span class="ok">✓</span> Dependencies installed</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 4: Run lint check</div>'+
+'<div class="term-output"><span class="ok">✓</span> Lint check passed</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 5: Build project</div>'+
+'<div class="term-output"><span class="ok">✓</span> Build successful</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 6: Update version number</div>'+
+'<div class="term-output"><span class="ok">✓</span> Version updated: 1.0.0 -> 1.1.0</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 7: Create git commit</div>'+
+'<div class="term-output"><span class="ok">✓</span> Commit created: chore: release v1.1.0</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 8: Create git tag</div>'+
+'<div class="term-output"><span class="ok">✓</span> Tag created: v1.1.0</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Step 9: Push to remote</div>'+
+'<div class="term-output"><span class="ok">✓</span> Pushed to remote</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output">Updating all worktrees...</div>'+
+'<div class="term-output"><span class="ok">✓</span> Update successful</div>'+
+'<div class="term-output"></div>'+
+'<div class="term-output"><span class="ok">Release complete!</span></div>'+
+'<div class="term-output">Version: v1.1.0  Branch: main  Tag: v1.1.0</div>';},
           ()=>{showBubble('💬','Choose from three release levels: patch for bug fixes, minor for new features, major for breaking changes');},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
@@ -1093,19 +1034,19 @@ keyHint('⏎')+
     <div class="kicker"><span class="ch">03 ·</span> More efficient worktree management</div>
     <h2><code>colyn 0</code>, <code>colyn 1</code>, <span class="accent">minimal operations</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s19">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+      <div class="term-step" id="s19">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude"><div class="term-line"><span class="term-dim">...</span></div></div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s19-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s19-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -1115,28 +1056,28 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s19-content');
         const box=document.getElementById('s19');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
           ()=>{showBubble('💬','Switching between multiple worktrees, cd-ing every time is tedious');},
           ()=>{hideBubble();el.innerHTML=
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn 1</div>'+
-'<div class="tmux-output"><span class="ok">📂</span> Switched to: worktrees/task-1</div>';},
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn 1</div>'+
+'<div class="term-output"><span class="ok">📂</span> Switched to: worktrees/task-1</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn 0</div>'+
-'<div class="tmux-output"><span class="ok">📂</span> Switched to: my-task-app</div>';},
+'<div class="term-output"></div>'+
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn 0</div>'+
+'<div class="term-output"><span class="ok">📂</span> Switched to: my-task-app</div>';},
           ()=>{showBubble('💬','You can also run commands directly in a specific worktree');},
           ()=>{hideBubble();el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn 0 git push</div>'+
-'<div class="tmux-output">Enumerating objects: 12, done.</div>'+
-'<div class="tmux-output">Counting objects: 100% (12/12), done.</div>'+
-'<div class="tmux-output">Delta compression using up to 4 threads</div>'+
-'<div class="tmux-output">Compressing objects: 100% (8/8), done.</div>'+
-'<div class="tmux-output">Writing objects: 100% (8/8), 2.34 KiB | 2.34 MiB/s, done.</div>'+
-'<div class="tmux-output">To github.com:xiaoming/my-task-app.git</div>'+
-'<div class="tmux-output">   a1b2c3d..e4f5g6h  main -> main</div>';},
+'<div class="term-output"></div>'+
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn 0 git push</div>'+
+'<div class="term-output">Enumerating objects: 12, done.</div>'+
+'<div class="term-output">Counting objects: 100% (12/12), done.</div>'+
+'<div class="term-output">Delta compression using up to 4 threads</div>'+
+'<div class="term-output">Compressing objects: 100% (8/8), done.</div>'+
+'<div class="term-output">Writing objects: 100% (8/8), 2.34 KiB | 2.34 MiB/s, done.</div>'+
+'<div class="term-output">To github.com:xiaoming/my-task-app.git</div>'+
+'<div class="term-output">   a1b2c3d..e4f5g6h  main -> main</div>';},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
       })();
@@ -1186,19 +1127,19 @@ keyHint('⏎')+
     <div class="kicker"><span class="ch">04 ·</span> Tab completion, doubled efficiency</div>
     <h2><code>colyn setup</code> auto-installs, <span class="accent">Tab to complete</span></h2>
     <div class="grow" style="align-items:center;">
-      <div class="tmux-step" id="s22">
-        <div class="tmux-step-left tmux-dim-pane">
-          <div class="tmux-pane-title">Claude Code</div>
-          <div class="tmux-step-claude"><div class="tmux-line"><span class="tmux-dim">...</span></div></div>
+      <div class="term-step" id="s22">
+        <div class="term-step-left term-dim-pane">
+          <div class="term-pane-title">Claude Code</div>
+          <div class="term-step-claude"><div class="term-line"><span class="term-dim">...</span></div></div>
         </div>
-        <div class="tmux-step-right">
-          <div class="tmux-step-rtop">
-            <div class="tmux-pane-title">Terminal</div>
-            <div class="tmux-step-content" id="s22-content"></div>
+        <div class="term-step-right">
+          <div class="term-step-rtop">
+            <div class="term-pane-title">Terminal</div>
+            <div class="term-step-content" id="s22-content"></div>
           </div>
-          <div class="tmux-step-rbottom tmux-dim-pane">
-            <div class="tmux-pane-title">dev server</div>
-            <div class="tmux-line"><span class="tmux-dim">  ✓ Ready</span></div>
+          <div class="term-step-rbottom term-dim-pane">
+            <div class="term-pane-title">dev server</div>
+            <div class="term-line"><span class="term-dim">  ✓ Ready</span></div>
           </div>
         </div>
       </div>
@@ -1208,14 +1149,14 @@ keyHint('⏎')+
         const sec=document.currentScript.parentElement;
         const el=document.getElementById('s22-content');
         const box=document.getElementById('s22');
-        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='tmux-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
-        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('tmux-float-bubble'))b.remove();}
+        function showBubble(icon,text){hideBubble();const b=document.createElement('div');b.className='term-float-bubble';b.innerHTML='<span style="font-size:1rem;">'+icon+'</span> '+text;box.prepend(b);}
+        function hideBubble(){const b=box.firstElementChild;if(b&&b.classList.contains('term-float-bubble'))b.remove();}
         const steps=[
-          ()=>{el.innerHTML='<div class="tmux-cmd-line"><span class="prompt">$</span> colyn config set --user lang en</div>';},
+          ()=>{el.innerHTML='<div class="term-cmd-line"><span class="prompt">$</span> colyn config set --user lang en</div>';},
           ()=>{el.innerHTML+=
-'<div class="tmux-output"></div>'+
-'<div class="tmux-cmd-line"><span class="prompt">$</span> colyn add <span class="hl">⇥</span></div>'+
-'<div class="tmux-output"><span class="run">feature/auth</span>     <span class="run">feature/dashboard</span>   <span class="run">feature/tasks</span></div>';},
+'<div class="term-output"></div>'+
+'<div class="term-cmd-line"><span class="prompt">$</span> colyn add <span class="hl">⇥</span></div>'+
+'<div class="term-output"><span class="run">feature/auth</span>     <span class="run">feature/dashboard</span>   <span class="run">feature/tasks</span></div>';},
           ()=>{showBubble('💬','merge, update, remove, checkout, todo and other commands all support Tab completion — branch names, Worktree IDs, todo task names, no manual typing needed');},
         ];
         sec.addEventListener('coslides:step',(e)=>{const s=e.detail.step;if(s===0){el.innerHTML='';hideBubble();return;}if(s>0&&s<=steps.length)steps[s-1]();});
@@ -1248,7 +1189,7 @@ keyHint('⏎')+
         <ul class="feat">
           <li class="reveal-item"><span class="mk">▸</span><span><b>Language setting</b> <span class="dim">— lang: Chinese / English</span></span></li>
           <li class="reveal-item"><span class="mk">▸</span><span><b>Command behavior</b> <span class="dim">— commands.merge.*, commands.release.* override defaults</span></span></li>
-          <li class="reveal-item"><span class="mk">▸</span><span><b>System commands</b> <span class="dim">— systemCommands.npm, systemCommands.claude custom paths</span></span></li>
+          <li class="reveal-item"><span class="mk">▸</span><span><b>System commands</b> <span class="dim">— systemCommands.npm custom path</span></span></li>
           <li class="reveal-item"><span class="mk">▸</span><span><b>Todo backend</b> <span class="dim">— todo.backend supports local files or GitHub Issues</span></span></li>
           <li class="reveal-item"><span class="mk">▸</span><span><b>Scope</b> <span class="dim">— User-level (global) or project-level; project takes priority</span></span></li>
         </ul>

@@ -123,8 +123,7 @@ app/
 ```
 
 **原因**：
-- 项目名即为 tmux Session 名称
-- 更容易识别和切换
+- 项目名显示在 iTerm2 tab title 中，更容易识别和切换
 - 便于团队协作
 
 ---
@@ -139,7 +138,7 @@ app/
 - 避免创建过多 worktree 占用磁盘空间
 - 保持稳定的开发环境配置
 - 端口号保持一致，便于记忆
-- 在 tmux 中保持固定的 window 位置
+- Worktree ID 固定，`colyn <N>` 切换时无需重新记忆
 
 ### 推荐的 Worktree 配置
 
@@ -197,7 +196,7 @@ colyn merge
 
 **优势**：
 - 保持相同的端口号（如 3001）
-- 保持相同的 tmux window（如 Window 1）
+- 保持相同的 Worktree ID（如 `colyn 1`）
 - 无需重新配置开发环境
 - 避免磁盘空间浪费
 
@@ -295,7 +294,7 @@ hotfix/critical-bug
 
 **原因**：
 - 清晰的分类便于管理
-- tmux Window 名称更易读
+- iTerm2 tab title 中的分支短名更易读
 - 便于团队协作
 
 ### 主分支保持干净
@@ -482,74 +481,6 @@ npm install  # 或 yarn install
 ```bash
 # 仅在确认依赖完全相同时使用
 ln -s ../../my-project/node_modules worktrees/task-1/node_modules
-```
-
----
-
-## tmux 使用
-
-### Window 组织
-
-**推荐布局**：
-
-```
-Window 0: main        # 主分支（稳定版本）
-Window 1: feature-a   # 当前主要开发
-Window 2: feature-b   # 并行开发
-Window 3: bugfix      # 临时 Bug 修复
-Window 4: review      # Code Review
-```
-
-**导航技巧**：
-
-```bash
-# 使用数字键快速切换
-Ctrl-b 0  # 主分支
-Ctrl-b 1  # 主要功能
-Ctrl-b 2  # 次要功能
-
-# 使用 tmux 命令
-tmux select-window -t :1
-```
-
-### Pane 使用建议
-
-**推荐工作流**：
-
-```
-┌──────────────┬─────────┐
-│              │  Dev    │  ← 观察日志
-│              │  Server │
-│   Claude     ├─────────┤
-│   Code       │         │
-│              │  Bash   │  ← 运行测试、Git 命令
-│              │         │
-└──────────────┴─────────┘
-```
-
-**Pane 职责**：
-- **Pane 0 (Claude)**: AI 协作开发
-- **Pane 1 (Dev Server)**: 后台运行，观察日志
-- **Pane 2 (Bash)**: 执行命令（测试、Git、构建）
-
-### Session 管理
-
-**最佳实践**：
-
-```bash
-# 1. 一个项目一个 session
-my-task-app     # Session for task app
-blog-platform   # Session for blog
-api-service     # Session for API
-
-# 2. 使用有意义的 session 名
-tmux new -s my-task-app  # 而不是 tmux new -s s1
-
-# 3. 列出所有 session
-tmux ls
-
-# 4. 切换 session
-tmux switch -t my-task-app
 ```
 
 ---
@@ -744,7 +675,7 @@ fi
 
 ```bash
 # 早上开始工作
-tmux attach -t my-project  # 附加到 tmux session
+cd ~/my-project
 
 # 查看当前状态
 colyn list
@@ -762,9 +693,6 @@ colyn merge
 
 # 继续下一个功能（复用同一个 worktree）
 colyn checkout feature/next-task
-
-# 晚上下班
-Ctrl-b d  # 分离 session（保持运行）
 ```
 
 ### 多功能并行开发（初始化阶段）
@@ -775,10 +703,10 @@ colyn add feature/authentication  # task-1: 主工作区
 colyn add feature/dashboard       # task-2: 次工作区
 colyn add feature/quick-fixes     # task-3: 快速修复区
 
-# 在 tmux 中快速切换
-Ctrl-b 1  # Window 1 - 主工作区
-Ctrl-b 2  # Window 2 - 次工作区
-Ctrl-b 3  # Window 3 - 快速修复区
+# 快速切换
+colyn 1  # task-1 - 主工作区
+colyn 2  # task-2 - 次工作区
+colyn 3  # task-3 - 快速修复区
 
 # 各工作区通过 checkout 切换不同任务
 # task-1 当前：feature/authentication
@@ -826,7 +754,6 @@ colyn repair
 **检查内容**：
 - Git worktree 路径是否正确
 - .env.local 文件是否完整
-- tmux session/window 是否正常
 
 ### 检查磁盘使用
 
@@ -885,7 +812,6 @@ colyn remove feature/c
 **问题**：
 - 浪费时间创建和删除
 - 端口号不固定，难以记忆
-- tmux window 位置不稳定
 - 重复配置开发环境
 
 **正确做法**：
@@ -943,17 +869,6 @@ git commit
 
 ## 小贴士
 
-### 🎯 使用快捷键
-
-学习并使用 tmux 快捷键提升效率：
-
-```bash
-Ctrl-b 0-9   # 快速切换 window
-Ctrl-b o     # 切换 pane
-Ctrl-b z     # 最大化当前 pane
-Ctrl-b [     # 进入复制模式（滚动查看）
-```
-
 ### 🎯 利用命令别名
 
 创建常用命令的别名：
@@ -976,7 +891,7 @@ bugfix/api-error
 feature/implement-user-authentication-with-oauth-and-jwt
 ```
 
-**原因**：tmux window 名称会更易读。
+**原因**：iTerm2 tab title 中的分支短名会更易读。
 
 ### 🎯 定期同步远程
 

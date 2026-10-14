@@ -278,7 +278,6 @@ Migration 执行：
 ### 5.2 不受影响的模块
 
 - 所有内置工具链插件（npm / maven / gradle / pip / xcode）的 detect / install / lint / build 等方法实现基本不变，仅调用时传入的目录参数会变化
-- tmux 集成
 - `colyn list`、`colyn checkout`、`colyn remove` 等不依赖工具链的命令
 - `ToolchainPlugin` 接口定义（本次不重构）
 

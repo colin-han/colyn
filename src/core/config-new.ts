@@ -15,15 +15,9 @@
 export {
   // 类型
   type Settings,
-  type TmuxConfig,
-  type PaneConfig,
-  type PaneCommand,
-  type LayoutType,
   type SystemCommands,
   // 常量
-  BUILTIN_COMMANDS,
   CURRENT_CONFIG_VERSION,
-  LayoutTypeSchema,
   // 验证函数
   validateSettings,
   validateSettingsWithFriendlyError,
@@ -42,7 +36,6 @@ export {
 // 导出配置合并函数
 export {
   mergeConfigs,
-  mergeTmuxConfigs,
   applyBranchOverrides,
 } from './config-merger.js';
 
@@ -57,7 +50,7 @@ export { loadAndMigrateConfig, ConfigSchema } from './config-migration.js';
  */
 import { loadUserConfig, loadProjectConfig } from './config-loader.js';
 import { mergeConfigs, applyBranchOverrides } from './config-merger.js';
-import type { Settings } from './config-schema.js';
+import { CURRENT_CONFIG_VERSION as CONFIG_VERSION, type Settings } from './config-schema.js';
 
 export async function loadEffectiveConfig(
   projectRoot: string,
@@ -78,7 +71,7 @@ export async function loadEffectiveConfig(
   // 如果没有任何配置，返回最小配置
   if (configs.length === 0) {
     return {
-      version: 3,
+      version: CONFIG_VERSION,
     };
   }
 

@@ -61,7 +61,7 @@ Colyn 在原生 Git Worktree 基础上提供：
 3. **自动目录切换**: 命令执行后自动进入目标目录
 4. **智能分支处理**: 自动识别本地/远程分支
 5. **项目结构管理**: 统一的目录组织
-6. **tmux 集成**: 高效的多 worktree 切换
+6. **快速切换**: `colyn <N>` 一键切换到任意 worktree
 
 ---
 
@@ -100,13 +100,13 @@ my-project/                    # 根目录名 = 项目名
 
 - 包含所有内容的最外层目录
 - 目录名即为**项目名**（Project Name）
-- 在 tmux 集成中，项目名也是 **Session 名称**
+- 项目名显示在 iTerm2 tab title 中
 
 #### 2. .colyn/ 目录
 
 ```
 .colyn/                        # Colyn 配置目录
-└── settings.json              # 项目配置（插件、语言、tmux 等）
+└── settings.json              # 项目配置（插件、语言等）
 ```
 
 - 标识这是一个 Colyn 管理的项目
@@ -155,7 +155,7 @@ Colyn 为每个 worktree 分配唯一的数字 ID：
 2. **端口分配**: `base_port + id`
 3. **环境变量**: `WORKTREE={id}`
 4. **命令参数**: `colyn merge 1`
-5. **tmux Window Index**: window index = worktree id
+5. **iTerm2 tab title**: `🐶 {项目名} #{id} - {分支短名}`
 
 ### ID 显示格式
 
@@ -354,7 +354,7 @@ WORKTREE=1
 }
 ```
 
-> **说明**: `.colyn/settings.json` 在 `colyn init` 时自动生成，存储无法推断的用户选择（如启用哪些工具链插件、界面语言、tmux 布局等）。
+> **说明**: `.colyn/settings.json` 在 `colyn init` 时自动生成，存储无法推断的用户选择（如启用哪些工具链插件、界面语言等）。
 
 ### 优势
 
@@ -510,46 +510,9 @@ graph TD
 
 ---
 
-## 与 tmux 的集成
-
-### 映射关系
-
-```
-Colyn 概念         tmux 概念
-─────────────────────────────────
-Project Name   →   Session Name
-Worktree ID    →   Window Index
-Branch Name    →   Window Name (最后一段)
-```
-
-### 布局结构
-
-```
-Session: my-project
-├── Window 0: main (主分支)
-│   ├── Pane 0: Claude Code (60%)
-│   ├── Pane 1: Dev Server (12%)
-│   └── Pane 2: Bash (28%)
-│
-├── Window 1: login (feature/login)
-│   ├── Pane 0: Claude Code
-│   ├── Pane 1: Dev Server
-│   └── Pane 2: Bash
-│
-└── Window 2: dashboard (feature/dashboard)
-    ├── Pane 0: Claude Code
-    ├── Pane 1: Dev Server
-    └── Pane 2: Bash
-```
-
-详细说明请参考 [tmux 集成](06-tmux-integration.md)。
-
----
-
 ## 下一步
 
 现在你已经理解了 Colyn 的核心概念，继续阅读：
 
 - [命令参考](04-command-reference.md) - 学习所有命令的详细用法
 - [高级用法](05-advanced-usage.md) - 掌握高级技巧
-- [tmux 集成](06-tmux-integration.md) - 了解 tmux 集成功能

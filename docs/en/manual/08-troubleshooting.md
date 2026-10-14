@@ -393,61 +393,6 @@ colyn checkout new-branch
 
 ---
 
-## tmux Integration Issues
-
-### Q: tmux session was not automatically created
-
-**Check**:
-
-```bash
-# 1. View session list
-tmux ls
-
-# 2. If it doesn't exist, create manually
-tmux new -s my-project
-
-# 3. Or run repair
-colyn repair
-```
-
-### Q: tmux window layout is incorrect
-
-**Solution**:
-
-```bash
-# 1. Run repair to rebuild the layout
-colyn repair
-
-# 2. Or manually adjust the layout
-tmux select-layout main-vertical
-```
-
-### Q: Dev server was not automatically started
-
-**Possible causes**:
-- No `dev` script in package.json
-- Dependencies not installed
-
-**Solution**:
-
-```bash
-# 1. Check package.json
-cat package.json | grep "dev"
-
-# Should have something like:
-# "scripts": {
-#   "dev": "next dev"
-# }
-
-# 2. Install dependencies
-npm install
-
-# 3. Start manually
-npm run dev
-```
-
----
-
 ## Project Move Issues
 
 ### Q: Worktrees unusable after moving the project
@@ -465,7 +410,6 @@ colyn repair
 # 2. This will automatically:
 #    - Fix git worktree paths
 #    - Update .env.local files
-#    - Rebuild tmux session/windows
 ```
 
 ### Q: repair command execution failed

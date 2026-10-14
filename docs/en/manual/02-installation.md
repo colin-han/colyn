@@ -15,7 +15,6 @@ This chapter provides detailed information on the various ways to install and co
 ### Recommended
 
 - **Volta**: Node.js version manager (recommended)
-- **tmux**: Terminal multiplexer (optional, for tmux integration features)
 
 ---
 
@@ -260,9 +259,6 @@ It is recommended to use Homebrew to install dependencies:
 # Install Node.js (using Volta)
 curl https://get.volta.sh | bash
 volta install node
-
-# Install tmux (optional)
-brew install tmux
 ```
 
 ### Linux
@@ -273,9 +269,6 @@ brew install tmux
 # Install Node.js (using Volta)
 curl https://get.volta.sh | bash
 volta install node
-
-# Install tmux (optional)
-sudo apt-get install tmux
 ```
 
 **CentOS/RHEL**:
@@ -284,9 +277,6 @@ sudo apt-get install tmux
 # Install Node.js (using Volta)
 curl https://get.volta.sh | bash
 volta install node
-
-# Install tmux (optional)
-sudo yum install tmux
 ```
 
 ### Windows
@@ -304,7 +294,6 @@ npm install -g colyn-cli
 **Notes**:
 - Some shell integration features may be limited on Windows
 - WSL2 (Windows Subsystem for Linux) is recommended for the best experience
-- tmux integration requires WSL2 or Git Bash
 
 ---
 

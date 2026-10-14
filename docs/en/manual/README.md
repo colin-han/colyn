@@ -7,7 +7,7 @@
 
 ## Welcome to Colyn
 
-Colyn is a powerful Git Worktree management tool designed for developers who need to work on multiple features in parallel. It simplifies the creation and management of Git worktrees, handles port allocation automatically, supports tmux integration, and makes multi-branch parallel development effortless.
+Colyn is a powerful Git Worktree management tool designed for developers who need to work on multiple features in parallel. It simplifies the creation and management of Git worktrees, handles port allocation automatically, and makes multi-branch parallel development effortless.
 
 ### Core Features
 
@@ -16,7 +16,6 @@ Colyn is a powerful Git Worktree management tool designed for developers who nee
 - **Automatic Directory Switching**: Automatically switches to the target directory after command execution
 - **Smart Branch Handling**: Automatically identifies local branches, remote branches, or creates new ones
 - **Auto-completion**: Supports Bash/Zsh Tab key completion for commands, options, and arguments
-- **tmux Integration**: Efficient worktree management and switching within tmux
 - **Cross-platform Support**: Full support for macOS, Linux, and Windows
 
 ### Use Cases
@@ -41,7 +40,6 @@ This user manual contains the following chapters:
 3. **[Core Concepts](03-core-concepts.md)** - Understanding how Colyn works
 4. **[Command Reference](04-command-reference/README.md)** - Detailed documentation for all commands (organized by category)
 5. **[Advanced Usage](05-advanced-usage.md)** - Advanced features and techniques
-6. **[tmux Integration](06-tmux-integration.md)** - Efficient workflows in a tmux environment
 7. **[Best Practices](07-best-practices.md)** - Recommended workflows and tips
 8. **[Troubleshooting](08-troubleshooting.md)** - Common issues and solutions
 9. **[Glossary](09-glossary.md)** - Quick reference for terms and concepts
@@ -70,15 +68,6 @@ If you are already using Colyn:
 - Having an issue → [Troubleshooting](08-troubleshooting.md)
 - Looking up a term → [Glossary](09-glossary.md)
 - Learning advanced techniques → [Advanced Usage](05-advanced-usage.md)
-
-### tmux Users
-
-If you use tmux:
-
-- Complete tmux integration guide → [tmux Integration](06-tmux-integration.md)
-- Shortcuts and workflows → [Best Practices](07-best-practices.md)
-
----
 
 ## Getting Help
 

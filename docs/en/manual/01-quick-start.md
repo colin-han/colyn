@@ -252,7 +252,6 @@ Now that you have mastered the basics of Colyn, you can:
 - Read [Core Concepts](03-core-concepts.md) to deeply understand how Colyn works
 - Check [Command Reference](04-command-reference.md) for detailed usage of all commands
 - Learn [Advanced Usage](05-advanced-usage.md) to master more techniques
-- If you use tmux, check [tmux Integration](06-tmux-integration.md)
 
 ---
 

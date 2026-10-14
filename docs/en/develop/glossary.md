@@ -60,7 +60,7 @@ getMainBranch() => execSync('git branch --show-current', { cwd: mainDir })
 
 **Usage in Colyn**:
 - Used to specify target branch when creating worktree
-- Used to generate tmux window name
+- Its last `/`-separated segment (branch short name) is used in the iTerm2 tab title
 - Supports local branches, remote branches, or new branches
 - Format is `{category}/{name}`, where category uses the Category's `name` field
 
@@ -72,7 +72,7 @@ feature/ui/dark-mode   # UI feature
 main                   # Main branch
 ```
 
-**Related terms**: [Branch Category](#branch-category), [Window Name](#window-name)
+**Related terms**: [Branch Category](#branch-category)
 
 ---
 
@@ -89,7 +89,7 @@ main                   # Main branch
 - Other worktrees start from `1` and increment
 - ID used for directory naming (`task-1`, `task-2`, etc.)
 - ID used for port allocation (base port + ID)
-- In tmux integration, ID = Window Index
+- ID used in `colyn <N>` to jump to the corresponding worktree
 
 **Example**:
 ```bash
@@ -104,7 +104,7 @@ colyn list
 └────────┴─────────────────────┴──────┘
 ```
 
-**Related terms**: [Window Index](#window-index)
+**Related terms**: [Base Port](#base-port)
 
 ---
 
@@ -122,7 +122,7 @@ getProjectName() => path.basename(projectRoot)
 
 **Usage in Colyn**:
 - Used as directory name
-- Used as session name in tmux integration
+- Used in the iTerm2 tab title
 - Used in various prompt messages
 
 **Example**:
@@ -133,7 +133,7 @@ my-task-app/              # ← Project name = "my-task-app"
 └── worktrees/            # Worktree directory
 ```
 
-**Related terms**: [Session Name](#session-name)
+**Related terms**: [Worktree ID](#worktree-id)
 
 ---
 
@@ -180,7 +180,7 @@ task-3:  3003  (3000 + 3)
 1. Multiple worktrees exist simultaneously
 2. Each worktree runs an independent Claude Code instance
 3. Each worktree has an independent development server
-4. Use tmux to manage all worktrees in one window
+4. Use `colyn <N>` to jump quickly between worktrees
 
 **Workflow**:
 ```bash
@@ -196,7 +196,6 @@ colyn add feature/dashboard
 
 **Reference documentation**:
 - `blog/parallel-vibe-coding-with-colyn.md`
-- `blog/parallel-vibe-coding-2-with-tmux.md`
 
 **Related terms**: [Claude Code](#claude-code)
 
@@ -217,7 +216,6 @@ colyn add feature/dashboard
 - ❌ Don't store project name (infer from directory name)
 - ❌ Don't store main branch (infer from git)
 - ❌ Don't store base port (read from .env.local)
-- ❌ Don't store session name (equals project name)
 - ✅ Currently project is completely zero-configuration
 
 **Reference documentation**:
@@ -462,7 +460,7 @@ colyn todo complete feature/user-auth
 **Usage in Colyn**:
 - Each worktree runs an independent dev server
 - Port specified via PORT environment variable
-- Auto-starts in tmux integration (detects `dev` script in `package.json`)
+- Start command is detected by the toolchain plugin (e.g. `dev` script in `package.json`)
 
 **Common frameworks**:
 - Next.js: `npm run dev`
@@ -490,7 +488,6 @@ PORT=3003  # task-3
 **Usage in Colyn**:
 - Runs independently in each worktree
 - Enables Parallel Vibe Coding
-- Occupies left pane (60%) in tmux integration
 
 **Usage scenario**:
 ```bash
@@ -503,200 +500,6 @@ claude
 ```
 
 **Related terms**: [Parallel Vibe Coding](#parallel-vibe-coding)
-
----
-
-## tmux Related Terms
-
-### Session (tmux Session)
-
-**Definition**: tmux's top-level container, contains one or more windows.
-
-**Origin**: tmux terminal multiplexer
-
-**Usage in Colyn**:
-- One Colyn project corresponds to one tmux session
-- Session name = Project name
-- All worktree windows are in the same session
-
-**Commands**:
-```bash
-# View all sessions
-tmux ls
-
-# Attach to session
-tmux attach -t my-task-app
-
-# Detach session
-Ctrl-b d
-```
-
-**Hierarchy**:
-```
-Session (my-task-app)
-  └─ Window 0 (main)
-  └─ Window 1 (auth)
-  └─ Window 2 (tasks)
-```
-
-**Related terms**: [Session Name](#session-name), [Window](#window)
-
----
-
-### Session Name
-
-**Definition**: tmux session identifier, used for attaching and managing sessions.
-
-**Origin**: tmux terminal multiplexer
-
-**Inference method**:
-```typescript
-// Always equals project name
-getSessionName() => getProjectName()
-```
-
-**Usage in Colyn**:
-- Automatically uses project name as session name
-- User attaches to work environment via session name
-- Doesn't need to be stored in configuration file
-
-**Example**:
-```bash
-# Project name is "my-task-app"
-# Session name is automatically "my-task-app"
-
-tmux attach -t my-task-app
-```
-
-**Related terms**: [Project Name](#project-name), [Session](#session)
-
----
-
-### Window (tmux Window)
-
-**Definition**: A tab in tmux session, contains one or more panes.
-
-**Origin**: tmux terminal multiplexer
-
-**Usage in Colyn**:
-- One worktree corresponds to one window
-- Window 0 is fixed as main branch
-- Other window index = worktree ID
-
-**Navigation shortcuts**:
-```bash
-Ctrl-b 0    # Switch to Window 0
-Ctrl-b 1    # Switch to Window 1
-Ctrl-b 2    # Switch to Window 2
-Ctrl-b n    # Next window
-Ctrl-b p    # Previous window
-```
-
-**Hierarchy**:
-```
-Window (auth)
-  └─ Pane 0 (Claude Code)
-  └─ Pane 1 (Dev Server)
-  └─ Pane 2 (Bash)
-```
-
-**Related terms**: [Window Index](#window-index), [Window Name](#window-name), [Pane](#pane)
-
----
-
-### Window Index
-
-**Definition**: tmux window's numeric identifier, starting from 0.
-
-**Origin**: tmux terminal multiplexer
-
-**Usage in Colyn**:
-- Window Index = Worktree ID
-- Main branch is fixed as Window 0
-- Used for quick switching (Ctrl-b 0-9)
-
-**Mapping**:
-```
-Worktree     Window Index
-────────────────────────
-main         0
-task-1       1
-task-2       2
-task-3       3
-```
-
-**Related terms**: [Worktree ID](#worktree-id), [Window](#window)
-
----
-
-### Window Name
-
-**Definition**: tmux window's readable name, displayed in status bar.
-
-**Origin**: tmux terminal multiplexer
-
-**Extraction method**:
-```typescript
-// Use last segment of branch name
-function getWindowName(branch: string): string {
-  return branch.split('/').pop() || branch;
-}
-
-// Examples
-feature/auth → auth
-bugfix/user/login → login
-feature/ui/dark-mode → dark-mode
-main → main
-```
-
-**Usage in Colyn**:
-- Automatically extracted from branch name
-- Auto-updates when switching branches
-- Helps user identify current window's feature
-
-**Status bar display**:
-```
-[my-task-app] 0:main  1:auth*  2:tasks  3:categories
-```
-
-**Related terms**: [Branch Name](#branch-name), [Window](#window)
-
----
-
-### Pane (tmux Pane)
-
-**Definition**: Split region of tmux window, each pane is an independent terminal.
-
-**Origin**: tmux terminal multiplexer
-
-**Usage in Colyn**:
-Each window is fixed into 3 panes:
-
-```
-┌──────────────┬─────────┐
-│              │  Dev    │
-│              │  Server │  ← 30% (Pane 1)
-│   Claude     ├─────────┤
-│   Code       │         │
-│              │  Bash   │  ← 70% (Pane 2)
-│     60%      │   40%   │
-│  (Pane 0)    │         │
-└──────────────┴─────────┘
-```
-
-**Pane allocation**:
-- Pane 0 (left 60%): Claude Code
-- Pane 1 (top right 12%): Dev Server (auto-starts)
-- Pane 2 (bottom right 28%): Bash command line
-
-**Navigation shortcuts**:
-```bash
-Ctrl-b o         # Switch to next pane
-Ctrl-b ;         # Switch to last active pane
-Ctrl-b ←/→/↑/↓   # Arrow keys to switch pane
-```
-
-**Related terms**: [Window](#window), [Dev Server](#dev-server)
 
 ---
 
@@ -796,14 +599,6 @@ if (process.env.WORKTREE === 'main') {
 - Three-Source Resolution
 - Runtime Config Sync
 
-**tmux Concepts**:
-- Session
-- Session Name
-- Window
-- Window Index
-- Window Name
-- Pane
-
 **Environment Variables**:
 - .env.local
 - PORT
@@ -820,9 +615,7 @@ if (process.env.WORKTREE === 'main') {
 | Project name | Main directory name | `path.basename(projectRoot)` |
 | Main branch | Git repository | `git branch --show-current` |
 | Base port | .env.local | `readEnvLocal().PORT` |
-| Session name | Project name | `getProjectName()` |
-| Window index | Worktree ID | One-to-one mapping |
-| Window name | Branch name | `branch.split('/').pop()` |
+| Branch short name | Branch name | `branch.split('/').pop()` |
 | Dev command | package.json | `scripts.dev` |
 | Branch Name | Category + task name | `{category.name}/{name}` |
 | Todo ID | Category + task name | `{category.name}/{name}` (same as Branch Name) |
@@ -832,14 +625,11 @@ if (process.env.WORKTREE === 'main') {
 ## Reference Resources
 
 - **Git Worktree**: [Official Documentation](https://git-scm.com/docs/git-worktree)
-- **tmux**: [Official Documentation](https://github.com/tmux/tmux/wiki)
-- **Colyn Requirements Document**: `docs/requirement-tmux-integration.md`
 - **Colyn Design Principles**: `CLAUDE.md`
 - **User Stories**:
   - `blog/parallel-vibe-coding-with-colyn.md`
-  - `blog/parallel-vibe-coding-2-with-tmux.md`
 
 ---
 
-**Document Version**: 1.1
-**Last Updated**: 2026-02-26
+**Document Version**: 1.2
+**Last Updated**: 2026-10-14

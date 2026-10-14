@@ -10,12 +10,12 @@
 2. [配置加载顺序](#配置加载顺序)
 3. [配置文件结构](#配置文件结构)
 4. [全局配置项](#全局配置项)（含 [plugins](#plugins)、[lang](#lang)、[systemCommands](#systemcommands)、[branchCategories](#branchcategories)）
-5. [Tmux 配置项](#tmux-配置项)
-6. [分支特定配置](#分支特定配置)
-7. [配置管理命令](#配置管理命令)
-8. [配置示例](#配置示例)
-9. [配置版本与迁移](#配置版本与迁移)
-10. [Todo 配置项](#todo-配置项)
+5. [分支特定配置](#分支特定配置)
+6. [配置管理命令](#配置管理命令)
+7. [配置示例](#配置示例)
+8. [配置版本与迁移](#配置版本与迁移)
+9. [Todo 配置项](#todo-配置项)
+10. [命令默认值配置](#命令默认值配置)
 
 ---
 
@@ -45,7 +45,7 @@ settings.json > settings.yaml > settings.yml
 
 **适用场景**:
 - 个人偏好设置(语言、包管理器等)
-- 跨项目通用的 tmux 布局偏好
+- 跨项目通用的命令默认值
 - 针对特定分支模式的全局规则(如所有 `main` 分支)
 
 **示例路径**:
@@ -65,8 +65,8 @@ C:\Users\username\.config\colyn\settings.json  # Windows
 **作用范围**: 仅影响当前项目
 
 **适用场景**:
-- 项目特定的 tmux 布局
 - 项目特定的系统命令配置
+- 项目特定的命令默认值
 - 团队共享的配置(可提交到版本控制)
 
 **示例路径**:
@@ -86,7 +86,7 @@ mkdir -p ~/.config/colyn
 # 创建用户级配置文件 (JSON5 格式)
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -96,7 +96,7 @@ EOF
 
 # 或使用 YAML 格式
 cat > ~/.config/colyn/settings.yaml << 'EOF'
-version: 4
+version: 5
 lang: zh-CN
 systemCommands:
   npm: yarn
@@ -106,10 +106,9 @@ EOF
 mkdir -p .colyn
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 4,
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true
+  "version": 5,
+  "systemCommands": {
+    "npm": "pnpm"
   }
 }
 EOF
@@ -119,13 +118,13 @@ EOF
 
 ## 配置加载顺序
 
-Colyn 使用多层配置系统,所有配置项（`lang`、`systemCommands`、`tmux`）都遵循统一的优先级规则。
+Colyn 使用多层配置系统,所有配置项（`lang`、`systemCommands`、`commands` 等）都遵循统一的优先级规则。
 
 **⚠️ 重要说明**: 以下列表按**优先级从高到低**排序,**序号越小优先级越高**。
 
 ### 统一配置优先级
 
-适用于所有配置项（`lang`、`systemCommands.npm`、`systemCommands.claude`、`tmux.*`）:
+适用于所有配置项（`lang`、`verbose`、`systemCommands.npm`、`commands.*`、`syncFiles`、`todo.*` 等）:
 
 ```
 1. Project override（项目级分支覆盖）← 最高优先级
@@ -141,13 +140,13 @@ Colyn 使用多层配置系统,所有配置项（`lang`、`systemCommands`、`tm
    └── ~/.config/colyn/settings.json
         ↓
 5. System builtin（系统内置）← 最低优先级
-   └── 内置默认值（如 main 分支默认单窗格布局）
+   └── 内置默认值
 ```
 
 **说明**:
 - **所有配置项**都支持分支覆盖（`branchOverrides`）
-- 你可以在 `branchOverrides` 中覆写 `lang`、`systemCommands`、`tmux` 等任意配置
-- System builtin 仅对特定分支提供默认值（如 `main` 分支）
+- 你可以在 `branchOverrides` 中覆写 `lang`、`systemCommands`、`commands` 等任意配置
+- System builtin 指各配置项的内置默认值（如 `lang` 默认 `en`、`systemCommands.npm` 默认 `npm`）
 
 ### 环境变量（特殊情况）
 
@@ -187,29 +186,29 @@ COLYN_LANG=en colyn list
 ```json
 // 用户级配置
 {
-  "tmux": {
-    "autoRun": true,
-    "leftPane": {
-      "command": "continue claude session",
-      "size": "60%"
+  "commands": {
+    "merge": {
+      "build": false,
+      "rebase": false
     }
   }
 }
 
-// 项目级配置（只修改 autoRun）
+// 项目级配置（只修改 build）
 {
-  "tmux": {
-    "autoRun": false
+  "commands": {
+    "merge": {
+      "build": true
+    }
   }
 }
 
 // 最终生效的配置
 {
-  "tmux": {
-    "autoRun": false,  // ← 来自项目级配置
-    "leftPane": {      // ← 来自用户级配置（保留）
-      "command": "continue claude session",
-      "size": "60%"
+  "commands": {
+    "merge": {
+      "build": true,    // ← 来自项目级配置
+      "rebase": false   // ← 来自用户级配置（保留）
     }
   }
 }
@@ -224,10 +223,13 @@ COLYN_LANG=en colyn list
 ```typescript
 {
   // 配置文件版本号（用于自动迁移）
-  "version": 4,
+  "version": 5,
 
   // 界面语言
   "lang": "zh-CN" | "en",
+
+  // 全局详细输出
+  "verbose": true | false,
 
   // 工具链插件（由 colyn init 自动检测并写入，也可手动编辑）
   // 可选值: "npm" | "maven" | "gradle" | "pip"
@@ -236,32 +238,7 @@ COLYN_LANG=en colyn list
 
   // 系统命令配置
   "systemCommands": {
-    "npm": "npm" | "yarn" | "pnpm",  // 包管理器命令
-    "claude": "claude"                // Claude CLI 命令
-  },
-
-  // tmux 配置
-  "tmux": {
-    "autoRun": true | false,           // 是否自动运行命令
-    "layout": "single-pane"            // 布局类型
-            | "two-pane-horizontal"
-            | "two-pane-vertical"
-            | "three-pane"
-            | "four-pane",
-
-    // 窗格配置（根据布局类型使用不同的窗格）
-    "leftPane": { /* PaneConfig */ },
-    "rightPane": { /* PaneConfig */ },
-    "topPane": { /* PaneConfig */ },
-    "bottomPane": { /* PaneConfig */ },
-    "topRightPane": { /* PaneConfig */ },
-    "bottomRightPane": { /* PaneConfig */ },
-    "topLeftPane": { /* PaneConfig */ },
-    "bottomLeftPane": { /* PaneConfig */ },
-
-    // 四窗格布局的分割配置
-    "horizontalSplit": "50%",  // 上下分割线位置
-    "verticalSplit": "50%"     // 左右分割线位置
+    "npm": "npm" | "yarn" | "pnpm"   // 包管理器命令
   },
 
   // 自定义分支类型（用于 add/checkout/todo add 的 type 选择）
@@ -269,6 +246,20 @@ COLYN_LANG=en colyn list
     { "name": "feature", "abbr": "✨feat" },
     { "name": "bugfix",  "abbr": "🐛fix"  }
   ],
+
+  // 未跟踪文件同步清单
+  "syncFiles": ["data/*.json"],
+
+  // 各命令开关的默认值
+  "commands": {
+    "merge":    { /* MergeCommandConfig */ },
+    "update":   { /* UpdateCommandConfig */ },
+    "release":  { /* ReleaseCommandConfig */ },
+    "checkout": { /* CheckoutCommandConfig */ }
+  },
+
+  // Todo 配置
+  "todo": { /* TodoConfig */ },
 
   // 分支特定配置覆盖
   "branchOverrides": {
@@ -290,7 +281,7 @@ COLYN_LANG=en colyn list
 ### version
 
 **类型**: `number`
-**默认值**: `4`（当前版本）
+**默认值**: `5`（当前版本）
 **说明**: 配置文件版本号,用于自动迁移
 
 **⚠️ 重要**: 不要手动修改此字段,系统会自动管理
@@ -404,27 +395,6 @@ colyn config set systemCommands.npm yarn --user
 colyn config set systemCommands.npm pnpm
 ```
 
-#### systemCommands.claude
-
-**类型**: `string`
-**默认值**: `"claude"`
-**说明**: Claude CLI 命令,支持添加额外参数
-
-**示例**:
-
-```json
-{
-  "systemCommands": {
-    "claude": "claude --dangerously-skip-permissions"
-  }
-}
-```
-
-**用途**:
-- 指定 Claude CLI 的自定义路径
-- 添加全局参数(如 `--dangerously-skip-permissions`)
-- 配合内置命令 `continue claude session` 使用
-
 ---
 
 ### branchCategories
@@ -483,313 +453,15 @@ colyn config get branchCategories
 
 ---
 
-## Tmux 配置项
-
-### tmux.autoRun
-
-**类型**: `boolean`
-**默认值**: `true`
-**说明**: 是否自动在窗格中运行命令
-
-**作用**:
-- `true` - 创建 worktree 时自动在对应窗格执行配置的命令
-- `false` - 创建窗格但不自动运行命令(仅打开 shell)
-
-**示例**:
-
-```json
-{
-  "tmux": {
-    "autoRun": false
-  }
-}
-```
-
-**使用场景**:
-- Main 分支通常设置为 `false`(不需要自动启动服务)
-- Feature 分支通常设置为 `true`(自动启动开发环境)
-
-### tmux.layout
-
-**类型**: `"single-pane" | "two-pane-horizontal" | "two-pane-vertical" | "three-pane" | "four-pane"`
-**默认值**: `"three-pane"`
-**说明**: tmux window 的布局类型
-
-#### 支持的布局
-
-**1. single-pane - 单窗格**
-
-```
-┌──────────────────────┐
-│                      │
-│                      │
-│                      │
-│      Single Pane     │
-│                      │
-│                      │
-│                      │
-└──────────────────────┘
-```
-
-**用途**: 不需要分割的简单场景(如 main 分支)
-
----
-
-**2. two-pane-horizontal - 水平两窗格**
-
-```
-┌────────────┬─────────┐
-│            │         │
-│            │         │
-│  Left      │  Right  │
-│  Pane      │  Pane   │
-│            │         │
-│            │         │
-└────────────┴─────────┘
-```
-
-**窗格**: `leftPane`, `rightPane`
-
----
-
-**3. two-pane-vertical - 垂直两窗格**
-
-```
-┌──────────────────────┐
-│                      │
-│      Top Pane        │
-│                      │
-├──────────────────────┤
-│                      │
-│     Bottom Pane      │
-│                      │
-└──────────────────────┘
-```
-
-**窗格**: `topPane`, `bottomPane`
-
----
-
-**4. three-pane - 三窗格（默认）**
-
-```
-┌────────────┬─────────┐
-│            │  Top    │
-│            │  Right  │
-│            │  Pane   │
-│   Left     ├─────────┤
-│   Pane     │ Bottom  │
-│            │  Right  │
-│            │  Pane   │
-└────────────┴─────────┘
-```
-
-**窗格**: `leftPane`, `topRightPane`, `bottomRightPane`
-
-**典型用途**:
-- Left: Claude Code (AI 助手)
-- Top Right: Dev Server (开发服务器日志)
-- Bottom Right: Bash (命令行操作)
-
----
-
-**5. four-pane - 四窗格**
-
-```
-┌──────────┬──────────┐
-│   Top    │   Top    │
-│   Left   │   Right  │
-│   Pane   │   Pane   │
-├──────────┼──────────┤
-│  Bottom  │  Bottom  │
-│   Left   │   Right  │
-│   Pane   │   Pane   │
-└──────────┴──────────┘
-```
-
-**窗格**: `topLeftPane`, `topRightPane`, `bottomLeftPane`, `bottomRightPane`
-
-### 窗格配置（PaneConfig）
-
-每个窗格都可以配置以下属性:
-
-```typescript
-{
-  "command": string | null,  // 要执行的命令
-  "size": string             // 窗格大小（百分比）
-}
-```
-
-#### command - 窗格命令
-
-**类型**: `string | null`
-**默认值**: 取决于窗格位置
-**说明**: 在窗格中执行的命令
-
-**支持的值**:
-
-1. **内置命令** - 自动检测和执行
-2. **自定义命令** - 任意 shell 命令
-3. **null** - 不执行任何命令(仅打开 shell)
-
-##### 内置命令
-
-**`"continue claude session"`**
-
-自动检测并继续 Claude 会话:
-- 如果 worktree 存在 Claude session → 执行 `claude -c`(继续会话)
-- 如果不存在 → 执行 `claude`(新建会话)
-
-**示例**:
-
-```json
-{
-  "leftPane": {
-    "command": "continue claude session"
-  }
-}
-```
-
----
-
-**`"start dev server"`**
-
-自动检测并启动开发服务器:
-- 检测 `package.json` 中的 `dev` 或 `start` 脚本
-- 自动使用配置的包管理器执行
-
-**检测逻辑**:
-1. 优先使用 `dev` 脚本
-2. 如果没有 `dev`,使用 `start` 脚本
-3. 如果都没有,不执行命令
-
-**示例**:
-
-```json
-{
-  "topRightPane": {
-    "command": "start dev server"
-  }
-}
-```
-
----
-
-##### 自定义命令
-
-你可以指定任意 shell 命令:
-
-```json
-{
-  "bottomRightPane": {
-    "command": "git status && echo 'Ready to code!'"
-  }
-}
-```
-
-##### null - 不执行命令
-
-设置为 `null` 表示不执行任何命令,仅打开一个空 shell:
-
-```json
-{
-  "bottomRightPane": {
-    "command": null
-  }
-}
-```
-
-#### size - 窗格大小
-
-**类型**: `string`
-**格式**: `"{数字}%"` 或 `"{数字}"`
-**说明**: 窗格占用的空间百分比
-
-**不同布局的 size 含义**:
-
-| 布局 | 窗格 | size 含义 |
-|------|------|-----------|
-| `two-pane-horizontal` | `leftPane` | 左侧窗格占总宽度的百分比 |
-| `two-pane-vertical` | `topPane` | 上方窗格占总高度的百分比 |
-| `three-pane` | `leftPane` | 左侧窗格占总宽度的百分比 |
-| `three-pane` | `topRightPane` | 右上窗格占右侧高度的百分比 |
-| `four-pane` | 各窗格 | 见四窗格布局说明 |
-
-**示例**:
-
-```json
-{
-  "tmux": {
-    "layout": "three-pane",
-    "leftPane": {
-      "size": "60%"  // 左侧占 60% 宽度
-    },
-    "topRightPane": {
-      "size": "30%"  // 右上占右侧 30% 高度
-    }
-  }
-}
-```
-
-### 四窗格布局配置
-
-四窗格布局支持两种配置方式:
-
-#### 方式 1: 同时配置 horizontalSplit 和 verticalSplit
-
-**推荐使用**,提供对称的布局:
-
-```json
-{
-  "tmux": {
-    "layout": "four-pane",
-    "horizontalSplit": "50%",  // 上下分割线位置（上方占 50%）
-    "verticalSplit": "50%"     // 左右分割线位置（左侧占 50%）
-  }
-}
-```
-
-**效果**:
-```
-┌──────────┬──────────┐
-│    50%   │   50%    │
-│    ↑     │          │
-├──────────┼──────────┤  ← horizontalSplit: 50%
-│          │          │
-│          │          │
-└──────────┴──────────┘
-     ↑
-verticalSplit: 50%
-```
-
-#### 方式 2: 配置各窗格的 size
-
-**更灵活**,但可能不对称:
-
-```json
-{
-  "tmux": {
-    "layout": "four-pane",
-    "topLeftPane": { "size": "60%" },    // 左上占左侧 60% 高度
-    "topRightPane": { "size": "40%" },   // 右上占右侧 40% 高度
-    "bottomLeftPane": { "size": "40%" }, // 左下占左侧 40% 高度
-    "bottomRightPane": { "size": "60%" } // 右下占右侧 60% 高度
-  }
-}
-```
-
-**⚠️ 注意**: 如果同时配置了 split 和 pane size,split 优先级更高,pane size 会被忽略。
-
----
-
 ## 分支特定配置
 
 通过 `branchOverrides` 可以为特定分支或分支模式定制配置。
 
 **⚠️ 重要**: `branchOverrides` 中可以覆写**任意配置项**,包括:
 - `lang` - 针对特定分支使用不同语言
-- `systemCommands` - 针对特定分支使用不同的包管理器或 Claude 命令
-- `tmux` - 针对特定分支使用不同的 tmux 布局
+- `systemCommands` - 针对特定分支使用不同的包管理器
+- `commands` - 针对特定分支使用不同的命令默认值
+- `syncFiles`、`todo` 等其他配置项
 
 ### 配置语法
 
@@ -800,7 +472,7 @@ verticalSplit: 50%
       // 任意 Settings 配置
       "lang": "...",
       "systemCommands": { ... },
-      "tmux": { ... }
+      "commands": { ... }
     }
   }
 }
@@ -814,9 +486,8 @@ verticalSplit: 50%
 {
   "branchOverrides": {
     "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
+      "commands": {
+        "merge": { "update": false }
       }
     }
   }
@@ -831,14 +502,11 @@ verticalSplit: 50%
 {
   "branchOverrides": {
     "feature/*": {
-      "tmux": {
-        "layout": "three-pane",
-        "autoRun": true
-      }
+      "systemCommands": { "npm": "yarn" }
     },
     "bugfix/*": {
-      "tmux": {
-        "layout": "two-pane-horizontal"
+      "commands": {
+        "merge": { "build": false }
       }
     }
   }
@@ -850,52 +518,20 @@ verticalSplit: 50%
 - `"bugfix/*"` 匹配: `bugfix/login`, `bugfix/user/profile`
 - `"*/test"` 匹配: `feature/test`, `bugfix/test`
 
-### 内置分支默认配置
-
-Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
-
-```json
-{
-  "main": {
-    "tmux": {
-      "layout": "single-pane",
-      "autoRun": false
-    }
-  }
-}
-```
-
-**特点**:
-- 优先级最低,会被任何用户或项目配置覆盖
-- 为常见分支提供合理的默认值
-- 可以在用户或项目配置中完全覆盖
-
 ### 配置覆盖示例
 
-**示例 1**: Main 分支使用单窗格,Feature 分支使用三窗格
+**示例 1**: Release 分支合并前强制构建,其他分支跳过构建
 
 ```json
 {
-  "version": 4,
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true
+  "version": 5,
+  "commands": {
+    "merge": { "build": false }
   },
   "branchOverrides": {
-    "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
-      }
-    },
-    "feature/*": {
-      "tmux": {
-        "leftPane": {
-          "command": "continue claude session"
-        },
-        "topRightPane": {
-          "command": "start dev server"
-        }
+    "release/*": {
+      "commands": {
+        "merge": { "build": true }
       }
     }
   }
@@ -906,7 +542,7 @@ Colyn 为某些分支提供了**系统内置默认配置**,优先级**最低**:
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "lang": "en",
   "systemCommands": {
     "npm": "npm"
@@ -948,6 +584,12 @@ colyn config
 colyn config --json
 ```
 
+`colyn config` 依次显示三部分内容:
+
+1. **用户级配置文件** - 路径、是否存在、文件内容
+2. **项目级配置文件** - 路径、是否存在、文件内容
+3. **生效的配置** - 用户级与项目级合并,并应用当前分支的 `branchOverrides` 后得到的完整配置
+
 **输出示例**:
 
 ```
@@ -958,7 +600,7 @@ User-level Config:
   Status: Exists
   Content:
     {
-      "version": 4,
+      "version": 5,
       "lang": "zh-CN"
     }
 
@@ -967,20 +609,30 @@ Project-level Config:
   Status: Exists
   Content:
     {
-      "version": 4,
-      "tmux": {
-        "layout": "three-pane"
+      "version": 5,
+      "systemCommands": {
+        "npm": "yarn"
       }
     }
 
 Effective Config:
+  {
+    "version": 5,
+    "lang": "zh-CN",
+    "systemCommands": {
+      "npm": "yarn"
+    }
+  }
+```
 
-  autoRun: true (default)
+`--json` 模式输出的结构为:
 
-  leftPane:
-    command: "continue claude session" (default)
-    size:    "60%" (default)
-  ...
+```json
+{
+  "userConfig":    { "path": "...", "exists": true,  "content": { ... } },
+  "projectConfig": { "path": "...", "exists": false, "content": null },
+  "effectiveConfig": { ... }
+}
 ```
 
 ### 获取配置值
@@ -996,7 +648,7 @@ colyn config get <key> --user
 **支持的 key**:
 - `lang` - 界面语言
 - `verbose` - 是否默认显示详细输出
-- `systemCommands.npm` / `systemCommands.claude` - 系统命令（包管理器 / Claude CLI）
+- `systemCommands.npm` - 包管理器命令
 - `commands.merge.*` / `commands.update.*` / `commands.release.*` / `commands.checkout.fetch` - 各命令开关的默认值
 - `branchCategories` - 分支类型列表（仅 `get`，返回合并后的完整列表，JSON 格式）
 
@@ -1041,7 +693,7 @@ colyn config set systemCommands.npm pnpm --user
 colyn config unset systemCommands.npm
 ```
 
-**⚠️ 注意**: `config set` / `config unset` 支持 `lang`、`verbose`、`systemCommands.*`、`commands.*` 等点分键（完整列表见[命令参考 · config](04-command-reference/03-system-config.md)）。Tmux 相关配置需要手动编辑配置文件。
+**⚠️ 注意**: `config set` / `config unset` 支持 `lang`、`verbose`、`syncFiles`、`systemCommands.npm`、`commands.*`、`todo.*` 等点分键（完整列表见[命令参考 · config](04-command-reference/03-system-config.md)）。对象或数组类型的字段（如 `branchOverrides`、`branchCategories`）需要手动编辑配置文件。
 
 ---
 
@@ -1053,14 +705,14 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 4
+  "version": 5
 }
 ```
 
 **效果**:
-- 使用默认布局(`three-pane`)
-- 自动运行命令(`autoRun: true`)
-- 左侧运行 Claude,右上运行 Dev Server,右下为空 shell
+- 使用英文界面
+- 使用 npm 作为包管理器
+- 所有命令开关使用内置默认值
 
 ### 示例 2: 简单个性化
 
@@ -1068,7 +720,7 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
@@ -1076,25 +728,19 @@ colyn config unset systemCommands.npm
 }
 ```
 
-### 示例 3: 自定义 Tmux 布局
+### 示例 3: 自定义命令默认值
 
 ```json
 {
-  "version": 4,
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true,
-    "leftPane": {
-      "command": "continue claude session",
-      "size": "70%"
+  "version": 5,
+  "verbose": true,
+  "commands": {
+    "merge": {
+      "build": false,
+      "rebase": false
     },
-    "topRightPane": {
-      "command": "start dev server",
-      "size": "40%"
-    },
-    "bottomRightPane": {
-      "command": "git status",
-      "size": "60%"
+    "update": {
+      "all": false
     }
   }
 }
@@ -1104,93 +750,53 @@ colyn config unset systemCommands.npm
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN",
   "systemCommands": {
     "npm": "yarn"
   },
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true
-  },
   "branchOverrides": {
     "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
+      "systemCommands": {
+        "npm": "pnpm"
       }
     },
-    "feature/*": {
-      "tmux": {
-        "leftPane": {
-          "size": "60%"
-        },
-        "topRightPane": {
-          "size": "30%"
-        }
+    "release/*": {
+      "commands": {
+        "merge": { "build": true },
+        "release": { "tag": true }
       }
     },
     "bugfix/*": {
-      "tmux": {
-        "layout": "two-pane-horizontal",
-        "leftPane": {
-          "command": "continue claude session"
-        },
-        "rightPane": {
-          "command": null
-        }
+      "commands": {
+        "merge": { "update": false }
       }
     }
   }
 }
 ```
 
-### 示例 5: 禁用自动运行
-
-如果你不希望自动运行任何命令:
-
-```json
-{
-  "version": 4,
-  "tmux": {
-    "autoRun": false,
-    "layout": "three-pane"
-  }
-}
-```
-
-### 示例 6: 团队共享配置
+### 示例 5: 团队共享配置
 
 项目级配置可以提交到版本控制,让团队成员共享:
 
 ```json
 {
-  "version": 4,
+  "version": 5,
   "systemCommands": {
-    "npm": "pnpm",
-    "claude": "claude --dangerously-skip-permissions"
+    "npm": "pnpm"
   },
-  "tmux": {
-    "layout": "three-pane",
-    "autoRun": true,
-    "leftPane": {
-      "command": "continue claude session",
-      "size": "60%"
-    },
-    "topRightPane": {
-      "command": "start dev server",
-      "size": "30%"
-    },
-    "bottomRightPane": {
-      "command": "npm run test -- --watch",
-      "size": "70%"
+  "syncFiles": ["data/*.json", "certs/**"],
+  "commands": {
+    "merge": {
+      "build": true,
+      "rebase": true
     }
   },
   "branchOverrides": {
     "main": {
-      "tmux": {
-        "layout": "single-pane",
-        "autoRun": false
+      "commands": {
+        "merge": { "update": false }
       }
     }
   }
@@ -1201,7 +807,7 @@ colyn config unset systemCommands.npm
 
 ```bash
 git add .colyn/settings.json
-git commit -m "Add team tmux configuration"
+git commit -m "Add team colyn configuration"
 ```
 
 ---
@@ -1212,7 +818,7 @@ git commit -m "Add team tmux configuration"
 
 Colyn 使用版本号来管理配置文件的演进,当配置结构发生变化时,系统会**自动迁移**你的配置。
 
-**当前版本**: `4`
+**当前版本**: `5`
 
 ### 配置文件格式
 
@@ -1260,11 +866,6 @@ Colyn 支持多种配置文件格式：
 
 1. **配置结构重构**
    - `npm` → `systemCommands.npm`
-   - `claudeCommand` → `systemCommands.claude`
-
-2. **废弃的内置命令处理**
-   - `"auto continues claude session with dangerously skip permissions"` → `"auto continues claude session"`
-   - 自动添加 `--dangerously-skip-permissions` 到 `systemCommands.claude`
 
 **迁移示例**:
 
@@ -1272,13 +873,7 @@ Colyn 支持多种配置文件格式：
 ```json
 {
   "version": 1,
-  "npm": "yarn",
-  "claudeCommand": "claude --env prod",
-  "tmux": {
-    "leftPane": {
-      "command": "auto continues claude session with dangerously skip permissions"
-    }
-  }
+  "npm": "yarn"
 }
 ```
 
@@ -1287,13 +882,7 @@ Colyn 支持多种配置文件格式：
 {
   "version": 2,
   "systemCommands": {
-    "npm": "yarn",
-    "claude": "claude --env prod --dangerously-skip-permissions"
-  },
-  "tmux": {
-    "leftPane": {
-      "command": "auto continues claude session"
-    }
+    "npm": "yarn"
   }
 }
 ```
@@ -1304,52 +893,33 @@ Colyn 支持多种配置文件格式：
 
 **变更内容**:
 
-1. **重命名内置命令**（去掉 "auto" 前缀）
-   - `"auto continues claude session"` → `"continue claude session"`
-   - `"auto start dev server"` → `"start dev server"`
-
-2. **配置文件格式支持**
+1. **配置文件格式支持**
    - 新增 YAML 格式支持（`settings.yaml`, `settings.yml`）
    - 原 JSON 文件现在使用 JSON5 解析（支持注释和尾部逗号）
    - 格式优先级：`settings.json` > `settings.yaml` > `settings.yml`
 
-**迁移示例**:
+配置内容本身无需转换，仅递增版本号。
 
-**旧配置** (Version 2):
-```json
-{
-  "version": 2,
-  "systemCommands": {
-    "npm": "yarn"
-  },
-  "tmux": {
-    "leftPane": {
-      "command": "auto continues claude session"
-    },
-    "topRightPane": {
-      "command": "auto start dev server"
-    }
-  }
-}
-```
+#### Version 3 → Version 4
 
-**自动迁移后** (Version 3):
-```json
-{
-  "version": 3,
-  "systemCommands": {
-    "npm": "yarn"
-  },
-  "tmux": {
-    "leftPane": {
-      "command": "continue claude session"
-    },
-    "topRightPane": {
-      "command": "start dev server"
-    }
-  }
-}
-```
+**变更时间**: 2026-02-22
+
+**变更内容**:
+
+1. **插件系统重构**
+   - 移除 `plugins` 和 `pluginSettings` 字段
+   - 改为 `toolchain`（单项目）/ `projects`（Mono Repo）字段，由命令运行时按需自动检测并写入
+
+#### Version 4 → Version 5
+
+**变更时间**: 2026-10-14
+
+**变更内容**:
+
+1. **清理已废弃的配置字段**
+   - 删除终端布局相关的旧配置字段（含 `branchOverrides` 中的嵌套项）
+   - 删除 `systemCommands` 下已废弃的 `claude` 项
+   - 其余字段原样保留,无需手动处理
 
 ### 检查配置版本
 
@@ -1383,7 +953,7 @@ mv ~/.config/colyn/settings.json ~/.config/colyn/settings.json.bak
 # 创建新的配置
 cat > ~/.config/colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "lang": "zh-CN"
 }
 EOF
@@ -1417,7 +987,7 @@ rm ~/.config/colyn/settings.json  # 用户级
 rm .colyn/settings.json           # 项目级
 
 # 或者设置为空配置
-echo '{"version": 4}' > ~/.config/colyn/settings.json
+echo '{"version": 5}' > ~/.config/colyn/settings.json
 ```
 
 ### 3. 分支覆盖配置不生效?
@@ -1452,7 +1022,7 @@ echo '{"version": 4}' > ~/.config/colyn/settings.json
 cd project-a
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "systemCommands": { "npm": "yarn" }
 }
 EOF
@@ -1460,36 +1030,10 @@ EOF
 cd project-b
 cat > .colyn/settings.json << 'EOF'
 {
-  "version": 4,
+  "version": 5,
   "systemCommands": { "npm": "pnpm" }
 }
 EOF
-```
-
-### 5. 如何禁用 tmux 自动运行?
-
-```json
-{
-  "version": 4,
-  "tmux": {
-    "autoRun": false
-  }
-}
-```
-
-或者针对特定分支:
-
-```json
-{
-  "version": 4,
-  "branchOverrides": {
-    "main": {
-      "tmux": {
-        "autoRun": false
-      }
-    }
-  }
-}
 ```
 
 ---
@@ -1599,7 +1143,7 @@ colyn config set todo.github.archivedLabel archived
 
 ```jsonc
 {
-  "version": 3,
+  "version": 5,
   "todo": {
     "backend": "github",
     "autoArchive": true,
@@ -1664,7 +1208,7 @@ colyn config set todo.github.archivedLabel archived
 
 ```jsonc
 {
-  "version": 4,
+  "version": 5,
   "syncFiles": ["data/*.json", "certs/**"]
 }
 ```
@@ -1708,7 +1252,7 @@ colyn config set todo.github.archivedLabel archived
 
 ```jsonc
 {
-  "version": 4,
+  "version": 5,
 
   // 顶层 verbose：所有命令共享
   "verbose": true,
@@ -1768,7 +1312,6 @@ colyn update --current-only
 
 ## 下一步
 
-- 查看 [tmux 集成](06-tmux-integration.md) 了解 tmux 工作流
 - 查看 [命令参考](04-command-reference.md) 了解所有可用命令
 - 查看 [最佳实践](07-best-practices.md) 了解配置建议
 

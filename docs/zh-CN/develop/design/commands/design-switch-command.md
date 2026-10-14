@@ -2,9 +2,9 @@
 
 ## 概述
 
-`colyn <N>` 是用于快速切换 worktree 的命令。用户在终端中输入一个数字即可跳转到对应的 worktree 目录；若处于 tmux session 内，则自动选中对应的 window。
+`colyn <N>` 是用于快速切换 worktree 的命令。用户在终端中输入一个数字即可跳转到对应的 worktree 目录。
 
-这个命令是 `colyn` 多 worktree 并行 Vibe Coding 工作流的"键位级"快捷入口：相比 `cd` 到长路径，或在 tmux 中通过 `Ctrl-B + N` 切换 window，统一为一个命令。
+这个命令是 `colyn` 多 worktree 并行 Vibe Coding 工作流的"键位级"快捷入口：相比 `cd` 到长路径，统一为一个命令。
 
 与其他命令的关系：
 - `add`：创建新 worktree（创建后通常自动进入新目录）
@@ -46,32 +46,43 @@ colyn <number> <command...>
 
 ## 行为细节
 
-### tmux 智能切换
+### 切换模式：纯 `cd` 语义
 
-`colyn <N>` 在不同 tmux 上下文中的行为：
+`colyn <N>` 的切换模式只做一件事：把当前 shell 的工作目录切换到目标 worktree。Node 端负责计算目标路径并输出控制消息，shell 集成（`shell/colyn.sh`）负责执行 `cd`。
 
-| 当前环境 | 目标 session 是否存在 | 目标 window 是否存在 | 行为 |
-|---------|---------------------|-------------------|------|
-| tmux 外 | 否 | — | `cd` 到目标目录 |
-| tmux 外 | 是 | 否 | `cd` 到目标目录（降级） |
-| tmux 外 | 是 | 是 | `exec tmux attach-session -t <session>:<window>` |
-| tmux 内（同 session） | — | 是 | Node 端调用 `switchWindow()`（含 iTerm2 title 更新） |
-| tmux 内（同 session） | — | 否 | `cd` 到目标目录（降级） |
-| tmux 内（其他 session） | 是 | 是 | `exec tmux attach-session -t <session>:<window>`（兜底实现） |
+### 保留相对子路径
 
-"tmux 内（同 session）+ window 存在"场景**不**经过 shell 协议——`switchWindow()` 是 Node 端的同步 IPC 调用，且内部已实现 iTerm2 title 同步，无需让 shell 执行 `tmux select-window`。
+如果当前目录位于某个 worktree（主目录或 `worktrees/task-K`）的子目录中，切换时会尽量保留相同的相对子路径：
 
-### Window index 约定
+| 当前目录 | 命令 | 目标目录 |
+|---------|------|---------|
+| `my-app/my-app/src/api` | `colyn 2` | `my-app/worktrees/task-2/src/api` |
+| `my-app/worktrees/task-1/src/api` | `colyn 0` | `my-app/my-app/src/api` |
+| `my-app/worktrees/task-1`（worktree 根） | `colyn 2` | `my-app/worktrees/task-2` |
+| `my-app/`（项目根，不属于任何 worktree） | `colyn 2` | `my-app/worktrees/task-2` |
 
-基于现有 `src/core/tmux.ts` 的实现：
+相对子路径的计算规则（`computeRelativeSubpath()`）：
+- cwd 在主目录下 → 相对于主目录
+- cwd 在 `worktrees/task-K` 下 → 相对于该 `task-K`
+- 其他位置（项目根、`worktrees/` 本身、无关目录）→ 空串，即切换到目标 worktree 根
 
-- Session name = Project name
-- 每个 worktree 对应一个 window
-- Window index 与 Worktree ID 一致
-  - 主目录（ID=0）对应 window 0
-  - task-N 对应 window N
+### 子路径缺失时逐级上溯
 
-若现实中 window index 与 worktree ID 不一致（例如用户手动重排 window），定位失败时自动降级为 `cd`，保证命令不会"什么都不发生"。
+目标 worktree 中可能没有对应的子目录（例如该分支尚未创建该目录）。此时从 `join(target, rel)` 起逐级取父目录，直到找到存在的目录为止，下界为目标 worktree 根（`resolveDeepestExisting()`）。
+
+```
+期望：worktrees/task-2/src/api/v2   （不存在）
+      worktrees/task-2/src/api      （不存在）
+      worktrees/task-2/src          （存在）← 切换到这里
+```
+
+发生回退时在 stderr 打印提示：
+
+```
+未找到子目录 ~/my-app/worktrees/task-2/src/api/v2，已切换到 ~/my-app/worktrees/task-2/src
+```
+
+若 `rel` 含 `..` 越出目标根，安全回退到目标 worktree 根，不会死循环。
 
 ### 不在项目中
 
@@ -85,7 +96,7 @@ colyn <number> <command...>
 
 **由 Node.js 执行命令，不经过 shell wrapper。**
 
-Shell wrapper 仅负责需要当前进程参与的操作（`cd` 切换目录、`exec tmux attach-session`）。命令执行不需要修改当前 shell 状态，由 Node.js 通过 `child_process.spawn` 直接完成，输出转发到 stderr（遵循项目的双层架构：stdout 保留给 JSON 控制协议，stderr 用于用户可见输出）。
+Shell wrapper 仅负责需要当前进程参与的操作（`cd` 切换目录）。命令执行不需要修改当前 shell 状态，由 Node.js 通过 `child_process.spawn` 直接完成，输出转发到 stderr（遵循项目的双层架构：stdout 保留给 JSON 控制协议，stderr 用于用户可见输出）。
 
 优势：
 - 无论是否通过 shell wrapper 调用，命令都能正确执行
@@ -94,18 +105,18 @@ Shell wrapper 仅负责需要当前进程参与的操作（`cd` 切换目录、`
 
 ### 行为规则
 
-- 命令在目标 worktree 目录下执行（`cwd: targetDir`），当前 shell 的工作目录不变
+- 命令在目标 worktree 的对应子目录下执行（`cwd: join(target, rel)`），当前 shell 的工作目录不变
+- 执行模式**严格要求**对应子目录存在；不存在时报错退出（exit 1），不执行命令，不做上溯回退
 - 命令的 stdin 直接透传（`stdio: 'inherit'`），支持交互式命令
 - 命令的 stdout 和 stderr 转发到 Node.js 进程的 stderr，确保用户可见且不污染 stdout
 - 命令的退出码直接透传（`process.exit(code)`）
-- 即使在 tmux 中，也在当前 pane 执行，不切换 tmux window
-- 目标目录不存在时，报错退出，不执行命令
+- 目标 worktree 不存在时，报错退出，不执行命令
 
 ### 实现方式
 
 ```typescript
 const child = spawn(commandArgs.join(' '), {
-  cwd: target,
+  cwd: execTarget,
   stdio: ['inherit', 'pipe', 'pipe'],
   shell: true,
 });
@@ -119,8 +130,6 @@ child.on('close', (code) => {
 ```
 
 注意：使用 `shell: true` 以支持管道、重定向等 shell 特性。
-
-如果当前目录不在任何 colyn 项目内，`colyn <N>` 报错退出，提示"当前目录不在 colyn 项目中"。
 
 ## 内部实现
 
@@ -216,46 +225,34 @@ function handleSwitch(numberArg, commandArgs) {
   const paths = await getProjectPaths();
   if (!paths) → 报错"当前目录不在 colyn 项目中"，exit 1
 
-  // 3. 定位目标 worktree 路径
+  // 3. 定位目标 worktree 根路径
   const target = id === 0 ? paths.mainDir : path.join(paths.worktreesDir, `task-${id}`);
   if (!exists(target)) → 报错 + 列出可用 worktree，exit 1
 
-  // 4. 计算显示路径
-  const displayPath = relativeTo(home, target);
+  // 4. 计算当前目录相对所在 worktree 根的子路径
+  const rel = computeRelativeSubpath(process.cwd(), paths);
 
-  // 5. 执行模式：Node.js 直接执行命令
+  // 5. 执行模式：Node.js 直接执行命令（子目录必须存在）
   if (commandArgs && commandArgs.length > 0) {
-    spawn(commandArgs.join(' '), { cwd: target, stdio: ['inherit', 'pipe', 'pipe'], shell: true });
+    const execTarget = path.join(target, rel);
+    if (!exists(execTarget)) → 报错"子目录不存在"，exit 1
+    spawn(commandArgs.join(' '), { cwd: execTarget, stdio: ['inherit', 'pipe', 'pipe'], shell: true });
     child.stdout.pipe(process.stderr);
     child.stderr.pipe(process.stderr);
     child.on('close', (code) => process.exit(code ?? 1));
     return;
   }
 
-  // 6. 切换模式：原有 tmux 切换逻辑
-  const sessionName = projectName;
-  const inTmux = isInTmux();
-  const currentSession = inTmux ? getCurrentSession() : null;
-  const hasSession = sessionExists(sessionName);
-  const hasWindow = hasSession && windowExists(sessionName, id);
-
-  if (!hasWindow) {
-    outputResult({ success: true, targetDir: target, displayPath });
-    return;
-  }
-
-  if (inTmux && currentSession === sessionName) {
-    switchWindow(sessionName, id, projectName, branchName);
-    return;
-  }
-
-  outputResult({ success: true, attachSession: sessionName, attachWindow: id });
+  // 6. 切换模式：保留相对子路径，缺失则上溯到最深存在的目录
+  const resolved = await resolveDeepestExisting(target, rel);
+  if (rel && resolved !== path.join(target, rel)) → stderr 打印回退提示
+  outputResult({ success: true, targetDir: resolved, displayPath: toDisplayPath(resolved) });
 }
 ```
 
 ### Shell 控制协议（`shell/colyn.sh`）
 
-Shell wrapper 仅负责需要当前进程参与的操作：`cd` 切换目录和 `exec tmux attach-session`。执行模式由 Node.js 直接处理，不经过 shell wrapper。
+Shell wrapper 仅负责需要当前进程参与的操作：`cd` 切换目录。执行模式由 Node.js 直接处理，不经过 shell wrapper。
 
 #### 字段
 
@@ -263,21 +260,15 @@ Shell wrapper 仅负责需要当前进程参与的操作：`cd` 切换目录和 
 |------|------|------|
 | `success` | boolean | 控制消息合法标志 |
 | `targetDir` | string | 切换目录的绝对路径 |
-| `displayPath` | string | 用户友好显示路径 |
-| `attachSession` | string | tmux session 名 |
-| `attachWindow` | number | 与 `attachSession` 搭配，attach 后选中的 window index |
+| `displayPath` | string | 用户友好显示路径（家目录替换为 `~`） |
 
-#### 处理优先级
+#### 处理逻辑
+
+Shell wrapper 截留 stdout 的最后一行作为控制消息（其余 stdout 原样透传），`success === true` 且 `targetDir` 为存在的目录时执行 `cd`：
 
 ```bash
-if [[ -n "$attach_session" ]]; then
-  if [[ -n "$attach_window" ]]; then
-    exec tmux attach-session -t "${attach_session}:${attach_window}"
-  else
-    exec tmux attach-session -t "$attach_session"
-  fi
-elif [[ -n "$target_dir" && -d "$target_dir" ]]; then
-  cd "$target_dir"
+if [[ -n "$target_dir" && -d "$target_dir" ]]; then
+  cd "$target_dir" || return
   echo "📂 已切换到: $display_path"
 fi
 ```
@@ -288,41 +279,26 @@ fi
 
 不输出控制消息。Node.js 直接执行命令，命令输出转发到 stderr。
 
-**场景 B：tmux 外，session 不存在**
+**场景 B：切换模式（`colyn 1`）**
 
 ```json
 {
   "success": true,
-  "targetDir": "/Users/x/proj/worktrees/task-1",
-  "displayPath": "~/proj/worktrees/task-1"
+  "targetDir": "/Users/x/proj/worktrees/task-1/src",
+  "displayPath": "~/proj/worktrees/task-1/src"
 }
 ```
-
-**场景 B：tmux 外，session 不存在**
-
-**场景 D：tmux 外，session+window 都存在**
-
-**场景 C：tmux 内（同 session），切换 window**
-
-```json
-{
-  "success": true,
-  "attachSession": "colyn",
-  "attachWindow": 1
-}
-```
-
-不输出控制消息——Node 端调用 `switchWindow()` 已完成切换。
 
 ## 错误处理
 
-所有错误信息走 stderr。错误时 **不** 输出 JSON 控制消息（shell 检测到 stdout 末行非有效 JSON 控制行，不触发 cd/attach）。
+所有错误信息走 stderr。错误时 **不** 输出 JSON 控制消息（shell 检测到 stdout 末行非有效 JSON 控制行，不触发 cd）。
 
 | 场景 | 退出码 | stderr 输出 |
 |------|------|------|
 | 不在 colyn 项目中 | 1 | `当前目录不在 colyn 项目中，无法切换 worktree` |
 | `colyn 0` 但主目录定位失败 | 1 | `无法定位主目录` |
 | `colyn N` 但 task-N 不存在 | 1 | 错误 + 可用 worktree 列表 |
+| 执行模式下目标子目录不存在 | 1 | `子目录 {sub} 在目标 worktree 中不存在` |
 
 ### 可用 worktree 列表格式
 
@@ -334,17 +310,17 @@ Worktree task-9 不存在
   2  task-2       feature/quick-switch
 ```
 
-复用 `src/core/discovery.ts` 或 `src/commands/list.ts` 中已有的 worktree 发现逻辑，避免重复实现。
+复用 `src/core/discovery.ts` 中已有的 worktree 发现逻辑，避免重复实现。
 
 ### 无效输入
 
-argv 预处理保证只有"纯数字单参数"才进入 switch handler，因此 handler 内部不需要处理 `-1`、`abc` 等输入——它们走 commander 正常流程，被识别为未知命令。
+argv 预处理保证只有"纯数字"才进入 switch handler，因此 handler 内部不需要处理 `-1`、`abc` 等输入——它们走 commander 正常流程，被识别为未知命令。
 
 唯一仍可能出现的边界：`colyn 99999`（超大数字）。按"worktree 不存在"统一处理，不设硬上限。
 
 ## i18n
 
-在 `src/i18n/locales/zh-CN.ts` 和 `src/i18n/locales/en.ts` 的 `commands` 部分新增：
+在 `src/i18n/locales/zh-CN.ts` 和 `src/i18n/locales/en.ts` 的 `commands` 部分：
 
 ```ts
 switch: {
@@ -354,6 +330,8 @@ switch: {
   worktreeNotExists: 'Worktree task-{{n}} 不存在',
   availableWorktrees: '可用 worktree：',
   mainDirLabel: '主目录',
+  subdirNotFound: '子目录 {{sub}} 在目标 worktree 中不存在',
+  subdirFallback: '未找到子目录 {{expected}}，已切换到 {{actual}}',
 }
 ```
 
@@ -369,21 +347,17 @@ switch: {
 
 ## 文件改动清单
 
-### 新增
+### 相关文件
 
-- `src/commands/switch.ts`：命令模块，注册 hidden subcommand，包含目标解析、tmux 状态检测、控制消息输出
+- `src/commands/switch.ts`：命令模块，注册 hidden subcommand，包含目标解析、相对子路径计算、上溯回退、执行模式、控制消息输出
 - `src/cli-preprocess.ts`：`preprocessArgv()` argv 预处理逻辑（独立模块，便于单元测试）
+- `src/cli.ts`：在 `program.parse()` 前调用 `process.argv = preprocessArgv(process.argv)`
+- `src/commands/index.ts`：`registerSwitch(program)`（项目既有模式）
+- `shell/colyn.sh`：解析 `targetDir` / `displayPath` 字段并执行 `cd`
+- `src/i18n/locales/zh-CN.ts`、`src/i18n/locales/en.ts`：`commands.switch.*` 键
 - `docs/zh-CN/develop/design/commands/design-switch-command.md`：本文档
 - `docs/en/develop/design/commands/design-switch-command.md`：英文版
-
-### 修改
-
-- `src/cli.ts`：在 `program.parse()` 前调用 `process.argv = preprocessArgv(process.argv)`
-- `src/commands/index.ts`：增加 `registerSwitch(program)`（项目既有模式）
-- `shell/colyn.sh`：解析 `attachWindow` 字段，扩展现有 attachSession 分支
-- `src/i18n/locales/zh-CN.ts`：新增 `commands.switch.*` 键
-- `src/i18n/locales/en.ts`：同上（英文）
-- `docs/zh-CN/manual/*.md`、`docs/en/manual/*.md`：用户手册加入 `colyn <N>` 用法
+- `docs/zh-CN/manual/*.md`、`docs/en/manual/*.md`：用户手册中的 `colyn <N>` 用法
 
 ### 不改动
 
@@ -392,20 +366,20 @@ switch: {
 
 ## 测试策略
 
-在项目既有测试组织方式下新增 `src/commands/switch.test.ts`，用 mock 处理 tmux 与文件系统，覆盖：
+`src/commands/switch.test.ts` 用 mock 处理文件系统，覆盖：
 
 | # | 场景 | 期望输出 |
 |---|------|------|
 | 1 | `colyn 0`，主目录存在 | 控制消息含 `targetDir` 为主目录 |
-| 2 | `colyn N`，task-N 存在，session 不存在 | 控制消息仅含 `targetDir` |
-| 3 | `colyn N`，session+window 存在，当前在同 session | Node 调用 `switchWindow()`，stdout 无控制消息 |
-| 4 | `colyn N`，session+window 存在，当前在 tmux 外 | 控制消息 `attachSession + attachWindow: N` |
-| 5 | `colyn 9`，task-9 不存在 | stderr 含错误+列表，stdout 无控制消息，exit 1 |
-| 6 | `colyn 99999` | 同 #5 |
-| 7 | 不在 colyn 项目中 | stderr 错误，exit 1 |
-| 8 | `colyn 1 git push`，task-1 存在 | 控制消息含 `targetDir` + `command: "git push"` |
-| 9 | `colyn 0 npm run build`，主目录存在 | 控制消息含 `command: "npm run build"` |
-| 10 | `colyn 9 git push`，task-9 不存在 | stderr 含错误，exit 1（不执行命令） |
+| 2 | `colyn N`，task-N 存在 | 控制消息含 `targetDir` 为 task-N 目录 |
+| 3 | `colyn 9`，task-9 不存在 | stderr 含错误+列表，stdout 无控制消息，exit 1 |
+| 4 | 不在 colyn 项目中 | stderr 错误，exit 1 |
+| 5 | cwd 在 `task-1/a/b`，`colyn 2` 且 `task-2/a/b` 存在 | `targetDir` 带子路径 `a/b` |
+| 6 | cwd 在 `task-1/a/b`，`task-2/a/b` 不存在 | 上溯到最深存在目录并打印回退提示 |
+| 7 | cwd 在 worktree 根（rel 为空） | `targetDir` 等于目标根 |
+| 8 | 执行模式，目标子目录不存在 | exit 1 且不 spawn |
+
+`computeRelativeSubpath()` 与 `resolveDeepestExisting()` 另有独立的单元测试（含 `..` 越界安全回退）。
 
 argv 预处理逻辑单独测试：
 
@@ -426,14 +400,6 @@ argv 预处理逻辑单独测试：
 
 - 纯加法，不影响任何现有命令
 - 配置文件结构无变化，不涉及 migration（参考"配置文件修改规范"）
-
-## 风险与降级
-
-- **window index 与 worktree ID 不一致**：自动降级为 `cd`
-- **跨 session 切换**：用 `attach-session -t s:w` 统一处理，规避 `switch-client` 在不同平台的行为差异
-- **shell/colyn.sh 旧版本**：用户升级二进制但未重新 source shell 脚本时——
-  - "tmux 外 + session/window 存在"场景：旧 shell 仅识别 `attachSession`，会 `attach` 到 session 默认 window（非用户指定的 task-N window），结果是 attach 成功但选中了"上次活跃 window"。**实施阶段需在 upgrade notes 中提示用户重新 `source shell/colyn.sh`。**
-  - 其他场景：旧 shell 字段足够，行为正确。
 
 ## 与其他命令的关系
 

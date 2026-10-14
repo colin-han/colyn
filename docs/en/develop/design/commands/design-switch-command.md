@@ -2,9 +2,9 @@
 
 ## Overview
 
-`colyn <N>` is a shortcut for jumping between worktrees. The user types a single number and the shell either `cd`s into the matching worktree directory or, when inside a tmux session, selects the corresponding window.
+`colyn <N>` is a shortcut for jumping between worktrees. The user types a single number and the shell `cd`s into the matching worktree directory.
 
-This command is the "keystroke-grade" entry point of colyn's parallel Vibe Coding workflow: instead of `cd`-ing into long paths or pressing `Ctrl-B + N` inside tmux, both actions are unified behind one command.
+This command is the "keystroke-grade" entry point of colyn's Parallel Vibe Coding workflow: instead of `cd`-ing into long paths, a single number takes you to the target worktree.
 
 Relation to other commands:
 - `add`: creates a new worktree (usually followed by an automatic cd)
@@ -46,32 +46,42 @@ colyn <number> <command...>
 
 ## Behavior Details
 
-### Smart tmux switching
+### Relative sub-path preservation
 
-The behavior of `colyn <N>` in different tmux contexts:
+When the current directory is inside a worktree (main directory or `worktrees/task-K`), `colyn <N>` remembers the path relative to that worktree root and tries to land in the same relative location inside the target worktree:
 
-| Current env | Target session exists | Target window exists | Action |
-|-------------|----------------------|---------------------|--------|
-| Outside tmux | No | — | `cd` into target |
-| Outside tmux | Yes | No | `cd` into target (degraded) |
-| Outside tmux | Yes | Yes | `exec tmux attach-session -t <session>:<window>` |
-| In tmux (same session) | — | Yes | Node-side `switchWindow()` call (includes iTerm2 title sync) |
-| In tmux (same session) | — | No | `cd` into target (degraded) |
-| In tmux (other session) | Yes | Yes | `exec tmux attach-session -t <session>:<window>` (fallback) |
+| Current directory | Command | Target |
+|-------------------|---------|--------|
+| `my-app/my-app/src/components` | `colyn 2` | `my-app/worktrees/task-2/src/components` |
+| `my-app/worktrees/task-1/src` | `colyn 0` | `my-app/my-app/src` |
+| `my-app/worktrees/task-1` | `colyn 2` | `my-app/worktrees/task-2` |
+| `my-app/` (project root) | `colyn 1` | `my-app/worktrees/task-1` |
+| `my-app/worktrees/` | `colyn 1` | `my-app/worktrees/task-1` |
+| Unrelated directory | `colyn 1` | `my-app/worktrees/task-1` |
 
-The "in tmux (same session) + window exists" case does **not** go through the shell protocol — `switchWindow()` is a synchronous Node-side IPC call that already syncs the iTerm2 title; no need to delegate `tmux select-window` to the shell.
+The relative sub-path is computed by `computeRelativeSubpath(cwd, paths)`:
+- `cwd` is under `mainDir` → relative to `mainDir`
+- `cwd` is under `worktreesDir/task-K` → relative to that `task-K`
+- Any other location (project root, `worktrees/` itself, unrelated directory) → empty string (land on the worktree root)
 
-### Window index convention
+### Fallback when the sub-path does not exist
 
-Based on the existing `src/core/tmux.ts` implementation:
+If the same relative sub-path does not exist in the target worktree (e.g. the directory was renamed or has not been created on that branch yet), switch mode walks **up** the path, one level at a time, and lands in the deepest directory that exists. The walk is bounded by the target worktree root, so the result is never outside the target worktree.
 
-- Session name = Project name
-- Each worktree maps to one window
-- Window index equals Worktree ID
-  - Main worktree (ID = 0) → window 0
-  - task-N → window N
+```
+cwd:     my-app/my-app/src/features/login
+colyn 2  → my-app/worktrees/task-2/src/features/login   (missing)
+         → my-app/worktrees/task-2/src/features         (missing)
+         → my-app/worktrees/task-2/src                  (exists) ✓
+```
 
-If a real-world session has window indexes that no longer match worktree IDs (e.g. the user manually reordered windows), the locate step fails gracefully and the command degrades to plain `cd`, ensuring the command never "does nothing".
+When a fallback happens, a notice is printed to stderr:
+
+```
+Subdirectory ~/my-app/worktrees/task-2/src/features/login not found, switched to ~/my-app/worktrees/task-2/src instead
+```
+
+This is implemented by `resolveDeepestExisting(targetRoot, rel)`.
 
 ### Not inside a project
 
@@ -83,7 +93,7 @@ When `colyn <N>` is followed by additional arguments, it enters exec mode: the s
 
 ### Design Decision: Node.js Executes Commands Directly
 
-The shell wrapper is only responsible for operations that require the current process (`cd` to change directory, `exec tmux attach-session`). Command execution does not need to modify the current shell state, so it is handled directly by Node.js via `child_process.spawn`. Command output is forwarded to stderr (following the project's dual-layer architecture: stdout is reserved for the JSON control protocol, stderr is for user-visible output).
+The shell wrapper is only responsible for the one operation that requires the current process: `cd` to change directory. Command execution does not need to modify the current shell state, so it is handled directly by Node.js via `child_process.spawn`. Command output is forwarded to stderr (following the project's dual-layer architecture: stdout is reserved for the JSON control protocol, stderr is for user-visible output).
 
 Advantages:
 - Commands execute correctly regardless of whether called through the shell wrapper or directly
@@ -92,18 +102,24 @@ Advantages:
 
 ### Behavior Rules
 
-- The command executes in the target worktree directory (`cwd: targetDir`); the current shell's working directory does not change
+- The command executes in the target worktree directory plus the current relative sub-path (`cwd: join(target, rel)`); the current shell's working directory does not change
+- Exec mode is **strict** about the sub-path: if `join(target, rel)` does not exist, an error is reported and the command is **not** executed (no upward fallback — running a command in an unexpected directory would be surprising)
 - The command's stdin is passed through directly (`stdio: 'inherit'`), supporting interactive commands
 - The command's stdout and stderr are forwarded to the Node.js process's stderr, ensuring user visibility without polluting stdout
 - The command's exit code is passed through directly (`process.exit(code)`)
-- Even inside tmux, the command runs in the current pane, without switching tmux windows
-- If the target directory does not exist, an error is reported and no command is executed
+- If the target worktree does not exist, an error is reported and no command is executed
 
 ### Implementation
 
 ```typescript
+const execTarget = path.join(target, rel);
+if (!(await dirExists(execTarget))) {
+  outputError(t('commands.switch.subdirNotFound', { sub: rel || '.' }));
+  process.exit(1);
+}
+
 const child = spawn(commandArgs.join(' '), {
-  cwd: target,
+  cwd: execTarget,
   stdio: ['inherit', 'pipe', 'pipe'],
   shell: true,
 });
@@ -205,78 +221,60 @@ Pseudocode:
 
 ```
 function handleSwitch(numberArg, commandArgs) {
-  // 1. Parse number → worktreeId
-  const id = parseInt(numberArg, 10);
-
-  // 2. Validate project state
+  // 1. Validate project state
   const paths = await getProjectPaths();
   if (!paths) → error "current directory is not inside a colyn project", exit 1
 
-  // 3. Resolve target worktree path
+  // 2. Parse number → worktreeId, resolve target worktree root
+  const id = parseInt(numberArg, 10);
   const target = id === 0 ? paths.mainDir : path.join(paths.worktreesDir, `task-${id}`);
   if (!exists(target)) → error + list available worktrees, exit 1
 
-  // 4. Compute display path
-  const displayPath = relativeTo(home, target);
+  // 3. Compute the relative sub-path of cwd inside its own worktree ('' if none)
+  const rel = computeRelativeSubpath(process.cwd(), paths);
 
-  // 5. Exec mode: Node.js executes the command directly
+  // 4. Exec mode: Node.js executes the command directly (strict sub-path)
   if (commandArgs && commandArgs.length > 0) {
-    spawn(commandArgs.join(' '), { cwd: target, stdio: ['inherit', 'pipe', 'pipe'], shell: true });
+    const execTarget = path.join(target, rel);
+    if (!exists(execTarget)) → error "subdirectory not found", exit 1
+    spawn(commandArgs.join(' '), { cwd: execTarget, stdio: ['inherit', 'pipe', 'pipe'], shell: true });
     child.stdout.pipe(process.stderr);
     child.stderr.pipe(process.stderr);
     child.on('close', (code) => process.exit(code ?? 1));
     return;
   }
 
-  // 6. Switch mode: original tmux switching logic
-  const sessionName = projectName;
-  const inTmux = isInTmux();
-  const currentSession = inTmux ? getCurrentSession() : null;
-  const hasSession = sessionExists(sessionName);
-  const hasWindow = hasSession && windowExists(sessionName, id);
-
-  if (!hasWindow) {
-    outputResult({ success: true, targetDir: target, displayPath });
-    return;
-  }
-
-  if (inTmux && currentSession === sessionName) {
-    switchWindow(sessionName, id, projectName, branchName);
-    return;
-  }
-
-  outputResult({ success: true, attachSession: sessionName, attachWindow: id });
+  // 5. Switch mode: keep the sub-path, fall back upward if it does not exist
+  const resolved = await resolveDeepestExisting(target, rel);
+  if (rel && resolved !== path.join(target, rel)) → stderr notice "subdirectory not found, switched to ... instead"
+  outputResult({ success: true, targetDir: resolved, displayPath: toDisplayPath(resolved) });
 }
 ```
 
+`toDisplayPath()` replaces the home directory prefix with `~` for the human-friendly path.
+
 ### Shell control-message protocol (`shell/colyn.sh`)
 
-The shell wrapper is only responsible for operations that require the current process: `cd` to change directory and `exec tmux attach-session`. Exec mode is handled directly by Node.js and does not involve the shell wrapper.
+The shell wrapper captures stdout, treats the last non-empty line as the JSON control message (if it parses as JSON), prints any preceding stdout lines verbatim, and then performs the `cd`. Exec mode is handled entirely by Node.js and emits no control message.
 
 #### Fields
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `success` | boolean | Marks the line as a valid control message |
+| `success` | boolean | Marks the line as a valid control message; must be `true` for the shell to act |
 | `targetDir` | string | Absolute path to cd into |
-| `displayPath` | string | Human-friendly path |
-| `attachSession` | string | tmux session name |
-| `attachWindow` | number | Used with `attachSession`; window index to select after attach |
+| `displayPath` | string | Human-friendly path (falls back to `targetDir` when absent) |
 
-#### Processing priority
+#### Processing
 
 ```bash
-if [[ -n "$attach_session" ]]; then
-  if [[ -n "$attach_window" ]]; then
-    exec tmux attach-session -t "${attach_session}:${attach_window}"
-  else
-    exec tmux attach-session -t "$attach_session"
-  fi
-elif [[ -n "$target_dir" && -d "$target_dir" ]]; then
-  cd "$target_dir"
+if [[ "$result_success" == "1" && -n "$target_dir" && -d "$target_dir" ]]; then
+  cd "$target_dir" || return
   echo "📂 Switched to: $display_path"
 fi
 ```
+
+The shell only `cd`s when `targetDir` is a directory that exists; otherwise it does nothing and returns the Node process's exit code.
 
 ### Control-message examples
 
@@ -284,39 +282,44 @@ fi
 
 No control message is output. Node.js executes the command directly, forwarding command output to stderr.
 
-**Case B: outside tmux, no session**
+**Case B: switch mode (`colyn 1` from `my-app/my-app/src`)**
 
 ```json
 {
   "success": true,
-  "targetDir": "/Users/x/proj/worktrees/task-1",
-  "displayPath": "~/proj/worktrees/task-1"
+  "targetDir": "/Users/x/proj/worktrees/task-1/src",
+  "displayPath": "~/proj/worktrees/task-1/src"
 }
 ```
 
-**Case B: inside tmux, same session — switch window**
+**Case C: switch mode with fallback (`colyn 1` from `my-app/my-app/src/new-dir`, `task-1` has no `src/new-dir`)**
 
-No control message — `switchWindow()` is invoked directly in Node.
+stderr:
 
-**Case C: outside tmux, session + window both exist**
+```
+Subdirectory ~/proj/worktrees/task-1/src/new-dir not found, switched to ~/proj/worktrees/task-1/src instead
+```
+
+stdout control message:
 
 ```json
 {
   "success": true,
-  "attachSession": "colyn",
-  "attachWindow": 1
+  "targetDir": "/Users/x/proj/worktrees/task-1/src",
+  "displayPath": "~/proj/worktrees/task-1/src"
 }
 ```
 
 ## Error Handling
 
-All error messages go to stderr. On error, **no** JSON control message is emitted (shell sees no valid JSON control line at end of stdout and therefore performs no cd/attach).
+All error messages go to stderr. On error, **no** JSON control message is emitted (shell sees no valid JSON control line at end of stdout and therefore performs no cd).
 
 | Scenario | Exit code | stderr output |
 |----------|-----------|---------------|
 | Not in a colyn project | 1 | `current directory is not inside a colyn project, cannot switch worktree` |
 | `colyn 0` but main dir cannot be located | 1 | `cannot locate main directory` |
 | `colyn N` but task-N does not exist | 1 | error + list of available worktrees |
+| `colyn N <cmd>` but the current sub-path does not exist in task-N | 1 | `Subdirectory <sub> does not exist in the target worktree` (command not executed) |
 
 ### Available-worktree list format
 
@@ -328,7 +331,7 @@ Available worktrees:
   2  task-2       feature/quick-switch
 ```
 
-The worktree discovery logic in `src/core/discovery.ts` or `src/commands/list.ts` is reused — no duplication.
+The worktree discovery logic in `src/core/discovery.ts` is reused — no duplication.
 
 ### Invalid input
 
@@ -338,16 +341,18 @@ The only remaining edge case is `colyn 99999` (huge number). Treated identically
 
 ## i18n
 
-Add the following keys to `src/i18n/locales/zh-CN.ts` and `src/i18n/locales/en.ts` under `commands`:
+The following keys exist in `src/i18n/locales/zh-CN.ts` and `src/i18n/locales/en.ts` under `commands`:
 
 ```ts
 switch: {
   description: 'Quickly switch to a worktree (internal hidden subcommand)',
-  notInProject: 'current directory is not inside a colyn project, cannot switch worktree',
-  mainDirNotFound: 'cannot locate main directory',
+  notInProject: 'Current directory is not inside a colyn project, cannot switch worktree',
+  mainDirNotFound: 'Cannot locate main directory',
   worktreeNotExists: 'Worktree task-{{n}} does not exist',
   availableWorktrees: 'Available worktrees:',
   mainDirLabel: 'main directory',
+  subdirNotFound: 'Subdirectory {{sub}} does not exist in the target worktree',
+  subdirFallback: 'Subdirectory {{expected}} not found, switched to {{actual}} instead',
 }
 ```
 
@@ -365,7 +370,7 @@ Per the project's "dual-layer architecture" rule:
 
 ### New
 
-- `src/commands/switch.ts`: command module — registers the hidden subcommand, performs target resolution, tmux detection, and emits the control message
+- `src/commands/switch.ts`: command module — registers the hidden subcommand, resolves the target directory (including sub-path preservation and fallback), runs exec mode, and emits the control message
 - `src/cli-preprocess.ts`: the `preprocessArgv()` argv preprocessing logic (standalone module for easy unit testing)
 - `docs/zh-CN/develop/design/commands/design-switch-command.md`: Chinese design doc
 - `docs/en/develop/design/commands/design-switch-command.md`: this document
@@ -374,7 +379,7 @@ Per the project's "dual-layer architecture" rule:
 
 - `src/cli.ts`: call `process.argv = preprocessArgv(process.argv)` before `program.parse()`
 - `src/commands/index.ts`: add `registerSwitch(program)` (existing pattern)
-- `shell/colyn.sh`: parse `attachWindow`; extend the existing `attachSession` branch
+- `shell/colyn.sh`: parse `targetDir` / `displayPath` from the control message and `cd`
 - `src/i18n/locales/zh-CN.ts`: add `commands.switch.*`
 - `src/i18n/locales/en.ts`: same (English)
 - `docs/zh-CN/manual/*.md`, `docs/en/manual/*.md`: user manual — add `colyn <N>` usage
@@ -386,20 +391,21 @@ Per the project's "dual-layer architecture" rule:
 
 ## Test Strategy
 
-Add `src/commands/switch.test.ts` (matching the project's existing test layout), mocking tmux and the filesystem, covering:
+`src/commands/switch.test.ts` (matching the project's existing test layout) mocks the filesystem and covers:
 
 | # | Scenario | Expected output |
 |---|----------|-----------------|
 | 1 | `colyn 0`, main dir exists | control message with `targetDir` = main dir |
-| 2 | `colyn N`, task-N exists, no session | control message with `targetDir` only |
-| 3 | `colyn N`, session+window exist, current is same session | Node calls `switchWindow()`; stdout has no control message |
-| 4 | `colyn N`, session+window exist, current is outside tmux | control message `attachSession + attachWindow: N` |
-| 5 | `colyn 9`, task-9 missing | stderr contains error+list, stdout has no control message, exit 1 |
-| 6 | `colyn 99999` | same as #5 |
-| 7 | Not inside a colyn project | stderr error, exit 1 |
-| 8 | `colyn 1 git push`, task-1 exists | control message with `targetDir` + `command: "git push"` |
-| 9 | `colyn 0 npm run build`, main dir exists | control message with `command: "npm run build"` |
-| 10 | `colyn 9 git push`, task-9 missing | stderr error, exit 1 (no command executed) |
+| 2 | `colyn N`, task-N exists | control message with `targetDir` = task-N |
+| 3 | `colyn N` from `mainDir/src`, `task-N/src` exists | `targetDir` = `task-N/src` |
+| 4 | `colyn N` from `mainDir/src/x`, only `task-N/src` exists | `targetDir` = `task-N/src`, fallback notice on stderr |
+| 5 | `colyn N` from the project root or an unrelated directory | `targetDir` = task-N root |
+| 6 | `colyn 9`, task-9 missing | stderr contains error+list, stdout has no control message, exit 1 |
+| 7 | `colyn 99999` | same as #6 |
+| 8 | Not inside a colyn project | stderr error, exit 1 |
+| 9 | `colyn 1 git push`, task-1 exists | command spawned with `cwd` = task-1 (+ sub-path); no control message |
+| 10 | `colyn 1 git push` from `mainDir/src/x`, `task-1/src/x` missing | stderr error, exit 1 (no command executed) |
+| 11 | `colyn 9 git push`, task-9 missing | stderr error, exit 1 (no command executed) |
 
 argv preprocessing logic tested separately. Input is the full argv (including `argv[0]`/`argv[1]`, e.g. `["node", "colyn", ...]`):
 
@@ -421,11 +427,8 @@ argv preprocessing logic tested separately. Input is the full argv (including `a
 
 ## Risks & Degradation
 
-- **Window index drift from worktree ID**: degrades to `cd`
-- **Cross-session switch**: handled via `attach-session -t s:w` to avoid `switch-client` platform differences
-- **Old `shell/colyn.sh`**: if the user upgrades the binary but does not re-`source` the shell script:
-  - "Outside tmux + session/window exists" case: the old shell only knows `attachSession` and will attach to the session's default window (not the requested task-N window). The user lands on the previously active window. **Implementation must call out re-`source`-ing `shell/colyn.sh` in upgrade notes.**
-  - Other cases: existing fields are sufficient and behavior is correct.
+- **Sub-path missing in target**: switch mode degrades to the nearest existing parent directory (never outside the target worktree) and prints a notice; exec mode refuses to run rather than guessing a directory
+- **Old `shell/colyn.sh`**: the control-message fields (`success`, `targetDir`, `displayPath`) are stable; upgrading the binary without re-`source`-ing the shell script keeps `cd` working
 
 ## Relation to Other Commands
 

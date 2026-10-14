@@ -21,15 +21,6 @@ import {
   outputSuccess
 } from '../utils/logger.js';
 import { t } from '../i18n/index.js';
-import {
-  isTmuxAvailable,
-  isInTmux,
-  getCurrentSession,
-  createSession,
-  setupWindow,
-  getWindowName
-} from '../core/tmux.js';
-import { getDevServerCommand } from '../core/dev-server.js';
 import { pluginManager } from '../plugins/index.js';
 import {
   detectAndConfigureToolchains,
@@ -169,122 +160,6 @@ async function configurePortAndEnv(
 }
 
 /**
- * tmux 设置结果
- */
-interface TmuxSetupResult {
-  /** 是否设置成功 */
-  success: boolean;
-  /** session 名称 */
-  sessionName?: string;
-  /** 是否在 tmux 中 */
-  inTmux: boolean;
-  /** 是否创建了新 session */
-  createdSession?: boolean;
-}
-
-/**
- * 设置 tmux 环境（Window 0 for main branch）
- * @param projectName 项目名称（用作 session 名称）
- * @param mainDirPath 主分支目录路径
- * @param mainBranch 主分支名称
- * @param configDir .colyn 配置目录路径（可选）
- */
-async function setupTmuxEnvironment(
-  projectName: string,
-  mainDirPath: string,
-  mainBranch: string,
-  configDir?: string
-): Promise<TmuxSetupResult> {
-  // 如果 tmux 不可用，直接返回
-  if (!isTmuxAvailable()) {
-    return { success: false, inTmux: false };
-  }
-
-  const sessionName = projectName;
-  const windowName = getWindowName(mainBranch);
-  const devCommand = await getDevServerCommand(mainDirPath, configDir);
-
-  // 检测当前环境
-  const inTmux = isInTmux();
-
-  if (inTmux) {
-    // 在 tmux 中：使用当前 session，设置 Window 0 布局
-    const currentSession = getCurrentSession();
-
-    if (currentSession) {
-      // 设置 Window 0 的布局
-      const success = setupWindow({
-        sessionName: currentSession,
-        windowIndex: 0,
-        windowName,
-        workingDir: mainDirPath,
-        devCommand,
-        skipWindowCreation: true, // Window 0 已存在，只设置布局
-      });
-
-      return {
-        success,
-        sessionName: currentSession,
-        inTmux: true,
-      };
-    }
-
-    return { success: false, inTmux: true };
-  } else {
-    // 不在 tmux 中：创建新 session，设置 Window 0
-    const created = createSession(sessionName, mainDirPath);
-
-    if (created) {
-      // 设置 Window 0 的布局
-      const success = setupWindow({
-        sessionName,
-        windowIndex: 0,
-        windowName,
-        workingDir: mainDirPath,
-        devCommand,
-        skipWindowCreation: true, // session 创建时会自动创建 window 0
-      });
-
-      return {
-        success,
-        sessionName,
-        inTmux: false,
-        createdSession: true,
-      };
-    }
-
-    return { success: false, inTmux: false };
-  }
-}
-
-/**
- * 显示 tmux 设置结果信息
- */
-function displayTmuxSetupInfo(result: TmuxSetupResult): void {
-  if (!result.success) {
-    return;
-  }
-
-  if (result.inTmux) {
-    outputSuccess(t('commands.init.tmuxDetectedInSession'));
-    outputSuccess(t('commands.init.tmuxUseCurrentSession', { session: result.sessionName ?? '' }));
-    outputSuccess(t('commands.init.tmuxWindow0Set'));
-    output(t('commands.init.tmuxPaneClaude'));
-    output(t('commands.init.tmuxPaneDevServer'));
-    output(t('commands.init.tmuxPaneBash'));
-  } else {
-    outputSuccess(t('commands.init.tmuxDetectedNotInSession'));
-    outputSuccess(t('commands.init.tmuxSessionCreated', { session: result.sessionName ?? '' }));
-    outputSuccess(t('commands.init.tmuxWindow0Set'));
-    output(t('commands.init.tmuxPaneClaude'));
-    output(t('commands.init.tmuxPaneDevServer'));
-    output(t('commands.init.tmuxPaneBash'));
-    output('');
-    output(chalk.cyan(t('commands.init.tmuxAttachHint', { session: result.sessionName ?? '' })));
-  }
-}
-
-/**
  * 处理空目录情况
  */
 export async function handleEmptyDirectory(
@@ -318,17 +193,8 @@ export async function handleEmptyDirectory(
   // 步骤3: 如果有 portConfig，询问端口并写入运行时配置
   const port = await configurePortAndEnv(contexts, options, 'main');
 
-  // 步骤4: 设置 tmux 环境
-  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
-
-  // 步骤5: 显示成功信息
+  // 步骤4: 显示成功信息
   displayEmptyDirectorySuccess(mainDirName, port ?? 0, mainBranch);
-
-  // 步骤6: 显示 tmux 设置信息
-  if (tmuxResult.success) {
-    output('');
-    displayTmuxSetupInfo(tmuxResult);
-  }
 
   return { mainDirPath, mainDirName };
 }
@@ -344,7 +210,6 @@ export async function handleInitializedDirectory(
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
   const mainDirPath = path.join(rootDir, mainDirName);
-  const configDirPath = path.join(rootDir, '.colyn');
 
   outputWarning(t('commands.init.detectedInitialized') + '\n');
 
@@ -425,22 +290,6 @@ export async function handleInitializedDirectory(
     }));
   }
 
-  // 设置 tmux 环境（获取主分支名称）
-  let mainBranch = 'main';
-  if (dirInfo.hasGitRepo) {
-    try {
-      mainBranch = await detectMainBranch();
-    } catch {
-      // 如果无法获取主分支，使用默认值
-    }
-  }
-
-  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
-  if (tmuxResult.success) {
-    output('');
-    displayTmuxSetupInfo(tmuxResult);
-  }
-
   return { mainDirPath, mainDirName };
 }
 
@@ -454,7 +303,6 @@ export async function handleExistingProject(
 ): Promise<InitHandlerResult | null> {
   const rootDir = process.cwd();
   const mainDirName = dirInfo.currentDirName;
-  const configDirPath = path.join(rootDir, '.colyn');
 
   // 步骤1: 显示当前目录的文件列表
   outputWarning('\n' + t('commands.init.detectedExistingFiles'));
@@ -528,17 +376,8 @@ export async function handleExistingProject(
   // 步骤10: 如果有 portConfig，询问端口并写入运行时配置
   const port = await configurePortAndEnv(contexts, options, 'main');
 
-  // 步骤11: 设置 tmux 环境
-  const tmuxResult = await setupTmuxEnvironment(mainDirName, mainDirPath, mainBranch, configDirPath);
-
-  // 步骤12: 显示成功信息
+  // 步骤11: 显示成功信息
   displaySuccessInfo(mainDirName, port, mainBranch);
-
-  // 步骤13: 显示 tmux 设置信息
-  if (tmuxResult.success) {
-    output('');
-    displayTmuxSetupInfo(tmuxResult);
-  }
 
   return { mainDirPath, mainDirName };
 }

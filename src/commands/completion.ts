@@ -82,7 +82,6 @@ _colyn() {
         'repair:${e(t('commands.repair.description'))}'
         'config:${e(t('commands.config.description'))}'
         'setup:${e(t('commands.systemIntegration.description'))}'
-        'tmux:${e(t('commands.tmux.description'))}'
         'release:${e(t('commands.release.description'))}'
         'completion:${e(t('commands.completion.description'))}'
         'todo:${e(t('commands.todo.description'))}'
@@ -186,7 +185,7 @@ _colyn() {
                                     local -a keys
                                     keys=(
                                         'lang' 'verbose'
-                                        'systemCommands.npm' 'systemCommands.claude'
+                                        'systemCommands.npm'
                                         'commands.merge.build' 'commands.merge.rebase' 'commands.merge.update' 'commands.merge.fetch' 'commands.merge.all'
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
@@ -200,7 +199,7 @@ _colyn() {
                                     local -a keys
                                     keys=(
                                         'lang' 'verbose'
-                                        'systemCommands.npm' 'systemCommands.claude'
+                                        'systemCommands.npm'
                                         'commands.merge.build' 'commands.merge.rebase' 'commands.merge.update' 'commands.merge.fetch' 'commands.merge.all'
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
@@ -213,7 +212,7 @@ _colyn() {
                                     local -a keys
                                     keys=(
                                         'lang' 'verbose'
-                                        'systemCommands.npm' 'systemCommands.claude'
+                                        'systemCommands.npm'
                                         'commands.merge.build' 'commands.merge.rebase' 'commands.merge.update' 'commands.merge.fetch' 'commands.merge.all'
                                         'commands.update.rebase' 'commands.update.fetch' 'commands.update.all'
                                         'commands.release.update' 'commands.release.build' 'commands.release.tag' 'commands.release.versionUpdate'
@@ -228,11 +227,6 @@ _colyn() {
                     ;;
                 setup)
                     # setup: no args
-                    ;;
-                tmux)
-                    _arguments \\
-                        '1: :(start stop)' \\
-                        '(-f --force)'{-f,--force}'[${e(t('commands.tmux.forceOption'))}]'
                     ;;
                 release)
                     _arguments \\

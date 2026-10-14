@@ -391,7 +391,6 @@ colyn repair
 1. Fixes Git worktree path references
 2. Checks and repairs all `.env.local` files
 3. Detects and handles orphaned worktree directories
-4. If tmux is configured, repairs or rebuilds sessions and windows
 
 ### Use Cases for the Repair Command
 
@@ -690,6 +689,5 @@ colyn merge release/v1.2.0
 
 ## Next Steps
 
-- Learn [tmux Integration](06-tmux-integration.md) to boost productivity
 - Check [Best Practices](07-best-practices.md) for recommended workflows
 - Having issues? See [Troubleshooting](08-troubleshooting.md)

@@ -60,7 +60,7 @@ getMainBranch() => execSync('git branch --show-current', { cwd: mainDir })
 
 **在 Colyn 中的用法**：
 - 用于创建 worktree 时指定目标分支
-- 用于生成 tmux window 名称
+- 其最后一段（分支短名，branch short name）用于 iTerm2 tab title 显示
 - 支持本地分支、远程分支或新建分支
 - 格式为 `{category}/{name}`，其中 category 使用 Category 的 `name` 字段
 
@@ -72,7 +72,7 @@ feature/ui/dark-mode   # UI 功能
 main                   # 主分支
 ```
 
-**相关术语**：[Branch Category](#branch-category分支类别)、[Window Name](#window-name窗口名称)
+**相关术语**：[Branch Category](#branch-category分支类别)
 
 ---
 
@@ -89,7 +89,7 @@ main                   # 主分支
 - 其他 worktree 从 `1` 开始递增
 - ID 用于目录命名（`task-1`、`task-2` 等）
 - ID 用于端口分配（base port + ID）
-- 在 tmux 集成中，ID = Window Index
+- ID 显示在 iTerm2 tab title 中（`🐶 {projectName} #{worktreeId} - {分支短名}`）
 
 **示例**：
 ```bash
@@ -104,7 +104,7 @@ colyn list
 └────────┴─────────────────────┴──────┘
 ```
 
-**相关术语**：[Window Index](#window-indextmux-窗口索引)
+**相关术语**：[Base Port](#base-port基础端口)
 
 ---
 
@@ -122,7 +122,7 @@ getProjectName() => path.basename(projectRoot)
 
 **在 Colyn 中的用法**：
 - 用作目录名称
-- 在 tmux 集成中用作 session 名称
+- 显示在 iTerm2 tab title 中
 - 用于各种提示信息
 
 **示例**：
@@ -133,7 +133,7 @@ my-task-app/              # ← 项目名 = "my-task-app"
 └── worktrees/            # worktree 目录
 ```
 
-**相关术语**：[Session Name](#session-nametmux-会话名称)
+**相关术语**：[Worktree ID](#worktree-id)
 
 ---
 
@@ -180,7 +180,7 @@ task-3:  3003  (3000 + 3)
 1. 多个 worktree 同时存在
 2. 每个 worktree 运行独立的 Claude Code 实例
 3. 每个 worktree 有独立的开发服务器
-4. 使用 tmux 在一个窗口中管理所有 worktree
+4. 通过 `colyn <N>` 在各 worktree 之间快速切换
 
 **工作流程**：
 ```bash
@@ -196,7 +196,6 @@ colyn add feature/dashboard
 
 **参考文档**：
 - `blog/parallel-vibe-coding-with-colyn.md`
-- `blog/parallel-vibe-coding-2-with-tmux.md`
 
 **相关术语**：[Claude Code](#claude-code)
 
@@ -217,7 +216,6 @@ colyn add feature/dashboard
 - ❌ 不存储 project name（从目录名推断）
 - ❌ 不存储 main branch（从 git 推断）
 - ❌ 不存储 base port（从 .env.local 读取）
-- ❌ 不存储 session name（等于 project name）
 - ✅ 目前项目完全零配置
 
 **参考文档**：
@@ -495,7 +493,6 @@ colyn todo complete feature/user-auth
 **在 Colyn 中的用法**：
 - 每个 worktree 运行独立的 dev server
 - 通过 PORT 环境变量指定端口
-- 在 tmux 集成中自动启动（检测 `package.json` 的 `dev` 脚本）
 
 **常见框架**：
 - Next.js: `npm run dev`
@@ -523,7 +520,6 @@ PORT=3003  # task-3
 **在 Colyn 中的用法**：
 - 在每个 worktree 中独立运行
 - 实现并行 Vibe Coding
-- 在 tmux 集成中占据左侧 pane（60%）
 
 **使用场景**：
 ```bash
@@ -536,200 +532,6 @@ claude
 ```
 
 **相关术语**：[并行 Vibe Coding](#并行-vibe-coding)
-
----
-
-## tmux 相关术语
-
-### Session（tmux 会话）
-
-**定义**：tmux 的顶层容器，包含一个或多个 window。
-
-**来源**：tmux 终端复用器
-
-**在 Colyn 中的用法**：
-- 一个 Colyn 项目对应一个 tmux session
-- Session 名称 = 项目名称
-- 所有 worktree 的 window 都在同一个 session 中
-
-**命令**：
-```bash
-# 查看所有 session
-tmux ls
-
-# 附加到 session
-tmux attach -t my-task-app
-
-# 分离 session
-Ctrl-b d
-```
-
-**层级关系**：
-```
-Session (my-task-app)
-  └─ Window 0 (main)
-  └─ Window 1 (auth)
-  └─ Window 2 (tasks)
-```
-
-**相关术语**：[Session Name](#session-nametmux-会话名称)、[Window](#windowtmux-窗口)
-
----
-
-### Session Name（tmux 会话名称）
-
-**定义**：tmux session 的标识符，用于附加和管理 session。
-
-**来源**：tmux 终端复用器
-
-**推断方式**：
-```typescript
-// 永远等于项目名
-getSessionName() => getProjectName()
-```
-
-**在 Colyn 中的用法**：
-- 自动使用项目名作为 session 名称
-- 用户通过 session 名称附加到工作环境
-- 不需要存储在配置文件中
-
-**示例**：
-```bash
-# 项目名为 "my-task-app"
-# Session 名称自动为 "my-task-app"
-
-tmux attach -t my-task-app
-```
-
-**相关术语**：[Project Name](#project-name项目名)、[Session](#sessiontmux-会话)
-
----
-
-### Window（tmux 窗口）
-
-**定义**：tmux session 中的一个标签页，包含一个或多个 pane。
-
-**来源**：tmux 终端复用器
-
-**在 Colyn 中的用法**：
-- 一个 worktree 对应一个 window
-- Window 0 固定为主分支
-- 其他 window 的 index = worktree ID
-
-**导航快捷键**：
-```bash
-Ctrl-b 0    # 切换到 Window 0
-Ctrl-b 1    # 切换到 Window 1
-Ctrl-b 2    # 切换到 Window 2
-Ctrl-b n    # 下一个 window
-Ctrl-b p    # 上一个 window
-```
-
-**层级关系**：
-```
-Window (auth)
-  └─ Pane 0 (Claude Code)
-  └─ Pane 1 (Dev Server)
-  └─ Pane 2 (Bash)
-```
-
-**相关术语**：[Window Index](#window-indextmux-窗口索引)、[Window Name](#window-name窗口名称)、[Pane](#panetmux-窗格)
-
----
-
-### Window Index（tmux 窗口索引）
-
-**定义**：tmux window 的数字标识符，从 0 开始。
-
-**来源**：tmux 终端复用器
-
-**在 Colyn 中的用法**：
-- Window Index = Worktree ID
-- 主分支固定为 Window 0
-- 用于快速切换（Ctrl-b 0-9）
-
-**映射关系**：
-```
-Worktree     Window Index
-────────────────────────
-main         0
-task-1       1
-task-2       2
-task-3       3
-```
-
-**相关术语**：[Worktree ID](#worktree-id)、[Window](#windowtmux-窗口)
-
----
-
-### Window Name（窗口名称）
-
-**定义**：tmux window 的可读名称，显示在状态栏中。
-
-**来源**：tmux 终端复用器
-
-**提取方式**：
-```typescript
-// 使用分支名的最后一段
-function getWindowName(branch: string): string {
-  return branch.split('/').pop() || branch;
-}
-
-// 示例
-feature/auth → auth
-bugfix/user/login → login
-feature/ui/dark-mode → dark-mode
-main → main
-```
-
-**在 Colyn 中的用法**：
-- 自动从分支名提取
-- 切换分支时自动更新
-- 帮助用户识别当前 window 的功能
-
-**状态栏显示**：
-```
-[my-task-app] 0:main  1:auth*  2:tasks  3:categories
-```
-
-**相关术语**：[Branch Name](#branch-name分支名)、[Window](#windowtmux-窗口)
-
----
-
-### Pane（tmux 窗格）
-
-**定义**：tmux window 的分割区域，每个 pane 是一个独立的终端。
-
-**来源**：tmux 终端复用器
-
-**在 Colyn 中的用法**：
-每个 window 固定分为 3 个 pane：
-
-```
-┌──────────────┬─────────┐
-│              │  Dev    │
-│              │  Server │  ← 30% (Pane 1)
-│   Claude     ├─────────┤
-│   Code       │         │
-│              │  Bash   │  ← 70% (Pane 2)
-│     60%      │   40%   │
-│  (Pane 0)    │         │
-└──────────────┴─────────┘
-```
-
-**Pane 分配**：
-- Pane 0（左侧 60%）：Claude Code
-- Pane 1（右上 12%）：Dev Server（自动启动）
-- Pane 2（右下 28%）：Bash 命令行
-
-**导航快捷键**：
-```bash
-Ctrl-b o         # 切换到下一个 pane
-Ctrl-b ;         # 切换到上一个活动 pane
-Ctrl-b ←/→/↑/↓   # 方向键切换 pane
-```
-
-**相关术语**：[Window](#windowtmux-窗口)、[Dev Server](#dev-server开发服务器)
 
 ---
 
@@ -830,14 +632,6 @@ if (process.env.WORKTREE === 'main') {
 - 运行时配置同步
 - 未跟踪文件同步
 
-**tmux 概念**：
-- Session
-- Session Name
-- Window
-- Window Index
-- Window Name
-- Pane
-
 **环境变量**：
 - .env.local
 - PORT
@@ -854,10 +648,7 @@ if (process.env.WORKTREE === 'main') {
 | Project name | 主目录名称 | `path.basename(projectRoot)` |
 | Main branch | Git 仓库 | `git branch --show-current` |
 | Base port | .env.local | `readEnvLocal().PORT` |
-| Session name | Project name | `getProjectName()` |
-| Window index | Worktree ID | 一对一映射 |
-| Window name | Branch name | `branch.split('/').pop()` |
-| Dev command | package.json | `scripts.dev` |
+| 分支短名（iTerm2 tab title） | Branch name | `branch.split('/').pop()` |
 | Branch Name | Category + task name | `{category.name}/{name}` |
 | Todo ID | Category + task name | `{category.name}/{name}`（与 Branch Name 相同） |
 
@@ -866,14 +657,11 @@ if (process.env.WORKTREE === 'main') {
 ## 参考资源
 
 - **Git Worktree**：[官方文档](https://git-scm.com/docs/git-worktree)
-- **tmux**：[官方文档](https://github.com/tmux/tmux/wiki)
-- **Colyn 需求文档**：`docs/requirement-tmux-integration.md`
 - **Colyn 设计原则**：`CLAUDE.md`
 - **用户故事**：
   - `blog/parallel-vibe-coding-with-colyn.md`
-  - `blog/parallel-vibe-coding-2-with-tmux.md`
 
 ---
 
-**文档版本**：1.2
-**最后更新**：2026-09-18
+**文档版本**：1.3
+**最后更新**：2026-10-14

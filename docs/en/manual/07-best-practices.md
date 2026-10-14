@@ -123,7 +123,7 @@ app/
 ```
 
 **Reasons**:
-- The project name is used as the tmux Session name
+- The project name is shown in the iTerm2 tab title
 - Easier to identify and switch between projects
 - Better for team collaboration
 
@@ -139,7 +139,6 @@ app/
 - Avoid creating too many worktrees that consume disk space
 - Maintain a stable development environment configuration
 - Port numbers remain consistent and easy to remember
-- Keep fixed window positions in tmux
 
 ### Recommended Worktree Configuration
 
@@ -197,7 +196,7 @@ colyn merge
 
 **Advantages**:
 - Keeps the same port number (e.g. 3001)
-- Keeps the same tmux window (e.g. Window 1)
+- Keeps the same Worktree ID (e.g. `colyn 1`)
 - No need to reconfigure the development environment
 - Avoids wasting disk space
 
@@ -295,7 +294,7 @@ hotfix/critical-bug
 
 **Reasons**:
 - Clear categorization makes management easier
-- tmux Window names are more readable
+- iTerm2 tab titles are more readable
 - Better for team collaboration
 
 ### Keep the Main Branch Clean
@@ -482,74 +481,6 @@ npm install  # or yarn install
 ```bash
 # Only use when you're certain the dependencies are exactly the same
 ln -s ../../my-project/node_modules worktrees/task-1/node_modules
-```
-
----
-
-## tmux Usage
-
-### Window Organization
-
-**Recommended layout**:
-
-```
-Window 0: main        # Main branch (stable version)
-Window 1: feature-a   # Current primary development
-Window 2: feature-b   # Parallel development
-Window 3: bugfix      # Temporary bug fixes
-Window 4: review      # Code review
-```
-
-**Navigation tips**:
-
-```bash
-# Use number keys to quickly switch
-Ctrl-b 0  # Main branch
-Ctrl-b 1  # Primary feature
-Ctrl-b 2  # Secondary feature
-
-# Using tmux command
-tmux select-window -t :1
-```
-
-### Pane Usage Recommendations
-
-**Recommended workflow**:
-
-```
-┌──────────────┬─────────┐
-│              │  Dev    │  ← Monitor logs
-│              │  Server │
-│   Claude     ├─────────┤
-│   Code       │         │
-│              │  Bash   │  ← Run tests, Git commands
-│              │         │
-└──────────────┴─────────┘
-```
-
-**Pane responsibilities**:
-- **Pane 0 (Claude)**: AI collaborative development
-- **Pane 1 (Dev Server)**: Running in background, monitoring logs
-- **Pane 2 (Bash)**: Executing commands (tests, Git, builds)
-
-### Session Management
-
-**Best practices**:
-
-```bash
-# 1. One session per project
-my-task-app     # Session for task app
-blog-platform   # Session for blog
-api-service     # Session for API
-
-# 2. Use meaningful session names
-tmux new -s my-task-app  # Rather than tmux new -s s1
-
-# 3. List all sessions
-tmux ls
-
-# 4. Switch session
-tmux switch -t my-task-app
 ```
 
 ---
@@ -744,7 +675,7 @@ fi
 
 ```bash
 # Starting work in the morning
-tmux attach -t my-project  # Attach to tmux session
+cd ~/my-project  # Enter the project
 
 # Check current status
 colyn list
@@ -762,9 +693,6 @@ colyn merge
 
 # Continue with the next feature (reuse the same worktree)
 colyn checkout feature/next-task
-
-# End of day
-Ctrl-b d  # Detach session (keeps running)
 ```
 
 ### Multi-Feature Parallel Development (Initialization Phase)
@@ -775,10 +703,10 @@ colyn add feature/authentication  # task-1: Primary workspace
 colyn add feature/dashboard       # task-2: Secondary workspace
 colyn add feature/quick-fixes     # task-3: Quick fix workspace
 
-# Quickly switch in tmux
-Ctrl-b 1  # Window 1 - Primary workspace
-Ctrl-b 2  # Window 2 - Secondary workspace
-Ctrl-b 3  # Window 3 - Quick fix workspace
+# Quickly switch by Worktree ID
+colyn 1  # Primary workspace
+colyn 2  # Secondary workspace
+colyn 3  # Quick fix workspace
 
 # Each workspace switches different tasks via checkout
 # task-1 current: feature/authentication
@@ -826,7 +754,6 @@ colyn repair
 **What it checks**:
 - Whether Git worktree paths are correct
 - Whether .env.local files are complete
-- Whether tmux session/windows are working properly
 
 ### Check Disk Usage
 
@@ -885,7 +812,6 @@ colyn remove feature/c
 **Problems**:
 - Wastes time creating and deleting
 - Port numbers are not fixed and hard to remember
-- tmux window positions are unstable
 - Development environment must be reconfigured repeatedly
 
 **Correct approach**:
@@ -943,15 +869,14 @@ git commit
 
 ## Tips
 
-### Use Keyboard Shortcuts
+### Use Quick Switching
 
-Learn and use tmux keyboard shortcuts to boost efficiency:
+Jump between Worktrees by ID instead of typing paths:
 
 ```bash
-Ctrl-b 0-9   # Quickly switch windows
-Ctrl-b o     # Switch pane
-Ctrl-b z     # Maximize current pane
-Ctrl-b [     # Enter copy mode (scroll to view)
+colyn 0   # Main branch directory
+colyn 1   # worktrees/task-1
+colyn 2   # worktrees/task-2
 ```
 
 ### Use Command Aliases
@@ -976,7 +901,7 @@ bugfix/api-error
 feature/implement-user-authentication-with-oauth-and-jwt
 ```
 
-**Reason**: tmux window names will be more readable.
+**Reason**: iTerm2 tab titles will be more readable.
 
 ### Sync with Remote Regularly
 

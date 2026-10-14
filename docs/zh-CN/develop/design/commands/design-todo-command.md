@@ -303,7 +303,7 @@ export async function checkoutCommand(
 await checkoutCommand(undefined, branch, {});
 ```
 
-这意味着 `todo start` 会执行完整的 checkout 流程：检查未提交更改、fetch 远程、归档旧日志、重命名 tmux window 等。
+这意味着 `todo start` 会执行完整的 checkout 流程：检查未提交更改、fetch 远程、归档旧日志、更新 iTerm2 tab title 等。
 
 补充说明：
 

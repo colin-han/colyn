@@ -302,7 +302,7 @@ export async function checkoutCommand(
 await checkoutCommand(undefined, branch, {});
 ```
 
-This means `todo start` performs the full checkout flow: check for uncommitted changes, fetch remote, archive old logs, rename tmux window, etc.
+This means `todo start` performs the full checkout flow: check for uncommitted changes, fetch remote, archive old logs, update the iTerm2 tab title, etc.
 
 Additional notes:
 

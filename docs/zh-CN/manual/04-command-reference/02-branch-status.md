@@ -71,9 +71,8 @@ colyn co [worktree-id] [branch] [选项]
 **旧分支清理：**
 - 如果旧分支已合并到主分支，提示用户是否删除
 
-**tmux 集成：**
-- 在 tmux 中，自动更新 window 名称为新分支名
-- 如果使用 iTerm2，自动更新 tab title
+**iTerm2 集成：**
+- 如果使用 iTerm2，自动更新 tab title 为新分支名
 
 ### 示例
 
