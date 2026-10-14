@@ -6,6 +6,7 @@ import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import { resolveToolchains } from './toolchain-resolver.js';
 import { buildRuntimeTargets, readBasePort } from './runtime-config-repair.js';
+import { parseWorktreeId } from './worktree-naming.js';
 
 /**
  * 项目发现信息
@@ -109,13 +110,12 @@ export async function getMainPort(mainDir: string): Promise<number> {
 /**
  * 扫描 worktrees 目录获取下一个可用 ID
  */
-export async function getNextWorktreeId(worktreesDir: string): Promise<number> {
+export async function getNextWorktreeId(worktreesDir: string, prefix: string): Promise<number> {
   try {
     const entries = await fs.readdir(worktreesDir);
     const ids = entries
-      .filter(e => e.startsWith('task-'))
-      .map(e => parseInt(e.replace('task-', '')))
-      .filter(n => !isNaN(n));
+      .map(e => parseWorktreeId(prefix, e))
+      .filter((n): n is number => n !== null);
 
     return ids.length > 0 ? Math.max(...ids) + 1 : 1;
   } catch {
@@ -130,7 +130,8 @@ export async function getNextWorktreeId(worktreesDir: string): Promise<number> {
  */
 export async function discoverWorktrees(
   mainDir: string,
-  worktreesDir: string
+  worktreesDir: string,
+  prefix: string
 ): Promise<WorktreeInfo[]> {
   const worktrees: WorktreeInfo[] = [];
 
@@ -159,10 +160,9 @@ export async function discoverWorktrees(
       // 只处理 worktrees 目录下的 worktree（排除主分支）
       if (worktreePath && worktreePath.startsWith(worktreesDir)) {
         const dirName = path.basename(worktreePath);
-        const idMatch = dirName.match(/^task-(\d+)$/);
+        const id = parseWorktreeId(prefix, dirName);
 
-        if (idMatch) {
-          const id = parseInt(idMatch[1]);
+        if (id !== null) {
           const envPath = path.join(worktreePath, '.env.local');
           const env = await parseEnvFile(envPath);
           const port = parseInt(env.PORT || '0');
@@ -195,10 +195,9 @@ export async function discoverWorktrees(
       const entries = await fs.readdir(worktreesDir);
 
       for (const entry of entries) {
-        if (entry.startsWith('task-')) {
-          const idMatch = entry.match(/^task-(\d+)$/);
-          if (idMatch) {
-            const id = parseInt(idMatch[1]);
+        {
+          const id = parseWorktreeId(prefix, entry);
+          if (id !== null) {
             const worktreePath = path.join(worktreesDir, entry);
             const envPath = path.join(worktreePath, '.env.local');
             const env = await parseEnvFile(envPath);
@@ -249,13 +248,14 @@ export async function discoverWorktrees(
  */
 export async function discoverProjectInfo(
   mainDir: string,
-  worktreesDir: string
+  worktreesDir: string,
+  prefix: string
 ): Promise<ProjectInfo> {
   const [mainBranch, mainPort, nextWorktreeId, worktrees] = await Promise.all([
     getMainBranch(mainDir),
     getMainPort(mainDir),
-    getNextWorktreeId(worktreesDir),
-    discoverWorktrees(mainDir, worktreesDir)
+    getNextWorktreeId(worktreesDir, prefix),
+    discoverWorktrees(mainDir, worktreesDir, prefix)
   ]);
 
   return {
@@ -272,9 +272,10 @@ export async function discoverProjectInfo(
 export async function findWorktreeByBranch(
   mainDir: string,
   worktreesDir: string,
+  prefix: string,
   branch: string
 ): Promise<WorktreeInfo | undefined> {
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir, prefix);
   return worktrees.find(w => w.branch === branch);
 }
 
@@ -286,18 +287,16 @@ export async function findWorktreeByBranch(
  * @returns worktree ID，如果不在 worktree 目录中返回 null
  * @throws ColynError 如果 .env.local 中的 WORKTREE 与目录名不一致
  */
-export async function getCurrentWorktreeId(): Promise<number | null> {
+export async function getCurrentWorktreeId(prefix: string): Promise<number | null> {
   const cwd = process.cwd();
   const dirName = path.basename(cwd);
 
-  // 检查当前目录名是否符合 task-{id} 格式
-  const dirMatch = dirName.match(/^task-(\d+)$/);
-  if (!dirMatch) {
+  // 检查当前目录名是否符合 {prefix}-{id} 格式
+  const dirId = parseWorktreeId(prefix, dirName);
+  if (dirId === null) {
     // 不在 worktree 目录中
     return null;
   }
-
-  const dirId = parseInt(dirMatch[1]);
 
   // 读取 .env.local 文件
   const envPath = path.join(cwd, '.env.local');

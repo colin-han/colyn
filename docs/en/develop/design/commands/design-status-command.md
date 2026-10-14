@@ -66,7 +66,7 @@ Worktrees that have never had status set default to `idle` without error.
 }
 ```
 
-- **Key naming rule**: Main branch always uses `"main"` (regardless of actual directory name); worktrees use their directory name (e.g., `task-1`)
+- **Key naming rule**: Main branch always uses `"main"` (regardless of actual directory name); worktrees use their directory name (e.g., `task-1`; the prefix follows the `worktreePrefix` setting, and `colyn repair` migrates the keys when it renames directories)
 - Logic: `info.isMainBranch ? 'main' : info.worktreeDir`
 - Project-level `updatedAt` equals the time of the last `status set`
 - Location: `{projectRoot}/.colyn/status.json`

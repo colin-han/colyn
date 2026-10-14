@@ -32,6 +32,7 @@ import { setWorktreeStatus } from '../core/worktree-status.js';
 import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
 import { syncUntrackedFiles } from '../core/untracked-file-sync.js';
 import { applyCommandDefaults, resolveVerbose } from '../core/command-defaults.js';
+import { getWorktreeDirName } from '../core/worktree-naming.js';
 
 /**
  * Merge 命令选项
@@ -74,7 +75,8 @@ async function mergeCommand(
     const worktree = await findWorktreeTarget(
       target,
       paths.mainDir,
-      paths.worktreesDir
+      paths.worktreesDir,
+      paths.worktreePrefix
     );
 
     // 显示 worktree 信息
@@ -236,7 +238,7 @@ async function mergeCommand(
 
     // 更新 worktree 状态为 idle
     try {
-      await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
+      await setWorktreeStatus(paths.configDir, getWorktreeDirName(paths.worktreePrefix, worktree.id), paths.rootDir, 'idle');
     } catch { /* 状态更新失败不影响主流程 */ }
 
     // 步骤8: 显示成功信息
@@ -265,7 +267,7 @@ async function mergeCommand(
         // --all: 更新所有 worktrees（包括当前的）
         output(t('commands.merge.updatingAllWorktrees'));
 
-        const allWorktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir);
+        const allWorktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
 
         if (allWorktrees.length > 0) {
           const updateResult = await updateAllWorktrees(

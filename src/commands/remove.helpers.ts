@@ -42,16 +42,17 @@ export function identifyTargetType(target: string | undefined): TargetType {
 export async function findWorktreeTarget(
   target: string | undefined,
   mainDir: string,
-  worktreesDir: string
+  worktreesDir: string,
+  prefix: string
 ): Promise<WorktreeInfo> {
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir, prefix);
   const targetType = identifyTargetType(target);
 
   let worktree: WorktreeInfo | undefined;
 
   if (targetType === 'auto') {
     // 自动识别当前 worktree
-    const worktreeId = await getCurrentWorktreeId();
+    const worktreeId = await getCurrentWorktreeId(prefix);
     if (worktreeId === null) {
       throw new ColynError(
         t('commands.remove.cannotAutoDetect'),

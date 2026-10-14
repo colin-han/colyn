@@ -13,6 +13,7 @@ export interface SelectableLocalBranchOptions {
   gitDir: string;
   mainDir: string;
   worktreesDir: string;
+  worktreePrefix: string;
   mainBranch: string;
   currentBranch?: string;
   currentWorktreeId?: number;
@@ -49,7 +50,7 @@ export async function listSelectableLocalBranches(
     throw new Error('currentWorktreeId is required when worktreeBranchScope is "others"');
   }
 
-  const worktrees = await discoverWorktrees(options.mainDir, options.worktreesDir);
+  const worktrees = await discoverWorktrees(options.mainDir, options.worktreesDir, options.worktreePrefix);
   const worktreeBranchSet = new Set(
     worktrees
       .filter(worktree => scope !== 'others' || worktree.id !== options.currentWorktreeId)

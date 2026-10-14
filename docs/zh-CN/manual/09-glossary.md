@@ -73,7 +73,7 @@ main                   # 主分支
 **在 Colyn 中的用法**：
 - 主分支固定为 ID `0`：`colyn list` 中显示为 `0`；`colyn list-project` 的 worktree 详情表中显示为 `0-main`
 - 其他 worktree 从 `1` 开始递增
-- ID 用于目录命名（`task-1`、`task-2` 等）
+- ID 用于目录命名（`{prefix}-{id}`，前缀由配置项 `worktreePrefix` 决定，默认 `task`，即 `task-1`、`task-2` 等）
 - ID 用于端口分配（base port + ID）
 - ID 显示在 iTerm2 tab title 中（`🐶 {projectName} #{worktreeId} - {分支短名}`）
 

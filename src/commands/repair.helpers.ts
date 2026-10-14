@@ -5,8 +5,11 @@ import simpleGit from 'simple-git';
 import {
   buildProjectPaths,
   findProjectRootLoose,
+  resolveWorktreePrefix,
   type ProjectPaths
 } from '../core/paths.js';
+import { parseWorktreeId } from '../core/worktree-naming.js';
+import { migrateWorktreePrefix } from '../core/worktree-prefix-migration.js';
 import { discoverWorktrees } from '../core/discovery.js';
 import { checkIsRepo } from '../core/git.js';
 import {
@@ -180,12 +183,13 @@ async function checkMainRuntimeConfig(target: RuntimeTarget): Promise<RepairResu
 async function checkWorktreeRuntimeConfig(
   target: RuntimeTarget,
   mainTarget: RuntimeTarget | undefined,
-  worktreeId: number
+  worktreeId: number,
+  worktreeDirName: string
 ): Promise<RepairResult> {
   const result: RepairResult = {
     item: runtimeItemLabel(
       target,
-      t('commands.repair.itemWorktreeRuntime', { id: worktreeId })
+      t('commands.repair.itemWorktreeRuntime', { dirName: worktreeDirName })
     ),
     success: true,
     fixed: false,
@@ -276,7 +280,7 @@ async function getBranchFromWorktreeDir(worktreePath: string): Promise<string | 
     const gitFilePath = path.join(worktreePath, '.git');
     try {
       const gitContent = await fs.readFile(gitFilePath, 'utf-8');
-      // .git 文件格式: gitdir: /path/to/.git/worktrees/task-1
+      // .git 文件格式: gitdir: /path/to/.git/worktrees/{prefix}-1
       const match = gitContent.match(/gitdir:\s*(.+)/);
       if (match) {
         const gitDir = match[1].trim();
@@ -354,7 +358,8 @@ async function getAllGitWorktrees(mainDir: string): Promise<GitWorktreeInfo[]> {
  */
 async function detectAndRepairOrphans(
   mainDir: string,
-  worktreesDir: string
+  worktreesDir: string,
+  prefix: string
 ): Promise<OrphanDetectionResult> {
   const result: OrphanDetectionResult = {
     repairedOrphans: [],
@@ -368,7 +373,7 @@ async function detectAndRepairOrphans(
 
     // 2. 获取实际目录
     const entries = await fs.readdir(worktreesDir);
-    const actualDirs = entries.filter(e => e.startsWith('task-'));
+    const actualDirs = entries.filter(e => parseWorktreeId(prefix, e) !== null);
 
     // 3. 检查每个实际目录
     for (const dirName of actualDirs) {
@@ -555,7 +560,7 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
 
   // 1. 定位项目根目录（宽松查找，允许目录结构残缺）并补全结构
   const rootDir = await findProjectRootLoose();
-  const paths = buildProjectPaths(rootDir);
+  const paths = buildProjectPaths(rootDir, await resolveWorktreePrefix(rootDir));
 
   const structureSpinner = ora({
     text: t('commands.repair.checkingStructure'),
@@ -602,8 +607,43 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
     failed: t('commands.repair.mainRuntimeFailed')
   });
 
+  // 4.5 把旧前缀的 worktree 目录重命名为当前前缀（必须在发现 worktree 之前）
+  const prefixSpinner = ora({
+    text: t('commands.repair.migratingPrefix'),
+    stream: process.stderr
+  }).start();
+  const prefixResult = await migrateWorktreePrefix({
+    mainDir: paths.mainDir,
+    worktreesDir: paths.worktreesDir,
+    configDir: paths.configDir,
+    prefix: paths.worktreePrefix
+  });
+  if (prefixResult.failed.length > 0) {
+    prefixSpinner.fail(t('commands.repair.prefixMigrationFailed', { count: prefixResult.failed.length }));
+    for (const f of prefixResult.failed) {
+      outputWarning(`  ${t('commands.repair.prefixRenameFailed', { from: f.from, to: f.to, error: f.error })}`);
+    }
+  } else if (prefixResult.renamed.length > 0) {
+    prefixSpinner.succeed(
+      t('commands.repair.prefixMigrated', { count: prefixResult.renamed.length, prefix: paths.worktreePrefix })
+    );
+  } else {
+    prefixSpinner.succeed(t('commands.repair.prefixUpToDate'));
+  }
+  for (const r of prefixResult.renamed) {
+    output(`  ${t('commands.repair.prefixRenamed', { from: r.from, to: r.to })}`);
+  }
+  results.push({
+    item: t('commands.repair.migratingPrefix').replace('...', ''),
+    success: prefixResult.failed.length === 0,
+    fixed: prefixResult.renamed.length > 0,
+    error: prefixResult.failed.length > 0
+      ? prefixResult.failed.map(f => `${f.from}: ${f.error}`).join('; ')
+      : undefined
+  });
+
   // 5. 检查所有 worktree 的运行时配置
-  const worktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir);
+  const worktrees = await discoverWorktrees(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
 
   for (const wt of worktrees) {
     // git 仍记录但目录已丢失：跳过配置修复，提示用户清理
@@ -611,7 +651,7 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
       await fs.access(wt.path);
     } catch {
       results.push({
-        item: t('commands.repair.itemWorktreeRuntime', { id: wt.id }),
+        item: t('commands.repair.itemWorktreeRuntime', { dirName: path.basename(wt.path) }),
         success: true,
         fixed: false,
         skippedNote: t('commands.repair.worktreeDirMissing', { path: wt.path })
@@ -639,7 +679,7 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
 
     // 5.2 再校正身份键（端口、WORKTREE）
     const wtSpinner = ora({
-      text: t('commands.repair.checkingWorktreeRuntime', { id: wt.id }),
+      text: t('commands.repair.checkingWorktreeRuntime', { dirName: path.basename(wt.path) }),
       stream: process.stderr
     }).start();
 
@@ -647,15 +687,15 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
     const wtResults: RepairResult[] = [];
     for (const target of wtTargets) {
       const mainTarget = mainTargets.find(m => m.subPath === target.subPath);
-      const result = await checkWorktreeRuntimeConfig(target, mainTarget, wt.id);
+      const result = await checkWorktreeRuntimeConfig(target, mainTarget, wt.id, path.basename(wt.path));
       wtResults.push(result);
       results.push(result);
     }
 
     reportResults(wtSpinner, wtResults, {
-      correct: t('commands.repair.worktreeRuntimeCorrect', { id: wt.id }),
-      fixed: t('commands.repair.worktreeRuntimeFixed', { id: wt.id }),
-      failed: t('commands.repair.worktreeRuntimeFailed', { id: wt.id })
+      correct: t('commands.repair.worktreeRuntimeCorrect', { dirName: path.basename(wt.path) }),
+      fixed: t('commands.repair.worktreeRuntimeFixed', { dirName: path.basename(wt.path) }),
+      failed: t('commands.repair.worktreeRuntimeFailed', { dirName: path.basename(wt.path) })
     });
   }
 
@@ -735,7 +775,7 @@ export async function repairProject(options: RepairOptions = {}): Promise<void> 
     stream: process.stderr
   }).start();
 
-  const orphanResult = await detectAndRepairOrphans(paths.mainDir, paths.worktreesDir);
+  const orphanResult = await detectAndRepairOrphans(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
 
   const totalOrphans = orphanResult.repairedOrphans.length +
                        orphanResult.trueOrphans.length +

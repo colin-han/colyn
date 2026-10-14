@@ -27,6 +27,7 @@ import {
   type GitDiff
 } from './list.helpers.js';
 import { getWorktreeStatus, type WorktreeStatus } from '../core/worktree-status.js';
+import { getWorktreeDirName } from '../core/worktree-naming.js';
 
 /**
  * List 命令选项
@@ -434,7 +435,7 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
   await validateProjectInitialized(paths);
 
   // 获取项目信息
-  const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+  const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
 
   // 获取主分支信息
   const mainBranch = await getMainBranch(paths.mainDir);
@@ -462,7 +463,7 @@ async function fetchListData(options: ListOptions): Promise<ListItem[]> {
 
   // 添加任务 worktree（并行获取 worktree 状态）
   const wtItems = await Promise.all(projectInfo.worktrees.map(async (wt) => {
-    const { status: wtStatus } = await getWorktreeStatus(paths.configDir, `task-${wt.id}`);
+    const { status: wtStatus } = await getWorktreeStatus(paths.configDir, getWorktreeDirName(paths.worktreePrefix, wt.id));
     return {
       id: wt.id,
       branch: wt.branch,
@@ -565,7 +566,7 @@ async function listCommand(options: ListOptions): Promise<void> {
       watchPaths.push(path.join(paths.mainDir, '.git'));
 
       // 2. 所有 worktree 的 .git 文件（worktree 的 .git 是个文件，不是目录）
-      const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+      const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
       for (const wt of projectInfo.worktrees) {
         watchPaths.push(path.join(wt.path, '.git'));
       }
@@ -626,7 +627,7 @@ async function listCommand(options: ListOptions): Promise<void> {
     await validateProjectInitialized(paths);
 
     // 获取项目信息
-    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
 
     // 获取主分支信息
     const mainBranch = await getMainBranch(paths.mainDir);
@@ -654,7 +655,7 @@ async function listCommand(options: ListOptions): Promise<void> {
 
     // 添加任务 worktree（并行获取 worktree 状态）
     const wtItems = await Promise.all(projectInfo.worktrees.map(async (wt) => {
-      const { status: wtStatus } = await getWorktreeStatus(paths.configDir, `task-${wt.id}`);
+      const { status: wtStatus } = await getWorktreeStatus(paths.configDir, getWorktreeDirName(paths.worktreePrefix, wt.id));
       return {
         id: wt.id,
         branch: wt.branch,

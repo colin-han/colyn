@@ -87,7 +87,7 @@ main                   # Main branch
 **Usage in Colyn**:
 - Main branch is fixed as ID `0` (displayed as `0` in `colyn list`; displayed as `0-main` in the worktree details table of `colyn list-project`)
 - Other worktrees start from `1` and increment
-- ID used for directory naming (`task-1`, `task-2`, etc.)
+- ID used for directory naming (`{prefix}-{id}`, default prefix `task`, i.e. `task-1`, `task-2`, etc.; see [Worktree prefix](#worktree-prefix))
 - ID used for port allocation (base port + ID)
 - ID used in `colyn <N>` to jump to the corresponding worktree
 
@@ -134,6 +134,27 @@ my-task-app/              # ← Project name = "my-task-app"
 ```
 
 **Related terms**: [Worktree ID](#worktree-id)
+
+---
+
+### Worktree prefix
+
+**Definition**: The part of the worktree directory name `{prefix}-{id}` before `{id}`, set by the `worktreePrefix` setting, default `task`.
+
+**Origin**: Colyn custom concept
+
+**Usage in Colyn**:
+- Set via `colyn config set worktreePrefix <prefix>` (project level overrides user level)
+- Must start with a letter and contain only letters, digits, underscores and hyphens
+- Existing directories are not recognized after a change; `colyn repair` renames git-registered directories with the old prefix to the new one
+- All code that builds or parses directory names must go through `src/core/worktree-naming.ts`; hard-coding `task-` is forbidden
+
+**Example**:
+```bash
+colyn config set worktreePrefix edt
+colyn repair          # task-1 → edt-1
+colyn add feature/x   # creates worktrees/edt-2
+```
 
 ---
 

@@ -64,6 +64,7 @@ const PATHS = {
   mainDir: '/proj/colyn',
   worktreesDir: '/proj/worktrees',
   configDir: '/proj/.colyn',
+  worktreePrefix: 'task',
 };
 
 const mkTodo = (over: Partial<TodoItem>): TodoItem => ({

@@ -40,8 +40,8 @@ export function identifyTargetType(target: string | undefined): TargetType {
  * 自动识别当前 worktree
  * 使用 getCurrentWorktreeId 验证目录名与 .env.local 配置一致
  */
-export async function autoDetectWorktree(): Promise<number | null> {
-  return getCurrentWorktreeId();
+export async function autoDetectWorktree(prefix: string): Promise<number | null> {
+  return getCurrentWorktreeId(prefix);
 }
 
 /**
@@ -50,16 +50,17 @@ export async function autoDetectWorktree(): Promise<number | null> {
 export async function findWorktreeTarget(
   target: string | undefined,
   mainDir: string,
-  worktreesDir: string
+  worktreesDir: string,
+  prefix: string
 ): Promise<WorktreeInfo> {
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir, prefix);
   const targetType = identifyTargetType(target);
 
   let worktree: WorktreeInfo | undefined;
 
   if (targetType === 'auto') {
     // 自动识别当前 worktree
-    const worktreeId = await autoDetectWorktree();
+    const worktreeId = await autoDetectWorktree(prefix);
     if (worktreeId === null) {
       throw new ColynError(
         t('commands.merge.cannotAutoDetect'),

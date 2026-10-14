@@ -25,8 +25,9 @@ colyn repair
 After execution, the system will:
 1. Create the missing project directory structure (`worktrees/`)
 2. Check and fix the main branch **runtime config**
-3. Sync config keys newly added on the main branch to each worktree, then check and fix each worktree's **runtime config**
-4. Run `git worktree repair` to fix git connections
+3. Rename worktree directories that still use an old prefix to the current `worktreePrefix` (see 6.5)
+4. Sync config keys newly added on the main branch to each worktree, then check and fix each worktree's **runtime config**
+5. Run `git worktree repair` to fix git connections
 5. Run plugin initialization (non-fatal — only shows a warning on failure)
 6. **Run setup for the current active Todo Backend** (non-fatal):
    - Local backend: no additional action
@@ -436,7 +437,7 @@ git worktree repair
 
 **Detection logic**:
 1. Use `git worktree list --porcelain` to get all worktrees (including those with invalid paths)
-2. Scan all `task-*` directories under `worktrees/`
+2. Scan all `{prefix}-N` directories under `worktrees/` (`prefix` is the current `worktreePrefix` setting)
 3. Smart matching: Match git records and actual directories by branch name
 
 **Types of orphan directories**:
@@ -463,6 +464,28 @@ git worktree repair /new/path/to/worktrees/task-1
 - Read branch name from the actual directory's `.git` file or git repository
 - Match with branch name in git worktree list
 - Successful match means invalid path type, can be repaired
+
+### 6.5 Worktree Directory Name Prefix Migration
+
+**Trigger**: The `worktreePrefix` setting differs from the prefix of existing directories under `worktrees/` (e.g. the setting is now `edt` but directories are still `task-1`).
+
+**When it runs**: Before worktree discovery. Discovery only recognizes the current prefix, so renaming must happen first.
+
+**Detection rules**:
+1. Directory name matches `{oldPrefix}-{N}` and `oldPrefix` differs from the current prefix
+2. Directory is registered in `git worktree list --porcelain` (only git-known directories are touched, so unrelated directories the user dropped in are never renamed)
+
+**Rename method**:
+```bash
+git worktree move worktrees/task-1 worktrees/edt-1
+```
+Git updates the `.git/worktrees/` metadata and the `.git` pointer file inside the worktree together. The `WORKTREE` key in the runtime config stores the numeric ID and needs no change.
+
+**Status key migration**: The `task-1` entry in `.colyn/status.json` becomes `edt-1`; the status value is kept.
+
+**Failure handling**: If the target directory already exists or `git worktree move` fails, the entry is recorded and reported in the summary; other directories are still processed.
+
+**Implementation**: `src/core/worktree-prefix-migration.ts`
 
 ---
 
@@ -538,11 +561,11 @@ graph LR
 
 ### 9.2 Non-standard Worktree Directory Names
 
-**Scenario**: Directories under `worktrees/` that don't follow `task-*` format
+**Scenario**: Directories under `worktrees/` that don't follow the current `{prefix}-N` format
 
 **Handling**:
-- Skip directories that don't match format
-- Warn in summary
+- Directories shaped like `{otherPrefix}-N` and registered in git: renamed to the current prefix per 6.5
+- Everything else: skipped, warned in summary
 
 ### 9.3 Git worktree repair Unavailable
 

@@ -119,3 +119,22 @@ export async function setWorktreeStatus(
   globalData[projectPath] = { updatedAt: now };
   await writeGlobalStatusFile(globalData);
 }
+
+/**
+ * 重命名项目级 status.json 中的 worktree 键（用于 worktree 目录改名）
+ * 旧键不存在时不做任何事，也不创建文件
+ */
+export async function renameWorktreeStatusKey(
+  configDir: string,
+  oldKey: string,
+  newKey: string
+): Promise<void> {
+  const data = await readProjectStatusFile(configDir);
+  const entry = data.worktrees[oldKey];
+  if (!entry) {
+    return;
+  }
+  delete data.worktrees[oldKey];
+  data.worktrees[newKey] = entry;
+  await writeProjectStatusFile(configDir, data);
+}

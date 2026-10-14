@@ -25,6 +25,7 @@ export const SETTINGS_KEYS = {
   lang: 'lang',
   verbose: 'boolean',
   syncFiles: 'string-array',
+  worktreePrefix: 'string',
 
   // 系统命令
   'systemCommands.npm': 'string',

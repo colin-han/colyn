@@ -35,7 +35,7 @@ colyn add origin/feature/payment
 ### 1.3 Execution Result
 
 Creates a new worktree:
-- **Directory Location**: `worktrees/task-{id}/`
+- **Directory Location**: `worktrees/{prefix}-{id}/` (`prefix` comes from the `worktreePrefix` setting, default `task`; examples in this document use the default)
 - **Branch**: Specified branch (auto-created if doesn't exist)
 - **Port**: Auto-assigned (main port + worktree ID)
 - **Environment Variables**: Copied from main branch and updated PORT and WORKTREE

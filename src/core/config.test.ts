@@ -58,3 +58,21 @@ describe('未跟踪文件同步配置', () => {
     expect(settings.commands?.update?.syncFiles).toBeUndefined();
   });
 });
+
+describe('worktreePrefix 配置', () => {
+  it('合法前缀可解析', () => {
+    const settings = validateSettings({ version: 5, worktreePrefix: 'edt' });
+    expect(settings.worktreePrefix).toBe('edt');
+  });
+
+  it('缺省时为 undefined（运行时回退默认 task，无需 Migration）', () => {
+    const settings = validateSettings({ version: 5 });
+    expect(settings.worktreePrefix).toBeUndefined();
+  });
+
+  it('非法前缀（数字开头、含斜杠、空串）被拒绝', () => {
+    for (const bad of ['1edt', 'a/b', '']) {
+      expect(() => validateSettings({ version: 5, worktreePrefix: bad })).toThrow();
+    }
+  });
+});

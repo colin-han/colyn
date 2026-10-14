@@ -7,6 +7,7 @@ import { t } from '../i18n/index.js';
 import { getProjectPaths } from '../core/paths.js';
 import { discoverWorktrees, getMainBranch } from '../core/discovery.js';
 import { outputResult, outputError } from '../utils/logger.js';
+import { getWorktreeDirName, parseWorktreeId as parseWorktreeDirName } from '../core/worktree-naming.js';
 
 /**
  * 解析数字字符串到 worktree ID。
@@ -17,24 +18,24 @@ function parseWorktreeId(numberArg: string): number {
 }
 
 /**
- * 计算给定 worktree ID 的绝对路径。0 → mainDir，否则 → worktreesDir/task-N
+ * 计算给定 worktree ID 的绝对路径。0 → mainDir，否则 → worktreesDir/{prefix}-N
  */
 function resolveTargetDir(
   id: number,
-  paths: { mainDir: string; worktreesDir: string }
+  paths: { mainDir: string; worktreesDir: string; worktreePrefix: string }
 ): string {
   if (id === 0) return paths.mainDir;
-  return path.join(paths.worktreesDir, `task-${id}`);
+  return path.join(paths.worktreesDir, getWorktreeDirName(paths.worktreePrefix, id));
 }
 
 /**
  * 计算 cwd 相对于其所在 worktree 根的子路径。
- * cwd 在 mainDir 下 → root=mainDir；在 worktrees/task-K 下 → root=该 task-K；
+ * cwd 在 mainDir 下 → root=mainDir；在 worktrees/{prefix}-K 下 → root=该 worktree；
  * 其他位置（项目根、worktrees 本身、无关目录）→ 返回 ''。
  */
 export function computeRelativeSubpath(
   cwd: string,
-  paths: { mainDir: string; worktreesDir: string }
+  paths: { mainDir: string; worktreesDir: string; worktreePrefix: string }
 ): string {
   const resolved = path.resolve(cwd);
 
@@ -43,12 +44,12 @@ export function computeRelativeSubpath(
     return path.relative(paths.mainDir, resolved);
   }
 
-  // 在某个 worktrees/task-K 下
+  // 在某个 worktrees/{prefix}-K 下
   if (resolved.startsWith(paths.worktreesDir + path.sep)) {
-    const rel = path.relative(paths.worktreesDir, resolved); // e.g. task-1/a/b
+    const rel = path.relative(paths.worktreesDir, resolved); // e.g. {prefix}-1/a/b
     const segments = rel.split(path.sep);
     const first = segments[0];
-    if (/^task-\d+$/.test(first)) {
+    if (parseWorktreeDirName(paths.worktreePrefix, first) !== null) {
       const worktreeRoot = path.join(paths.worktreesDir, first);
       return path.relative(worktreeRoot, resolved);
     }
@@ -103,9 +104,10 @@ function toDisplayPath(absPath: string): string {
 async function printAvailableWorktrees(paths: {
   mainDir: string;
   worktreesDir: string;
+  worktreePrefix: string;
 }): Promise<void> {
   const [worktrees, mainBranch] = await Promise.all([
-    discoverWorktrees(paths.mainDir, paths.worktreesDir),
+    discoverWorktrees(paths.mainDir, paths.worktreesDir, paths.worktreePrefix),
     getMainBranch(paths.mainDir).catch(() => 'main'),
   ]);
 
@@ -114,7 +116,7 @@ async function printAvailableWorktrees(paths: {
   process.stderr.write(`   0  main         ${mainBranch}  (${mainLabel})\n`);
   for (const w of worktrees.sort((a, b) => a.id - b.id)) {
     const idStr = String(w.id).padStart(2);
-    const dirName = `task-${w.id}`.padEnd(12);
+    const dirName = getWorktreeDirName(paths.worktreePrefix, w.id).padEnd(12);
     process.stderr.write(`  ${idStr}  ${dirName} ${w.branch}\n`);
   }
 }
@@ -135,7 +137,7 @@ export async function handleSwitch(numberArg: string, commandArgs: string[] | un
     if (id === 0) {
       outputError(t('commands.switch.mainDirNotFound'));
     } else {
-      outputError(t('commands.switch.worktreeNotExists', { n: id }));
+      outputError(t('commands.switch.worktreeNotExists', { dirName: getWorktreeDirName(paths.worktreePrefix, id) }));
     }
     await printAvailableWorktrees(paths);
     process.exit(1);
