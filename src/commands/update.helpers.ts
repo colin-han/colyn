@@ -12,6 +12,7 @@ import {
   outputBold,
   outputStep
 } from '../utils/logger.js';
+import * as path from 'path';
 import { discoverWorktrees, getCurrentWorktreeId } from '../core/discovery.js';
 import { t } from '../i18n/index.js';
 import { syncWorktreeRuntimeConfigs } from '../core/runtime-config-sync.js';
@@ -42,8 +43,8 @@ export function identifyTargetType(target: string | undefined): TargetType {
 /**
  * 自动识别当前 worktree
  */
-export async function autoDetectWorktree(): Promise<number | null> {
-  return getCurrentWorktreeId();
+export async function autoDetectWorktree(prefix: string): Promise<number | null> {
+  return getCurrentWorktreeId(prefix);
 }
 
 /**
@@ -52,16 +53,17 @@ export async function autoDetectWorktree(): Promise<number | null> {
 export async function findWorktreeTarget(
   target: string | undefined,
   mainDir: string,
-  worktreesDir: string
+  worktreesDir: string,
+  prefix: string
 ): Promise<WorktreeInfo> {
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir, prefix);
   const targetType = identifyTargetType(target);
 
   let worktree: WorktreeInfo | undefined;
 
   if (targetType === 'auto') {
     // 自动识别当前 worktree
-    const worktreeId = await autoDetectWorktree();
+    const worktreeId = await autoDetectWorktree(prefix);
     if (worktreeId === null) {
       throw new ColynError(
         t('commands.update.cannotAutoDetect'),
@@ -296,7 +298,7 @@ export async function updateAllWorktrees(
   for (const worktree of worktrees) {
     // 检查工作目录是否干净
     try {
-      await checkGitWorkingDirectory(worktree.path, `task-${worktree.id}`);
+      await checkGitWorkingDirectory(worktree.path, path.basename(worktree.path));
     } catch {
       // 工作目录不干净，跳过
       results.push({
@@ -468,9 +470,9 @@ export function displayBatchUpdateResult(result: BatchUpdateResult): void {
     outputBold(t('commands.update.failedDetails'));
     for (const r of failedResults) {
       if (r.skipped) {
-        output(`  ${chalk.yellow('○')} task-${r.worktree.id} (${r.worktree.branch}): ${r.error}`);
+        output(`  ${chalk.yellow('○')} ${path.basename(r.worktree.path)} (${r.worktree.branch}): ${r.error}`);
       } else {
-        output(`  ${chalk.red('✗')} task-${r.worktree.id} (${r.worktree.branch}): ${r.error}`);
+        output(`  ${chalk.red('✗')} ${path.basename(r.worktree.path)} (${r.worktree.branch}): ${r.error}`);
       }
     }
     outputLine();
@@ -483,7 +485,7 @@ export function displayBatchUpdateResult(result: BatchUpdateResult): void {
 export function displayWorktreeList(worktrees: WorktreeInfo[]): void {
   outputBold(t('commands.update.foundWorktrees', { count: worktrees.length }));
   for (const wt of worktrees) {
-    output(`  ${wt.id}. task-${wt.id} (${wt.branch})`);
+    output(`  ${wt.id}. ${path.basename(wt.path)} (${wt.branch})`);
   }
   outputLine();
 }

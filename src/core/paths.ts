@@ -3,6 +3,9 @@ import * as os from 'os';
 import * as path from 'path';
 import { ColynError } from '../types/index.js';
 import { t } from '../i18n/index.js';
+import { loadUserConfig, loadProjectConfig } from './config-loader.js';
+import { mergeConfigs } from './config-merger.js';
+import { DEFAULT_WORKTREE_PREFIX, parseWorktreeId } from './worktree-naming.js';
 
 /**
  * 项目路径信息
@@ -18,6 +21,8 @@ export interface ProjectPaths {
   worktreesDir: string;
   /** .colyn 配置目录完整路径 */
   configDir: string;
+  /** Worktree 目录名前缀（目录名为 `{prefix}-{id}`） */
+  worktreePrefix: string;
 }
 
 /**
@@ -145,13 +150,30 @@ export async function findProjectRootLoose(startDir: string = process.cwd()): Pr
  */
 export async function getProjectPaths(startDir: string = process.cwd()): Promise<ProjectPaths> {
   const rootDir = await findProjectRoot(startDir);
-  return buildProjectPaths(rootDir);
+  return buildProjectPaths(rootDir, await resolveWorktreePrefix(rootDir));
+}
+
+/**
+ * 读取有效配置（项目级 > 用户级）中的 worktreePrefix，缺省为 task
+ */
+export async function resolveWorktreePrefix(rootDir: string): Promise<string> {
+  const [userConfig, projectConfig] = await Promise.all([
+    loadUserConfig(),
+    loadProjectConfig(rootDir),
+  ]);
+  if (!userConfig && !projectConfig) {
+    return DEFAULT_WORKTREE_PREFIX;
+  }
+  return mergeConfigs(userConfig, projectConfig).worktreePrefix ?? DEFAULT_WORKTREE_PREFIX;
 }
 
 /**
  * 由项目根目录构造所有相关路径
  */
-export function buildProjectPaths(rootDir: string): ProjectPaths {
+export function buildProjectPaths(
+  rootDir: string,
+  worktreePrefix: string = DEFAULT_WORKTREE_PREFIX
+): ProjectPaths {
   const mainDirName = path.basename(rootDir);
 
   return {
@@ -159,7 +181,8 @@ export function buildProjectPaths(rootDir: string): ProjectPaths {
     mainDirName,
     mainDir: path.join(rootDir, mainDirName),
     worktreesDir: path.join(rootDir, 'worktrees'),
-    configDir: path.join(rootDir, '.colyn')
+    configDir: path.join(rootDir, '.colyn'),
+    worktreePrefix
   };
 }
 
@@ -264,6 +287,7 @@ export async function getLocationInfo(
   const mainDirName = path.basename(rootDir);
   const mainDir = path.join(rootDir, mainDirName);
   const worktreesDir = path.join(rootDir, 'worktrees');
+  const worktreePrefix = await resolveWorktreePrefix(rootDir);
 
   // 检查当前目录是否在主分支目录下
   if (currentDir === mainDir || currentDir.startsWith(mainDir + path.sep)) {
@@ -290,10 +314,9 @@ export async function getLocationInfo(
     const relativePath = path.relative(worktreesDir, currentDir);
     const worktreeDirName = relativePath.split(path.sep)[0];
 
-    // 检查是否是 task-N 格式
-    const idMatch = worktreeDirName.match(/^task-(\d+)$/);
-    if (idMatch) {
-      const worktreeId = parseInt(idMatch[1]);
+    // 检查是否是 {prefix}-N 格式
+    const worktreeId = parseWorktreeId(worktreePrefix, worktreeDirName);
+    if (worktreeId !== null) {
       const worktreePath = path.join(worktreesDir, worktreeDirName);
 
       // 获取当前分支

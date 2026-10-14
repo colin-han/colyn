@@ -73,7 +73,7 @@ main                   # Main branch
 **Usage in Colyn**:
 - The main branch is fixed as ID `0`: displayed as `0` in `colyn list`; displayed as `0-main` in the worktree details table of `colyn list-project`
 - Other worktrees start from `1` and increment
-- The ID is used for directory naming (`task-1`, `task-2`, etc.)
+- The ID is used for directory naming (`{prefix}-{id}`; the prefix comes from the `worktreePrefix` setting, default `task`, i.e. `task-1`, `task-2`, etc.)
 - The ID is used for port assignment (base port + ID)
 - The ID is used in `colyn <N>` to jump to the corresponding worktree
 

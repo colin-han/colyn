@@ -225,3 +225,23 @@ describe('set / get / unset', () => {
     }
   });
 });
+
+describe('worktreePrefix 键', () => {
+  it('worktreePrefix 是合法的 config set 键', () => {
+    expect(isSettingsKey('worktreePrefix')).toBe(true);
+  });
+
+  it('set worktreePrefix edt 写入字符串', async () => {
+    const file = makeTempFile('{"version":5}');
+    await setSettingsValueAtPath(file, 'worktreePrefix', 'edt');
+    expect(JSON.parse(readFileSync(file, 'utf-8')).worktreePrefix).toBe('edt');
+    rmSync(path.dirname(file), { recursive: true, force: true });
+  });
+
+  it('set worktreePrefix 非法值被拒绝且不写入', async () => {
+    const file = makeTempFile('{"version":5}');
+    await expect(setSettingsValueAtPath(file, 'worktreePrefix', '1bad')).rejects.toThrow();
+    expect(JSON.parse(readFileSync(file, 'utf-8')).worktreePrefix).toBeUndefined();
+    rmSync(path.dirname(file), { recursive: true, force: true });
+  });
+});

@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import * as path from 'path';
 import ora from 'ora';
 import {
   getProjectPaths,
@@ -79,10 +80,10 @@ async function updateCommand(
     // 步骤3: 处理批量更新或单个更新
     if (options.all) {
       // 批量更新所有 worktree
-      await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch, paths.rootDir, syncConfig, syncFiles);
+      await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch, paths.rootDir, syncConfig, syncFiles, paths.worktreePrefix);
     } else {
       // 单个更新
-      await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch, paths.rootDir, syncConfig, syncFiles);
+      await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, skipFetch, paths.rootDir, syncConfig, syncFiles, paths.worktreePrefix);
     }
 
     // 输出 JSON 结果
@@ -108,10 +109,11 @@ async function handleSingleUpdate(
   skipPull: boolean,
   rootDir: string,
   syncConfig: boolean,
-  syncFiles: boolean
+  syncFiles: boolean,
+  prefix: string
 ): Promise<void> {
   // 查找目标 worktree
-  const worktree = await findWorktreeTarget(target, mainDir, worktreesDir);
+  const worktree = await findWorktreeTarget(target, mainDir, worktreesDir, prefix);
 
   // 显示 worktree 信息
   displayWorktreeInfo(worktree);
@@ -123,7 +125,7 @@ async function handleSingleUpdate(
   }).start();
 
   try {
-    await checkGitWorkingDirectory(worktree.path, `task-${worktree.id}`);
+    await checkGitWorkingDirectory(worktree.path, path.basename(worktree.path));
     checkSpinner.succeed(t('commands.update.statusClean'));
   } catch (error) {
     checkSpinner.fail(t('commands.update.statusDirty'));
@@ -203,10 +205,11 @@ async function handleBatchUpdate(
   skipPull: boolean,
   rootDir: string,
   syncConfig: boolean,
-  syncFiles: boolean
+  syncFiles: boolean,
+  prefix: string
 ): Promise<void> {
   // 发现所有 worktree
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir, prefix);
 
   if (worktrees.length === 0) {
     throw new ColynError(
@@ -284,10 +287,10 @@ export async function executeUpdate(
   // 步骤3: 处理批量更新或单个更新
   if (options.all) {
     // 批量更新所有 worktree
-    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false, paths.rootDir, syncConfig, syncFiles);
+    await handleBatchUpdate(paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false, paths.rootDir, syncConfig, syncFiles, paths.worktreePrefix);
   } else {
     // 单个更新
-    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false, paths.rootDir, syncConfig, syncFiles);
+    await handleSingleUpdate(target, paths.mainDir, paths.worktreesDir, mainBranch, useRebase, false, paths.rootDir, syncConfig, syncFiles, paths.worktreePrefix);
   }
 }
 

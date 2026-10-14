@@ -25,13 +25,14 @@ colyn repair
 执行后，系统会：
 1. 补全缺失的项目目录结构（`worktrees/`）
 2. 检查并修复主分支目录的**运行时配置**
-3. 同步主分支新增的配置项到各 worktree，并检查修复每个 worktree 的**运行时配置**
-4. 运行 `git worktree repair` 修复 git 连接
-5. 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件初始化（非致命）
-6. **运行当前 active Todo Backend 的 setup**（非致命）：
+3. 把旧前缀的 worktree 目录重命名为当前 `worktreePrefix`（见 6.5）
+4. 同步主分支新增的配置项到各 worktree，并检查修复每个 worktree 的**运行时配置**
+5. 运行 `git worktree repair` 修复 git 连接
+6. 根据 `.colyn/settings.json` 中配置的工具链插件，重新运行插件初始化（非致命）
+7. **运行当前 active Todo Backend 的 setup**（非致命）：
    - Local backend：无额外操作
    - GitHub backend：检查 `gh` 是否已安装并已登录；如未安装则提示安装方式，如未登录则提示运行 `gh auth login`
-7. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
+8. 检测并报告孤儿 worktree 目录（目录存在但 git 不识别）
 
 > **运行时配置文件由工具链插件决定**：npm / pip 项目为 `.env.local`（端口 key `PORT`），
 > maven / gradle 项目为 `src/main/resources/application-local.properties`（端口 key `server.port`）。
@@ -436,7 +437,7 @@ git worktree repair
 
 **检测逻辑**：
 1. 使用 `git worktree list --porcelain` 获取所有 worktree（包括路径已失效的）
-2. 扫描 `worktrees/` 下所有 `task-*` 目录
+2. 扫描 `worktrees/` 下所有 `{prefix}-N` 目录（`prefix` 为当前 `worktreePrefix` 配置）
 3. 智能匹配：通过分支名匹配 git 记录和实际目录
 
 **孤儿目录的类型**：
@@ -463,6 +464,28 @@ git worktree repair /new/path/to/worktrees/task-1
 - 从实际目录的 `.git` 文件或 git 仓库读取分支名
 - 与 git worktree list 中的分支名匹配
 - 匹配成功则认为是路径失效型，可以修复
+
+### 6.5 Worktree 目录名前缀迁移
+
+**触发条件**：配置项 `worktreePrefix` 与 `worktrees/` 下已有目录的前缀不一致（例如配置改为 `edt`，目录仍是 `task-1`）。
+
+**执行时机**：在"发现 worktree"之前。发现逻辑只识别当前前缀，必须先完成重命名。
+
+**识别规则**：
+1. 目录名形如 `{旧前缀}-{N}`，且旧前缀不等于当前前缀
+2. 目录已登记在 `git worktree list --porcelain` 中（只处理 git 认识的目录，避免误改用户放入的无关目录）
+
+**重命名方式**：
+```bash
+git worktree move worktrees/task-1 worktrees/edt-1
+```
+由 git 同步更新 `.git/worktrees/` 元数据与 worktree 内的 `.git` 指针文件。运行时配置中的 `WORKTREE` 存的是数字 ID，不需要改动。
+
+**状态键迁移**：`.colyn/status.json` 中 `task-1` 的条目改为 `edt-1`，状态值保留。
+
+**失败处理**：目标目录已存在，或 `git worktree move` 失败时，记录该项并在摘要中报错，继续处理其他目录。
+
+**实现位置**：`src/core/worktree-prefix-migration.ts`
 
 ---
 
@@ -538,11 +561,11 @@ graph LR
 
 ### 9.2 Worktree 目录名不规范
 
-**场景**：`worktrees/` 下有非 `task-*` 格式的目录
+**场景**：`worktrees/` 下有不符合当前 `{prefix}-N` 格式的目录
 
 **处理**：
-- 跳过不符合格式的目录
-- 在摘要中警告
+- 形如 `{其他前缀}-N` 且 git 已登记的目录：按 6.5 重命名为当前前缀
+- 其余目录：跳过，在摘要中警告
 
 ### 9.3 Git worktree repair 不可用
 

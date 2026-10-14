@@ -37,6 +37,12 @@ colyn repair
 3.1 **Worktree 未跟踪文件**
    - 重建 worktree 缺失的未跟踪文件清单（`syncFiles`）内文件（主分支 → worktree，与运行时配置同步并列执行）
 
+3.2 **Worktree 目录名前缀**（在检查 worktree 之前执行）
+   - 配置项 `worktreePrefix` 变更后，把 git 已登记的旧前缀目录（如 `task-1`）重命名为新前缀（如 `edt-1`）
+   - 使用 `git worktree move`，git 元数据与 worktree 内的 `.git` 指针同步更新
+   - `.colyn/status.json` 中的状态键同步迁移
+   - 未登记在 git 中的目录不处理；目标目录已存在时跳过并报错
+
 > **配置文件由工具链决定**：npm / pip 项目为 `.env.local`（端口 `PORT`），
 > maven / gradle 项目为 `src/main/resources/application-local.properties`（端口 `server.port`）。
 > Mono Repo 下每个子项目独立检查。
@@ -167,6 +173,7 @@ $ colyn config get branchCategories
 | `lang` | 枚举 | 界面语言：`en` / `zh-CN` |
 | `verbose` | 布尔 | 是否默认显示详细输出 |
 | `syncFiles` | 字符串数组 | 未跟踪文件同步清单（支持通配符，默认 `[]` 即关闭） |
+| `worktreePrefix` | 字符串 | Worktree 目录名前缀（目录名为 `{prefix}-{id}`，默认 `task`）。须以字母开头，仅含字母、数字、下划线、连字符。修改后运行 `colyn repair` 自动重命名已有目录 |
 | `systemCommands.npm` | 字符串 | 包管理器命令（默认 `npm`），如 `yarn` / `pnpm` |
 | `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | 布尔 | `colyn merge` 各开关的默认值 |
 | `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | 布尔 | `colyn update` 各开关的默认值 |

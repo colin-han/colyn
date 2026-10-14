@@ -28,6 +28,8 @@ import {
   type GitStatus,
   type GitDiff
 } from './list.helpers.js';
+import { getWorktreeDirName } from '../core/worktree-naming.js';
+import { resolveWorktreePrefix } from '../core/paths.js';
 
 /**
  * 列表项信息（复用 list 命令的数据结构）
@@ -94,6 +96,7 @@ function isCurrentDirectory(targetPath: string): boolean {
 async function getProjectWorktrees(projectPath: string, mainBranchPath: string): Promise<ListItem[]> {
   const items: ListItem[] = [];
   const configDir = path.join(projectPath, '.colyn');
+  const worktreePrefix = await resolveWorktreePrefix(projectPath);
 
   // 获取主分支信息
   const mainBranch = await getMainBranch(mainBranchPath);
@@ -116,10 +119,10 @@ async function getProjectWorktrees(projectPath: string, mainBranchPath: string):
 
   // 获取所有任务 worktree（并行获取 worktree 状态）
   const worktreesDir = path.join(projectPath, 'worktrees');
-  const projectInfo = await discoverProjectInfo(mainBranchPath, worktreesDir);
+  const projectInfo = await discoverProjectInfo(mainBranchPath, worktreesDir, worktreePrefix);
 
   const wtItems = await Promise.all(projectInfo.worktrees.map(async (wt) => {
-    const { status: wtStatus } = await getWorktreeStatus(configDir, `task-${wt.id}`);
+    const { status: wtStatus } = await getWorktreeStatus(configDir, getWorktreeDirName(worktreePrefix, wt.id));
     return {
       id: wt.id,
       branch: wt.branch,

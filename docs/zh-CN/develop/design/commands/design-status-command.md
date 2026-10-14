@@ -66,7 +66,7 @@ type WorktreeStatus = 'idle' | 'running' | 'waiting-confirm' | 'finish';
 }
 ```
 
-- **key 命名规则**：主分支统一使用 `"main"`（不论实际目录名），worktree 使用目录名（如 `task-1`）
+- **key 命名规则**：主分支统一使用 `"main"`（不论实际目录名），worktree 使用目录名（如 `task-1`；前缀随 `worktreePrefix` 配置变化，`colyn repair` 重命名目录时会同步迁移键名）
 - 逻辑：`info.isMainBranch ? 'main' : info.worktreeDir`
 - 项目级 `updatedAt` 等于最后一次 `status set` 的时间
 - 位置：`{projectRoot}/.colyn/status.json`

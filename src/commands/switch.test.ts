@@ -35,6 +35,7 @@ const PATHS = {
   mainDir: '/proj/colyn',
   worktreesDir: '/proj/worktrees',
   configDir: '/proj/.colyn',
+  worktreePrefix: 'task',
 };
 
 describe('handleSwitch — cd 与错误处理', () => {
@@ -121,7 +122,7 @@ describe('handleSwitch — cd 与错误处理', () => {
 });
 
 describe('computeRelativeSubpath', () => {
-  const P = { mainDir: '/proj/colyn', worktreesDir: '/proj/worktrees' };
+  const P = { mainDir: '/proj/colyn', worktreesDir: '/proj/worktrees', worktreePrefix: 'task' };
 
   it('cwd 在 mainDir 子目录 → 返回相对子路径', () => {
     expect(computeRelativeSubpath('/proj/colyn/a/b', P)).toBe(path.join('a', 'b'));
@@ -133,6 +134,12 @@ describe('computeRelativeSubpath', () => {
 
   it('cwd 在 task-K 子目录 → 返回相对子路径', () => {
     expect(computeRelativeSubpath('/proj/worktrees/task-1/a/b', P)).toBe(path.join('a', 'b'));
+  });
+
+  it('自定义前缀 edt：cwd 在 edt-K 子目录 → 返回相对子路径，task-K 不再识别', () => {
+    const PE = { ...P, worktreePrefix: 'edt' };
+    expect(computeRelativeSubpath('/proj/worktrees/edt-1/a/b', PE)).toBe(path.join('a', 'b'));
+    expect(computeRelativeSubpath('/proj/worktrees/task-1/a/b', PE)).toBe('');
   });
 
   it('cwd 就是 task-K 根 → 返回空串', () => {

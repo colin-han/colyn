@@ -35,7 +35,7 @@ colyn add origin/feature/payment
 ### 1.3 执行结果
 
 创建一个新的 worktree：
-- **目录位置**：`worktrees/task-{id}/`
+- **目录位置**：`worktrees/{prefix}-{id}/`（`prefix` 由配置项 `worktreePrefix` 决定，默认 `task`，本文示例均以默认值为准）
 - **分支**：指定的分支（如果不存在会自动创建）
 - **端口**：自动分配（主端口 + worktree ID）
 - **环境变量**：从主分支复制并更新 PORT 和 WORKTREE

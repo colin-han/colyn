@@ -55,7 +55,8 @@ async function removeCommand(
     const worktree = await findWorktreeTarget(
       target,
       paths.mainDir,
-      paths.worktreesDir
+      paths.worktreesDir,
+      paths.worktreePrefix
     );
 
     // 显示 worktree 信息

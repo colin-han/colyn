@@ -49,6 +49,7 @@ import {
 import { getActiveTodoBackend } from '../todo-backends/registry.js';
 import type { ProjectPaths } from '../core/paths.js';
 import { listSelectableLocalBranches } from './branch-selection.helpers.js';
+import { getWorktreeDirName } from '../core/worktree-naming.js';
 const { prompt } = Enquirer;
 
 /**
@@ -170,6 +171,7 @@ async function selectBranchForAdd(
     gitDir: mainDir,
     mainDir,
     worktreesDir,
+    worktreePrefix: paths.worktreePrefix,
     mainBranch,
     worktreeBranchScope: 'all',
     excludeBranches: pendingBranchSet,
@@ -268,12 +270,13 @@ async function addCommand(branchName?: string): Promise<void> {
     }
 
     // 步骤5: 从文件系统发现项目信息（替代 loadConfig）
-    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir);
+    const projectInfo = await discoverProjectInfo(paths.mainDir, paths.worktreesDir, paths.worktreePrefix);
 
     // 步骤6: 检查分支是否已有 worktree
     const existingWorktree = await findWorktreeByBranch(
       paths.mainDir,
       paths.worktreesDir,
+      paths.worktreePrefix,
       cleanBranchName
     );
     if (existingWorktree) {
@@ -294,7 +297,7 @@ async function addCommand(branchName?: string): Promise<void> {
 
     // 步骤9: 在主分支目录创建 worktree（git 仓库所在地）
     const worktreePath = await executeInDirectory(paths.mainDir, async () => {
-      return await createWorktree(paths.rootDir, cleanBranchName, id, projectInfo.worktrees);
+      return await createWorktree(paths.rootDir, paths.worktreePrefix, cleanBranchName, id, projectInfo.worktrees);
     });
 
     // 步骤10: 配置环境变量（工具链在步骤2已解析）
@@ -369,7 +372,7 @@ async function addCommand(branchName?: string): Promise<void> {
 
     // 步骤10.6: 更新 worktree 状态为 idle
     try {
-      await setWorktreeStatus(paths.configDir, `task-${id}`, paths.rootDir, 'idle');
+      await setWorktreeStatus(paths.configDir, getWorktreeDirName(paths.worktreePrefix, id), paths.rootDir, 'idle');
     } catch { /* 状态更新失败不影响主流程 */ }
 
     // 步骤11: 计算相对路径并显示成功信息

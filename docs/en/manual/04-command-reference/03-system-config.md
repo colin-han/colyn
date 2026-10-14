@@ -37,6 +37,12 @@ colyn repair
 3.1 **Worktree untracked files**
    - Rebuild files from the untracked file list (`syncFiles`) missing in the worktree (main branch → worktree, run alongside runtime config sync)
 
+3.2 **Worktree directory name prefix** (runs before worktree checks)
+   - After `worktreePrefix` changes, rename git-registered directories with the old prefix (e.g. `task-1`) to the new prefix (e.g. `edt-1`)
+   - Uses `git worktree move`, so git metadata and the `.git` pointer inside the worktree are updated together
+   - Status keys in `.colyn/status.json` are migrated as well
+   - Directories not registered in git are left alone; if the target already exists the entry is skipped and reported
+
 > **The config file is decided by the toolchain**: npm / pip projects use `.env.local`
 > (port `PORT`), maven / gradle projects use
 > `src/main/resources/application-local.properties` (port `server.port`).
@@ -211,6 +217,7 @@ Set the value of a configuration item.
 | `lang` | enum | Interface language: `en` / `zh-CN` |
 | `verbose` | boolean | Whether to show verbose output by default |
 | `syncFiles` | string array | Untracked File Sync list (supports wildcards, `[]` by default = off) |
+| `worktreePrefix` | string | Worktree directory name prefix (directory name is `{prefix}-{id}`, default `task`). Must start with a letter and contain only letters, digits, underscores and hyphens. Run `colyn repair` after changing it to rename existing directories |
 | `systemCommands.npm` | string | Package manager command (default `npm`), e.g. `yarn` / `pnpm` |
 | `commands.merge.build` / `.rebase` / `.update` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | boolean | Default values for `colyn merge` switches |
 | `commands.update.rebase` / `.fetch` / `.all` / `.syncConfig` / `.syncFiles` | boolean | Default values for `colyn update` switches |

@@ -87,7 +87,7 @@ main                   # 主分支
 **在 Colyn 中的用法**：
 - 主分支固定为 ID `0`（`colyn list` 中显示为 `0`；`colyn list-project` 的 worktree 详情表中显示为 `0-main`）
 - 其他 worktree 从 `1` 开始递增
-- ID 用于目录命名（`task-1`、`task-2` 等）
+- ID 用于目录命名（`{prefix}-{id}`，默认前缀 `task`，即 `task-1`、`task-2` 等；见 [Worktree prefix](#worktree-prefixworktree-目录名前缀)）
 - ID 用于端口分配（base port + ID）
 - ID 显示在 iTerm2 tab title 中（`🐶 {projectName} #{worktreeId} - {分支短名}`）
 
@@ -134,6 +134,27 @@ my-task-app/              # ← 项目名 = "my-task-app"
 ```
 
 **相关术语**：[Worktree ID](#worktree-id)
+
+---
+
+### Worktree prefix（Worktree 目录名前缀）
+
+**定义**：worktree 目录名 `{prefix}-{id}` 中 `{id}` 之前的部分，由配置项 `worktreePrefix` 决定，默认 `task`。
+
+**来源**：Colyn 自定义概念
+
+**在 Colyn 中的用法**：
+- 通过 `colyn config set worktreePrefix <prefix>` 设置（项目级优先于用户级）
+- 必须以字母开头，仅含字母、数字、下划线、连字符
+- 修改后已有目录不会自动识别，运行 `colyn repair` 会把 git 已登记的旧前缀目录重命名为新前缀
+- 所有生成、解析目录名的代码必须经由 `src/core/worktree-naming.ts`，禁止硬编码 `task-`
+
+**示例**：
+```bash
+colyn config set worktreePrefix edt
+colyn repair          # task-1 → edt-1
+colyn add feature/x   # 创建 worktrees/edt-2
+```
 
 ---
 

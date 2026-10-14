@@ -46,6 +46,7 @@ import { getActiveTodoBackend } from '../todo-backends/registry.js';
 import { listSelectableLocalBranches } from './branch-selection.helpers.js';
 import { setIterm2Title } from '../core/iterm2.js';
 import { setWorktreeStatus } from '../core/worktree-status.js';
+import { getWorktreeDirName } from '../core/worktree-naming.js';
 
 /**
  * 检查分支是否已合并到主分支
@@ -78,10 +79,11 @@ async function isBranchMerged(
 async function isBranchUsedByOtherWorktree(
   mainDir: string,
   worktreesDir: string,
+  prefix: string,
   targetBranch: string,
   currentWorktreeId: number
 ): Promise<{ used: boolean; worktreeId?: number; worktreePath?: string }> {
-  const worktrees = await discoverWorktrees(mainDir, worktreesDir);
+  const worktrees = await discoverWorktrees(mainDir, worktreesDir, prefix);
 
   for (const wt of worktrees) {
     if (wt.id !== currentWorktreeId && wt.branch === targetBranch) {
@@ -374,6 +376,7 @@ async function selectBranchForCheckout(
     gitDir: worktreePath,
     mainDir,
     worktreesDir,
+    worktreePrefix: paths.worktreePrefix,
     mainBranch,
     currentBranch,
     currentWorktreeId,
@@ -463,7 +466,8 @@ export async function checkoutCommand(
         worktree = await findWorktreeTarget(
           String(location.worktreeId),
           paths.mainDir,
-          paths.worktreesDir
+          paths.worktreesDir,
+          paths.worktreePrefix
         );
       } catch (error) {
         if (error instanceof ColynError) {
@@ -479,7 +483,8 @@ export async function checkoutCommand(
       worktree = await findWorktreeTarget(
         target,
         paths.mainDir,
-        paths.worktreesDir
+        paths.worktreesDir,
+        paths.worktreePrefix
       );
     }
 
@@ -508,7 +513,7 @@ export async function checkoutCommand(
       outputResult({
         success: true,
         targetDir: worktree.path,
-        displayPath: `worktrees/task-${worktree.id}`
+        displayPath: `worktrees/${getWorktreeDirName(paths.worktreePrefix, worktree.id)}`
       });
       return;
     }
@@ -517,7 +522,7 @@ export async function checkoutCommand(
     const checkSpinner = ora({ text: t('commands.checkout.checkingStatus'), stream: process.stderr }).start();
 
     try {
-      await checkGitWorkingDirectory(worktree.path, `task-${worktree.id}`);
+      await checkGitWorkingDirectory(worktree.path, getWorktreeDirName(paths.worktreePrefix, worktree.id));
       checkSpinner.succeed(t('commands.checkout.dirClean'));
     } catch (error) {
       checkSpinner.fail(t('commands.checkout.dirHasChanges'));
@@ -536,13 +541,14 @@ export async function checkoutCommand(
     const branchUsage = await isBranchUsedByOtherWorktree(
       paths.mainDir,
       paths.worktreesDir,
+      paths.worktreePrefix,
       branch,
       worktree.id
     );
 
     if (branchUsage.used) {
       throw new ColynError(
-        t('commands.checkout.branchUsedByOther', { branch, id: branchUsage.worktreeId ?? 0 }),
+        t('commands.checkout.branchUsedByOther', { branch, dirName: getWorktreeDirName(paths.worktreePrefix, branchUsage.worktreeId ?? 0) }),
         t('commands.checkout.branchUsedByOtherHint', { path: branchUsage.worktreePath ?? '' })
       );
     }
@@ -612,7 +618,7 @@ export async function checkoutCommand(
 
     // 更新 worktree 状态为 idle
     try {
-      await setWorktreeStatus(paths.configDir, `task-${worktree.id}`, paths.rootDir, 'idle');
+      await setWorktreeStatus(paths.configDir, getWorktreeDirName(paths.worktreePrefix, worktree.id), paths.rootDir, 'idle');
     } catch { /* 状态更新失败不影响主流程 */ }
 
     // 步骤9.5: 更新 iTerm2 tab title
@@ -686,7 +692,7 @@ export async function checkoutCommand(
 
     outputLine();
     outputBold(t('commands.checkout.currentStatus'));
-    output(`  ${t('commands.checkout.statusWorktree', { id: worktree.id })}`);
+    output(`  ${t('commands.checkout.statusWorktree', { dirName: getWorktreeDirName(paths.worktreePrefix, worktree.id) })}`);
     output(`  ${t('commands.checkout.statusBranch', { branch })}`);
     output(`  ${t('commands.checkout.statusPath', { path: worktree.path })}`);
     outputLine();
@@ -695,7 +701,7 @@ export async function checkoutCommand(
     const result: CommandResult = {
       success: true,
       targetDir: worktree.path,
-      displayPath: `worktrees/task-${worktree.id}`
+      displayPath: `worktrees/${getWorktreeDirName(paths.worktreePrefix, worktree.id)}`
     };
 
     outputResult(result);

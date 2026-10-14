@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getWorktreeDirName } from '../core/worktree-naming.js';
 import chalk from 'chalk';
 import ora from 'ora';
 import simpleGit from 'simple-git';
@@ -157,11 +158,13 @@ export async function handleBranch(branchName: string, mainBranch: string): Prom
  * 注意：此函数应该在主分支目录（git 仓库所在地）中调用
  * @param rootDir 项目根目录（用于计算相对路径）
  * @param branchName 分支名称
+ * @param prefix worktree 目录名前缀
  * @param id worktree ID
  * @param worktrees 已存在的 worktree 列表（用于查找冲突时提供信息）
  */
 export async function createWorktree(
   rootDir: string,
+  prefix: string,
   branchName: string,
   id: number,
   worktrees: WorktreeInfo[]
@@ -170,7 +173,7 @@ export async function createWorktree(
 
   try {
     // worktree 的绝对路径
-    const worktreePath = path.join(rootDir, 'worktrees', `task-${id}`);
+    const worktreePath = path.join(rootDir, 'worktrees', getWorktreeDirName(prefix, id));
 
     // 计算相对于当前目录（主分支目录）的路径
     // 因为 git worktree add 使用的是相对路径
@@ -181,7 +184,7 @@ export async function createWorktree(
     // 使用 git worktree add 命令（使用相对路径）
     await git.raw(['worktree', 'add', relativePath, branchName]);
 
-    spinner.succeed(t('commands.add.worktreeCreated', { id: String(id) }));
+    spinner.succeed(t('commands.add.worktreeCreated', { dirName: getWorktreeDirName(prefix, id) }));
     return worktreePath;
   } catch (error) {
     spinner.fail(t('commands.add.worktreeCreateFailed'));

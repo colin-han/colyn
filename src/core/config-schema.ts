@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import { isValidWorktreePrefix } from './worktree-naming.js';
 
 /**
  * 系统命令配置 Schema
@@ -188,6 +189,16 @@ const SettingsSchemaBase = z.object({
    * 默认缺省（[]）即功能关闭；见 docs/zh-CN/develop/design/design-untracked-file-sync.md
    */
   syncFiles: z.array(z.string()).optional(),
+  /**
+   * Worktree 目录名前缀（目录名为 `{prefix}-{id}`），缺省为 task
+   * 修改后需运行 colyn repair 重命名已有目录
+   */
+  worktreePrefix: z
+    .string()
+    .refine(isValidWorktreePrefix, {
+      message: 'worktreePrefix 必须以字母开头，且仅含字母、数字、下划线、连字符',
+    })
+    .optional(),
   /** 子命令的默认值配置 */
   commands: CommandsConfigSchema.optional(),
   /** Todo backend 配置 */
